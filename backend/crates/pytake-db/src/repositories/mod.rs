@@ -5,6 +5,8 @@ pub mod flow;
 pub mod whatsapp_message;
 pub mod webhook_event;
 pub mod traits;
+pub mod conversation;
+pub mod message;
 
 // Re-export all repositories
 pub use user::*;

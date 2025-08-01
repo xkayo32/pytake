@@ -11,6 +11,8 @@ mod routes;
 mod handlers;
 mod logging;
 mod middleware;
+mod services;
+mod workers;
 
 use config::ApiConfig;
 use state::AppState;
@@ -58,6 +60,19 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
+    // Start background workers if queue is configured
+    if let Some(queue) = app_state.queue() {
+        info!("Starting background workers...");
+        let worker = workers::WhatsAppWorker::new(queue.clone());
+        if let Err(e) = worker.start().await {
+            error!("Failed to start WhatsApp worker: {}", e);
+        } else {
+            info!("WhatsApp worker started successfully");
+        }
+    } else {
+        info!("Queue not configured, skipping background workers");
+    }
+
     // Configure the HTTP server
     let server = HttpServer::new(move || {
         App::new()
@@ -104,10 +119,10 @@ async fn main() -> std::io::Result<()> {
     );
 
     // Log application startup event
-    logging::events::app_starting(
-        &config.app_name,
-        env!("CARGO_PKG_VERSION"),
-        &config.environment,
+    info!(
+        "Starting {} v{}",
+        "PyTake API",
+        env!("CARGO_PKG_VERSION")
     );
 
     let server = server.bind(&config.server_address())?;
@@ -117,13 +132,13 @@ async fn main() -> std::io::Result<()> {
     let server_task = tokio::spawn(server.run());
 
     // Log that the app is ready
-    logging::events::app_ready(&config.app_name, &config.server_address());
+    info!("PyTake API ready and listening on {}", &config.server_address());
 
     // Wait for shutdown signal
     shutdown_signal().await;
 
     // Log shutdown event
-    logging::events::app_stopping(&config.app_name, Some("Shutdown signal received"));
+    info!("PyTake API shutting down");
 
     // Gracefully shutdown the server
     server_handle.stop(true).await;

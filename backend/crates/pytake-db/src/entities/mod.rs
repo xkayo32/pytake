@@ -4,12 +4,22 @@ pub mod user;
 pub mod flow;
 pub mod whatsapp_message;
 pub mod webhook_event;
+pub mod conversation;
+pub mod message;
+pub mod message_media;
+pub mod conversation_tag;
+pub mod quick_reply;
 
 // Re-export all entities
 pub use user::*;
 pub use flow::*;
 pub use whatsapp_message::*;
 pub use webhook_event::*;
+pub use conversation::*;
+pub use message::*;
+pub use message_media::*;
+pub use conversation_tag::*;
+pub use quick_reply::*;
 
 // Common imports for all entities
 pub use sea_orm::entity::prelude::*;

@@ -3,6 +3,7 @@ use pytake_core::auth::{
     session::InMemorySessionManager, 
     token::TokenConfig,
 };
+use pytake_core::queue::MessageQueue;
 use pytake_db::connection::DatabaseConnection;
 use sea_orm::DatabaseConnection as SeaOrmConnection;
 use std::sync::Arc;
@@ -20,6 +21,10 @@ pub struct AppState {
     pub health: Arc<RwLock<HealthState>>,
     /// Authentication service
     pub auth_service: AuthService,
+    /// Message queue (optional)
+    pub queue: Option<Arc<dyn MessageQueue>>,
+    /// WhatsApp client (optional)
+    pub whatsapp_client: Option<Arc<pytake_whatsapp::WhatsAppClient>>,
 }
 
 /// Health state tracking
@@ -53,11 +58,47 @@ impl AppState {
         let session_manager = Arc::new(InMemorySessionManager::new(Duration::hours(24)));
         let auth_service = AuthService::new(db_arc.clone(), token_config, session_manager);
 
+        // Initialize WhatsApp client if configured
+        let whatsapp_client = if let Some(whatsapp_config) = &config.whatsapp {
+            let client_config = pytake_whatsapp::WhatsAppConfig {
+                access_token: whatsapp_config.access_token.clone(),
+                phone_number_id: whatsapp_config.phone_number_id.clone(),
+                base_url: whatsapp_config.base_url.clone().unwrap_or_else(|| "https://graph.facebook.com/v18.0".to_string()),
+                webhook_verify_token: whatsapp_config.webhook_verify_token.clone().unwrap_or_default(),
+                app_secret: whatsapp_config.app_secret.clone().unwrap_or_default(),
+            };
+            
+            match pytake_whatsapp::WhatsAppClient::new(client_config) {
+                Ok(client) => Some(Arc::new(client)),
+                Err(e) => {
+                    tracing::warn!("Failed to initialize WhatsApp client: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        // Initialize Redis queue if configured
+        let queue = if let Some(redis_config) = &config.redis {
+            match pytake_core::queue::RedisQueue::new(&redis_config.url, Some("pytake:queue:".to_string())).await {
+                Ok(redis_queue) => Some(Arc::new(redis_queue) as Arc<dyn MessageQueue>),
+                Err(e) => {
+                    tracing::warn!("Failed to initialize Redis queue: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         Ok(Self {
             db: db_arc,
             config: Arc::new(config),
             health: Arc::new(RwLock::new(health_state)),
             auth_service,
+            queue,
+            whatsapp_client,
         })
     }
 
@@ -130,6 +171,21 @@ impl AppState {
     /// Get authentication service
     pub fn auth_service(&self) -> &AuthService {
         &self.auth_service
+    }
+
+    /// Get configuration
+    pub fn config(&self) -> &crate::config::ApiConfig {
+        &self.config
+    }
+
+    /// Get message queue
+    pub fn queue(&self) -> Option<&Arc<dyn MessageQueue>> {
+        self.queue.as_ref()
+    }
+
+    /// Get WhatsApp client
+    pub fn whatsapp_client(&self) -> Option<&Arc<pytake_whatsapp::WhatsAppClient>> {
+        self.whatsapp_client.as_ref()
     }
 }
 

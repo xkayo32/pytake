@@ -53,6 +53,18 @@ pub enum CoreError {
     /// Generic internal errors
     #[error("Internal error: {0}")]
     InternalError(String),
+    
+    /// Serialization errors
+    #[error("Serialization error: {0}")]
+    Serialization(String),
+    
+    /// Deserialization errors
+    #[error("Deserialization error: {0}")]
+    Deserialization(String),
+    
+    /// External system errors
+    #[error("External error: {0}")]
+    External(String),
 }
 
 impl CoreError {
@@ -125,6 +137,9 @@ impl CoreError {
             CoreError::NetworkError(_) => ErrorCategory::Network,
             CoreError::RateLimitExceeded(_) => ErrorCategory::RateLimit,
             CoreError::InternalError(_) => ErrorCategory::Internal,
+            CoreError::Serialization(_) => ErrorCategory::Serialization,
+            CoreError::Deserialization(_) => ErrorCategory::Serialization,
+            CoreError::External(_) => ErrorCategory::ExternalService,
         }
     }
 

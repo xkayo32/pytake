@@ -7,7 +7,7 @@
 use argon2::{
     password_hash::{
         rand_core::OsRng, PasswordHash, PasswordHasher as _, PasswordVerifier as _,
-        SaltString, Error as Argon2Error,
+        SaltString,
     },
     Argon2, Algorithm, Params, Version,
 };

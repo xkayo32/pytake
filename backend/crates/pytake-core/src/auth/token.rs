@@ -5,11 +5,10 @@
 
 use chrono::{DateTime, Duration, Utc};
 use jsonwebtoken::{
-    decode, encode, errors::Error as JwtError, Algorithm, DecodingKey, EncodingKey, Header,
-    TokenData, Validation,
+    decode, encode, Algorithm, DecodingKey, EncodingKey, Header,
+    Validation,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use uuid::Uuid;
 
 /// JWT token configuration

@@ -42,6 +42,7 @@ pub mod handlers;
 pub mod services;
 pub mod logging;
 pub mod middleware;
+pub mod workers;
 
 // Re-export commonly used types for convenience
 pub use config::{ApiConfig, ConfigError};

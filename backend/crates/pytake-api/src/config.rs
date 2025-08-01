@@ -23,6 +23,8 @@ pub struct ApiConfig {
     pub database: DatabaseConfig,
     pub cors: CorsConfig,
     pub logging: LoggingConfig,
+    pub redis: Option<RedisConfig>,
+    pub whatsapp: Option<WhatsAppConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,6 +65,21 @@ pub enum LogFormat {
     Json,
     Pretty,
     Compact,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RedisConfig {
+    pub url: String,
+    pub pool_size: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WhatsAppConfig {
+    pub access_token: String,
+    pub phone_number_id: String,
+    pub base_url: Option<String>,
+    pub webhook_verify_token: Option<String>,
+    pub app_secret: Option<String>,
 }
 
 impl ApiConfig {
@@ -179,11 +196,41 @@ impl ApiConfig {
             },
         };
 
+        let redis = if let Ok(url) = env::var("REDIS_URL") {
+            Some(RedisConfig {
+                url,
+                pool_size: env::var("REDIS_POOL_SIZE")
+                    .unwrap_or_else(|_| "10".to_string())
+                    .parse()
+                    .map_err(|e| ConfigError::ParseError {
+                        variable: "REDIS_POOL_SIZE".to_string(),
+                        source: e,
+                    })?,
+            })
+        } else {
+            None
+        };
+
+        let whatsapp = if let Ok(access_token) = env::var("WHATSAPP_ACCESS_TOKEN") {
+            Some(WhatsAppConfig {
+                access_token,
+                phone_number_id: env::var("WHATSAPP_PHONE_NUMBER_ID")
+                    .map_err(|_| ConfigError::MissingVariable("WHATSAPP_PHONE_NUMBER_ID".to_string()))?,
+                base_url: env::var("WHATSAPP_BASE_URL").ok(),
+                webhook_verify_token: env::var("WHATSAPP_WEBHOOK_VERIFY_TOKEN").ok(),
+                app_secret: env::var("WHATSAPP_APP_SECRET").ok(),
+            })
+        } else {
+            None
+        };
+
         Ok(ApiConfig {
             server,
             database,
             cors,
             logging,
+            redis,
+            whatsapp,
         })
     }
 
@@ -252,6 +299,8 @@ impl Default for ApiConfig {
                 level: "info".to_string(),
                 format: LogFormat::Pretty,
             },
+            redis: None,
+            whatsapp: None,
         }
     }
 }

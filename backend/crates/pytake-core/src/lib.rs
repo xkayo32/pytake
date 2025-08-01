@@ -13,6 +13,7 @@
 pub mod auth;
 pub mod entities;
 pub mod errors;
+pub mod queue;
 pub mod services;
 pub mod utils;
 

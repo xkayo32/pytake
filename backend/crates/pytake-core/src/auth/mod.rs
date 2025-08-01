@@ -17,7 +17,6 @@ pub use rbac::{Role, Permission, RoleChecker, PermissionError};
 pub use session::{Session, SessionManager, SessionError};
 
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
 /// Authentication result
 #[derive(Debug, Clone, Serialize, Deserialize)]

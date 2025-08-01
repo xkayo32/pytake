@@ -37,6 +37,12 @@ argon2 = { workspace = true }
 jsonwebtoken = { workspace = true }
 zeroize = "1.7"
 
+# Redis for queue system
+redis = { version = "0.25", features = ["tokio-comp", "connection-manager", "streams"] }
+
+# Random for testing
+rand = "0.8"
+
 [dev-dependencies]
 # Testing utilities
 mockall = { workspace = true }
