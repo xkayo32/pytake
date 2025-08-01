@@ -64,7 +64,6 @@ docker-compose.override.yml
 !/uploads/.gitkeep
 
 # Database
-*.sql
 *.sqlite
 *.sqlite3
 *.db
