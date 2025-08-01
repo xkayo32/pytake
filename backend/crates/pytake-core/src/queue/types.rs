@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
+use crate::messaging::Platform;
 
 /// Priority levels for queue messages
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -25,27 +26,31 @@ impl Default for Priority {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum JobType {
-    /// Process an incoming WhatsApp message
+    /// Process an incoming message from any platform
     ProcessInboundMessage {
+        platform: Platform,
         message_id: String,
         from: String,
         timestamp: i64,
         content: MessageContent,
     },
-    /// Send an outbound WhatsApp message
+    /// Send an outbound message to any platform
     SendMessage {
+        platform: Platform,
         to: String,
         content: MessageContent,
         retry_count: u32,
     },
     /// Update message status
     UpdateMessageStatus {
+        platform: Platform,
         message_id: String,
         status: MessageStatus,
         timestamp: DateTime<Utc>,
     },
-    /// Process webhook event
+    /// Process webhook event from any platform
     ProcessWebhook {
+        platform: Platform,
         event_type: String,
         payload: serde_json::Value,
     },
@@ -53,8 +58,9 @@ pub enum JobType {
     SyncContacts {
         phone_numbers: Vec<String>,
     },
-    /// Download media
+    /// Download media from any platform
     DownloadMedia {
+        platform: Platform,
         media_id: String,
         media_url: String,
         message_id: String,
@@ -79,6 +85,18 @@ pub enum JobType {
     SyncStaleContacts {
         limit: u64,
     },
+    /// Process scheduled notifications
+    ProcessScheduledNotifications,
+    /// Send notification
+    SendNotification {
+        notification_id: uuid::Uuid,
+    },
+    /// Send bulk notifications
+    SendBulkNotifications {
+        notification_ids: Vec<uuid::Uuid>,
+    },
+    /// Clean up expired notifications
+    CleanupExpiredNotifications,
 }
 
 /// Message content types for queue
@@ -95,7 +113,7 @@ pub enum MessageContent {
 }
 
 /// Message status for tracking
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum MessageStatus {
     Queued,

@@ -64,6 +64,14 @@ async fn main() -> std::io::Result<()> {
     if let Some(queue) = app_state.queue() {
         info!("Starting background workers...");
         
+        // Start status update worker
+        let status_worker = workers::StatusUpdateWorker::new(app_state.db.clone());
+        tokio::spawn(async move {
+            pytake_core::queue::Worker::new(queue.clone(), status_worker)
+                .run()
+                .await;
+        });
+        
         // Create worker with dependencies if available
         let worker = if let Some(whatsapp_client) = app_state.whatsapp_client() {
             workers::WhatsAppWorker::with_dependencies(

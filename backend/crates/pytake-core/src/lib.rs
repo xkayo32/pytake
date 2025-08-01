@@ -7,15 +7,18 @@
 //!
 //! - [`entities`] - Domain entities and value objects
 //! - [`services`] - Business logic and domain services
+//! - [`messaging`] - Multi-platform messaging system
 //! - [`errors`] - Error types and error handling utilities
 //! - [`utils`] - Utility functions and helpers
 
 pub mod auth;
 pub mod entities;
 pub mod errors;
+pub mod messaging;
 pub mod queue;
 pub mod services;
 pub mod utils;
+pub mod websocket;
 
 // Re-export commonly used types
 pub use errors::{CoreError, CoreResult};

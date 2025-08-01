@@ -20,6 +20,9 @@ pub enum DatabaseError {
     #[error("Transaction error: {0}")]
     TransactionError(String),
 
+    #[error("Transaction error: {0}")]
+    Transaction(String),
+
     #[error("Entity not found: {0}")]
     NotFound(String),
 

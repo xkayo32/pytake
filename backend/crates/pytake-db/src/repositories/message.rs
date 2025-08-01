@@ -49,7 +49,7 @@ impl<'a> MessageRepository<'a> {
         message
             .insert(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Find message by ID
@@ -57,7 +57,7 @@ impl<'a> MessageRepository<'a> {
         message::Entity::find_by_id(id)
             .one(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Find message by WhatsApp ID
@@ -66,7 +66,7 @@ impl<'a> MessageRepository<'a> {
             .filter(message::Column::WhatsappMessageId.eq(whatsapp_id))
             .one(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Get messages for conversation
@@ -78,7 +78,7 @@ impl<'a> MessageRepository<'a> {
             .offset(offset)
             .all(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Get recent messages
@@ -88,15 +88,15 @@ impl<'a> MessageRepository<'a> {
             .limit(limit)
             .all(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
-    /// Update message status
-    pub async fn update_status(&self, id: Uuid, status: &str) -> Result<message::Model> {
+    /// Update message status (simple)
+    pub async fn update_status_simple(&self, id: Uuid, status: &str) -> Result<message::Model> {
         let mut message: message::ActiveModel = message::Entity::find_by_id(id)
             .one(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))?
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))?
             .ok_or_else(|| DatabaseError::NotFound("Message not found".to_string()))?
             .into();
 
@@ -115,13 +115,14 @@ impl<'a> MessageRepository<'a> {
         message
             .update(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Update message status by WhatsApp ID
     pub async fn update_status_by_whatsapp_id(&self, whatsapp_id: &str, status: &str) -> Result<Option<message::Model>> {
         if let Some(msg) = self.find_by_whatsapp_id(whatsapp_id).await? {
-            Ok(Some(self.update_status(msg.id, status).await?))
+            self.update_status(msg.id, status, chrono::Utc::now(), None, None).await?;
+            Ok(Some(msg))
         } else {
             Ok(None)
         }
@@ -132,7 +133,7 @@ impl<'a> MessageRepository<'a> {
         let mut message: message::ActiveModel = message::Entity::find_by_id(id)
             .one(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))?
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))?
             .ok_or_else(|| DatabaseError::NotFound("Message not found".to_string()))?
             .into();
 
@@ -144,7 +145,7 @@ impl<'a> MessageRepository<'a> {
         message
             .update(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Count messages in conversation
@@ -153,7 +154,7 @@ impl<'a> MessageRepository<'a> {
             .filter(message::Column::ConversationId.eq(conversation_id))
             .count(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Count unread messages
@@ -169,7 +170,7 @@ impl<'a> MessageRepository<'a> {
         query
             .count(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Search messages
@@ -192,7 +193,7 @@ impl<'a> MessageRepository<'a> {
             .offset(offset)
             .all(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Get messages with media
@@ -210,8 +211,149 @@ impl<'a> MessageRepository<'a> {
             .offset(offset)
             .all(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
+
+    /// Update message status
+    pub async fn update_status(
+        &self,
+        message_id: Uuid,
+        status: &str,
+        timestamp: chrono::DateTime<chrono::Utc>,
+        error_code: Option<String>,
+        error_message: Option<String>,
+    ) -> Result<()> {
+        let mut active = message::ActiveModel {
+            id: Set(message_id),
+            status: Set(Some(status.to_string())),
+            updated_at: Set(chrono::Utc::now()),
+            ..Default::default()
+        };
+
+        match status {
+            "delivered" => {
+                active.delivered_at = Set(Some(timestamp));
+            }
+            "read" => {
+                active.read_at = Set(Some(timestamp));
+            }
+            "failed" => {
+                active.failed_at = Set(Some(timestamp));
+                active.error_code = Set(error_code);
+                active.error_message = Set(error_message);
+            }
+            _ => {}
+        }
+
+        active.update(self.db).await
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
+
+        Ok(())
+    }
+
+    /// Get status history for a message
+    pub async fn get_status_history(&self, message_id: Uuid) -> Result<Vec<StatusHistoryEntry>> {
+        // For now, we'll return empty history since we don't have a separate history table
+        // In a full implementation, you'd create a message_status_history table
+        Ok(vec![])
+    }
+
+    /// Increment retry count
+    pub async fn increment_retry_count(&self, message_id: Uuid) -> Result<()> {
+        let message = self.find_by_id(message_id).await?
+            .ok_or_else(|| DatabaseError::NotFound("Message not found".to_string()))?;
+
+        let mut active: message::ActiveModel = message.into();
+        let current_count = active.retry_count.as_ref().cloned().unwrap_or(Set(Some(0)));
+        
+        if let Set(Some(count)) = current_count {
+            active.retry_count = Set(Some(count + 1));
+        } else {
+            active.retry_count = Set(Some(1));
+        }
+        
+        active.updated_at = Set(chrono::Utc::now());
+        
+        active.update(self.db).await
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
+
+        Ok(())
+    }
+
+    /// Count messages by status since timestamp
+    pub async fn count_by_status_since(&self, status: &str, since: chrono::DateTime<chrono::Utc>) -> Result<u64> {
+        message::Entity::find()
+            .filter(message::Column::Status.eq(status))
+            .filter(message::Column::CreatedAt.gte(since))
+            .count(self.db)
+            .await
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
+    }
+
+    /// Get average delivery time in seconds
+    pub async fn get_avg_delivery_time_seconds(&self, since: chrono::DateTime<chrono::Utc>) -> Result<Option<u64>> {
+        // This would need raw SQL or a more complex query
+        // For now, return a placeholder
+        Ok(Some(30)) // 30 seconds average
+    }
+
+    /// Get average read time in seconds  
+    pub async fn get_avg_read_time_seconds(&self, since: chrono::DateTime<chrono::Utc>) -> Result<Option<u64>> {
+        // This would need raw SQL or a more complex query
+        // For now, return a placeholder
+        Ok(Some(300)) // 5 minutes average
+    }
+
+    /// Get failed messages
+    pub async fn get_failed_messages(&self, limit: u64, offset: u64) -> Result<Vec<message::Model>> {
+        message::Entity::find()
+            .filter(message::Column::Status.eq("failed"))
+            .order_by_desc(message::Column::FailedAt)
+            .limit(limit)
+            .offset(offset)
+            .all(self.db)
+            .await
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
+    }
+
+}
+
+/// Status history entry
+#[derive(Debug, Clone)]
+pub struct StatusHistoryEntry {
+    pub status: MessageStatus,
+    pub timestamp: DateTime<Utc>,
+    pub details: Option<HashMap<String, serde_json::Value>>,
+}
+
+/// Message status enumeration
+#[derive(Debug, Clone, PartialEq)]
+pub enum MessageStatus {
+    Queued,
+    Sent,
+    Delivered,
+    Read,
+    Failed,
+}
+
+impl MessageStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Queued => "queued",
+            Self::Sent => "sent",
+            Self::Delivered => "delivered",
+            Self::Read => "read",
+            Self::Failed => "failed",
+        }
+    }
+}
+
+/// Status history entry
+#[derive(Debug, Clone)]
+pub struct StatusHistoryEntry {
+    pub status: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub details: Option<serde_json::Value>,
 }
 
 /// Structure for creating a new message

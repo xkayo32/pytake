@@ -10,6 +10,14 @@ pub mod user_service;
 pub mod whatsapp_processor;
 pub mod whatsapp_service;
 pub mod contact_sync;
+pub mod message_status;
+pub mod notification;
+pub mod metrics;
+pub mod multi_platform_processor;
+pub mod conversation_service;
+pub mod agent_assignment;
+pub mod response_templates;
+pub mod conversation_search;
 
 // Re-export commonly used service traits
 pub use flow_service::FlowService;

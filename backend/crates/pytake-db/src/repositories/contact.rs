@@ -4,7 +4,7 @@ use crate::entities::contact;
 use crate::error::{DatabaseError, Result};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, 
-    QueryFilter, QueryOrder, PaginatorTrait, Set, TransactionTrait
+    QueryFilter, QueryOrder, PaginatorTrait, QuerySelect, Set, TransactionTrait
 };
 use uuid::Uuid;
 
@@ -36,7 +36,7 @@ impl<'a> ContactRepository<'a> {
                 }
                 
                 active.update(self.db).await
-                    .map_err(|e| DatabaseError::Query(e.to_string()))
+                    .map_err(|e| DatabaseError::QueryError(e.to_string()))
             }
             None => {
                 // Create new contact
@@ -65,7 +65,7 @@ impl<'a> ContactRepository<'a> {
                 };
 
                 contact.insert(self.db).await
-                    .map_err(|e| DatabaseError::Query(e.to_string()))
+                    .map_err(|e| DatabaseError::QueryError(e.to_string()))
             }
         }
     }
@@ -75,7 +75,7 @@ impl<'a> ContactRepository<'a> {
         contact::Entity::find_by_id(id)
             .one(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Find contact by phone number
@@ -84,7 +84,7 @@ impl<'a> ContactRepository<'a> {
             .filter(contact::Column::PhoneNumber.eq(phone))
             .one(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Find contact by WhatsApp ID
@@ -93,7 +93,7 @@ impl<'a> ContactRepository<'a> {
             .filter(contact::Column::WhatsappId.eq(whatsapp_id))
             .one(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Get contacts that need sync
@@ -107,7 +107,7 @@ impl<'a> ContactRepository<'a> {
             .limit(limit)
             .all(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Get contacts for re-sync (last synced > 7 days ago)
@@ -121,7 +121,7 @@ impl<'a> ContactRepository<'a> {
             .limit(limit)
             .all(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Update WhatsApp verification info
@@ -169,7 +169,7 @@ impl<'a> ContactRepository<'a> {
         contact.updated_at = Set(chrono::Utc::now());
 
         contact.update(self.db).await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Mark sync as failed
@@ -181,7 +181,7 @@ impl<'a> ContactRepository<'a> {
             active.updated_at = Set(chrono::Utc::now());
             
             active.update(self.db).await
-                .map_err(|e| DatabaseError::Query(e.to_string()))?;
+                .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
         }
         Ok(())
     }
@@ -223,7 +223,7 @@ impl<'a> ContactRepository<'a> {
             .offset(offset)
             .all(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Search contacts
@@ -239,7 +239,7 @@ impl<'a> ContactRepository<'a> {
             .offset(offset)
             .all(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Count contacts
@@ -247,7 +247,7 @@ impl<'a> ContactRepository<'a> {
         contact::Entity::find()
             .count(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Count WhatsApp contacts
@@ -256,7 +256,7 @@ impl<'a> ContactRepository<'a> {
             .filter(contact::Column::HasWhatsapp.eq(true))
             .count(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 }
 

@@ -7,8 +7,10 @@ pub mod message_queue;
 pub mod redis_queue;
 pub mod types;
 pub mod mock;
+pub mod worker;
 
 pub use message_queue::*;
 pub use redis_queue::*;
 pub use types::*;
 pub use mock::MockMessageQueue;
+pub use worker::Worker;

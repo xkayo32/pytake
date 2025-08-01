@@ -102,7 +102,7 @@ impl WhatsAppMessageProcessor {
         };
 
         match result {
-            Ok(response) => {
+            Ok(_response) => {
                 info!("Message sent successfully");
                 // TODO: Update message status in database with response.messages info
                 JobResult::Success
@@ -124,13 +124,32 @@ impl WhatsAppMessageProcessor {
         &self,
         message_id: String,
         status: crate::queue::types::MessageStatus,
+        timestamp: chrono::DateTime<chrono::Utc>,
     ) -> JobResult {
         info!("Updating message {} status to {:?}", message_id, status);
 
-        // TODO: Update message status in database
-        // TODO: Notify connected clients via WebSocket
-
-        JobResult::Success
+        // Create status service
+        use crate::services::message_status::MessageStatusService;
+        let status_service = MessageStatusService::new();
+        
+        // Process status update
+        match status_service.process_status_update(message_id.clone(), status.clone(), timestamp).await {
+            Ok(event) => {
+                info!("Status update processed: {:?}", event);
+                
+                // Check if this is a failure that needs retry
+                if status == crate::queue::types::MessageStatus::Failed {
+                    warn!("Message {} failed, may need retry", message_id);
+                    // TODO: Schedule retry if applicable
+                }
+                
+                JobResult::Success
+            }
+            Err(e) => {
+                error!("Failed to process status update: {}", e);
+                JobResult::RetryableFailure(format!("Status update failed: {}", e))
+            }
+        }
     }
 
     /// Process webhook event
@@ -168,7 +187,7 @@ impl WhatsAppMessageProcessor {
         };
 
         // Get database
-        let db = match &self.db {
+        let _db = match &self.db {
             Some(db) => db,
             None => {
                 error!("Database not configured");
@@ -275,21 +294,22 @@ impl JobProcessor for WhatsAppMessageProcessor {
     async fn process(&self, job: QueueJob) -> JobResult {
         match job.job_type {
             JobType::ProcessInboundMessage {
+                platform: _,
                 message_id,
                 from,
                 timestamp,
                 content,
             } => self.process_inbound_message(message_id, from, timestamp, content).await,
             
-            JobType::SendMessage { to, content, retry_count } => {
+            JobType::SendMessage { platform: _, to, content, retry_count } => {
                 self.send_message(to, content, retry_count).await
             }
             
-            JobType::UpdateMessageStatus { message_id, status, .. } => {
-                self.update_message_status(message_id, status).await
+            JobType::UpdateMessageStatus { platform: _, message_id, status, timestamp } => {
+                self.update_message_status(message_id, status, timestamp).await
             }
             
-            JobType::ProcessWebhook { event_type, payload } => {
+            JobType::ProcessWebhook { platform: _, event_type, payload } => {
                 self.process_webhook(event_type, payload).await
             }
             
@@ -297,7 +317,7 @@ impl JobProcessor for WhatsAppMessageProcessor {
                 self.sync_contacts(phone_numbers).await
             }
             
-            JobType::DownloadMedia { media_id, media_url, message_id } => {
+            JobType::DownloadMedia { platform: _, media_id, media_url, message_id } => {
                 self.download_media(media_id, media_url, message_id).await
             }
             
@@ -320,6 +340,14 @@ impl JobProcessor for WhatsAppMessageProcessor {
             
             JobType::SyncStaleContacts { limit } => {
                 self.sync_stale_contacts(limit).await
+            }
+            
+            // Notification jobs are handled by a separate processor
+            JobType::ProcessScheduledNotifications |
+            JobType::SendNotification { .. } |
+            JobType::SendBulkNotifications { .. } |
+            JobType::CleanupExpiredNotifications => {
+                JobResult::PermanentFailure("Notification jobs should be handled by NotificationProcessor".to_string())
             }
         }
     }

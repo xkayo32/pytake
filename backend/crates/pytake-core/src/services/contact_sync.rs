@@ -90,7 +90,7 @@ impl ContactSyncService {
                     self.queue.enqueue(QueueJob::new(job)).await?;
                 }
                 
-                Err(CoreError::WhatsAppApi(e.to_string()))
+                Err(CoreError::external_service("whatsapp", &format!("API error: {}", e)))
             }
         }
     }
@@ -121,7 +121,7 @@ impl ContactSyncService {
             }
             Err(e) => {
                 error!("Failed to verify contact {}: {}", phone_number, e);
-                Err(CoreError::WhatsAppApi(e.to_string()))
+                Err(CoreError::external_service("whatsapp", &format!("API error: {}", e)))
             }
         }
     }

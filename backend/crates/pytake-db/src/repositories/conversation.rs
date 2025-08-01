@@ -42,7 +42,7 @@ impl<'a> ConversationRepository<'a> {
         conversation
             .insert(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Find conversation by ID
@@ -50,7 +50,7 @@ impl<'a> ConversationRepository<'a> {
         conversation::Entity::find_by_id(id)
             .one(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Find conversation by phone number
@@ -61,7 +61,7 @@ impl<'a> ConversationRepository<'a> {
             .order_by_desc(conversation::Column::UpdatedAt)
             .one(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Find or create conversation by phone number
@@ -82,7 +82,7 @@ impl<'a> ConversationRepository<'a> {
             .offset(offset)
             .all(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Get conversations assigned to user
@@ -95,7 +95,7 @@ impl<'a> ConversationRepository<'a> {
             .offset(offset)
             .all(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Get unassigned conversations
@@ -109,7 +109,7 @@ impl<'a> ConversationRepository<'a> {
             .offset(offset)
             .all(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Assign conversation to user
@@ -117,7 +117,7 @@ impl<'a> ConversationRepository<'a> {
         let mut conversation: conversation::ActiveModel = conversation::Entity::find_by_id(id)
             .one(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))?
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))?
             .ok_or_else(|| DatabaseError::NotFound("Conversation not found".to_string()))?
             .into();
 
@@ -128,7 +128,7 @@ impl<'a> ConversationRepository<'a> {
         conversation
             .update(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Unassign conversation
@@ -136,7 +136,7 @@ impl<'a> ConversationRepository<'a> {
         let mut conversation: conversation::ActiveModel = conversation::Entity::find_by_id(id)
             .one(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))?
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))?
             .ok_or_else(|| DatabaseError::NotFound("Conversation not found".to_string()))?
             .into();
 
@@ -147,7 +147,7 @@ impl<'a> ConversationRepository<'a> {
         conversation
             .update(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Update conversation status
@@ -155,7 +155,7 @@ impl<'a> ConversationRepository<'a> {
         let mut conversation: conversation::ActiveModel = conversation::Entity::find_by_id(id)
             .one(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))?
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))?
             .ok_or_else(|| DatabaseError::NotFound("Conversation not found".to_string()))?
             .into();
 
@@ -165,7 +165,7 @@ impl<'a> ConversationRepository<'a> {
         conversation
             .update(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Update last message info
@@ -173,7 +173,7 @@ impl<'a> ConversationRepository<'a> {
         let mut conversation: conversation::ActiveModel = conversation::Entity::find_by_id(id)
             .one(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))?
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))?
             .ok_or_else(|| DatabaseError::NotFound("Conversation not found".to_string()))?
             .into();
 
@@ -185,7 +185,7 @@ impl<'a> ConversationRepository<'a> {
         conversation
             .update(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Archive conversation
@@ -200,7 +200,7 @@ impl<'a> ConversationRepository<'a> {
             .filter(conversation::Column::Status.eq("active"))
             .count(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Count unassigned conversations
@@ -211,7 +211,7 @@ impl<'a> ConversationRepository<'a> {
             .filter(conversation::Column::Status.eq("active"))
             .count(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     /// Search conversations
@@ -229,6 +229,6 @@ impl<'a> ConversationRepository<'a> {
             .offset(offset)
             .all(self.db)
             .await
-            .map_err(|e| DatabaseError::Query(e.to_string()))
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 }

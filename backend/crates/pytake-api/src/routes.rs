@@ -9,6 +9,10 @@ use crate::handlers::{
     whatsapp,
     conversation,
     contact,
+    message_status,
+    websocket,
+    notification,
+    metrics,
 };
 
 /// Configure all application routes
@@ -46,6 +50,10 @@ fn api_v1_routes() -> Scope {
         .service(configure_whatsapp_routes())
         .service(configure_conversation_routes())
         .service(configure_contact_routes())
+        .service(configure_message_status_routes())
+        .service(configure_websocket_routes())
+        .service(configure_notification_routes())
+        .service(configure_metrics_routes())
         // Protected routes examples
         .service(configure_protected_routes())
 }
@@ -121,6 +129,51 @@ fn configure_contact_routes() -> Scope {
         .route("/{id}", web::get().to(contact::get_contact))
         // Update contact
         .route("/{id}", web::patch().to(contact::update_contact))
+}
+
+/// Configure message status routes
+fn configure_message_status_routes() -> Scope {
+    web::scope("/messages")
+        // Get message status
+        .route("/{id}/status", web::get().to(message_status::get_message_status))
+        // Get conversation message statuses
+        .route("/conversation/{id}/statuses", web::get().to(message_status::get_conversation_statuses))
+        // Retry failed messages
+        .route("/retry", web::post().to(message_status::retry_failed_messages))
+        // Get delivery metrics
+        .route("/metrics", web::get().to(message_status::get_delivery_metrics))
+        // Get failed messages
+        .route("/failed", web::get().to(message_status::get_failed_messages))
+}
+
+/// Configure WebSocket routes
+fn configure_websocket_routes() -> Scope {
+    web::scope("/ws")
+        .route("", web::get().to(websocket::ws_handler))
+        .route("/", web::get().to(websocket::ws_handler))
+        .route("/stats", web::get().to(websocket::ws_stats))
+}
+
+/// Configure notification routes
+fn configure_notification_routes() -> Scope {
+    web::scope("/notifications")
+        // Create notification
+        .route("", web::post().to(notification::create_notification))
+        // Get user notifications
+        .route("", web::get().to(notification::get_notifications))
+        // Create from template
+        .route("/template", web::post().to(notification::create_from_template))
+        // Get templates
+        .route("/templates", web::get().to(notification::get_templates))
+        // Get unread count
+        .route("/unread/count", web::get().to(notification::get_unread_count))
+        // Mark as read
+        .route("/read", web::patch().to(notification::mark_as_read))
+        // Test notification (debug only)
+        .configure(|cfg| {
+            #[cfg(debug_assertions)]
+            cfg.route("/test", web::post().to(notification::send_test_notification));
+        })
 }
 
 /// Root handler - returns basic API information
@@ -287,6 +340,24 @@ pub fn get_route_info() -> Vec<RouteInfo> {
             version: "v1".to_string(),
         },
     ]
+}
+
+/// Configure metrics routes
+fn configure_metrics_routes() -> Scope {
+    web::scope("/metrics")
+        .route("/dashboard", web::get().to(metrics::get_dashboard_metrics))
+        .route("/messaging", web::get().to(metrics::get_messaging_metrics))
+        .route("/contacts", web::get().to(metrics::get_contact_metrics))
+        .route("/system", web::get().to(metrics::get_system_metrics))
+        .route("/business", web::get().to(metrics::get_business_metrics))
+        .route("/time-series", web::get().to(metrics::get_time_series))
+        .route("/summary/{metric_name}", web::get().to(metrics::get_metric_summary))
+        .route("/record", web::post().to(metrics::record_metric))
+        .route("/alerts", web::get().to(metrics::get_alerts))
+        .route("/alerts/{id}/acknowledge", web::post().to(metrics::acknowledge_alert))
+        .route("/available", web::get().to(metrics::get_available_metrics))
+        .route("/summary", web::get().to(metrics::get_dashboard_summary))
+        .route("/realtime", web::get().to(metrics::get_realtime_metrics))
 }
 
 #[cfg(test)]

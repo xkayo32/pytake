@@ -12,7 +12,9 @@
       "Bash(mkdir:*)",
       "Bash(cargo check:*)",
       "Bash(cargo test:*)",
-      "Bash(cargo build:*)"
+      "Bash(cargo build:*)",
+      "Bash(find:*)",
+      "Bash(timeout 30 cargo check --message-format=short)"
     ],
     "deny": []
   }

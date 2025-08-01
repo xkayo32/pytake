@@ -32,6 +32,11 @@ tracing = { workspace = true }
 # Async traits
 async-trait = "0.1"
 
+# WebSocket support
+actix = "0.13"
+actix-web = { workspace = true }
+actix-web-actors = "4.3"
+
 # Authentication dependencies
 argon2 = { workspace = true }
 jsonwebtoken = { workspace = true }
