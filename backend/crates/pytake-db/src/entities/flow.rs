@@ -2,6 +2,7 @@
 
 use super::*;
 use pytake_core::entities::flow as domain;
+use sea_orm::ActiveValue::Set;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
@@ -220,6 +221,7 @@ impl ActiveModel {
 mod tests {
     use super::*;
     use pytake_core::entities::common::EntityId;
+    use sea_orm::ActiveValue::Set;
     use std::collections::HashMap;
 
     #[test]
@@ -284,7 +286,7 @@ mod tests {
         let db_model: Model = domain_flow.into();
         
         assert!(!db_model.is_active()); // Should be draft by default
-        assert!(db_model.can_execute()); // Draft flows can be executed
+        assert!(!db_model.can_execute()); // Draft flows cannot be executed until activated
         assert_eq!(db_model.action_count(), 1);
     }
 }

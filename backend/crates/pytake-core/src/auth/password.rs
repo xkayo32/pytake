@@ -97,9 +97,9 @@ impl PasswordHasher {
             return Err(PasswordError::TooLong);
         }
         
-        if password.chars().all(|c| c.is_ascii_lowercase()) {
+        if !password.chars().any(|c| c.is_ascii_uppercase()) {
             return Err(PasswordError::TooWeak(
-                "Password must contain uppercase letters".to_string()
+                "Password must contain at least one uppercase letter".to_string()
             ));
         }
         

@@ -13,6 +13,7 @@ use crate::handlers::{
     websocket,
     notification,
     metrics,
+    orchestration,
 };
 
 /// Configure all application routes
@@ -54,6 +55,7 @@ fn api_v1_routes() -> Scope {
         .service(configure_websocket_routes())
         .service(configure_notification_routes())
         .service(configure_metrics_routes())
+        .service(configure_orchestration_routes())
         // Protected routes examples
         .service(configure_protected_routes())
 }
@@ -358,6 +360,26 @@ fn configure_metrics_routes() -> Scope {
         .route("/available", web::get().to(metrics::get_available_metrics))
         .route("/summary", web::get().to(metrics::get_dashboard_summary))
         .route("/realtime", web::get().to(metrics::get_realtime_metrics))
+}
+
+/// Configure orchestration routes
+fn configure_orchestration_routes() -> Scope {
+    web::scope("/system")
+        // System health and stats
+        .route("/health", web::get().to(orchestration::get_health_status))
+        .route("/stats", web::get().to(orchestration::get_system_stats))
+        
+        // Message handling
+        .route("/messages/incoming", web::post().to(orchestration::handle_incoming_message))
+        .route("/messages/send", web::post().to(orchestration::send_customer_message))
+        .route("/messages/bulk", web::post().to(orchestration::process_bulk_messages))
+        
+        // Webhook handling
+        .route("/webhooks/event", web::post().to(orchestration::handle_webhook_event))
+        
+        // System management (admin only)
+        .route("/initialize", web::post().to(orchestration::initialize_system))
+        .route("/shutdown", web::post().to(orchestration::shutdown_system))
 }
 
 #[cfg(test)]

@@ -125,7 +125,7 @@ pub struct ConversationUpdates {
 }
 
 /// Notification levels
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum NotificationLevel {
     Info,

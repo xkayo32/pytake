@@ -233,6 +233,7 @@ mod tests {
     #[test]
     fn test_queue_job_creation() {
         let job = QueueJob::new(JobType::ProcessInboundMessage {
+            platform: crate::messaging::Platform::WhatsApp,
             message_id: "msg123".to_string(),
             from: "1234567890".to_string(),
             timestamp: 1234567890,
@@ -250,6 +251,7 @@ mod tests {
     #[test]
     fn test_job_retry() {
         let mut job = QueueJob::new(JobType::SendMessage {
+            platform: crate::messaging::Platform::WhatsApp,
             to: "1234567890".to_string(),
             content: MessageContent::Text {
                 body: "Test".to_string(),

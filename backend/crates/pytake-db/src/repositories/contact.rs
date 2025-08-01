@@ -4,8 +4,9 @@ use crate::entities::contact;
 use crate::error::{DatabaseError, Result};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, 
-    QueryFilter, QueryOrder, PaginatorTrait, QuerySelect, Set, TransactionTrait
+    QueryFilter, QueryOrder, PaginatorTrait, QuerySelect, TransactionTrait
 };
+use sea_orm::ActiveValue::Set;
 use uuid::Uuid;
 
 /// Repository for managing contacts

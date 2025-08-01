@@ -4,6 +4,7 @@ use pytake_core::auth::{
     token::TokenConfig,
 };
 use pytake_core::queue::MessageQueue;
+use pytake_core::services::orchestration::{PyTakeOrchestrator, PyTakeOrchestratorBuilder, WhatsAppConfig, PyTakeOrchestratorTrait};
 use pytake_db::connection::DatabaseConnection;
 use sea_orm::DatabaseConnection as SeaOrmConnection;
 use std::sync::Arc;
@@ -25,6 +26,8 @@ pub struct AppState {
     pub queue: Option<Arc<dyn MessageQueue>>,
     /// WhatsApp client (optional)
     pub whatsapp_client: Option<Arc<pytake_whatsapp::WhatsAppClient>>,
+    /// PyTake orchestrator (optional)
+    pub orchestrator: Option<Arc<dyn PyTakeOrchestratorTrait>>,
 }
 
 /// Health state tracking
@@ -92,6 +95,42 @@ impl AppState {
             None
         };
 
+        // Initialize orchestrator if we have both Redis and WhatsApp configured
+        let orchestrator = if let (Some(redis_config), Some(whatsapp_config)) = (&config.redis, &config.whatsapp) {
+            match redis::Client::open(redis_config.url.as_str()) {
+                Ok(redis_client) => {
+                    let orchestrator_whatsapp_config = WhatsAppConfig {
+                        access_token: whatsapp_config.access_token.clone(),
+                        phone_number_id: whatsapp_config.phone_number_id.clone(),
+                        webhook_verify_token: whatsapp_config.webhook_verify_token.clone(),
+                    };
+                    
+                    match PyTakeOrchestratorBuilder::new()
+                        .with_redis(redis_client)
+                        .with_whatsapp(orchestrator_whatsapp_config)
+                        .build()
+                        .await
+                    {
+                        Ok(orchestrator) => {
+                            tracing::info!("PyTake orchestrator initialized successfully");
+                            Some(Arc::new(orchestrator) as Arc<dyn PyTakeOrchestratorTrait>)
+                        },
+                        Err(e) => {
+                            tracing::warn!("Failed to initialize PyTake orchestrator: {}", e);
+                            None
+                        }
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!("Failed to create Redis client for orchestrator: {}", e);
+                    None
+                }
+            }
+        } else {
+            tracing::info!("Orchestrator not initialized - Redis and/or WhatsApp configuration missing");
+            None
+        };
+
         Ok(Self {
             db: db_arc,
             config: Arc::new(config),
@@ -99,6 +138,7 @@ impl AppState {
             auth_service,
             queue,
             whatsapp_client,
+            orchestrator,
         })
     }
 
@@ -186,6 +226,11 @@ impl AppState {
     /// Get WhatsApp client
     pub fn whatsapp_client(&self) -> Option<&Arc<pytake_whatsapp::WhatsAppClient>> {
         self.whatsapp_client.as_ref()
+    }
+    
+    /// Get PyTake orchestrator
+    pub fn orchestrator(&self) -> Option<&Arc<dyn PyTakeOrchestratorTrait>> {
+        self.orchestrator.as_ref()
     }
 }
 

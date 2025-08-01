@@ -6,10 +6,48 @@ use std::collections::HashMap;
 use uuid::Uuid;
 use chrono::{DateTime, Utc, Duration, Timelike};
 use tracing::{info, debug};
+use async_trait::async_trait;
 
-/// Metrics service for collecting and analyzing system metrics
-pub struct MetricsService {
+/// Metrics service trait
+#[async_trait]
+pub trait MetricsService: Send + Sync {
+    /// Record a metric value
+    async fn record_metric(&self, metric_type: MetricType, value: MetricValue, metadata: Option<HashMap<String, serde_json::Value>>) -> CoreResult<()>;
+    
+    /// Get time series data for a metric
+    async fn get_time_series(&self, metric_name: &str, time_range: TimeRange, aggregation: AggregationType) -> CoreResult<TimeSeries>;
+    
+    /// Calculate metric summary
+    async fn get_metric_summary(&self, metric_name: &str, time_range: TimeRange) -> CoreResult<MetricSummary>;
+    
+    /// Get available metrics
+    async fn get_available_metrics(&self) -> CoreResult<Vec<String>>;
+    
+    /// Get dashboard metrics
+    async fn get_dashboard_metrics(&self) -> CoreResult<DashboardMetrics>;
+}
+
+/// Default metrics service implementation
+pub struct DefaultMetricsService {
     // In a real implementation, this would have database or time-series DB connections
+}
+
+/// Metric type enumeration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MetricType {
+    Counter(String),
+    Gauge(String),
+    Histogram(String),
+    Timer(String),
+}
+
+/// Metric value
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MetricValue {
+    Count(u64),
+    Value(f64),
+    Duration(Duration),
 }
 
 /// Time range for metrics queries
@@ -153,8 +191,21 @@ pub struct MetricAlert {
     pub acknowledged: bool,
 }
 
-impl MetricsService {
-    /// Create new metrics service
+/// Metric summary statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MetricSummary {
+    pub metric_name: String,
+    pub count: usize,
+    pub min: f64,
+    pub max: f64,
+    pub average: f64,
+    pub sum: f64,
+    pub last_value: Option<f64>,
+    pub time_range: TimeRange,
+}
+
+impl DefaultMetricsService {
+    /// Create new metrics service  
     pub fn new() -> Self {
         Self {}
     }
@@ -375,27 +426,27 @@ impl MetricsService {
                 average: 0.0,
                 min: 0.0,
                 max: 0.0,
-                std_dev: 0.0,
+                last_value: None,
+                time_range: TimeRange::LastHour,
             });
         }
         
         let sum: f64 = values.iter().sum();
-        let count = values.len() as f64;
-        let average = sum / count;
+        let count = values.len();
+        let average = sum / count as f64;
         let min = values.iter().fold(f64::INFINITY, |a, &b| a.min(b));
         let max = values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-        
-        let variance: f64 = values.iter().map(|v| (v - average).powi(2)).sum::<f64>() / count;
-        let std_dev = variance.sqrt();
+        let last_value = values.last().copied();
         
         Ok(MetricSummary {
             metric_name: metric_name.to_string(),
-            count: count as u64,
+            count,
             sum,
             average,
             min,
             max,
-            std_dev,
+            last_value,
+            time_range: TimeRange::LastHour,
         })
     }
     
@@ -451,19 +502,97 @@ impl MetricsService {
     }
 }
 
-/// Metric summary statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MetricSummary {
-    pub metric_name: String,
-    pub count: u64,
-    pub sum: f64,
-    pub average: f64,
-    pub min: f64,
-    pub max: f64,
-    pub std_dev: f64,
+#[async_trait]
+impl MetricsService for DefaultMetricsService {
+    async fn record_metric(&self, metric_type: MetricType, value: MetricValue, metadata: Option<HashMap<String, serde_json::Value>>) -> CoreResult<()> {
+        let metric_name = match &metric_type {
+            MetricType::Counter(name) | MetricType::Gauge(name) | MetricType::Histogram(name) | MetricType::Timer(name) => name,
+        };
+        
+        let numeric_value = match value {
+            MetricValue::Count(c) => c as f64,
+            MetricValue::Value(v) => v,
+            MetricValue::Duration(d) => d.num_milliseconds() as f64,
+        };
+        
+        info!("Recording metric {}: {}", metric_name, numeric_value);
+        Ok(())
+    }
+    
+    async fn get_time_series(&self, metric_name: &str, time_range: TimeRange, aggregation: AggregationType) -> CoreResult<TimeSeries> {
+        let (start, end) = self.get_time_range_bounds(&time_range)?;
+        let mut data_points = Vec::new();
+        
+        // Generate mock time series data
+        let mut current = start;
+        let interval_minutes = 15;
+        while current <= end {
+            let value = self.generate_mock_metric_value(metric_name, current);
+            data_points.push(MetricDataPoint {
+                timestamp: current,
+                value,
+                metadata: std::collections::HashMap::new(),
+            });
+            current = current + chrono::Duration::minutes(interval_minutes);
+        }
+        
+        Ok(TimeSeries {
+            metric_name: metric_name.to_string(),
+            data_points: data_points.clone(),
+            total_count: data_points.len(),
+            aggregation,
+        })
+    }
+    
+    async fn get_metric_summary(&self, metric_name: &str, time_range: TimeRange) -> CoreResult<MetricSummary> {
+        debug!("Getting metric summary for: {}", metric_name);
+        
+        // Generate mock summary data
+        Ok(MetricSummary {
+            metric_name: metric_name.to_string(),
+            count: 100,
+            min: 10.0,
+            max: 500.0,
+            average: 150.0,
+            sum: 15000.0,
+            last_value: Some(175.0),
+            time_range,
+        })
+    }
+    
+    async fn get_available_metrics(&self) -> CoreResult<Vec<String>> {
+        Ok(vec![
+            "messages_per_hour".to_string(),
+            "response_time_ms".to_string(),
+            "error_rate".to_string(),
+            "active_users".to_string(),
+            "queue_size".to_string(),
+            "memory_usage_mb".to_string(),
+            "cpu_usage_percent".to_string(),
+        ])
+    }
+    
+    async fn get_dashboard_metrics(&self) -> CoreResult<DashboardMetrics> {
+        let time_range = TimeRange::Last24Hours;
+        info!("Generating dashboard metrics for time range: {:?}", time_range);
+        
+        let messaging = self.get_messaging_metrics(&time_range).await?;
+        let contacts = self.get_contact_metrics(&time_range).await?;
+        let system = self.get_system_metrics().await?;
+        let business = self.get_business_metrics(&time_range).await?;
+        
+        Ok(DashboardMetrics {
+            messaging,
+            contacts,
+            system,
+            business,
+            generated_at: chrono::Utc::now(),
+            time_range,
+        })
+    }
 }
 
-impl Default for MetricsService {
+impl Default for DefaultMetricsService {
     fn default() -> Self {
         Self::new()
     }
@@ -491,7 +620,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_dashboard_metrics() {
-        let service = MetricsService::new();
+        let service = DefaultMetricsService::new();
         
         let metrics = service.get_dashboard_metrics(TimeRange::Last24Hours).await.unwrap();
         
@@ -503,7 +632,7 @@ mod tests {
     
     #[tokio::test]
     async fn test_get_time_series() {
-        let service = MetricsService::new();
+        let service = DefaultMetricsService::new();
         
         let time_series = service.get_time_series(
             "messages_per_hour",
@@ -518,7 +647,7 @@ mod tests {
     
     #[tokio::test]
     async fn test_record_metric() {
-        let service = MetricsService::new();
+        let service = DefaultMetricsService::new();
         
         let result = service.record_metric("test_metric", 42.0, None).await;
         assert!(result.is_ok());
@@ -526,7 +655,7 @@ mod tests {
     
     #[tokio::test]
     async fn test_get_metric_summary() {
-        let service = MetricsService::new();
+        let service = DefaultMetricsService::new();
         
         let summary = service.get_metric_summary(
             "response_time_ms",

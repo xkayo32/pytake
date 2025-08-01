@@ -412,6 +412,7 @@ mod tests {
 
         // Test enqueue
         let job = QueueJob::new(JobType::ProcessInboundMessage {
+            platform: crate::messaging::Platform::WhatsApp,
             message_id: "msg123".to_string(),
             from: "1234567890".to_string(),
             timestamp: 1234567890,

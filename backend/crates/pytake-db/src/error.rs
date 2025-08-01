@@ -45,7 +45,7 @@ pub enum DatabaseError {
 impl From<sea_orm::DbErr> for DatabaseError {
     fn from(err: sea_orm::DbErr) -> Self {
         match err {
-            sea_orm::DbErr::ConnectionAcquire => {
+            sea_orm::DbErr::ConnectionAcquire(_) => {
                 DatabaseError::ConnectionError("Failed to acquire database connection".to_string())
             }
             sea_orm::DbErr::RecordNotFound(msg) => {

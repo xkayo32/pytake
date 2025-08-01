@@ -1,12 +1,14 @@
 //! Message repository
 
-use crate::entities::{message, conversation};
+use crate::entities::message;
 use crate::error::{DatabaseError, Result};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, 
-    QueryFilter, QueryOrder, PaginatorTrait, QuerySelect, Set, TransactionTrait
+    QueryFilter, QueryOrder, PaginatorTrait, QuerySelect, TransactionTrait
 };
+use sea_orm::ActiveValue::Set;
 use uuid::Uuid;
+use chrono::{DateTime, Utc};
 
 /// Repository for managing messages
 pub struct MessageRepository<'a> {
@@ -225,7 +227,7 @@ impl<'a> MessageRepository<'a> {
     ) -> Result<()> {
         let mut active = message::ActiveModel {
             id: Set(message_id),
-            status: Set(Some(status.to_string())),
+            status: Set(status.to_string()),
             updated_at: Set(chrono::Utc::now()),
             ..Default::default()
         };
@@ -239,8 +241,14 @@ impl<'a> MessageRepository<'a> {
             }
             "failed" => {
                 active.failed_at = Set(Some(timestamp));
-                active.error_code = Set(error_code);
-                active.error_message = Set(error_message);
+                // Combine error_code and error_message into failure_reason
+                let failure_info = match (error_code.as_deref(), error_message.as_deref()) {
+                    (Some(code), Some(msg)) => Some(format!("{}: {}", code, msg)),
+                    (None, Some(msg)) => Some(msg.to_string()),
+                    (Some(code), None) => Some(format!("Error code: {}", code)),
+                    (None, None) => None,
+                };
+                active.failure_reason = Set(failure_info);
             }
             _ => {}
         }
@@ -264,13 +272,20 @@ impl<'a> MessageRepository<'a> {
             .ok_or_else(|| DatabaseError::NotFound("Message not found".to_string()))?;
 
         let mut active: message::ActiveModel = message.into();
-        let current_count = active.retry_count.as_ref().cloned().unwrap_or(Set(Some(0)));
         
-        if let Set(Some(count)) = current_count {
-            active.retry_count = Set(Some(count + 1));
+        // Get current metadata and update retry_count
+        let mut metadata = if let Set(ref json_value) = active.metadata {
+            json_value.clone()
         } else {
-            active.retry_count = Set(Some(1));
-        }
+            serde_json::json!({})
+        };
+        
+        let current_count = metadata.get("retry_count")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        
+        metadata["retry_count"] = serde_json::json!(current_count + 1);
+        active.metadata = Set(metadata);
         
         active.updated_at = Set(chrono::Utc::now());
         
@@ -318,13 +333,6 @@ impl<'a> MessageRepository<'a> {
 
 }
 
-/// Status history entry
-#[derive(Debug, Clone)]
-pub struct StatusHistoryEntry {
-    pub status: MessageStatus,
-    pub timestamp: DateTime<Utc>,
-    pub details: Option<HashMap<String, serde_json::Value>>,
-}
 
 /// Message status enumeration
 #[derive(Debug, Clone, PartialEq)]
@@ -351,8 +359,8 @@ impl MessageStatus {
 /// Status history entry
 #[derive(Debug, Clone)]
 pub struct StatusHistoryEntry {
-    pub status: String,
-    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub status: MessageStatus,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
     pub details: Option<serde_json::Value>,
 }
 

@@ -227,7 +227,7 @@ pub struct TemplateStats {
 }
 
 /// Template rendering context
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TemplateContext {
     pub variables: HashMap<String, serde_json::Value>,
     pub agent_name: Option<String>,
@@ -474,35 +474,37 @@ impl DefaultResponseTemplateService {
     fn validate_template_variables(&self, content: &TemplateContent) -> Vec<String> {
         let mut errors = Vec::new();
         
-        // Check for variable syntax in text
+        // Extract variable names from text
         let text = &content.text;
-        let mut in_variable = false;
-        let mut current_var = String::new();
+        let mut vars_in_text = Vec::new();
+        let mut i = 0;
+        let chars: Vec<char> = text.chars().collect();
         
-        for ch in text.chars() {
-            match ch {
-                '{' if text.contains("{{") => {
-                    if in_variable {
-                        errors.push("Nested variables not allowed".to_string());
-                    }
-                    in_variable = true;
-                    current_var.clear();
+        while i < chars.len() - 1 {
+            if chars[i] == '{' && i + 1 < chars.len() && chars[i + 1] == '{' {
+                let mut j = i + 2;
+                while j < chars.len() - 1 && !(chars[j] == '}' && chars[j + 1] == '}') {
+                    j += 1;
                 }
-                '}' if text.contains("}}") => {
-                    if in_variable && !current_var.is_empty() {
-                        // Check if variable is defined
-                        if !content.variables.iter().any(|v| v.name == current_var) &&
-                           !["agent_name", "customer_name", "company_name"].contains(&current_var.as_str()) {
-                            errors.push(format!("Undefined variable: {}", current_var));
-                        }
-                    }
-                    in_variable = false;
-                    current_var.clear();
+                if j < chars.len() - 1 {
+                    let var_name: String = chars[(i + 2)..j].iter().collect();
+                    vars_in_text.push(var_name.trim().to_string());
+                    i = j + 2;
+                } else {
+                    i += 1;
                 }
-                c if in_variable => {
-                    current_var.push(c);
-                }
-                _ => {}
+            } else {
+                i += 1;
+            }
+        }
+        
+        // Check if all variables in text are defined
+        let defined_vars: Vec<String> = content.variables.iter().map(|v| v.name.clone()).collect();
+        let system_vars = vec!["agent_name".to_string(), "customer_name".to_string(), "company_name".to_string()];
+        
+        for var in vars_in_text {
+            if !defined_vars.contains(&var) && !system_vars.contains(&var) {
+                errors.push(format!("Undefined variable: {}", var));
             }
         }
         
@@ -953,9 +955,12 @@ mod tests {
     async fn test_render_template() {
         let service = DefaultResponseTemplateService::new().with_sample_templates();
         
-        // Get a sample template
+        // Get the greeting template which contains both customer_name and company_name
         let templates = service.templates.read().unwrap();
-        let template_id = templates.values().next().unwrap().id;
+        let greeting_template = templates.values()
+            .find(|t| t.category == TemplateCategory::Greeting)
+            .unwrap();
+        let template_id = greeting_template.id;
         drop(templates);
         
         let context = TemplateContext {

@@ -6,8 +6,9 @@ use crate::repositories::{PaginatedResult, PaginationParams, QueryParams, pagina
 use pytake_core::entities::{common::EntityId, user::User};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, 
-    QueryFilter, QueryOrder, Set, PaginatorTrait
+    QueryFilter, QueryOrder, PaginatorTrait
 };
+use sea_orm::ActiveValue::Set;
 use async_trait::async_trait;
 use std::sync::Arc;
 

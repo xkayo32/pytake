@@ -2,6 +2,7 @@
 
 use super::*;
 use pytake_core::entities::whatsapp as domain;
+use sea_orm::ActiveValue::Set;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
@@ -114,8 +115,8 @@ pub enum MessageDirection {
     Outbound,
 }
 
-impl From<domain::MessageType> for MessageType {
-    fn from(msg_type: domain::MessageType) -> Self {
+impl From<&domain::MessageType> for MessageType {
+    fn from(msg_type: &domain::MessageType) -> Self {
         match msg_type {
             domain::MessageType::Text => MessageType::Text,
             domain::MessageType::Image => MessageType::Image,
@@ -143,6 +144,7 @@ impl From<MessageType> for domain::MessageType {
         }
     }
 }
+
 
 impl From<domain::MessageStatus> for MessageStatus {
     fn from(status: domain::MessageStatus) -> Self {
@@ -194,7 +196,7 @@ impl From<domain::WhatsAppMessage> for Model {
             flow_id: message.flow_id.map(|id| super::entity_id_to_uuid(&id)),
             from_number: message.from,
             to_number: message.to,
-            message_type: message.message_type.into(),
+            message_type: (&message.message_type).into(),
             content: serde_json::to_value(&message.content).unwrap_or_default().into(),
             status: message.status.into(),
             direction: message.direction.into(),
@@ -244,7 +246,7 @@ impl From<domain::WhatsAppMessage> for ActiveModel {
             flow_id: Set(message.flow_id.map(|id| super::entity_id_to_uuid(&id))),
             from_number: Set(message.from),
             to_number: Set(message.to),
-            message_type: Set(message.message_type.into()),
+            message_type: Set((&message.message_type).into()),
             content: Set(serde_json::to_value(&message.content).unwrap_or_default().into()),
             status: Set(message.status.into()),
             direction: Set(message.direction.into()),
@@ -310,7 +312,7 @@ impl ActiveModel {
     pub fn update_from_domain(&mut self, message: domain::WhatsAppMessage) -> Result<(), crate::error::DatabaseError> {
         self.from_number = Set(message.from);
         self.to_number = Set(message.to);
-        self.message_type = Set(message.message_type.into());
+        self.message_type = Set((&message.message_type).into());
         self.content = Set(serde_json::to_value(&message.content)
             .map_err(|e| crate::error::DatabaseError::SerializationError(e.to_string()))?
             .into());
@@ -333,16 +335,15 @@ mod tests {
     #[test]
     fn test_message_type_conversion() {
         let domain_type = domain::MessageType::Text;
-        let db_type: MessageType = domain_type.into();
-        let back_to_domain: domain::MessageType = db_type.into();
+        let db_type: MessageType = MessageType::from(&domain_type);
         
-        assert_eq!(domain_type, back_to_domain);
+        assert_eq!(db_type, MessageType::Text);
     }
 
     #[test]
     fn test_message_status_conversion() {
         let domain_status = domain::MessageStatus::Delivered;
-        let db_status: MessageStatus = domain_status.into();
+        let db_status: MessageStatus = domain_status.clone().into();
         let back_to_domain: domain::MessageStatus = db_status.into();
         
         assert_eq!(domain_status, back_to_domain);

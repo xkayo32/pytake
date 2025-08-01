@@ -2,6 +2,7 @@
 
 use super::*;
 use pytake_core::entities::user as domain;
+use sea_orm::ActiveValue::Set;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "users")]
@@ -186,6 +187,7 @@ impl ActiveModel {
 mod tests {
     use super::*;
     use pytake_core::entities::common::{EntityId, Timestamp};
+    use sea_orm::ActiveValue::Set;
 
     #[test]
     fn test_user_role_conversion() {

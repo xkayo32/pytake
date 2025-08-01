@@ -436,6 +436,446 @@ impl ConversationStatus {
     }
 }
 
+/// Default implementation of ConversationService
+pub struct DefaultConversationService {
+    // In a real implementation, this would have database connections
+}
+
+impl DefaultConversationService {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+#[async_trait]
+impl ConversationService for DefaultConversationService {
+    async fn create_conversation(&self, request: CreateConversationRequest) -> CoreResult<Conversation> {
+        let conversation = Conversation {
+            id: Uuid::new_v4(),
+            platform: request.platform,
+            platform_conversation_id: request.platform_conversation_id,
+            contact_id: request.contact_id,
+            contact_name: request.contact_name,
+            contact_phone: request.contact_phone,
+            status: ConversationStatus::Open,
+            priority: request.priority.unwrap_or(ConversationPriority::Normal),
+            assignment: None,
+            metadata: request.metadata.unwrap_or_default(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_message_at: None,
+            last_agent_response_at: None,
+            response_time_sla: None,
+            message_count: 0,
+            unread_count: 0,
+        };
+        
+        info!("Created conversation {} for contact {}", conversation.id, conversation.contact_id);
+        Ok(conversation)
+    }
+    
+    async fn get_conversation(&self, id: Uuid) -> CoreResult<Option<Conversation>> {
+        debug!("Getting conversation {}", id);
+        // Return None for now - in a real implementation, this would query the database
+        Ok(None)
+    }
+
+    async fn get_conversation_by_platform_id(&self, platform: Platform, platform_conversation_id: &str) -> CoreResult<Option<Conversation>> {
+        debug!("Getting conversation by platform {:?} and platform_id {}", platform, platform_conversation_id);
+        // Return None for now - in a real implementation, this would query the database
+        Ok(None)
+    }
+    
+    async fn update_conversation(&self, id: Uuid, request: UpdateConversationRequest) -> CoreResult<Conversation> {
+        // Return a mock conversation - in a real implementation, this would update the database
+        let conversation = Conversation {
+            id,
+            platform: Platform::WhatsApp,
+            platform_conversation_id: "mock_conv_id".to_string(),
+            contact_id: Uuid::new_v4(),
+            contact_name: "Mock Contact".to_string(),
+            contact_phone: "+5511999999999".to_string(),
+            status: request.status.unwrap_or(ConversationStatus::Open),
+            priority: request.priority.unwrap_or(ConversationPriority::Normal),
+            assignment: None,
+            metadata: request.metadata.unwrap_or_default(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_message_at: None,
+            last_agent_response_at: None,
+            response_time_sla: None,
+            message_count: 0,
+            unread_count: 0,
+        };
+        
+        info!("Updated conversation {}", id);
+        Ok(conversation)
+    }
+    
+    async fn assign_conversation(&self, id: Uuid, request: AssignConversationRequest) -> CoreResult<Conversation> {
+        // Return a mock conversation with assignment - in a real implementation, this would update the database
+        let assignment = ConversationAssignment {
+            agent_id: request.agent_id,
+            agent_name: "Mock Agent".to_string(),
+            assigned_at: Utc::now(),
+            assigned_by: request.assigned_by,
+            assignment_reason: request.reason,
+        };
+        
+        let conversation = Conversation {
+            id,
+            platform: Platform::WhatsApp,
+            platform_conversation_id: "mock_conv_id".to_string(),
+            contact_id: Uuid::new_v4(),
+            contact_name: "Mock Contact".to_string(),
+            contact_phone: "+5511999999999".to_string(),
+            status: ConversationStatus::Assigned,
+            priority: ConversationPriority::Normal,
+            assignment: Some(assignment),
+            metadata: ConversationMetadata::default(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_message_at: None,
+            last_agent_response_at: None,
+            response_time_sla: None,
+            message_count: 0,
+            unread_count: 0,
+        };
+        
+        info!("Assigned conversation {} to agent {}", id, request.agent_id);
+        Ok(conversation)
+    }
+    
+    async fn unassign_conversation(&self, id: Uuid, unassigned_by: Option<Uuid>) -> CoreResult<Conversation> {
+        // Return a mock conversation without assignment - in a real implementation, this would update the database
+        let conversation = Conversation {
+            id,
+            platform: Platform::WhatsApp,
+            platform_conversation_id: "mock_conv_id".to_string(),
+            contact_id: Uuid::new_v4(),
+            contact_name: "Mock Contact".to_string(),
+            contact_phone: "+5511999999999".to_string(),
+            status: ConversationStatus::Open,
+            priority: ConversationPriority::Normal,
+            assignment: None,
+            metadata: ConversationMetadata::default(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_message_at: None,
+            last_agent_response_at: None,
+            response_time_sla: None,
+            message_count: 0,
+            unread_count: 0,
+        };
+        
+        info!("Unassigned conversation {} by {:?}", id, unassigned_by);
+        Ok(conversation)
+    }
+    
+    async fn close_conversation(&self, id: Uuid, closed_by: Uuid, reason: Option<String>) -> CoreResult<Conversation> {
+        // Return a mock closed conversation
+        let mut metadata = ConversationMetadata::default();
+        if let Some(reason) = reason {
+            metadata.custom_fields.insert("close_reason".to_string(), serde_json::Value::String(reason));
+        }
+        metadata.custom_fields.insert("closed_by".to_string(), serde_json::Value::String(closed_by.to_string()));
+        
+        let conversation = Conversation {
+            id,
+            platform: Platform::WhatsApp,
+            platform_conversation_id: "mock_conv_id".to_string(),
+            contact_id: Uuid::new_v4(),
+            contact_name: "Mock Contact".to_string(),
+            contact_phone: "+5511999999999".to_string(),
+            status: ConversationStatus::Closed,
+            priority: ConversationPriority::Normal,
+            assignment: None,
+            metadata,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_message_at: None,
+            last_agent_response_at: None,
+            response_time_sla: None,
+            message_count: 0,
+            unread_count: 0,
+        };
+        
+        info!("Closed conversation {}", id);
+        Ok(conversation)
+    }
+
+    async fn reopen_conversation(&self, id: Uuid, reopened_by: Uuid) -> CoreResult<Conversation> {
+        info!("Reopened conversation {} by {}", id, reopened_by);
+        // Mock implementation
+        let conversation = Conversation {
+            id,
+            platform: Platform::WhatsApp,
+            platform_conversation_id: "mock_conv_id".to_string(),
+            contact_id: Uuid::new_v4(),
+            contact_name: "Mock Contact".to_string(),
+            contact_phone: "+5511999999999".to_string(),
+            status: ConversationStatus::Open,
+            priority: ConversationPriority::Normal,
+            assignment: None,
+            metadata: ConversationMetadata::default(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_message_at: None,
+            last_agent_response_at: None,
+            response_time_sla: None,
+            message_count: 0,
+            unread_count: 0,
+        };
+        Ok(conversation)
+    }
+    
+    async fn archive_conversation(&self, id: Uuid, archived_by: Uuid) -> CoreResult<Conversation> {
+        info!("Archived conversation {} by {}", id, archived_by);
+        // Mock implementation
+        let conversation = Conversation {
+            id,
+            platform: Platform::WhatsApp,
+            platform_conversation_id: "mock_conv_id".to_string(),
+            contact_id: Uuid::new_v4(),
+            contact_name: "Mock Contact".to_string(),
+            contact_phone: "+5511999999999".to_string(),
+            status: ConversationStatus::Archived,
+            priority: ConversationPriority::Normal,
+            assignment: None,
+            metadata: ConversationMetadata::default(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_message_at: None,
+            last_agent_response_at: None,
+            response_time_sla: None,
+            message_count: 0,
+            unread_count: 0,
+        };
+        Ok(conversation)
+    }
+
+    async fn search_conversations(&self, options: ConversationSearchOptions) -> CoreResult<ConversationPage> {
+        debug!("Searching conversations with options: {:?}", options);
+        // Mock implementation
+        Ok(ConversationPage {
+            conversations: vec![],
+            total_count: 0,
+            page: options.page,
+            page_size: options.page_size,
+            total_pages: 0,
+            has_next: false,
+            has_previous: false,
+        })
+    }
+
+    async fn get_agent_conversations(&self, agent_id: Uuid, status_filter: Option<Vec<ConversationStatus>>) -> CoreResult<Vec<Conversation>> {
+        debug!("Getting conversations for agent {} with status filter: {:?}", agent_id, status_filter);
+        // Mock implementation
+        Ok(vec![])
+    }
+
+    async fn get_conversation_stats(&self, filters: Option<ConversationFilters>) -> CoreResult<ConversationStats> {
+        debug!("Getting conversation stats with filters: {:?}", filters);
+        // Mock implementation
+        use std::collections::HashMap;
+        Ok(ConversationStats {
+            total_conversations: 0,
+            open_conversations: 0,
+            assigned_conversations: 0,
+            closed_conversations: 0,
+            average_response_time_seconds: Some(0.0),
+            conversations_by_platform: HashMap::new(),
+            conversations_by_priority: HashMap::new(),
+            conversations_by_status: HashMap::new(),
+        })
+    }
+
+    async fn auto_assign_conversation(&self, conversation_id: Uuid) -> CoreResult<Option<ConversationAssignment>> {
+        debug!("Auto-assigning conversation {}", conversation_id);
+        // Mock implementation
+        Ok(None)
+    }
+
+    async fn transfer_conversation(&self, conversation_id: Uuid, from_agent: Uuid, to_agent: Uuid, reason: Option<String>) -> CoreResult<Conversation> {
+        info!("Transferring conversation {} from {} to {} with reason: {:?}", conversation_id, from_agent, to_agent, reason);
+        // Mock implementation
+        let assignment = ConversationAssignment {
+            agent_id: to_agent,
+            agent_name: "Target Agent".to_string(),
+            assigned_at: Utc::now(),
+            assigned_by: Some(from_agent),
+            assignment_reason: AssignmentReason::Transfer,
+        };
+        
+        let conversation = Conversation {
+            id: conversation_id,
+            platform: Platform::WhatsApp,
+            platform_conversation_id: "mock_conv_id".to_string(),
+            contact_id: Uuid::new_v4(),
+            contact_name: "Mock Contact".to_string(),
+            contact_phone: "+5511999999999".to_string(),
+            status: ConversationStatus::Assigned,
+            priority: ConversationPriority::Normal,
+            assignment: Some(assignment),
+            metadata: ConversationMetadata::default(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_message_at: None,
+            last_agent_response_at: None,
+            response_time_sla: None,
+            message_count: 0,
+            unread_count: 0,
+        };
+        Ok(conversation)
+    }
+
+    async fn escalate_conversation(&self, conversation_id: Uuid, escalated_by: Uuid, escalation_reason: String, target_department: Option<String>) -> CoreResult<Conversation> {
+        info!("Escalating conversation {} by {} to department {:?}: {}", conversation_id, escalated_by, target_department, escalation_reason);
+        // Mock implementation
+        let mut metadata = ConversationMetadata::default();
+        metadata.custom_fields.insert("escalation_reason".to_string(), serde_json::Value::String(escalation_reason));
+        metadata.custom_fields.insert("escalated_by".to_string(), serde_json::Value::String(escalated_by.to_string()));
+        if let Some(dept) = target_department {
+            metadata.department = Some(dept);
+        }
+        
+        let conversation = Conversation {
+            id: conversation_id,
+            platform: Platform::WhatsApp,
+            platform_conversation_id: "mock_conv_id".to_string(),
+            contact_id: Uuid::new_v4(),
+            contact_name: "Mock Contact".to_string(),
+            contact_phone: "+5511999999999".to_string(),
+            status: ConversationStatus::Escalated,
+            priority: ConversationPriority::Critical,
+            assignment: None,
+            metadata,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_message_at: None,
+            last_agent_response_at: None,
+            response_time_sla: None,
+            message_count: 0,
+            unread_count: 0,
+        };
+        Ok(conversation)
+    }
+
+    async fn update_priority(&self, conversation_id: Uuid, priority: ConversationPriority, updated_by: Uuid) -> CoreResult<Conversation> {
+        info!("Updating priority for conversation {} to {:?} by {}", conversation_id, priority, updated_by);
+        // Mock implementation
+        let conversation = Conversation {
+            id: conversation_id,
+            platform: Platform::WhatsApp,
+            platform_conversation_id: "mock_conv_id".to_string(),
+            contact_id: Uuid::new_v4(),
+            contact_name: "Mock Contact".to_string(),
+            contact_phone: "+5511999999999".to_string(),
+            status: ConversationStatus::Open,
+            priority,
+            assignment: None,
+            metadata: ConversationMetadata::default(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_message_at: None,
+            last_agent_response_at: None,
+            response_time_sla: None,
+            message_count: 0,
+            unread_count: 0,
+        };
+        Ok(conversation)
+    }
+
+    async fn add_tags(&self, conversation_id: Uuid, tags: Vec<String>, added_by: Uuid) -> CoreResult<Conversation> {
+        info!("Adding tags {:?} to conversation {} by {}", tags, conversation_id, added_by);
+        // Mock implementation
+        let mut metadata = ConversationMetadata::default();
+        metadata.tags = tags;
+        
+        let conversation = Conversation {
+            id: conversation_id,
+            platform: Platform::WhatsApp,
+            platform_conversation_id: "mock_conv_id".to_string(),
+            contact_id: Uuid::new_v4(),
+            contact_name: "Mock Contact".to_string(),
+            contact_phone: "+5511999999999".to_string(),
+            status: ConversationStatus::Open,
+            priority: ConversationPriority::Normal,
+            assignment: None,
+            metadata,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_message_at: None,
+            last_agent_response_at: None,
+            response_time_sla: None,
+            message_count: 0,
+            unread_count: 0,
+        };
+        Ok(conversation)
+    }
+
+    async fn remove_tags(&self, conversation_id: Uuid, tags: Vec<String>, removed_by: Uuid) -> CoreResult<Conversation> {
+        info!("Removing tags {:?} from conversation {} by {}", tags, conversation_id, removed_by);
+        // Mock implementation
+        let conversation = Conversation {
+            id: conversation_id,
+            platform: Platform::WhatsApp,
+            platform_conversation_id: "mock_conv_id".to_string(),
+            contact_id: Uuid::new_v4(),
+            contact_name: "Mock Contact".to_string(),
+            contact_phone: "+5511999999999".to_string(),
+            status: ConversationStatus::Open,
+            priority: ConversationPriority::Normal,
+            assignment: None,
+            metadata: ConversationMetadata::default(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_message_at: None,
+            last_agent_response_at: None,
+            response_time_sla: None,
+            message_count: 0,
+            unread_count: 0,
+        };
+        Ok(conversation)
+    }
+
+    async fn mark_as_read(&self, conversation_id: Uuid, agent_id: Uuid) -> CoreResult<()> {
+        info!("Marking conversation {} as read by agent {}", conversation_id, agent_id);
+        Ok(())
+    }
+
+    async fn mark_as_unread(&self, conversation_id: Uuid) -> CoreResult<()> {
+        info!("Marking conversation {} as unread", conversation_id);
+        Ok(())
+    }
+
+    async fn get_assignment_rules(&self) -> CoreResult<Vec<AssignmentRule>> {
+        debug!("Getting assignment rules");
+        Ok(vec![])
+    }
+
+    async fn create_assignment_rule(&self, rule: AssignmentRule) -> CoreResult<AssignmentRule> {
+        info!("Creating assignment rule: {}", rule.name);
+        Ok(rule)
+    }
+
+    async fn update_assignment_rule(&self, rule: AssignmentRule) -> CoreResult<AssignmentRule> {
+        info!("Updating assignment rule: {}", rule.name);
+        Ok(rule)
+    }
+
+    async fn delete_assignment_rule(&self, rule_id: Uuid) -> CoreResult<()> {
+        info!("Deleting assignment rule: {}", rule_id);
+        Ok(())
+    }
+}
+
+impl Default for DefaultConversationService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -7,10 +7,51 @@ use std::collections::HashMap;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use tracing::{info, debug};
+use async_trait::async_trait;
 
-/// Notification service for managing system notifications
-pub struct NotificationService {
+/// Notification service trait
+#[async_trait]
+pub trait NotificationService: Send + Sync {
+    /// Create a new notification
+    async fn create_notification(&self, request: CreateNotificationRequest) -> CoreResult<Notification>;
+    
+    /// Create notification from template
+    async fn create_from_template(&self, template_id: &str, recipient_id: Uuid, sender_id: Option<Uuid>, context: NotificationContext) -> CoreResult<Notification>;
+    
+    /// Schedule a notification for later delivery
+    async fn schedule_notification(&self, notification: Notification, scheduled_for: DateTime<Utc>) -> CoreResult<Notification>;
+    
+    /// Send a notification
+    async fn send_notification(&self, notification: &Notification) -> CoreResult<Vec<DeliveryResult>>;
+    
+    /// Mark notification as read
+    async fn mark_as_read(&self, notification_id: Uuid, user_id: Uuid) -> CoreResult<()>;
+    
+    /// Get user notifications
+    async fn get_user_notifications(&self, user_id: Uuid, limit: Option<usize>) -> CoreResult<Vec<Notification>>;
+    
+    /// Get notification template
+    async fn get_template(&self, template_id: &str) -> CoreResult<NotificationTemplate>;
+}
+
+/// Default notification service implementation
+pub struct DefaultNotificationService {
     // In a real implementation, this might have database or external service integrations
+}
+
+/// Request to create a notification
+#[derive(Debug, Clone)]
+pub struct CreateNotificationRequest {
+    pub notification_type: NotificationType,
+    pub title: String,
+    pub message: String,
+    pub recipient_id: Uuid,
+    pub sender_id: Option<Uuid>,
+    pub priority: NotificationPriority,
+    pub channels: Vec<NotificationChannel>,
+    pub metadata: Option<HashMap<String, serde_json::Value>>,
+    pub scheduled_for: Option<DateTime<Utc>>,
+    pub expires_at: Option<DateTime<Utc>>,
 }
 
 /// Notification types
@@ -115,14 +156,14 @@ pub enum DeliveryResult {
 /// Notification context for template rendering
 pub type NotificationContext = HashMap<String, serde_json::Value>;
 
-impl NotificationService {
+impl DefaultNotificationService {
     /// Create new notification service
     pub fn new() -> Self {
         Self {}
     }
     
-    /// Create a new notification
-    pub async fn create_notification(
+    /// Create a new notification (internal)
+    async fn create_notification_internal(
         &self,
         notification_type: NotificationType,
         title: String,
@@ -166,7 +207,7 @@ impl NotificationService {
         let title = self.render_template(&template.title_template, &context)?;
         let message = self.render_template(&template.message_template, &context)?;
         
-        let mut notification = self.create_notification(
+        let mut notification = self.create_notification_internal(
             template.notification_type,
             title,
             message,
@@ -403,7 +444,7 @@ impl NotificationService {
         context.insert("sender_name".to_string(), serde_json::Value::String(sender_name.to_string()));
         context.insert("message_preview".to_string(), serde_json::Value::String(message_preview.to_string()));
         
-        self.create_from_template("new_message", recipient_id, None, context).await
+        NotificationService::create_from_template(self, "new_message", recipient_id, None, context).await
     }
     
     pub async fn notify_message_status(
@@ -414,7 +455,7 @@ impl NotificationService {
         let mut context = NotificationContext::new();
         context.insert("status".to_string(), serde_json::Value::String(status.to_string()));
         
-        self.create_from_template("message_status", recipient_id, None, context).await
+        NotificationService::create_from_template(self, "message_status", recipient_id, None, context).await
     }
     
     pub async fn notify_contact_sync(
@@ -425,7 +466,7 @@ impl NotificationService {
         let mut context = NotificationContext::new();
         context.insert("count".to_string(), serde_json::Value::Number(serde_json::Number::from(count)));
         
-        self.create_from_template("contact_sync", recipient_id, None, context).await
+        NotificationService::create_from_template(self, "contact_sync", recipient_id, None, context).await
     }
     
     pub async fn notify_system_alert(
@@ -436,11 +477,134 @@ impl NotificationService {
         let mut context = NotificationContext::new();
         context.insert("alert_message".to_string(), serde_json::Value::String(alert_message.to_string()));
         
-        self.create_from_template("system_alert", recipient_id, None, context).await
+        NotificationService::create_from_template(self, "system_alert", recipient_id, None, context).await
     }
 }
 
-impl Default for NotificationService {
+#[async_trait]
+impl NotificationService for DefaultNotificationService {
+    async fn create_notification(&self, request: CreateNotificationRequest) -> CoreResult<Notification> {
+        let mut notification = Notification {
+            id: Uuid::new_v4(),
+            notification_type: request.notification_type,
+            priority: request.priority,
+            title: request.title,
+            message: request.message,
+            recipient_id: request.recipient_id,
+            sender_id: request.sender_id,
+            channels: request.channels,
+            metadata: request.metadata.unwrap_or_default(),
+            created_at: Utc::now(),
+            scheduled_for: request.scheduled_for,
+            expires_at: request.expires_at,
+            is_read: false,
+            read_at: None,
+        };
+        
+        info!("Created notification {} for user {}", notification.id, notification.recipient_id);
+        Ok(notification)
+    }
+    
+    async fn create_from_template(&self, template_id: &str, recipient_id: Uuid, sender_id: Option<Uuid>, context: NotificationContext) -> CoreResult<Notification> {
+        let template = self.get_template(template_id).await?;
+        
+        let title = self.render_template(&template.title_template, &context)?;
+        let message = self.render_template(&template.message_template, &context)?;
+        
+        let request = CreateNotificationRequest {
+            notification_type: template.notification_type,
+            title,
+            message,
+            recipient_id,
+            sender_id,
+            priority: template.default_priority,
+            channels: template.default_channels,
+            metadata: Some({
+                let mut metadata = HashMap::new();
+                metadata.insert("template_id".to_string(), serde_json::Value::String(template_id.to_string()));
+                metadata.insert("context".to_string(), serde_json::to_value(context)?);
+                metadata
+            }),
+            scheduled_for: None,
+            expires_at: None,
+        };
+        
+        self.create_notification(request).await
+    }
+    
+    async fn schedule_notification(&self, mut notification: Notification, scheduled_for: DateTime<Utc>) -> CoreResult<Notification> {
+        notification.scheduled_for = Some(scheduled_for);
+        info!("Scheduled notification {} for {}", notification.id, scheduled_for);
+        Ok(notification)
+    }
+    
+    async fn send_notification(&self, notification: &Notification) -> CoreResult<Vec<DeliveryResult>> {
+        let mut results = Vec::new();
+        
+        for channel in &notification.channels {
+            let result = self.send_to_channel(notification, channel).await;
+            results.push(result);
+        }
+        
+        Ok(results)
+    }
+    
+    async fn mark_as_read(&self, notification_id: Uuid, user_id: Uuid) -> CoreResult<()> {
+        info!("Marking notification {} as read for user {}", notification_id, user_id);
+        Ok(())
+    }
+    
+    async fn get_user_notifications(&self, user_id: Uuid, limit: Option<usize>) -> CoreResult<Vec<Notification>> {
+        // Return empty list for now - in a real implementation, this would query the database
+        debug!("Getting notifications for user {} (limit: {:?})", user_id, limit);
+        Ok(Vec::new())
+    }
+    
+    async fn get_template(&self, template_id: &str) -> CoreResult<NotificationTemplate> {
+        // Return sample templates - in a real implementation, this would come from the database
+        match template_id {
+            "new_message" => Ok(NotificationTemplate {
+                id: "new_message".to_string(),
+                notification_type: NotificationType::NewMessage,
+                title_template: "Nova mensagem de {{sender_name}}".to_string(),
+                message_template: "{{message_preview}}".to_string(),
+                default_channels: vec![NotificationChannel::WebSocket, NotificationChannel::InApp],
+                default_priority: NotificationPriority::Normal,
+                variables: vec!["sender_name".to_string(), "message_preview".to_string()],
+            }),
+            "message_status" => Ok(NotificationTemplate {
+                id: "message_status".to_string(),
+                notification_type: NotificationType::MessageStatus,
+                title_template: "Status da mensagem".to_string(),
+                message_template: "Sua mensagem foi {{status}}".to_string(),
+                default_channels: vec![NotificationChannel::WebSocket],
+                default_priority: NotificationPriority::Low,
+                variables: vec!["status".to_string()],
+            }),
+            "contact_sync" => Ok(NotificationTemplate {
+                id: "contact_sync".to_string(),
+                notification_type: NotificationType::ContactSync,
+                title_template: "Sincronização de contatos".to_string(),
+                message_template: "{{count}} contatos foram sincronizados".to_string(),
+                default_channels: vec![NotificationChannel::InApp],
+                default_priority: NotificationPriority::Low,
+                variables: vec!["count".to_string()],
+            }),
+            "system_alert" => Ok(NotificationTemplate {
+                id: "system_alert".to_string(),
+                notification_type: NotificationType::SystemAlert,
+                title_template: "Alerta do sistema".to_string(),
+                message_template: "{{alert_message}}".to_string(),
+                default_channels: vec![NotificationChannel::WebSocket, NotificationChannel::Email],
+                default_priority: NotificationPriority::High,
+                variables: vec!["alert_message".to_string()],
+            }),
+            _ => Err(CoreError::validation(&format!("Template not found: {}", template_id))),
+        }
+    }
+}
+
+impl Default for DefaultNotificationService {
     fn default() -> Self {
         Self::new()
     }
@@ -458,17 +622,22 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_notification() {
-        let service = NotificationService::new();
+        let service = DefaultNotificationService::new();
         
-        let notification = service.create_notification(
-            NotificationType::NewMessage,
-            "Test Title".to_string(),
-            "Test Message".to_string(),
-            Uuid::new_v4(),
-            None,
-            NotificationPriority::Normal,
-            vec![NotificationChannel::WebSocket],
-        ).await.unwrap();
+        let request = CreateNotificationRequest {
+            notification_type: NotificationType::NewMessage,
+            title: "Test Title".to_string(),
+            message: "Test Message".to_string(),
+            recipient_id: Uuid::new_v4(),
+            sender_id: None,
+            priority: NotificationPriority::Normal,
+            channels: vec![NotificationChannel::WebSocket],
+            metadata: None,
+            scheduled_for: None,
+            expires_at: None,
+        };
+        
+        let notification = service.create_notification(request).await.unwrap();
         
         assert_eq!(notification.title, "Test Title");
         assert_eq!(notification.message, "Test Message");
@@ -478,7 +647,7 @@ mod tests {
     
     #[tokio::test]
     async fn test_template_rendering() {
-        let service = NotificationService::new();
+        let service = DefaultNotificationService::new();
         let mut context = NotificationContext::new();
         context.insert("name".to_string(), serde_json::Value::String("João".to_string()));
         context.insert("count".to_string(), serde_json::Value::Number(serde_json::Number::from(5)));
@@ -489,7 +658,7 @@ mod tests {
     
     #[tokio::test]
     async fn test_create_from_template() {
-        let service = NotificationService::new();
+        let service = DefaultNotificationService::new();
         let recipient_id = Uuid::new_v4();
         
         let notification = service.notify_new_message(
@@ -506,7 +675,7 @@ mod tests {
     
     #[test]
     fn test_to_websocket_message() {
-        let service = NotificationService::new();
+        let service = DefaultNotificationService::new();
         let notification = Notification {
             id: Uuid::new_v4(),
             notification_type: NotificationType::NewMessage,

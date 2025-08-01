@@ -17,7 +17,7 @@ pub use webhook_event::*;
 pub use traits::*;
 
 use crate::error::{DatabaseError, Result};
-use sea_orm::{DatabaseConnection, EntityTrait, PaginatorTrait, Select};
+use sea_orm::{DatabaseConnection, EntityTrait, Select};
 use serde::{Deserialize, Serialize};
 
 /// Pagination parameters
@@ -190,11 +190,23 @@ pub async fn paginate_query<E, M>(
 ) -> Result<PaginatedResult<M>>
 where
     E: EntityTrait<Model = M>,
-    M: Send + Sync,
+    M: Send + Sync + sea_orm::ModelTrait,
 {
-    let paginator = query.paginate(db, pagination.per_page);
-    let total_items = paginator.num_items().await?;
-    let items = paginator.fetch_page(pagination.page - 1).await?;
+    // For now, let's get a reasonable total (this is an estimation approach)
+    // Since we can't easily get the count from a generic Select, we'll fetch all and count
+    // This is not ideal for large datasets, but works for now
+    let all_items = query.clone().all(db).await.map_err(|e| DatabaseError::QueryError(e.to_string()))?;
+    let total_items = all_items.len() as u64;
+    
+    // Apply pagination manually
+    let offset = ((pagination.page - 1) * pagination.per_page) as usize;
+    let limit = pagination.per_page as usize;
+    
+    let items = all_items
+        .into_iter()
+        .skip(offset)
+        .take(limit)
+        .collect();
 
     Ok(PaginatedResult::new(items, total_items, pagination))
 }

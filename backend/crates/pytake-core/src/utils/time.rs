@@ -1,7 +1,7 @@
 //! Time utilities for consistent time handling
 
 use crate::entities::common::Timestamp;
-use chrono::{DateTime, Duration, Utc, TimeZone, Datelike};
+use chrono::{DateTime, Duration, Utc, TimeZone, Datelike, Timelike};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Get current UTC timestamp

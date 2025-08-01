@@ -328,7 +328,7 @@ impl Default for MultiPlatformProcessorBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::whatsapp::WhatsAppClient;
+    // use crate::whatsapp::WhatsAppClient; // TODO: Implement WhatsAppClient mock
 
     #[test]
     fn test_processor_creation() {

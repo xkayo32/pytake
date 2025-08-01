@@ -325,16 +325,36 @@ mod tests {
     
     #[test]
     fn test_expired_token() {
-        let mut config = create_test_config();
-        config.access_token_duration = Duration::seconds(-1); // Already expired
+        let config = create_test_config();
+        let mut validation = Validation::new(config.algorithm);
+        validation.set_issuer(&[config.issuer.clone()]);
+        validation.set_audience(&[config.audience.clone()]);
+        validation.validate_exp = true;
+        validation.validate_nbf = true;
         
-        let generator = TokenGenerator::new(config.clone());
+        // Create an already expired token by manipulating the claims directly
+        let now = Utc::now();
+        let expired_time = now - Duration::hours(1); // Expired 1 hour ago
+        
+        let claims = Claims {
+            sub: "user123".to_string(),
+            iat: expired_time.timestamp(),
+            exp: expired_time.timestamp(), // Already expired
+            nbf: expired_time.timestamp(),
+            iss: config.issuer.clone(),
+            aud: config.audience.clone(),
+            jti: Uuid::new_v4().to_string(),
+            token_type: TokenType::Access,
+            email: "user@example.com".to_string(),
+            roles: vec![],
+            custom: serde_json::Value::Null,
+        };
+        
+        let header = Header::new(config.algorithm);
+        let encoding_key = EncodingKey::from_secret(config.secret.as_bytes());
+        let token = encode(&header, &claims, &encoding_key).unwrap();
+        
         let validator = TokenValidator::new(config);
-        
-        let token = generator
-            .generate_access_token("user123", "user@example.com", vec![])
-            .unwrap();
-        
         assert!(validator.validate_access_token(&token).is_err());
         assert!(validator.is_expired(&token));
     }

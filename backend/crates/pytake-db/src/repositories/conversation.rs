@@ -1,11 +1,12 @@
 //! Conversation repository
 
-use crate::entities::{conversation, user};
+use crate::entities::conversation;
 use crate::error::{DatabaseError, Result};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, 
-    QueryFilter, QueryOrder, PaginatorTrait, QuerySelect, Set
+    QueryFilter, QueryOrder, PaginatorTrait, QuerySelect
 };
+use sea_orm::ActiveValue::Set;
 use uuid::Uuid;
 
 /// Repository for managing conversations

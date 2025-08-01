@@ -9,6 +9,7 @@ pub mod message_status;
 pub mod websocket;
 pub mod notification;
 pub mod metrics;
+pub mod orchestration;
 
 pub use auth::*;
 pub use health::*;

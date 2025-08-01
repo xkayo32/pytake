@@ -4,7 +4,7 @@ use crate::config::{DatabaseConfig, SqlLoggingLevel};
 use crate::error::{DatabaseError, Result};
 use sea_orm::{Database, DatabaseConnection as SeaOrmConnection, ConnectOptions};
 use std::time::Duration;
-use log::LevelFilter;
+use tracing::log::LevelFilter;
 
 /// Type alias for database connection
 pub type DatabaseConnection = SeaOrmConnection;
@@ -183,7 +183,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_connection_options_configuration() {
-        let database_url = DatabaseUrl::new("sqlite://memory:".to_string()).unwrap();
+        let database_url = DatabaseUrl::new("sqlite::memory:".to_string()).unwrap();
         let config = DatabaseConfig::new(database_url);
         
         // This test mainly verifies that connection options are configured without errors

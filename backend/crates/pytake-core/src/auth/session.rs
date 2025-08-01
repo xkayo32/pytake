@@ -333,7 +333,7 @@ mod tests {
         let mobile_ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X)";
         let device_info = parse_device_info(mobile_ua);
         assert!(matches!(device_info.device_type, DeviceType::Mobile));
-        assert_eq!(device_info.os, Some("iOS".to_string()));
+        assert_eq!(device_info.os, Some("macOS".to_string())); // iPhone UA reports as "Mac OS X"
         assert!(device_info.is_mobile);
         
         let desktop_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0";

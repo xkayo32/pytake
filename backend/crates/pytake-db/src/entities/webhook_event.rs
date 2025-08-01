@@ -2,6 +2,7 @@
 
 use super::*;
 use pytake_core::entities::whatsapp as domain;
+use sea_orm::ActiveValue::Set;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "webhook_events")]
@@ -184,7 +185,7 @@ impl Model {
     /// Get the event age in seconds
     pub fn age_seconds(&self) -> i64 {
         let now = chrono::Utc::now();
-        (now - self.created_at.into()).num_seconds()
+        (now - self.created_at).num_seconds()
     }
 
     /// Convert to domain entity
@@ -213,7 +214,11 @@ impl ActiveModel {
     /// Mark event as failed with error message
     pub fn mark_failed(&mut self, error_message: String) {
         self.error_message = Set(Some(error_message));
-        self.retry_count = Set(self.retry_count.clone().unwrap_or_default() + 1);
+        let current_count = match &self.retry_count {
+            Set(count) => *count,
+            _ => 0,
+        };
+        self.retry_count = Set(current_count + 1);
     }
 
     /// Reset for retry
@@ -228,11 +233,12 @@ impl ActiveModel {
 mod tests {
     use super::*;
     use pytake_core::entities::common::EntityId;
+    use sea_orm::ActiveValue::Set;
 
     #[test]
     fn test_webhook_event_type_conversion() {
         let domain_type = domain::WebhookEventType::MessageReceived;
-        let db_type: WebhookEventType = domain_type.into();
+        let db_type: WebhookEventType = domain_type.clone().into();
         let back_to_domain: domain::WebhookEventType = db_type.into();
         
         assert_eq!(domain_type, back_to_domain);

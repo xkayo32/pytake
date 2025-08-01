@@ -188,9 +188,9 @@ pub mod mock {
 
         async fn dequeue(&self, _queues: &[&str]) -> CoreResult<Option<QueueJob>> {
             let mut jobs = self.jobs.lock().unwrap();
-            if let Some((id, job)) = jobs.iter().next() {
-                let job = job.clone();
-                jobs.remove(&id.clone());
+            if let Some((id, _)) = jobs.iter().next() {
+                let id = id.clone();
+                let job = jobs.remove(&id).unwrap();
                 Ok(Some(job))
             } else {
                 Ok(None)
@@ -239,5 +239,13 @@ pub mod mock {
             Ok(true)
         }
     }
+    
+    impl Default for MockQueue {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+    
+    pub type MockMessageQueue = MockQueue;
 }
 

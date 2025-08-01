@@ -18,6 +18,8 @@ pub mod conversation_service;
 pub mod agent_assignment;
 pub mod response_templates;
 pub mod conversation_search;
+pub mod conversation_integration;
+pub mod orchestration;
 
 // Re-export commonly used service traits
 pub use flow_service::FlowService;

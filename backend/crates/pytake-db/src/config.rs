@@ -17,10 +17,10 @@ impl DatabaseUrl {
             ));
         }
 
-        // Basic validation for PostgreSQL URLs
-        if !url.starts_with("postgres://") && !url.starts_with("postgresql://") && !url.starts_with("sqlite://") {
+        // Basic validation for database URLs
+        if !url.starts_with("postgres://") && !url.starts_with("postgresql://") && !url.starts_with("sqlite://") && !url.starts_with("sqlite:") {
             return Err(DatabaseError::ConfigurationError(
-                "Database URL must start with postgres://, postgresql://, or sqlite://".to_string()
+                "Database URL must start with postgres://, postgresql://, sqlite://, or sqlite:".to_string()
             ));
         }
 
