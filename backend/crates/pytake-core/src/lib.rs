@@ -10,6 +10,7 @@
 //! - [`errors`] - Error types and error handling utilities
 //! - [`utils`] - Utility functions and helpers
 
+pub mod auth;
 pub mod entities;
 pub mod errors;
 pub mod services;
