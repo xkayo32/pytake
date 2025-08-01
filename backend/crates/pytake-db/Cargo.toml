@@ -1,0 +1,49 @@
+[package]
+name = "pytake-db"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# SeaORM dependencies
+sea-orm = { version = "0.12", features = [
+    "sqlx-postgres", 
+    "sqlx-sqlite", 
+    "runtime-tokio-rustls", 
+    "macros",
+    "with-chrono",
+    "with-uuid",
+    "with-json"
+] }
+sea-orm-migration = "0.12"
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# UUID support
+uuid = { version = "1.0", features = ["serde", "v4"] }
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Configuration
+dotenvy = "0.15"
+
+# Logging
+tracing = "0.1"
+
+# Async traits
+async-trait = "0.1"
+
+# Local dependencies
+pytake-core = { path = "../pytake-core" }
+
+[dev-dependencies]
+tokio-test = "0.4"

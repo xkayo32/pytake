@@ -1,0 +1,40 @@
+# Rust formatting configuration for PyTake
+
+# Use verbose diffs when formatting
+verbose = true
+
+# Stable formatting options
+edition = "2021"
+hard_tabs = false
+tab_spaces = 4
+newline_style = "Unix"
+use_small_heuristics = "Default"
+
+# Import formatting
+imports_granularity = "Crate"
+group_imports = "StdExternalCrate"
+
+# Code style
+max_width = 100
+format_code_in_doc_comments = true
+format_strings = true
+format_macro_matchers = true
+format_macro_bodies = true
+
+# Match formatting
+match_block_trailing_comma = true
+
+# Function formatting
+fn_params_layout = "Tall"
+fn_single_line = false
+
+# Misc
+use_field_init_shorthand = true
+use_try_shorthand = true
+normalize_comments = true
+normalize_doc_attributes = true
+reorder_imports = true
+reorder_modules = true
+
+# Allow one line if statements
+where_single_line = true
