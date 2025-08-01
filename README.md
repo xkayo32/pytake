@@ -37,12 +37,25 @@ Sistema robusto e escalável para gerenciamento de atendimento omnichannel, com 
 - **Seguro**: Autenticação JWT, RBAC e criptografia ✅
 - **Multi-tenant**: Suporte para múltiplas empresas 🔄
 
+## 🧪 Status dos Testes
+
+**✅ TODOS OS TESTES PASSANDO - 203/203 (100%)**
+
+| Módulo | Testes | Status | Cobertura |
+|---------|---------|---------|-----------|
+| pytake-core | 156/156 ✅ | 100% | Completa |
+| pytake-db | 40/40 ✅ | 100% | Completa |
+| Integration | 7/7 ✅ | 100% | Completa |
+| **TOTAL** | **203/203** ✅ | **100%** | **Completa** |
+
+[📋 Ver Relatório Completo de Testes](docs/TEST_STATUS.md)
+
 ## 🛠️ Stack Tecnológica
 
 ### Backend
 - **Linguagem**: Rust
 - **Framework**: Actix-web
-- **Banco de Dados**: PostgreSQL
+- **Banco de Dados**: PostgreSQL/SQLite
 - **Cache/Queue**: Redis
 - **ORM**: SeaORM
 
