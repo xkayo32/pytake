@@ -9,6 +9,7 @@ mod config;
 mod state;
 mod routes;
 mod handlers;
+mod logging;
 mod middleware;
 
 use config::ApiConfig;
@@ -34,7 +35,10 @@ async fn main() -> std::io::Result<()> {
     };
 
     // Initialize logging
-    setup_logging(&config)?;
+    if let Err(e) = logging::init_logging(&config) {
+        eprintln!("Failed to initialize logging: {}", e);
+        std::process::exit(1);
+    }
 
     info!(
         "Starting PyTake API server v{} on {}",
@@ -66,7 +70,7 @@ async fn main() -> std::io::Result<()> {
             // Add CORS middleware
             .wrap(middleware::setup_cors(&config.cors))
             // Add request logging middleware
-            .wrap(Logger::default())
+            .wrap(middleware::logging_middleware())
             // Add security headers middleware
             .wrap(
                 DefaultHeaders::new()
@@ -99,67 +103,38 @@ async fn main() -> std::io::Result<()> {
         config.server_address()
     );
 
-    server
-        .bind(&config.server_address())?
-        .run()
-        .await
-}
+    // Log application startup event
+    logging::events::app_starting(
+        &config.app_name,
+        env!("CARGO_PKG_VERSION"),
+        &config.environment,
+    );
 
-/// Setup logging based on configuration
-fn setup_logging(config: &ApiConfig) -> std::io::Result<()> {
-    // Parse log level
-    let log_level = match config.logging.level.to_lowercase().as_str() {
-        "trace" => tracing::Level::TRACE,
-        "debug" => tracing::Level::DEBUG,
-        "info" => tracing::Level::INFO,
-        "warn" => tracing::Level::WARN,
-        "error" => tracing::Level::ERROR,
-        _ => {
-            warn!(
-                "Invalid log level '{}', defaulting to 'info'",
-                config.logging.level
-            );
-            tracing::Level::INFO
-        }
-    };
+    let server = server.bind(&config.server_address())?;
+    let server_handle = server.handle();
 
-    // Create environment filter
-    let env_filter = EnvFilter::builder()
-        .with_default_directive(log_level.into())
-        .with_env_var("RUST_LOG")
-        .from_env_lossy()
-        // Filter out noisy crates
-        .add_directive("hyper=warn".parse().unwrap())
-        .add_directive("tokio_util=warn".parse().unwrap())
-        .add_directive("want=warn".parse().unwrap())
-        .add_directive("mio=warn".parse().unwrap());
+    // Spawn the server
+    let server_task = tokio::spawn(server.run());
 
-    // Configure formatter based on format setting
-    let subscriber = match config.logging.format {
-        config::LogFormat::Json => {
-            tracing_subscriber::registry()
-                .with(env_filter)
-                .with(fmt::layer().json())
-        }
-        config::LogFormat::Pretty => {
-            tracing_subscriber::registry()
-                .with(env_filter)
-                .with(fmt::layer().pretty())
-        }
-        config::LogFormat::Compact => {
-            tracing_subscriber::registry()
-                .with(env_filter)
-                .with(fmt::layer().compact())
-        }
-    };
+    // Log that the app is ready
+    logging::events::app_ready(&config.app_name, &config.server_address());
 
-    // Initialize the global subscriber
-    if let Err(e) = tracing::subscriber::set_global_default(subscriber) {
-        eprintln!("Failed to initialize logging: {}", e);
-        std::process::exit(1);
+    // Wait for shutdown signal
+    shutdown_signal().await;
+
+    // Log shutdown event
+    logging::events::app_stopping(&config.app_name, Some("Shutdown signal received"));
+
+    // Gracefully shutdown the server
+    server_handle.stop(true).await;
+
+    // Wait for the server to finish
+    match server_task.await {
+        Ok(Ok(())) => info!("Server shut down successfully"),
+        Ok(Err(e)) => error!("Server error during shutdown: {}", e),
+        Err(e) => error!("Failed to shut down server task: {}", e),
     }
 
-    info!("Logging initialized with level: {}", config.logging.level);
     Ok(())
 }
 
@@ -218,12 +193,11 @@ mod tests {
     }
 
     #[test]
-    fn test_log_level_parsing() {
+    fn test_log_level_default() {
         let config = ApiConfig::default();
         
-        // Test that setup_logging doesn't panic with default config
-        // Note: We can't easily test the actual logging setup without more complex mocking
-        assert_eq!(config.logging.level, "info");
+        // Test default log level
+        assert_eq!(config.log_level, "info");
     }
 
     #[tokio::test]

@@ -39,6 +39,7 @@ pub mod config;
 pub mod state;
 pub mod routes;
 pub mod handlers;
+pub mod logging;
 pub mod middleware;
 
 // Re-export commonly used types for convenience
