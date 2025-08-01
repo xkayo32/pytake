@@ -7,6 +7,7 @@ pub mod webhook_event;
 pub mod traits;
 pub mod conversation;
 pub mod message;
+pub mod contact;
 
 // Re-export all repositories
 pub use user::*;

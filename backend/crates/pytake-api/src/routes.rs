@@ -6,6 +6,9 @@ use crate::handlers::{
     health::{health_check, detailed_health_check, readiness_check, liveness_check},
     status::{api_status, system_info, api_version},
     protected::configure_protected_routes,
+    whatsapp,
+    conversation,
+    contact,
 };
 
 /// Configure all application routes
@@ -41,6 +44,8 @@ fn api_v1_routes() -> Scope {
         .service(configure_user_routes())
         .service(configure_flow_routes())
         .service(configure_whatsapp_routes())
+        .service(configure_conversation_routes())
+        .service(configure_contact_routes())
         // Protected routes examples
         .service(configure_protected_routes())
 }
@@ -69,11 +74,53 @@ fn configure_flow_routes() -> Scope {
         .route("", web::get().to(placeholder_handler))
 }
 
-/// Configure WhatsApp-related routes (placeholder)
+/// Configure WhatsApp-related routes
 fn configure_whatsapp_routes() -> Scope {
     web::scope("/whatsapp")
-        // TODO: Add WhatsApp routes
-        .route("", web::get().to(placeholder_handler))
+        .route("/webhook", web::get().to(whatsapp::verify_webhook))
+        .route("/webhook", web::post().to(whatsapp::process_webhook))
+        .route("/send", web::post().to(whatsapp::send_message))
+        .route("/media", web::post().to(whatsapp::upload_media))
+}
+
+/// Configure conversation routes
+fn configure_conversation_routes() -> Scope {
+    web::scope("/conversations")
+        // List conversations
+        .route("", web::get().to(conversation::get_conversations))
+        // Get conversation statistics
+        .route("/stats", web::get().to(conversation::get_conversation_stats))
+        // Get single conversation
+        .route("/{id}", web::get().to(conversation::get_conversation))
+        // Update conversation
+        .route("/{id}", web::patch().to(conversation::update_conversation))
+        // Assign conversation
+        .route("/{id}/assign", web::post().to(conversation::assign_conversation))
+        // Unassign conversation
+        .route("/{id}/unassign", web::post().to(conversation::unassign_conversation))
+        // Archive conversation
+        .route("/{id}/archive", web::post().to(conversation::archive_conversation))
+        // Get conversation messages
+        .route("/{id}/messages", web::get().to(conversation::get_conversation_messages))
+        // Send message in conversation
+        .route("/{id}/messages", web::post().to(conversation::send_message))
+}
+
+/// Configure contact routes
+fn configure_contact_routes() -> Scope {
+    web::scope("/contacts")
+        // List contacts
+        .route("", web::get().to(contact::list_contacts))
+        // Sync contacts
+        .route("/sync", web::post().to(contact::sync_contacts))
+        // Sync stale contacts
+        .route("/sync/stale", web::post().to(contact::sync_stale_contacts))
+        // Get sync statistics
+        .route("/sync/stats", web::get().to(contact::get_sync_stats))
+        // Get single contact
+        .route("/{id}", web::get().to(contact::get_contact))
+        // Update contact
+        .route("/{id}", web::patch().to(contact::update_contact))
 }
 
 /// Root handler - returns basic API information

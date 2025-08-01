@@ -9,6 +9,7 @@ pub mod flow_service;
 pub mod user_service;
 pub mod whatsapp_processor;
 pub mod whatsapp_service;
+pub mod contact_sync;
 
 // Re-export commonly used service traits
 pub use flow_service::FlowService;

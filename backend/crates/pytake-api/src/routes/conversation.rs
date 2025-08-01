@@ -1,0 +1,1 @@
+// This file is not needed as routes are configured directly in routes.rs

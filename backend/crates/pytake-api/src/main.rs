@@ -63,7 +63,18 @@ async fn main() -> std::io::Result<()> {
     // Start background workers if queue is configured
     if let Some(queue) = app_state.queue() {
         info!("Starting background workers...");
-        let worker = workers::WhatsAppWorker::new(queue.clone());
+        
+        // Create worker with dependencies if available
+        let worker = if let Some(whatsapp_client) = app_state.whatsapp_client() {
+            workers::WhatsAppWorker::with_dependencies(
+                queue.clone(),
+                app_state.db.clone(),
+                whatsapp_client.clone(),
+            )
+        } else {
+            workers::WhatsAppWorker::new(queue.clone())
+        };
+        
         if let Err(e) = worker.start().await {
             error!("Failed to start WhatsApp worker: {}", e);
         } else {

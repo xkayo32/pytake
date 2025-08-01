@@ -1,4 +1,4 @@
-use crate::types::{ErrorResponse, Media, Message, MessageResponse, TemplateMessage};
+use crate::types::{ErrorResponse, Media, Message, MessageResponse, TemplateMessage, ContactInfo, ContactVerifyResponse, BusinessProfile};
 use reqwest::{multipart, Client as HttpClient, Response};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -414,6 +414,120 @@ impl WhatsAppClient {
             }
             Err(_) => Err(WhatsAppError::InvalidUrl(format!("Invalid URL: {}", url))),
         }
+    }
+
+    /// Verify if a phone number has WhatsApp
+    pub async fn verify_contact(&self, phone_number: &str) -> Result<ContactInfo, WhatsAppError> {
+        let cleaned_phone = Self::validate_phone_number(phone_number)?;
+        
+        let url = format!(
+            "{}/{}/phone_numbers",
+            self.config.base_url, self.config.phone_number_id
+        );
+
+        let body = serde_json::json!({
+            "blocking": "wait",
+            "contacts": [cleaned_phone],
+            "force_check": true
+        });
+
+        debug!("Verifying contact: {}", cleaned_phone);
+
+        let response = self
+            .http_client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.config.access_token))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| WhatsAppError::HttpClient(e.to_string()))?;
+
+        let result: ContactVerifyResponse = self.handle_response(response).await?;
+        
+        if let Some(contact) = result.contacts.into_iter().next() {
+            Ok(contact)
+        } else {
+            Err(WhatsAppError::ApiError("No contact info returned".to_string()))
+        }
+    }
+
+    /// Batch verify multiple phone numbers
+    pub async fn batch_verify_contacts(&self, phone_numbers: Vec<String>) -> Result<Vec<ContactInfo>, WhatsAppError> {
+        // WhatsApp API typically limits batch requests to 20 contacts
+        const BATCH_SIZE: usize = 20;
+        
+        if phone_numbers.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let mut all_results = Vec::new();
+        
+        // Process in batches
+        for chunk in phone_numbers.chunks(BATCH_SIZE) {
+            let cleaned_phones: Result<Vec<String>, _> = chunk
+                .iter()
+                .map(|p| Self::validate_phone_number(p))
+                .collect();
+            
+            let cleaned_phones = cleaned_phones?;
+            
+            let url = format!(
+                "{}/{}/phone_numbers",
+                self.config.base_url, self.config.phone_number_id
+            );
+
+            let body = serde_json::json!({
+                "blocking": "wait",
+                "contacts": cleaned_phones,
+                "force_check": true
+            });
+
+            debug!("Batch verifying {} contacts", cleaned_phones.len());
+
+            let response = self
+                .http_client
+                .post(&url)
+                .header("Authorization", format!("Bearer {}", self.config.access_token))
+                .header("Content-Type", "application/json")
+                .json(&body)
+                .send()
+                .await
+                .map_err(|e| WhatsAppError::HttpClient(e.to_string()))?;
+
+            let result: ContactVerifyResponse = self.handle_response(response).await?;
+            all_results.extend(result.contacts);
+            
+            // Add a small delay between batches to avoid rate limiting
+            if chunk.len() == BATCH_SIZE {
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
+        }
+        
+        Ok(all_results)
+    }
+
+    /// Get business profile information
+    pub async fn get_business_profile(&self, phone_number_id: Option<&str>) -> Result<BusinessProfile, WhatsAppError> {
+        let phone_id = phone_number_id.unwrap_or(&self.config.phone_number_id);
+        
+        let url = format!(
+            "{}/{}/whatsapp_business_profile",
+            self.config.base_url, phone_id
+        );
+
+        debug!("Getting business profile for: {}", phone_id);
+
+        let response = self
+            .http_client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", self.config.access_token))
+            .query(&[("fields", "about,address,description,email,profile_picture_url,websites,vertical")])
+            .send()
+            .await
+            .map_err(|e| WhatsAppError::HttpClient(e.to_string()))?;
+
+        self.handle_response(response).await
     }
 }
 

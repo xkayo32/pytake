@@ -91,6 +91,9 @@ impl MessageQueue for RedisQueue {
             crate::queue::types::JobType::SyncContacts { .. } => "contacts",
             crate::queue::types::JobType::DownloadMedia { .. } => "media",
             crate::queue::types::JobType::ExecuteFlow { .. } => "flow",
+            crate::queue::types::JobType::UpdateContactsInfo { .. } => "contacts",
+            crate::queue::types::JobType::SyncContactFailed { .. } => "contacts",
+            crate::queue::types::JobType::SyncStaleContacts { .. } => "contacts",
         };
 
         // Check if job should be delayed
@@ -148,6 +151,9 @@ impl MessageQueue for RedisQueue {
                     crate::queue::types::JobType::SyncContacts { .. } => "contacts",
                     crate::queue::types::JobType::DownloadMedia { .. } => "media",
                     crate::queue::types::JobType::ExecuteFlow { .. } => "flow",
+                    crate::queue::types::JobType::UpdateContactsInfo { .. } => "contacts",
+                    crate::queue::types::JobType::SyncContactFailed { .. } => "contacts",
+                    crate::queue::types::JobType::SyncStaleContacts { .. } => "contacts",
                 };
                 
                 let priority_key = self.priority_queue_key(queue_name, job.priority as u8);

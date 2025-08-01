@@ -19,6 +19,18 @@ impl WhatsAppWorker {
         
         Self { worker }
     }
+    
+    /// Create with dependencies
+    pub fn with_dependencies(
+        queue: Arc<dyn MessageQueue>,
+        db: Arc<sea_orm::DatabaseConnection>,
+        whatsapp_client: Arc<pytake_whatsapp::WhatsAppClient>,
+    ) -> Self {
+        let processor = WhatsAppMessageProcessor::with_dependencies(db, whatsapp_client);
+        let worker = Arc::new(QueueWorker::new(queue, processor));
+        
+        Self { worker }
+    }
 
     /// Start the worker
     pub async fn start(&self) -> Result<(), Box<dyn std::error::Error>> {

@@ -274,3 +274,41 @@ impl Media {
         self
     }
 }
+
+/// Contact verification response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContactVerifyResponse {
+    pub contacts: Vec<ContactInfo>,
+    pub messaging_product: String,
+}
+
+/// Contact information from verification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContactInfo {
+    pub input: String,
+    pub wa_id: String,
+    pub status: ContactStatus,
+}
+
+/// Contact status
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ContactStatus {
+    Valid,
+    Invalid,
+    Processing,
+    Failed,
+}
+
+/// Business profile information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BusinessProfile {
+    pub about: Option<String>,
+    pub address: Option<String>,
+    pub description: Option<String>,
+    pub email: Option<String>,
+    pub profile_picture_url: Option<String>,
+    pub websites: Option<Vec<String>>,
+    pub vertical: Option<String>,
+    pub messaging_product: String,
+}

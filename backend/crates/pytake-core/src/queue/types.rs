@@ -66,6 +66,19 @@ pub enum JobType {
         trigger_message_id: Option<String>,
         context: HashMap<String, serde_json::Value>,
     },
+    /// Update contacts info after verification
+    UpdateContactsInfo {
+        results: Vec<crate::services::contact_sync::ContactVerifyResult>,
+    },
+    /// Mark contact sync as failed
+    SyncContactFailed {
+        phone_number: String,
+        error: String,
+    },
+    /// Sync stale contacts
+    SyncStaleContacts {
+        limit: u64,
+    },
 }
 
 /// Message content types for queue

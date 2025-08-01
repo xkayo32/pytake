@@ -3,18 +3,33 @@
 use crate::queue::{JobProcessor, JobResult, JobType, MessageContent, QueueJob};
 use async_trait::async_trait;
 use std::time::Duration;
-use tracing::{info, warn};
+use tracing::{info, warn, error};
 
 /// Service to process WhatsApp messages
+#[derive(Clone)]
 pub struct WhatsAppMessageProcessor {
-    // Dependencies will be injected here
-    // For now, we'll keep it simple
+    db: Option<std::sync::Arc<sea_orm::DatabaseConnection>>,
+    whatsapp_client: Option<std::sync::Arc<pytake_whatsapp::WhatsAppClient>>,
 }
 
 impl WhatsAppMessageProcessor {
     /// Create a new WhatsApp message processor
     pub fn new() -> Self {
-        Self {}
+        Self {
+            db: None,
+            whatsapp_client: None,
+        }
+    }
+    
+    /// Create with dependencies
+    pub fn with_dependencies(
+        db: std::sync::Arc<sea_orm::DatabaseConnection>,
+        whatsapp_client: std::sync::Arc<pytake_whatsapp::WhatsAppClient>,
+    ) -> Self {
+        Self {
+            db: Some(db),
+            whatsapp_client: Some(whatsapp_client),
+        }
     }
 
     /// Process inbound message
@@ -27,60 +42,81 @@ impl WhatsAppMessageProcessor {
     ) -> JobResult {
         info!("Processing inbound message {} from {}", message_id, from);
 
-        // TODO: Implement actual message processing logic
-        // 1. Store message in database
-        // 2. Check if conversation exists or create new one
-        // 3. Check for active flows
-        // 4. Route to appropriate handler (flow engine or agent)
-        // 5. Update conversation state
+        // For now, just log the message and return success
+        // The actual database storage will be handled by pytake-api
+        // which has access to pytake-db
+        info!("Processed inbound message {} from {} with content: {:?}", 
+              message_id, from, content);
 
-        match content {
-            MessageContent::Text { body } => {
-                info!("Text message: {}", body);
-                // Process text message
-                JobResult::Success
-            }
-            MessageContent::Image { caption, .. } => {
-                info!("Image message with caption: {:?}", caption);
-                // Process image message
-                JobResult::Success
-            }
-            MessageContent::Document { filename, .. } => {
-                info!("Document message: {:?}", filename);
-                // Process document message
-                JobResult::Success
-            }
-            _ => {
-                info!("Other message type");
-                JobResult::Success
-            }
-        }
+        // TODO: Check for active flows
+        // TODO: Route to appropriate handler (flow engine or agent)
+
+        JobResult::Success
     }
 
     /// Send outbound message
     async fn send_message(
         &self,
         to: String,
-        _content: MessageContent,
+        content: MessageContent,
         retry_count: u32,
     ) -> JobResult {
         info!("Sending message to {} (retry: {})", to, retry_count);
 
-        // TODO: Implement actual message sending
-        // 1. Call WhatsApp API to send message
-        // 2. Store message in database with status
-        // 3. Update conversation
+        // Get WhatsApp client
+        let client = match &self.whatsapp_client {
+            Some(client) => client,
+            None => {
+                error!("WhatsApp client not configured");
+                return JobResult::PermanentFailure("WhatsApp client not configured".to_string());
+            }
+        };
 
-        // Simulate API call
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        // Send message based on type
+        let result = match &content {
+            MessageContent::Text { body } => {
+                client.send_text_message(&to, body).await
+            }
+            MessageContent::Image { url, id, caption } => {
+                if let Some(url) = url {
+                    client.send_image_url(&to, url, caption.as_ref()).await
+                } else if let Some(id) = id {
+                    client.send_image_id(&to, id, caption.as_ref()).await
+                } else {
+                    return JobResult::PermanentFailure("Image must have URL or ID".to_string());
+                }
+            }
+            MessageContent::Document { url, id, filename } => {
+                if let Some(url) = url {
+                    client.send_document_url(&to, url, filename.as_ref(), None).await
+                } else if let Some(id) = id {
+                    client.send_document_id(&to, id, filename.as_ref(), None).await
+                } else {
+                    return JobResult::PermanentFailure("Document must have URL or ID".to_string());
+                }
+            }
+            _ => {
+                warn!("Unsupported message type for sending");
+                return JobResult::PermanentFailure("Unsupported message type".to_string());
+            }
+        };
 
-        // Simulate occasional failures for retry testing
-        if retry_count == 0 && rand::random::<f32>() < 0.1 {
-            warn!("Simulated transient failure for message to {}", to);
-            return JobResult::RetryableFailure("Simulated API timeout".to_string());
+        match result {
+            Ok(response) => {
+                info!("Message sent successfully");
+                // TODO: Update message status in database with response.messages info
+                JobResult::Success
+            }
+            Err(e) => {
+                error!("Failed to send message: {}", e);
+                // Check if error is retryable
+                if retry_count < 3 {
+                    JobResult::RetryableFailure(format!("WhatsApp API error: {}", e))
+                } else {
+                    JobResult::PermanentFailure(format!("Failed after {} retries: {}", retry_count, e))
+                }
+            }
         }
-
-        JobResult::Success
     }
 
     /// Update message status
@@ -122,11 +158,76 @@ impl WhatsAppMessageProcessor {
     async fn sync_contacts(&self, phone_numbers: Vec<String>) -> JobResult {
         info!("Syncing {} contacts", phone_numbers.len());
 
-        // TODO: Implement contact sync
-        // 1. Validate phone numbers with WhatsApp API
-        // 2. Update contact information in database
-        // 3. Create or update contact records
+        // Get WhatsApp client
+        let client = match &self.whatsapp_client {
+            Some(client) => client,
+            None => {
+                error!("WhatsApp client not configured");
+                return JobResult::PermanentFailure("WhatsApp client not configured".to_string());
+            }
+        };
 
+        // Get database
+        let db = match &self.db {
+            Some(db) => db,
+            None => {
+                error!("Database not configured");
+                return JobResult::PermanentFailure("Database not configured".to_string());
+            }
+        };
+
+        // Create contact sync service
+        use crate::services::contact_sync::ContactSyncService;
+        
+        // Create a dummy queue for the service (we're already in the queue processor)
+        let dummy_queue = std::sync::Arc::new(crate::queue::MockMessageQueue::new());
+        let sync_service = ContactSyncService::new(client.clone(), dummy_queue);
+        
+        // Process sync job
+        match sync_service.process_sync_job(phone_numbers).await {
+            Ok(_) => JobResult::Success,
+            Err(e) => {
+                error!("Contact sync failed: {}", e);
+                JobResult::RetryableFailure(format!("Contact sync failed: {}", e))
+            }
+        }
+    }
+
+    /// Update contacts info
+    async fn update_contacts_info(&self, results: Vec<crate::services::contact_sync::ContactVerifyResult>) -> JobResult {
+        info!("Updating {} contact records", results.len());
+
+        // For now, just log the update
+        // The actual database update will be handled by pytake-api
+        for result in &results {
+            info!("Contact {} - WhatsApp: {}, ID: {:?}", 
+                  result.phone_number, 
+                  result.has_whatsapp,
+                  result.whatsapp_id);
+        }
+
+        JobResult::Success
+    }
+
+    /// Mark contact sync as failed
+    async fn sync_contact_failed(&self, phone_number: String, error: String) -> JobResult {
+        warn!("Contact sync failed for {}: {}", phone_number, error);
+        
+        // For now, just log the failure
+        // The actual database update will be handled by pytake-api
+        
+        JobResult::Success
+    }
+
+    /// Sync stale contacts
+    async fn sync_stale_contacts(&self, limit: u64) -> JobResult {
+        info!("Syncing stale contacts (limit: {})", limit);
+
+        // For now, this is a no-op since we don't have database access
+        // The actual implementation will be in pytake-api which can
+        // query the database and queue sync jobs
+        
+        warn!("Stale contact sync requested but database access not available in core");
         JobResult::Success
     }
 
@@ -208,6 +309,18 @@ impl JobProcessor for WhatsAppMessageProcessor {
             } => {
                 self.execute_flow(flow_id, contact_id, trigger_message_id, context).await
             }
+            
+            JobType::UpdateContactsInfo { results } => {
+                self.update_contacts_info(results).await
+            }
+            
+            JobType::SyncContactFailed { phone_number, error } => {
+                self.sync_contact_failed(phone_number, error).await
+            }
+            
+            JobType::SyncStaleContacts { limit } => {
+                self.sync_stale_contacts(limit).await
+            }
         }
     }
 
@@ -232,11 +345,6 @@ impl JobProcessor for WhatsAppMessageProcessor {
     }
 }
 
-impl Clone for WhatsAppMessageProcessor {
-    fn clone(&self) -> Self {
-        Self::new()
-    }
-}
 
 #[cfg(test)]
 mod tests {

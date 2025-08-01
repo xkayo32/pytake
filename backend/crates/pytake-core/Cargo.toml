@@ -43,6 +43,11 @@ redis = { version = "0.25", features = ["tokio-comp", "connection-manager", "str
 # Random for testing
 rand = "0.8"
 
+# Database integration (for processor)
+sea-orm = { workspace = true }
+# pytake-db = { path = "../pytake-db" }  # Removed to fix cyclic dependency
+pytake-whatsapp = { path = "../pytake-whatsapp" }
+
 [dev-dependencies]
 # Testing utilities
 mockall = { workspace = true }
