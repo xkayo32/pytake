@@ -14,7 +14,10 @@
       "Bash(cargo test:*)",
       "Bash(cargo build:*)",
       "Bash(find:*)",
-      "Bash(timeout 30 cargo check --message-format=short)"
+      "Bash(timeout 30 cargo check --message-format=short)",
+      "Bash(grep:*)",
+      "Bash(rustc:*)",
+      "Bash(cargo:*)"
     ],
     "deny": []
   }
