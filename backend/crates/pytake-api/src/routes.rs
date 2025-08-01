@@ -5,6 +5,7 @@ use crate::handlers::{
     auth::{register, login, refresh_token, logout, get_current_user},
     health::{health_check, detailed_health_check, readiness_check, liveness_check},
     status::{api_status, system_info, api_version},
+    protected::configure_protected_routes,
 };
 
 /// Configure all application routes
@@ -40,6 +41,8 @@ fn api_v1_routes() -> Scope {
         .service(configure_user_routes())
         .service(configure_flow_routes())
         .service(configure_whatsapp_routes())
+        // Protected routes examples
+        .service(configure_protected_routes())
 }
 
 /// Configure authentication routes
