@@ -2,5 +2,49 @@
 name = "pytake-api"
 version = "0.1.0"
 edition = "2021"
+description = "REST API server for PyTake application"
+authors = ["PyTake Team"]
+
+[[bin]]
+name = "pytake-api"
+path = "src/main.rs"
 
 [dependencies]
+# Web Framework
+actix-web = { workspace = true }
+actix-cors = { workspace = true }
+
+# Async Runtime
+tokio = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Error Handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Time handling
+chrono = { workspace = true }
+
+# Environment
+dotenvy = { workspace = true }
+
+# Validation
+validator = { workspace = true }
+
+# UUID support
+uuid = { workspace = true }
+
+# Local dependencies
+pytake-core = { path = "../pytake-core" }
+pytake-db = { path = "../pytake-db" }
+
+[dev-dependencies]
+# Testing utilities
+tokio-test = "0.4"
