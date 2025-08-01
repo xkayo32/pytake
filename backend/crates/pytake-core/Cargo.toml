@@ -32,6 +32,11 @@ tracing = { workspace = true }
 # Async traits
 async-trait = "0.1"
 
+# Authentication dependencies
+argon2 = { workspace = true }
+jsonwebtoken = { workspace = true }
+zeroize = "1.7"
+
 [dev-dependencies]
 # Testing utilities
 mockall = { workspace = true }

@@ -39,6 +39,7 @@ pub mod config;
 pub mod state;
 pub mod routes;
 pub mod handlers;
+pub mod services;
 pub mod logging;
 pub mod middleware;
 
@@ -74,6 +75,7 @@ pub mod prelude {
         state::{AppState, AppStateError},
         middleware::error_handler::{ApiError, ApiResult},
         handlers::*,
+        services::*,
         VERSION, API_VERSION, SERVICE_NAME,
     };
     

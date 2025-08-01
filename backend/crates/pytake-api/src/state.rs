@@ -1,7 +1,13 @@
+use crate::services::AuthService;
+use pytake_core::auth::{
+    session::InMemorySessionManager, 
+    token::TokenConfig,
+};
 use pytake_db::connection::DatabaseConnection;
 use sea_orm::DatabaseConnection as SeaOrmConnection;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use chrono::Duration;
 
 /// Application state that will be shared across all request handlers
 #[derive(Clone)]
@@ -12,6 +18,8 @@ pub struct AppState {
     pub config: Arc<crate::config::ApiConfig>,
     /// Health check state
     pub health: Arc<RwLock<HealthState>>,
+    /// Authentication service
+    pub auth_service: AuthService,
 }
 
 /// Health state tracking
@@ -31,6 +39,8 @@ impl AppState {
             .await
             .map_err(AppStateError::DatabaseConnection)?;
 
+        let db_arc = Arc::new(db_conn);
+
         let health_state = HealthState {
             database_healthy: true,
             last_check: chrono::Utc::now(),
@@ -38,10 +48,16 @@ impl AppState {
             version: env!("CARGO_PKG_VERSION").to_string(),
         };
 
+        // Initialize authentication service
+        let token_config = TokenConfig::default(); // TODO: Load from config
+        let session_manager = Arc::new(InMemorySessionManager::new(Duration::hours(24)));
+        let auth_service = AuthService::new(db_arc.clone(), token_config, session_manager);
+
         Ok(Self {
-            db: Arc::new(db_conn),
+            db: db_arc,
             config: Arc::new(config),
             health: Arc::new(RwLock::new(health_state)),
+            auth_service,
         })
     }
 
@@ -109,6 +125,11 @@ impl AppState {
         chrono::Utc::now()
             .signed_duration_since(health.startup_time)
             .num_seconds()
+    }
+
+    /// Get authentication service
+    pub fn auth_service(&self) -> &AuthService {
+        &self.auth_service
     }
 }
 

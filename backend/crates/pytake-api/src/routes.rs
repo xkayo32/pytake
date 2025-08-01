@@ -2,6 +2,7 @@ use actix_web::{web, HttpResponse, Scope};
 use tracing::info;
 
 use crate::handlers::{
+    auth::{register, login, refresh_token, logout, get_current_user},
     health::{health_check, detailed_health_check, readiness_check, liveness_check},
     status::{api_status, system_info, api_version},
 };
@@ -33,10 +34,22 @@ fn api_v1_routes() -> Scope {
         .route("/status", web::get().to(api_status))
         .route("/info", web::get().to(system_info))
         .route("/version", web::get().to(api_version))
+        // Authentication routes
+        .service(configure_auth_routes())
         // Placeholder for future API endpoints
         .service(configure_user_routes())
         .service(configure_flow_routes())
         .service(configure_whatsapp_routes())
+}
+
+/// Configure authentication routes
+fn configure_auth_routes() -> Scope {
+    web::scope("/auth")
+        .route("/register", web::post().to(register))
+        .route("/login", web::post().to(login))
+        .route("/refresh", web::post().to(refresh_token))
+        .route("/logout", web::post().to(logout))
+        .route("/me", web::get().to(get_current_user))
 }
 
 /// Configure user-related routes (placeholder)
@@ -191,6 +204,36 @@ pub fn get_route_info() -> Vec<RouteInfo> {
             path: "/api/v1/version".to_string(),
             method: "GET".to_string(),
             description: "API version information".to_string(),
+            version: "v1".to_string(),
+        },
+        RouteInfo {
+            path: "/api/v1/auth/register".to_string(),
+            method: "POST".to_string(),
+            description: "Register a new user account".to_string(),
+            version: "v1".to_string(),
+        },
+        RouteInfo {
+            path: "/api/v1/auth/login".to_string(),
+            method: "POST".to_string(),
+            description: "Authenticate user with email and password".to_string(),
+            version: "v1".to_string(),
+        },
+        RouteInfo {
+            path: "/api/v1/auth/refresh".to_string(),
+            method: "POST".to_string(),
+            description: "Refresh access token using refresh token".to_string(),
+            version: "v1".to_string(),
+        },
+        RouteInfo {
+            path: "/api/v1/auth/logout".to_string(),
+            method: "POST".to_string(),
+            description: "Logout user and revoke session".to_string(),
+            version: "v1".to_string(),
+        },
+        RouteInfo {
+            path: "/api/v1/auth/me".to_string(),
+            method: "GET".to_string(),
+            description: "Get current user information".to_string(),
             version: "v1".to_string(),
         },
     ]
