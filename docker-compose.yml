@@ -42,12 +42,12 @@ services:
     networks:
       - pytake-network
 
-  # Backend API (Development - with hot reload)
+  # Backend API
   backend:
     build:
       context: .
       dockerfile: docker/backend.Dockerfile
-      target: builder
+      target: runtime
     container_name: pytake-backend
     restart: unless-stopped
     environment:
@@ -72,11 +72,6 @@ services:
       WHATSAPP_WEBHOOK_VERIFY_TOKEN: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN:-development_webhook_token}
     ports:
       - "${APP_PORT:-8080}:8080"
-    volumes:
-      # Mount source for hot reload in development
-      - ./backend:/app
-      - backend_target:/app/target
-      - backend_cargo:/usr/local/cargo
     depends_on:
       postgres:
         condition: service_healthy
@@ -84,15 +79,13 @@ services:
         condition: service_healthy
     networks:
       - pytake-network
-    # Development command with hot reload
-    command: cargo watch -x "run --bin pytake-api"
 
   # Frontend (Development - with hot reload)
   frontend:
     build:
       context: .
       dockerfile: docker/frontend.Dockerfile
-      target: builder
+      target: development
     container_name: pytake-frontend
     restart: unless-stopped
     environment:

@@ -49,7 +49,9 @@
       "Bash(npx tsc:*)",
       "Bash(pkill:*)",
       "WebFetch(domain:localhost)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(true)",
+      "Bash(cp:*)"
     ],
     "deny": []
   }
