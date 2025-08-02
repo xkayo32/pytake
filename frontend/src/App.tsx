@@ -5,6 +5,9 @@ import { useEffect } from 'react'
 
 // Pages
 import LoginPage from '@/pages/auth/LoginPage'
+import LandingPage from '@/pages/LandingPage'
+import DocsPage from '@/pages/DocsPage'
+import ApiPage from '@/pages/ApiPage'
 import DashboardPage from '@/pages/dashboard/DashboardPage'
 import ConversationsPage from '@/pages/conversations/ConversationsPage'
 import AnalyticsPage from '@/pages/analytics/AnalyticsPage'
@@ -42,24 +45,19 @@ function App() {
     }
   }, [getCurrentUser, isAuthenticated])
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
         <div className="min-h-screen bg-background transition-colors duration-300">
           <Routes>
             {/* Public routes */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/docs" element={<DocsPage />} />
+            <Route path="/api" element={<ApiPage />} />
             <Route 
               path="/login" 
               element={
-                isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />
+                isAuthenticated ? <Navigate to="/app/dashboard" replace /> : <LoginPage />
               } 
             />
             <Route path="/test" element={<ApiTest />} />
@@ -70,9 +68,9 @@ function App() {
             <Route path="/whatsapp-showcase" element={<WhatsAppShowcasePage />} />
             
             {/* Protected routes */}
-            <Route path="/" element={<ProtectedRoute />}>
-              <Route path="/" element={<Layout />}>
-                <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="/app" element={<ProtectedRoute />}>
+              <Route path="/app" element={<Layout />}>
+                <Route index element={<Navigate to="/app/dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="conversations" element={<ConversationsPage />} />
                 <Route path="conversations/:id" element={<ConversationsPage />} />
@@ -82,7 +80,7 @@ function App() {
             </Route>
             
             {/* Catch all route */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </Router>

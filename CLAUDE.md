@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-PyTake is a robust WhatsApp Business API integration system built with Rust (backend) and React (frontend). It enables multi-client to multi-agent conversations with automated flow management and extensible module system. The system now includes complete PostgreSQL integration, real-time WebSocket chat, and WhatsApp webhook processing with automatic response capabilities.
+PyTake is a robust WhatsApp Business API integration system built with Rust (backend) and React (frontend). It enables multi-client to multi-agent conversations with automated flow management and extensible module system. The system includes complete PostgreSQL integration, real-time WebSocket chat, and WhatsApp webhook processing with automatic response capabilities.
 
 ## Key Commands
 
