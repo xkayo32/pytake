@@ -6,6 +6,7 @@
 use crate::{
     middleware::error_handler::{ApiError, ApiResult},
     state::AppState,
+    services::whatsapp_integration::WhatsAppIntegrationService,
 };
 use actix_web::{web, HttpRequest, HttpResponse};
 use pytake_whatsapp::{
@@ -64,63 +65,53 @@ pub async fn process_webhook(
     body: web::Bytes,
     app_state: web::Data<AppState>,
 ) -> ApiResult<HttpResponse> {
-    let config = &app_state.config();
+    // Get WhatsApp client from app state
+    let whatsapp_client = app_state.whatsapp_client()
+        .ok_or_else(|| ApiError::internal("WhatsApp client not configured"))?;
     
-    // Get app secret for signature verification
-    let app_secret = config
-        .whatsapp
-        .as_ref()
-        .and_then(|w| w.app_secret.as_ref())
-        .ok_or_else(|| ApiError::internal("WhatsApp app secret not configured"))?;
+    // Create integration service
+    let integration_service = WhatsAppIntegrationService::new(
+        app_state.clone().into_inner(),
+        whatsapp_client.clone(),
+    ).map_err(|e| ApiError::internal(&e.to_string()))?;
     
     // Get signature from headers
     let signature = req
         .headers()
         .get("x-hub-signature-256")
-        .and_then(|h| h.to_str().ok())
-        .ok_or_else(|| ApiError::bad_request("Missing webhook signature"))?;
+        .and_then(|h| h.to_str().ok());
     
-    // Create webhook processor
-    let processor = WebhookProcessor::new(app_secret);
+    // Convert body to string
+    let payload_str = std::str::from_utf8(&body)
+        .map_err(|e| ApiError::bad_request(&format!("Invalid UTF-8 payload: {}", e)))?;
     
-    // Verify signature
-    if !processor.verify_signature(&body, signature) {
-        warn!("Invalid webhook signature");
-        return Err(ApiError::unauthorized("Invalid webhook signature"));
-    }
-    
-    // Parse webhook payload
-    let payload: WebhookPayload = serde_json::from_slice(&body)
-        .map_err(|e| ApiError::bad_request(&format!("Invalid webhook payload: {}", e)))?;
-    
-    // Process the webhook based on type
-    for entry in payload.entry {
-        for change in entry.changes {
-            match change.field.as_str() {
-                "messages" => {
-                    if let Some(messages_value) = change.value.messages {
-                        for message in messages_value {
-                            process_inbound_message(message, &app_state).await?;
-                        }
-                    }
-                    
-                    if let Some(statuses_value) = change.value.statuses {
-                        for status in statuses_value {
-                            process_message_status(status, &app_state).await?;
-                        }
-                    }
-                }
-                _ => {
-                    info!("Received webhook for field: {}", change.field);
+    // Process webhook payload
+    match integration_service.process_webhook_payload(payload_str, signature).await {
+        Ok(processed_messages) => {
+            info!("Successfully processed {} messages from webhook", processed_messages.len());
+            
+            for processed in &processed_messages {
+                info!("Processed message {} in conversation {} from {}", 
+                      processed.message_id, 
+                      processed.conversation_id, 
+                      processed.contact_phone);
+                
+                if processed.is_new_conversation {
+                    info!("Created new conversation for {}", processed.contact_phone);
                 }
             }
+            
+            Ok(HttpResponse::Ok().json(serde_json::json!({
+                "status": "ok",
+                "message": "Webhook processed successfully",
+                "processed_messages": processed_messages.len()
+            })))
+        }
+        Err(e) => {
+            error!("Failed to process webhook: {}", e);
+            Err(ApiError::internal(&format!("Webhook processing failed: {}", e)))
         }
     }
-    
-    Ok(HttpResponse::Ok().json(serde_json::json!({
-        "status": "ok",
-        "message": "Webhook processed successfully"
-    })))
 }
 
 /// Process an inbound message

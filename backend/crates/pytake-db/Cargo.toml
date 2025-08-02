@@ -43,7 +43,7 @@ tracing = "0.1"
 async-trait = "0.1"
 
 # Local dependencies
-pytake-core = { path = "../pytake-core" }
+# pytake-core = { path = "../pytake-core" }  # Removed to fix cyclic dependency
 
 [dev-dependencies]
 tokio-test = "0.4"

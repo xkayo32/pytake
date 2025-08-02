@@ -80,19 +80,7 @@ impl From<uuid::Error> for DatabaseError {
     }
 }
 
-impl From<pytake_core::errors::CoreError> for DatabaseError {
-    fn from(err: pytake_core::errors::CoreError) -> Self {
-        match err {
-            pytake_core::errors::CoreError::ValidationError(msg) => {
-                DatabaseError::ValidationError(msg)
-            }
-            pytake_core::errors::CoreError::NotFound { entity_type, id } => {
-                DatabaseError::NotFound(format!("{} with id {}", entity_type, id))
-            }
-            _ => DatabaseError::Internal(err.to_string()),
-        }
-    }
-}
+// Removed pytake_core dependency to break cyclic dependency
 
 /// Extension trait for converting database results
 pub trait DatabaseResultExt<T> {
@@ -131,16 +119,7 @@ impl<T> DatabaseResultExt<T> for Result<T> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_database_error_conversion() {
-        let core_error = pytake_core::errors::CoreError::ValidationError("test".to_string());
-        let db_error: DatabaseError = core_error.into();
-        
-        match db_error {
-            DatabaseError::ValidationError(msg) => assert_eq!(msg, "test"),
-            _ => panic!("Expected ValidationError"),
-        }
-    }
+    // Removed test that used pytake_core
 
     #[test]
     fn test_result_extension_optional() {

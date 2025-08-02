@@ -10,11 +10,13 @@ pub mod password;
 pub mod token;
 pub mod rbac;
 pub mod session;
+pub mod permissions;
 
 pub use password::{PasswordHasher, PasswordVerifier, PasswordError};
 pub use token::{TokenGenerator, TokenValidator, Claims, TokenError};
 pub use rbac::{Role, Permission, RoleChecker, PermissionError};
 pub use session::{Session, SessionManager, SessionError};
+pub use permissions::{Role as UserRole, Permission as UserPermission, PermissionChecker};
 
 use serde::{Deserialize, Serialize};
 
@@ -70,6 +72,8 @@ pub enum AuthError {
 pub struct AuthContext {
     pub user_id: String,
     pub email: String,
+    pub organization_id: uuid::Uuid,
+    pub role: UserRole,
     pub roles: Vec<Role>,
     pub permissions: Vec<Permission>,
     pub session_id: Option<String>,
@@ -88,6 +92,11 @@ impl AuthContext {
         self.permissions.contains(permission)
     }
     
+    /// Check if the user has the new permission system permission
+    pub fn has_user_permission(&self, permission: &UserPermission) -> bool {
+        self.role.has_permission(*permission)
+    }
+    
     /// Check if the user has any of the specified roles
     pub fn has_any_role(&self, roles: &[Role]) -> bool {
         roles.iter().any(|role| self.has_role(role))
@@ -96,6 +105,11 @@ impl AuthContext {
     /// Check if the user has all of the specified permissions
     pub fn has_all_permissions(&self, permissions: &[Permission]) -> bool {
         permissions.iter().all(|perm| self.has_permission(perm))
+    }
+    
+    /// Get permission checker for this user
+    pub fn permission_checker(&self) -> PermissionChecker {
+        PermissionChecker::new(self.role)
     }
 }
 

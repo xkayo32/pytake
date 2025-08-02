@@ -4,6 +4,7 @@ pub mod m20241201_000001_create_users_table;
 pub mod m20241201_000002_create_flows_table;
 pub mod m20241201_000003_create_whatsapp_messages_table;
 pub mod m20241201_000004_create_webhook_events_table;
+pub mod m20241215_000001_complete_schema;
 
 use crate::error::{DatabaseError, Result};
 use sea_orm::DatabaseConnection;
@@ -20,6 +21,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20241201_000002_create_flows_table::Migration),
             Box::new(m20241201_000003_create_whatsapp_messages_table::Migration),
             Box::new(m20241201_000004_create_webhook_events_table::Migration),
+            Box::new(m20241215_000001_complete_schema::Migration),
         ]
     }
 }

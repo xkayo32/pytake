@@ -1,12 +1,15 @@
 use crate::services::AuthService;
 use pytake_core::auth::{
     session::InMemorySessionManager, 
-    token::TokenConfig,
+    token::{TokenConfig, TokenValidator},
 };
 use pytake_core::queue::MessageQueue;
 use pytake_core::services::orchestration::{PyTakeOrchestrator, PyTakeOrchestratorBuilder, WhatsAppConfig, PyTakeOrchestratorTrait};
+use pytake_core::websocket::ConnectionManager;
+use pytake_core::services::media_service::{MediaService, LocalMediaService};
 use pytake_db::connection::DatabaseConnection;
 use sea_orm::DatabaseConnection as SeaOrmConnection;
+use socketioxide::SocketIo;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use chrono::Duration;
@@ -28,6 +31,12 @@ pub struct AppState {
     pub whatsapp_client: Option<Arc<pytake_whatsapp::WhatsAppClient>>,
     /// PyTake orchestrator (optional)
     pub orchestrator: Option<Arc<dyn PyTakeOrchestratorTrait>>,
+    /// Connection manager for WebSocket connections
+    pub connection_manager: Arc<ConnectionManager>,
+    /// Socket.IO server for frontend compatibility
+    pub socketio: Option<Arc<SocketIo>>,
+    /// Media upload service
+    pub media_service: Arc<dyn MediaService>,
 }
 
 /// Health state tracking
@@ -59,7 +68,18 @@ impl AppState {
         // Initialize authentication service
         let token_config = TokenConfig::default(); // TODO: Load from config
         let session_manager = Arc::new(InMemorySessionManager::new(Duration::hours(24)));
-        let auth_service = AuthService::new(db_arc.clone(), token_config, session_manager);
+        let auth_service = AuthService::new(db_arc.clone(), token_config.clone(), session_manager);
+        
+        // Initialize WebSocket infrastructure
+        let (connection_manager, _event_receiver) = ConnectionManager::new();
+        let connection_manager_arc = Arc::new(connection_manager);
+        
+        // Initialize media service
+        let media_path = std::path::PathBuf::from("./media");
+        let media_service = Arc::new(LocalMediaService::new(
+            media_path,
+            Some(format!("http://localhost:{}/files", config.server.port))
+        )) as Arc<dyn MediaService>;
 
         // Initialize WhatsApp client if configured
         let whatsapp_client = if let Some(whatsapp_config) = &config.whatsapp {
@@ -131,6 +151,24 @@ impl AppState {
             None
         };
 
+        // Create Socket.IO server after we have app state components
+        let socketio = {
+            let app_state_ref = Arc::new(AppState {
+                db: db_arc.clone(),
+                config: Arc::new(config.clone()),
+                health: Arc::new(RwLock::new(health_state.clone())),
+                auth_service: auth_service.clone(),
+                queue: queue.clone(),
+                whatsapp_client: whatsapp_client.clone(),
+                orchestrator: orchestrator.clone(),
+                connection_manager: connection_manager_arc.clone(),
+                socketio: None, // Will be set after creation
+                media_service: media_service.clone(),
+            });
+            
+            Some(Arc::new(crate::handlers::socketio::create_socketio_layer(app_state_ref)))
+        };
+        
         Ok(Self {
             db: db_arc,
             config: Arc::new(config),
@@ -139,6 +177,9 @@ impl AppState {
             queue,
             whatsapp_client,
             orchestrator,
+            connection_manager: connection_manager_arc,
+            socketio,
+            media_service,
         })
     }
 
@@ -231,6 +272,16 @@ impl AppState {
     /// Get PyTake orchestrator
     pub fn orchestrator(&self) -> Option<&Arc<dyn PyTakeOrchestratorTrait>> {
         self.orchestrator.as_ref()
+    }
+    
+    /// Get Socket.IO server
+    pub fn socketio(&self) -> Option<&Arc<SocketIo>> {
+        self.socketio.as_ref()
+    }
+    
+    /// Get connection manager
+    pub fn connection_manager(&self) -> &Arc<ConnectionManager> {
+        &self.connection_manager
     }
 }
 

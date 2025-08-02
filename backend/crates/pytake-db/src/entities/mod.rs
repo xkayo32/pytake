@@ -10,6 +10,9 @@ pub mod message_media;
 pub mod conversation_tag;
 pub mod quick_reply;
 pub mod contact;
+pub mod template;
+pub mod media;
+pub mod tag;
 
 // Re-export all entities
 pub use user::*;

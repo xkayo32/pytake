@@ -92,11 +92,21 @@ async fn main() -> std::io::Result<()> {
         info!("Queue not configured, skipping background workers");
     }
 
+    // Get Socket.IO layer from app state
+    let socketio_layer = app_state.socketio().cloned();
+    
     // Configure the HTTP server
     let server = HttpServer::new(move || {
-        App::new()
+        let mut app = App::new()
             // Add application state
-            .app_data(web::Data::new(app_state.clone()))
+            .app_data(web::Data::new(app_state.clone()));
+            
+        // Add Socket.IO layer if available
+        if let Some(socketio) = &socketio_layer {
+            app = app.wrap(socketio.as_ref().clone());
+        }
+        
+        app
             // Add request ID middleware (must be first to generate ID for other middleware)
             .wrap(RequestId)
             // Add error handling middleware

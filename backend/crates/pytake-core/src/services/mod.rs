@@ -20,6 +20,10 @@ pub mod response_templates;
 pub mod conversation_search;
 pub mod conversation_integration;
 pub mod orchestration;
+// Temporarily disabled due to db dependencies
+// pub mod template_service;
+// pub mod media_service;  
+// pub mod user_management;
 
 // Re-export commonly used service traits
 pub use flow_service::FlowService;

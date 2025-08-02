@@ -8,6 +8,7 @@ interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
+  token: string | null
 }
 
 interface AuthActions {
@@ -27,6 +28,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       isAuthenticated: false,
       isLoading: false,
       error: null,
+      token: null,
 
       // Actions
       login: async (email: string, password: string) => {
@@ -38,6 +40,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           if (response.success && response.data) {
             set({
               user: response.data.user,
+              token: response.data.tokens.accessToken,
               isAuthenticated: true,
               isLoading: false,
               error: null
@@ -69,6 +72,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         } finally {
           set({
             user: null,
+            token: null,
             isAuthenticated: false,
             isLoading: false,
             error: null
@@ -144,6 +148,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       name: 'auth-storage',
       partialize: (state) => ({ 
         user: state.user, 
+        token: state.token,
         isAuthenticated: state.isAuthenticated 
       })
     }

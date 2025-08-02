@@ -7,13 +7,17 @@ use crate::handlers::{
     status::{api_status, system_info, api_version},
     protected::configure_protected_routes,
     whatsapp,
+    whatsapp_send,
     conversation,
     contact,
     message_status,
     websocket,
     notification,
     metrics,
+    dashboard,
     orchestration,
+    template,
+    user,
 };
 
 /// Configure all application routes
@@ -55,6 +59,9 @@ fn api_v1_routes() -> Scope {
         .service(configure_websocket_routes())
         .service(configure_notification_routes())
         .service(configure_metrics_routes())
+        .service(configure_dashboard_routes())
+        .service(configure_template_routes())
+        .service(configure_media_routes())
         .service(configure_orchestration_routes())
         // Protected routes examples
         .service(configure_protected_routes())
@@ -70,11 +77,18 @@ fn configure_auth_routes() -> Scope {
         .route("/me", web::get().to(get_current_user))
 }
 
-/// Configure user-related routes (placeholder)
+/// Configure user-related routes
 fn configure_user_routes() -> Scope {
     web::scope("/users")
-        // TODO: Add user routes
-        .route("", web::get().to(placeholder_handler))
+        // User management
+        .route("", web::post().to(user::create_user))
+        .route("", web::get().to(user::list_users))
+        .route("/me", web::get().to(user::get_current_user))
+        .route("/me/password", web::post().to(user::change_password))
+        .route("/{id}", web::get().to(user::get_user))
+        .route("/{id}", web::put().to(user::update_user))
+        .route("/{id}", web::delete().to(user::delete_user))
+        .route("/{id}/password/reset", web::post().to(user::reset_password))
 }
 
 /// Configure flow-related routes (placeholder)
@@ -87,10 +101,15 @@ fn configure_flow_routes() -> Scope {
 /// Configure WhatsApp-related routes
 fn configure_whatsapp_routes() -> Scope {
     web::scope("/whatsapp")
+        // Webhook routes
         .route("/webhook", web::get().to(whatsapp::verify_webhook))
         .route("/webhook", web::post().to(whatsapp::process_webhook))
-        .route("/send", web::post().to(whatsapp::send_message))
-        .route("/media", web::post().to(whatsapp::upload_media))
+        // Message sending routes
+        .route("/send", web::post().to(whatsapp_send::send_message))
+        .route("/send/direct", web::post().to(whatsapp_send::send_direct_message))
+        .route("/send/bulk", web::post().to(whatsapp_send::bulk_send_messages))
+        // Media routes (placeholder for future implementation)
+        //.route("/media", web::post().to(whatsapp::upload_media))
 }
 
 /// Configure conversation routes
@@ -154,6 +173,8 @@ fn configure_websocket_routes() -> Scope {
         .route("", web::get().to(websocket::ws_handler))
         .route("/", web::get().to(websocket::ws_handler))
         .route("/stats", web::get().to(websocket::ws_stats))
+        // Socket.IO endpoint is handled by the socketio layer
+        // /socket.io/* routes are automatically handled by socketioxide
 }
 
 /// Configure notification routes
@@ -360,6 +381,46 @@ fn configure_metrics_routes() -> Scope {
         .route("/available", web::get().to(metrics::get_available_metrics))
         .route("/summary", web::get().to(metrics::get_dashboard_summary))
         .route("/realtime", web::get().to(metrics::get_realtime_metrics))
+}
+
+/// Configure dashboard routes
+fn configure_dashboard_routes() -> Scope {
+    web::scope("/dashboard")
+        // Main dashboard metrics
+        .route("/metrics", web::get().to(dashboard::get_dashboard_metrics))
+        // Chart data endpoints
+        .route("/charts/conversations", web::get().to(dashboard::get_conversation_chart))
+        .route("/charts/response-time", web::get().to(dashboard::get_response_time_chart))
+        // Activity and stats
+        .route("/activity", web::get().to(dashboard::get_recent_activity))
+        .route("/stats/quick", web::get().to(dashboard::get_quick_stats))
+        // Real-time data
+        .route("/realtime", web::get().to(dashboard::get_realtime_metrics))
+}
+
+/// Configure template routes
+fn configure_template_routes() -> Scope {
+    web::scope("/templates")
+        // CRUD operations
+        .route("", web::post().to(template::create_template))
+        .route("", web::get().to(template::list_templates))
+        .route("/search", web::get().to(template::search_templates))
+        .route("/categories", web::get().to(template::get_template_categories))
+        .route("/favorites", web::get().to(template::get_user_favorites))
+        .route("/stats", web::get().to(template::get_templates_with_stats))
+        .route("/category/{category}", web::get().to(template::get_templates_by_category))
+        .route("/shortcut/{shortcut}", web::get().to(template::get_template_by_shortcut))
+        // Single template operations
+        .route("/{id}", web::get().to(template::get_template))
+        .route("/{id}", web::put().to(template::update_template))
+        .route("/{id}", web::delete().to(template::delete_template))
+        .route("/{id}/use", web::post().to(template::use_template))
+        .route("/{id}/clone", web::post().to(template::clone_template))
+}
+
+/// Configure media routes  
+fn configure_media_routes() -> Scope {
+    web::scope("/v1").configure(handlers::media::configure)
 }
 
 /// Configure orchestration routes

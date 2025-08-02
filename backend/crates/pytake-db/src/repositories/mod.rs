@@ -8,6 +8,11 @@ pub mod traits;
 pub mod conversation;
 pub mod message;
 pub mod contact;
+pub mod template;
+pub mod template_repository;
+pub mod media_repository;
+pub mod dashboard_repository;
+pub mod user_repository;
 
 // Re-export all repositories
 pub use user::*;

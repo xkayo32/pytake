@@ -14,6 +14,13 @@ import SettingsPage from '@/pages/settings/SettingsPage'
 import Layout from '@/components/layout/Layout'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 
+// Test components
+import { ApiTest } from '@/components/ApiTest'
+import { AuthTest } from '@/components/AuthTest'
+import { WebSocketTest } from '@/components/WebSocketTest'
+import WhatsAppTest from '@/components/WhatsAppTest'
+import WebhookTest from '@/components/WebhookTest'
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -45,7 +52,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen" style={{ backgroundColor: '#f8fafc' }}>
           <Routes>
             {/* Public routes */}
             <Route 
@@ -54,6 +61,11 @@ function App() {
                 isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />
               } 
             />
+            <Route path="/test" element={<ApiTest />} />
+            <Route path="/auth-test" element={<AuthTest />} />
+            <Route path="/ws-test" element={<WebSocketTest />} />
+            <Route path="/whatsapp-test" element={<WhatsAppTest />} />
+            <Route path="/webhook-test" element={<WebhookTest />} />
             
             {/* Protected routes */}
             <Route path="/" element={<ProtectedRoute />}>

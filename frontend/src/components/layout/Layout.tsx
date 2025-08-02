@@ -2,7 +2,7 @@ import { Outlet } from 'react-router-dom'
 
 export default function Layout() {
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen" style={{ backgroundColor: '#f8fafc' }}>
       {/* Sidebar */}
       <aside className="w-64 bg-card border-r">
         <div className="p-6">

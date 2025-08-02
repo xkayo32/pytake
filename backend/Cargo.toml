@@ -3,10 +3,10 @@ resolver = "2"
 members = [
     "crates/pytake-core",
     "crates/pytake-api",
-    "crates/pytake-db",
+    "crates/pytake-db",        # Re-enabling for PostgreSQL integration
     "crates/pytake-flow",
     "crates/pytake-whatsapp",
-    "crates/pytake-modules",
+    "crates/pytake-modules", "simple_api",
 ]
 
 [workspace.dependencies]
@@ -14,6 +14,11 @@ members = [
 actix-web = "4.5"
 actix-ws = "0.2"
 actix-cors = "0.7"
+
+# WebSocket & Socket.IO
+socketioxide = "0.14"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors"] }
 
 # Async Runtime
 tokio = { version = "1.37", features = ["full"] }
