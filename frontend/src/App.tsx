@@ -9,6 +9,7 @@ import DashboardPage from '@/pages/dashboard/DashboardPage'
 import ConversationsPage from '@/pages/conversations/ConversationsPage'
 import AnalyticsPage from '@/pages/analytics/AnalyticsPage'
 import SettingsPage from '@/pages/settings/SettingsPage'
+import WhatsAppShowcasePage from '@/pages/showcase/WhatsAppShowcasePage'
 
 // Layout
 import Layout from '@/components/layout/Layout'
@@ -52,7 +53,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <div className="min-h-screen" style={{ backgroundColor: '#f8fafc' }}>
+        <div className="min-h-screen bg-background transition-colors duration-300">
           <Routes>
             {/* Public routes */}
             <Route 
@@ -66,6 +67,7 @@ function App() {
             <Route path="/ws-test" element={<WebSocketTest />} />
             <Route path="/whatsapp-test" element={<WhatsAppTest />} />
             <Route path="/webhook-test" element={<WebhookTest />} />
+            <Route path="/whatsapp-showcase" element={<WhatsAppShowcasePage />} />
             
             {/* Protected routes */}
             <Route path="/" element={<ProtectedRoute />}>
