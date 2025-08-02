@@ -1,5 +1,6 @@
-import React from 'react';
-import type { LucideIcon } from 'lucide-react';
+import React from 'react'
+import { motion } from 'framer-motion'
+import type { LucideIcon } from 'lucide-react'
 
 interface MetricsCardProps {
   title: string;
@@ -34,39 +35,57 @@ export const MetricsCard: React.FC<MetricsCardProps> = ({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border p-6">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-card rounded-lg border border-border p-6"
+      >
         <div className="flex items-center justify-between">
           <div className="space-y-2">
-            <div className="h-4 bg-gray-200 rounded animate-pulse w-24"></div>
-            <div className="h-8 bg-gray-200 rounded animate-pulse w-16"></div>
-            <div className="h-3 bg-gray-200 rounded animate-pulse w-20"></div>
+            <div className="h-4 bg-muted rounded animate-pulse w-24"></div>
+            <div className="h-8 bg-muted rounded animate-pulse w-16"></div>
+            <div className="h-3 bg-muted rounded animate-pulse w-20"></div>
           </div>
-          <div className="h-12 w-12 bg-gray-200 rounded-full animate-pulse"></div>
+          <div className="h-12 w-12 bg-muted rounded-full animate-pulse"></div>
         </div>
-      </div>
-    );
+      </motion.div>
+    )
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow">
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      whileHover={{ scale: 1.02, y: -2 }}
+      className="bg-card rounded-lg border border-border p-6 hover:shadow-lg transition-all duration-200"
+    >
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-          <p className="text-3xl font-bold text-gray-900 mb-2">{value}</p>
+          <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
+          <p className="text-3xl font-bold text-foreground mb-2">{value}</p>
           {change && (
-            <p className={`text-sm ${getChangeColor(change.type)} flex items-center`}>
+            <motion.p 
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className={`text-sm ${getChangeColor(change.type)} flex items-center`}
+            >
               {change.type === 'increase' && '↗ '}
               {change.type === 'decrease' && '↘ '}
               {change.value}
-            </p>
+            </motion.p>
           )}
         </div>
-        <div className={`p-3 rounded-full bg-gray-50 ${iconColor}`}>
+        <motion.div 
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.2 }}
+          className={`p-3 rounded-full bg-accent/50 ${iconColor}`}
+        >
           <Icon className="h-6 w-6" />
-        </div>
+        </motion.div>
       </div>
-    </div>
-  );
-};
+    </motion.div>
+  )
+}
 
-export default MetricsCard;
+export default MetricsCard

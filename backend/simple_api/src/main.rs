@@ -101,7 +101,7 @@ async fn main() -> std::io::Result<()> {
     
     info!("🚀 Starting PyTake API Test Server with PostgreSQL Authentication...");
     info!("📍 Server will be available at: http://localhost:8080");
-    info!("🌐 CORS enabled for: http://localhost:3000");
+    info!("🌐 CORS enabled for: http://localhost:3000, http://localhost:3001");
     info!("🔐 Authentication endpoints available at: /api/v1/auth/*");
     
     // Connect to database

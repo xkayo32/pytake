@@ -44,7 +44,10 @@
       "Bash(start /b target/release/simple_api.exe:*)",
       "Bash(docker:*)",
       "Bash(tasklist)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(git reset:*)",
+      "Bash(npx tsc:*)",
+      "Bash(pkill:*)"
     ],
     "deny": []
   }
