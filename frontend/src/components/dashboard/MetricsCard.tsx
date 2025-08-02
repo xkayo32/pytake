@@ -25,28 +25,28 @@ export const MetricsCard: React.FC<MetricsCardProps> = ({
   const getChangeColor = (type: string) => {
     switch (type) {
       case 'increase':
-        return 'text-green-600';
+        return 'text-green-600 dark:text-green-400';
       case 'decrease':
-        return 'text-red-600';
+        return 'text-red-600 dark:text-red-400';
       default:
-        return 'text-gray-600';
+        return 'text-muted-foreground';
     }
   };
 
   if (loading) {
     return (
       <motion.div 
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-card rounded-lg border border-border p-6"
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-card rounded-lg border border-border/50 p-6"
       >
         <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <div className="h-4 bg-muted rounded animate-pulse w-24"></div>
-            <div className="h-8 bg-muted rounded animate-pulse w-16"></div>
-            <div className="h-3 bg-muted rounded animate-pulse w-20"></div>
+          <div className="space-y-3">
+            <div className="h-3 bg-muted rounded w-20"></div>
+            <div className="h-6 bg-muted rounded w-16"></div>
+            <div className="h-3 bg-muted rounded w-12"></div>
           </div>
-          <div className="h-12 w-12 bg-muted rounded-full animate-pulse"></div>
+          <div className="h-10 w-10 bg-muted rounded-md"></div>
         </div>
       </motion.div>
     )
@@ -54,35 +54,27 @@ export const MetricsCard: React.FC<MetricsCardProps> = ({
 
   return (
     <motion.div 
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      whileHover={{ scale: 1.02, y: -2 }}
-      className="bg-card rounded-lg border border-border p-6 hover:shadow-lg transition-all duration-200"
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -1 }}
+      transition={{ duration: 0.15 }}
+      className="bg-card rounded-lg border border-border/50 p-6 hover:border-border transition-colors duration-150"
     >
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
-          <p className="text-3xl font-bold text-foreground mb-2">{value}</p>
+        <div className="flex-1">
+          <p className="text-sm text-muted-foreground mb-2">{title}</p>
+          <p className="text-2xl font-medium text-foreground mb-1">{value}</p>
           {change && (
-            <motion.p 
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className={`text-sm ${getChangeColor(change.type)} flex items-center`}
-            >
-              {change.type === 'increase' && '↗ '}
-              {change.type === 'decrease' && '↘ '}
-              {change.value}
-            </motion.p>
+            <div className={`text-xs ${getChangeColor(change.type)} flex items-center space-x-1`}>
+              {change.type === 'increase' && <span>↗</span>}
+              {change.type === 'decrease' && <span>↘</span>}
+              <span>{change.value}</span>
+            </div>
           )}
         </div>
-        <motion.div 
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.2 }}
-          className={`p-3 rounded-full bg-accent/50 ${iconColor}`}
-        >
-          <Icon className="h-6 w-6" />
-        </motion.div>
+        <div className={`p-2 rounded-md bg-muted/50 ${iconColor}`}>
+          <Icon className="h-5 w-5" />
+        </div>
       </div>
     </motion.div>
   )

@@ -86,27 +86,28 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 bg-background min-h-full">
-      {/* Header */}
+    <div className="p-6 space-y-8 min-h-full">
+      {/* Clean Header */}
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
-            Visão geral do sistema PyTake - Gestão WhatsApp Business
+          <h1 className="text-2xl font-medium text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Visão geral do sistema PyTake
           </p>
         </div>
         
-        {/* Period Selector */}
-        <div className="flex items-center space-x-2">
+        {/* Clean Period Selector */}
+        <div className="flex items-center space-x-3">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <select
             value={selectedPeriod}
             onChange={(e) => handlePeriodChange(e.target.value as '7d' | '30d' | '90d')}
-            className="border border-border bg-background rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+            className="border border-border bg-background rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-colors duration-150"
           >
             <option value="7d">Últimos 7 dias</option>
             <option value="30d">Últimos 30 dias</option>
@@ -115,52 +116,52 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
-      {/* Real-time Status Bar */}
+      {/* Clean Status Bar */}
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="bg-card rounded-lg border border-border p-4"
+        transition={{ delay: 0.1, duration: 0.2 }}
+        className="bg-card rounded-lg border border-border/50 p-5"
       >
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-8">
             <div className="flex items-center space-x-2">
-              <Activity className="h-4 w-4 text-green-500" />
-              <span className="text-sm font-medium text-foreground">Sistema Online</span>
+              <div className="w-2 h-2 bg-green-500 rounded-full" />
+              <span className="text-sm text-foreground">Sistema Online</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <Users className="h-4 w-4 text-blue-500" />
-              <span className="text-sm text-muted-foreground">{realTimeData.onlineAgents} agentes online</span>
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              <Users className="h-4 w-4" />
+              <span>{realTimeData.onlineAgents} agentes</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <MessageSquare className="h-4 w-4 text-purple-500" />
-              <span className="text-sm text-muted-foreground">{realTimeData.activeChats} conversas ativas</span>
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              <MessageSquare className="h-4 w-4" />
+              <span>{realTimeData.activeChats} conversas</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <Clock className="h-4 w-4 text-orange-500" />
-              <span className="text-sm text-muted-foreground">{realTimeData.pendingMessages} mensagens pendentes</span>
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              <Clock className="h-4 w-4" />
+              <span>{realTimeData.pendingMessages} pendentes</span>
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-xs text-muted-foreground">Atualizado agora</span>
+            <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+            <span className="text-xs text-muted-foreground">Ao vivo</span>
           </div>
         </div>
       </motion.div>
 
-      {/* Key Metrics Cards */}
+      {/* Clean Metrics Grid */}
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+        transition={{ delay: 0.2, duration: 0.2 }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
       >
         <MetricsCard
           title="Conversas Ativas"
           value={metricsData.activeConversations.value}
           change={metricsData.activeConversations.change}
           icon={MessageSquare}
-          iconColor="text-blue-600"
+          iconColor="text-primary"
           loading={loading}
         />
         
@@ -169,43 +170,43 @@ export default function DashboardPage() {
           value={metricsData.totalMessages.value}
           change={metricsData.totalMessages.change}
           icon={TrendingUp}
-          iconColor="text-green-600"
+          iconColor="text-secondary"
           loading={loading}
         />
         
         <MetricsCard
-          title="Tempo Médio de Resposta"
+          title="Tempo Médio"
           value={metricsData.avgResponseTime.value}
           change={metricsData.avgResponseTime.change}
           icon={Clock}
-          iconColor="text-orange-600"
+          iconColor="text-muted-foreground"
           loading={loading}
         />
         
         <MetricsCard
-          title="Satisfação do Cliente"
+          title="Satisfação"
           value={metricsData.customerSatisfaction.value}
           change={metricsData.customerSatisfaction.change}
           icon={Users}
-          iconColor="text-purple-600"
+          iconColor="text-green-600"
           loading={loading}
         />
       </motion.div>
 
-      {/* WhatsApp Instances Status */}
+      {/* Clean WhatsApp Instances */}
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="bg-card rounded-lg border border-border p-6"
+        transition={{ delay: 0.3, duration: 0.2 }}
+        className="bg-card rounded-lg border border-border/50 p-6"
       >
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-2">
-            <Smartphone className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold text-foreground">Instâncias WhatsApp</h3>
+          <div className="flex items-center space-x-3">
+            <Smartphone className="h-5 w-5 text-muted-foreground" />
+            <h3 className="text-lg font-medium text-foreground">Instâncias WhatsApp</h3>
           </div>
-          <button className="text-sm text-primary hover:text-primary/80 font-medium">
-            Gerenciar Todas
+          <button className="text-sm text-primary hover:text-primary/80 transition-colors duration-150">
+            Gerenciar
           </button>
         </div>
         
@@ -213,31 +214,32 @@ export default function DashboardPage() {
           {whatsappInstances.map((instance) => (
             <motion.div
               key={instance.id}
-              whileHover={{ scale: 1.02 }}
-              className="bg-background border border-border rounded-lg p-4 hover:shadow-sm transition-all"
+              whileHover={{ y: -1 }}
+              transition={{ duration: 0.15 }}
+              className="bg-background border border-border/50 rounded-lg p-4 hover:border-border transition-colors duration-150"
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2">
                   {getStatusIcon(instance.status)}
-                  <span className="font-medium text-foreground">{instance.name}</span>
+                  <span className="font-medium text-foreground text-sm">{instance.name}</span>
                 </div>
-                <span className={`text-xs px-2 py-1 rounded-full ${
+                <div className={`text-xs px-2 py-1 rounded-md ${
                   instance.status === 'connected' 
-                    ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                    : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                    ? 'bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20'
+                    : 'bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20'
                 }`}>
-                  {instance.status === 'connected' ? 'Conectado' : 'Desconectado'}
-                </span>
+                  {instance.status === 'connected' ? 'Online' : 'Offline'}
+                </div>
               </div>
               
-              <div className="space-y-2 text-sm text-muted-foreground">
+              <div className="space-y-2 text-xs text-muted-foreground">
                 <div className="flex items-center space-x-2">
                   <Phone className="h-3 w-3" />
                   <span>{instance.phone}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <MessageSquare className="h-3 w-3" />
-                  <span>{instance.messages} mensagens hoje</span>
+                  <span>{instance.messages} mensagens</span>
                 </div>
               </div>
             </motion.div>
@@ -245,11 +247,11 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
-      {/* Charts Section */}
+      {/* Clean Charts Section */}
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
+        transition={{ delay: 0.4, duration: 0.2 }}
         className="grid grid-cols-1 lg:grid-cols-2 gap-6"
       >
         <ConversationChart 
@@ -262,11 +264,11 @@ export default function DashboardPage() {
         />
       </motion.div>
 
-      {/* Recent Activity */}
+      {/* Clean Activity Section */}
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
+        transition={{ delay: 0.5, duration: 0.2 }}
         className="grid grid-cols-1 lg:grid-cols-3 gap-6"
       >
         <div className="lg:col-span-2">
@@ -276,43 +278,43 @@ export default function DashboardPage() {
           />
         </div>
         
-        {/* Quick Stats */}
-        <div className="bg-card rounded-lg border border-border p-6">
-          <h3 className="text-lg font-semibold text-foreground mb-4">
-            Resumo de Hoje
+        {/* Clean Quick Stats */}
+        <div className="bg-card rounded-lg border border-border/50 p-6">
+          <h3 className="text-lg font-medium text-foreground mb-5">
+            Resumo Hoje
           </h3>
           
           <div className="space-y-4">
-            <div className="flex items-center justify-between py-2 border-b border-border">
+            <div className="flex items-center justify-between py-2">
               <span className="text-sm text-muted-foreground">Conversas Iniciadas</span>
-              <span className="text-lg font-semibold text-foreground">23</span>
+              <span className="text-sm font-medium text-foreground">23</span>
             </div>
             
-            <div className="flex items-center justify-between py-2 border-b border-border">
+            <div className="flex items-center justify-between py-2">
               <span className="text-sm text-muted-foreground">Conversas Resolvidas</span>
-              <span className="text-lg font-semibold text-green-600">18</span>
+              <span className="text-sm font-medium text-green-600">18</span>
             </div>
             
-            <div className="flex items-center justify-between py-2 border-b border-border">
+            <div className="flex items-center justify-between py-2">
               <span className="text-sm text-muted-foreground">Taxa de Resolução</span>
-              <span className="text-lg font-semibold text-blue-600">78%</span>
+              <span className="text-sm font-medium text-secondary">78%</span>
             </div>
             
-            <div className="flex items-center justify-between py-2 border-b border-border">
+            <div className="flex items-center justify-between py-2">
               <span className="text-sm text-muted-foreground">Novos Contatos</span>
-              <span className="text-lg font-semibold text-purple-600">12</span>
+              <span className="text-sm font-medium text-primary">12</span>
             </div>
             
             <div className="flex items-center justify-between py-2">
               <span className="text-sm text-muted-foreground">Pico de Mensagens</span>
-              <span className="text-lg font-semibold text-orange-600">14:30</span>
+              <span className="text-sm font-medium text-muted-foreground">14:30</span>
             </div>
           </div>
           
-          <div className="mt-6 pt-4 border-t border-border">
-            <div className="flex items-center text-sm text-muted-foreground">
-              <Zap className="h-4 w-4 mr-2 text-green-500" />
-              <span>Dados atualizados em tempo real</span>
+          <div className="mt-6 pt-4 border-t border-border/50">
+            <div className="flex items-center text-xs text-muted-foreground">
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-2" />
+              <span>Dados em tempo real</span>
             </div>
           </div>
         </div>

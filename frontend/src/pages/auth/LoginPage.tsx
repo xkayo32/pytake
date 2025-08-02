@@ -20,43 +20,60 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">PyTake</CardTitle>
-          <CardDescription className="text-center">
-            Entre com sua conta para acessar o sistema
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <Input
-                type="password"
-                placeholder="Senha"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            {error && (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="w-full max-w-sm">
+        {/* Minimal Header */}
+        <div className="text-center mb-8">
+          <div className="mx-auto w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center border border-primary/20 mb-4">
+            <div className="w-5 h-5 bg-primary rounded-sm"></div>
+          </div>
+          <h1 className="text-2xl font-medium text-foreground mb-2">PyTake</h1>
+          <p className="text-sm text-muted-foreground">Entre com sua conta</p>
+        </div>
+
+        {/* Clean Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-3">
+            <Input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="h-11"
+            />
+            <Input
+              type="password"
+              placeholder="Senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="h-11"
+            />
+          </div>
+          
+          {error && (
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
               <p className="text-sm text-destructive">{error}</p>
-            )}
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Entrando...' : 'Entrar'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+            </div>
+          )}
+          
+          <Button 
+            type="submit" 
+            className="w-full h-11" 
+            disabled={isLoading}
+          >
+            {isLoading ? 'Entrando...' : 'Entrar'}
+          </Button>
+        </form>
+
+        {/* Footer */}
+        <div className="mt-8 text-center">
+          <p className="text-xs text-muted-foreground">
+            WhatsApp Business Integration Platform
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

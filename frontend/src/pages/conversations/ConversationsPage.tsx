@@ -52,190 +52,165 @@ export default function ConversationsPage() {
   }, [])
 
   return (
-    <div className="h-full bg-background">
-      {/* Enhanced Header with Stats and Controls */}
+    <div className="h-full">
+      {/* Clean Header */}
       <motion.div 
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="border-b border-border bg-card p-6"
+        transition={{ duration: 0.2 }}
+        className="border-b border-border/50 bg-background p-6"
       >
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <MessageSquare className="h-6 w-6 text-primary" />
+              <div className="p-2 bg-primary/10 rounded-md border border-primary/20">
+                <MessageSquare className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">Conversas</h1>
+                <h1 className="text-2xl font-medium text-foreground">Conversas</h1>
                 <p className="text-sm text-muted-foreground">
-                  Gerencie todas as conversas do WhatsApp Business
+                  WhatsApp Business
                 </p>
               </div>
             </div>
 
-            {/* Connection Status */}
-            <motion.div 
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium ${
-                isConnected 
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                  : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400'
-              }`}
-            >
+            {/* Clean Connection Status */}
+            <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs ${
+              isConnected 
+                ? 'bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20'
+                : 'bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20'
+            }`}>
               {isConnected ? (
                 <>
-                  <Wifi className="h-3 w-3" />
-                  <span>WhatsApp Conectado</span>
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                  <span>Online</span>
                 </>
               ) : (
                 <>
-                  <WifiOff className="h-3 w-3" />
-                  <span>Reconnectando...</span>
+                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full" />
+                  <span>Offline</span>
                 </>
               )}
-            </motion.div>
+            </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center space-x-3">
+          {/* Clean Action Buttons */}
+          <div className="flex items-center space-x-2">
             <Button variant="outline" size="sm">
               <Users className="h-4 w-4 mr-2" />
               Contatos
             </Button>
             <Button size="sm">
               <Plus className="h-4 w-4 mr-2" />
-              Nova Conversa
+              Nova
             </Button>
           </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Clean Stats */}
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.1, duration: 0.2 }}
           className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6"
         >
-          <motion.div 
-            whileHover={{ scale: 1.02 }}
-            className="bg-background rounded-lg border border-border p-4"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              </div>
+          <div className="bg-card rounded-lg border border-border/50 p-4">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total</p>
-                <p className="text-xl font-bold text-foreground">{stats.total}</p>
+                <p className="text-xs text-muted-foreground">Total</p>
+                <p className="text-lg font-medium text-foreground">{stats.total}</p>
               </div>
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div 
-            whileHover={{ scale: 1.02 }}
-            className="bg-background rounded-lg border border-border p-4"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-              </div>
+          <div className="bg-card rounded-lg border border-border/50 p-4">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Ativas</p>
-                <p className="text-xl font-bold text-foreground">{stats.active}</p>
+                <p className="text-xs text-muted-foreground">Ativas</p>
+                <p className="text-lg font-medium text-primary">{stats.active}</p>
               </div>
+              <CheckCircle2 className="h-4 w-4 text-primary" />
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div 
-            whileHover={{ scale: 1.02 }}
-            className="bg-background rounded-lg border border-border p-4"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
-                <Clock className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-              </div>
+          <div className="bg-card rounded-lg border border-border/50 p-4">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Pendentes</p>
-                <p className="text-xl font-bold text-foreground">{stats.pending}</p>
+                <p className="text-xs text-muted-foreground">Pendentes</p>
+                <p className="text-lg font-medium text-orange-600">{stats.pending}</p>
               </div>
+              <Clock className="h-4 w-4 text-orange-600" />
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div 
-            whileHover={{ scale: 1.02 }}
-            className="bg-background rounded-lg border border-border p-4"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                <Phone className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-              </div>
+          <div className="bg-card rounded-lg border border-border/50 p-4">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Resolvidas</p>
-                <p className="text-xl font-bold text-foreground">{stats.resolved}</p>
+                <p className="text-xs text-muted-foreground">Resolvidas</p>
+                <p className="text-lg font-medium text-green-600">{stats.resolved}</p>
               </div>
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
             </div>
-          </motion.div>
+          </div>
         </motion.div>
 
-        {/* Search and Filter Controls */}
+        {/* Clean Search and Filter */}
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.2, duration: 0.2 }}
           className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-6"
         >
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar conversas por nome ou telefone..."
+              placeholder="Buscar conversas..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <div className="flex items-center space-x-1">
-              {(['all', 'active', 'pending', 'resolved'] as const).map((status) => (
-                <Button
-                  key={status}
-                  variant={filterStatus === status ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setFilterStatus(status)}
-                  className="text-xs"
-                >
-                  {status === 'all' && 'Todas'}
-                  {status === 'active' && 'Ativas'}
-                  {status === 'pending' && 'Pendentes'}
-                  {status === 'resolved' && 'Resolvidas'}
-                </Button>
-              ))}
-            </div>
+          <div className="flex items-center space-x-1">
+            {(['all', 'active', 'pending', 'resolved'] as const).map((status) => (
+              <Button
+                key={status}
+                variant={filterStatus === status ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setFilterStatus(status)}
+                className="text-xs px-3"
+              >
+                {status === 'all' && 'Todas'}
+                {status === 'active' && 'Ativas'}
+                {status === 'pending' && 'Pendentes'}
+                {status === 'resolved' && 'Resolvidas'}
+              </Button>
+            ))}
           </div>
         </motion.div>
       </motion.div>
 
-      {/* Chat Container with Animation */}
+      {/* Clean Chat Container */}
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
+        transition={{ delay: 0.3, duration: 0.2 }}
         className="h-[calc(100vh-280px)]"
       >
         <ChatContainer />
       </motion.div>
 
-      {/* Floating Action for Mobile */}
+      {/* Clean Floating Action */}
       <AnimatePresence>
         <motion.div 
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0, opacity: 0 }}
+          transition={{ duration: 0.15 }}
           className="lg:hidden fixed bottom-6 right-6 z-50"
         >
-          <Button size="lg" className="rounded-full shadow-lg">
+          <Button size="lg" className="rounded-full w-12 h-12 p-0">
             <Plus className="h-5 w-5" />
           </Button>
         </motion.div>

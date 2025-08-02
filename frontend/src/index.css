@@ -1,60 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
+    /* Clean Minimal Light Theme */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 0 0% 9%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 0 0% 9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
+    --popover-foreground: 0 0% 9%;
+    
+    /* WhatsApp Green but more subtle */
+    --primary: 142 76% 36%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Clean Blue for accents */
+    --secondary: 217 91% 60%;
+    --secondary-foreground: 0 0% 100%;
+    
+    /* Subtle grays */
+    --muted: 0 0% 97%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 0% 97%;
+    --accent-foreground: 0 0% 9%;
+    
+    /* Clean borders */
+    --border: 0 0% 93%;
+    --input: 0 0% 93%;
+    
+    /* System colors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --ring: 142 76% 36%;
+    --radius: 8px;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 84% 4.9%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 94.1%;
-  }
-  
-  /* Better dark mode card colors */
-  .dark {
-    --card: 222.2 30% 7%;
-    --muted: 217.2 20% 12%;
-    --accent: 217.2 20% 12%;
-    --border: 217.2 20% 18%;
-    --input: 217.2 20% 18%;
+    /* Clean Minimal Dark Theme */
+    --background: 0 0% 4%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 98%;
+    
+    /* WhatsApp Green adjusted for dark */
+    --primary: 142 76% 42%;
+    --primary-foreground: 0 0% 9%;
+    
+    /* Clean Blue adjusted for dark */
+    --secondary: 217 91% 65%;
+    --secondary-foreground: 0 0% 9%;
+    
+    /* Dark subtle grays */
+    --muted: 0 0% 8%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 0 0% 8%;
+    --accent-foreground: 0 0% 98%;
+    
+    /* Dark borders */
+    --border: 0 0% 12%;
+    --input: 0 0% 12%;
+    
+    /* Dark system colors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --ring: 142 76% 42%;
   }
 }
 
@@ -69,17 +84,25 @@
   
   body {
     @apply bg-background text-foreground;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-      'Ubuntu', 'Cantarell', 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     margin: 0;
     min-height: 100vh;
     font-feature-settings: "rlig" 1, "calt" 1;
+    letter-spacing: -0.011em;
+    line-height: 1.5;
   }
   
-  /* Custom scrollbar */
+  /* Typography hierarchy */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.25;
+  }
+  
+  /* Custom scrollbar - minimal */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
   
   ::-webkit-scrollbar-track {
@@ -91,33 +114,24 @@
   }
   
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground;
+    @apply bg-muted-foreground/50;
   }
   
-  /* Dark mode scrollbar */
-  .dark ::-webkit-scrollbar-thumb {
-    @apply bg-border;
-  }
-  
-  .dark ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground;
-  }
-  
-  /* Focus styles */
+  /* Focus styles - minimal */
   .focus-visible {
-    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+    @apply outline-none ring-1 ring-primary/50 ring-offset-1 ring-offset-background;
   }
   
   /* Selection */
   ::selection {
-    @apply bg-primary/20;
+    @apply bg-primary/10;
   }
   
-  /* Animations */
+  /* Minimal animations - faster, more subtle */
   @keyframes fadeIn {
     from {
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(4px);
     }
     to {
       opacity: 1;
@@ -127,7 +141,7 @@
   
   @keyframes slideIn {
     from {
-      transform: translateX(-100%);
+      transform: translateX(-8px);
     }
     to {
       transform: translateX(0);
@@ -135,10 +149,33 @@
   }
   
   .animate-fade-in {
-    animation: fadeIn 0.3s ease-out;
+    animation: fadeIn 200ms ease-out;
   }
   
   .animate-slide-in {
-    animation: slideIn 0.3s ease-out;
+    animation: slideIn 150ms ease-out;
+  }
+}
+
+@layer components {
+  /* Clean card component */
+  .clean-card {
+    @apply bg-card border border-border/50 rounded-lg;
+  }
+  
+  /* Minimal button base */
+  .btn-minimal {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium 
+           transition-colors duration-150 focus-visible:outline-none focus-visible:ring-1 
+           focus-visible:ring-primary/50 disabled:pointer-events-none disabled:opacity-50;
+  }
+  
+  /* Clean input */
+  .input-clean {
+    @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm 
+           ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium 
+           placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 
+           focus-visible:ring-primary/50 focus-visible:ring-offset-1 disabled:cursor-not-allowed 
+           disabled:opacity-50;
   }
 }

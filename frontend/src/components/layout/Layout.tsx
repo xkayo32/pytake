@@ -62,45 +62,46 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Sidebar */}
+      {/* Minimal Sidebar */}
       <motion.aside 
         initial={{ x: -256 }}
         animate={{ x: 0 }}
-        className="w-64 bg-card border-r border-border shadow-sm"
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="w-60 bg-card border-r border-border/50"
       >
-        {/* Logo and Brand */}
-        <div className="p-6 border-b border-border">
+        {/* Minimal Logo */}
+        <div className="p-6 pb-4">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Smartphone className="h-5 w-5 text-primary-foreground" />
+            <div className="w-7 h-7 bg-primary/10 rounded-md flex items-center justify-center border border-primary/20">
+              <Smartphone className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">PyTake</h1>
+              <h1 className="text-lg font-medium text-foreground">PyTake</h1>
               <p className="text-xs text-muted-foreground">WhatsApp Business</p>
             </div>
           </div>
         </div>
 
-        {/* Connection Status */}
-        <div className="px-6 py-3 border-b border-border">
-          <div className="flex items-center space-x-2">
+        {/* Clean Connection Status */}
+        <div className="px-6 py-2 mb-4">
+          <div className="flex items-center space-x-2 text-xs">
             {isConnected ? (
               <>
-                <Wifi className="h-4 w-4 text-green-500" />
-                <span className="text-sm text-green-600 dark:text-green-400">WhatsApp Conectado</span>
+                <div className="w-2 h-2 bg-green-500 rounded-full" />
+                <span className="text-muted-foreground">Conectado</span>
               </>
             ) : (
               <>
-                <WifiOff className="h-4 w-4 text-red-500" />
-                <span className="text-sm text-red-600 dark:text-red-400">Desconectado</span>
+                <div className="w-2 h-2 bg-red-500 rounded-full" />
+                <span className="text-muted-foreground">Desconectado</span>
               </>
             )}
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 py-4">
-          <div className="px-3 space-y-1">
+        {/* Clean Navigation */}
+        <nav className="flex-1 px-4">
+          <div className="space-y-1">
             {navItems.map((item) => {
               const isActive = location.pathname === item.path
               const Icon = item.icon
@@ -109,44 +110,35 @@ export default function Layout() {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className="relative group"
+                  className="block"
                 >
                   <motion.div
-                    whileHover={{ x: 4 }}
-                    whileTap={{ scale: 0.98 }}
-                    className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    whileHover={{ x: 2 }}
+                    transition={{ duration: 0.15 }}
+                    className={`flex items-center space-x-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors duration-150 ${
                       isActive
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                        ? 'bg-primary/10 text-primary border border-primary/20'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
                     }`}
                   >
-                    <Icon className="h-5 w-5 flex-shrink-0" />
+                    <Icon className="h-4 w-4 flex-shrink-0" />
                     <span>{item.label}</span>
                   </motion.div>
-                  
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeTab"
-                      className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r"
-                      initial={false}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    />
-                  )}
                 </Link>
               )
             })}
           </div>
         </nav>
 
-        {/* User Profile Section */}
-        <div className="p-4 border-t border-border">
+        {/* Minimal User Section */}
+        <div className="p-4 border-t border-border/50">
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="w-full flex items-center space-x-3 p-2 rounded-lg hover:bg-accent transition-colors"
+              className="w-full flex items-center space-x-3 p-2 rounded-md hover:bg-accent/50 transition-colors duration-150"
             >
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <User className="h-4 w-4 text-primary-foreground" />
+              <div className="w-7 h-7 bg-muted rounded-md flex items-center justify-center">
+                <User className="h-4 w-4 text-muted-foreground" />
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-medium text-foreground">{user?.name || 'Admin'}</p>
@@ -157,21 +149,22 @@ export default function Layout() {
             <AnimatePresence>
               {showUserMenu && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="absolute bottom-full left-0 right-0 mb-2 bg-card border border-border rounded-lg shadow-lg py-1"
+                  exit={{ opacity: 0, y: 4 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute bottom-full left-0 right-0 mb-2 bg-card border border-border/50 rounded-md py-1"
                 >
                   <button
                     onClick={toggleTheme}
-                    className="w-full flex items-center space-x-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
+                    className="w-full flex items-center space-x-2 px-3 py-2 text-sm hover:bg-accent/50 transition-colors duration-150"
                   >
                     {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                     <span>{isDarkMode ? 'Modo Claro' : 'Modo Escuro'}</span>
                   </button>
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+                    className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors duration-150"
                   >
                     <LogOut className="h-4 w-4" />
                     <span>Sair</span>
@@ -184,38 +177,39 @@ export default function Layout() {
       </motion.aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-hidden bg-background">
-        {/* Top Header */}
+      <main className="flex-1 overflow-hidden">
+        {/* Clean Header */}
         <motion.header 
           initial={{ y: -64 }}
           animate={{ y: 0 }}
-          className="h-16 bg-card border-b border-border px-6 flex items-center justify-between"
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          className="h-14 bg-background border-b border-border/50 px-6 flex items-center justify-between"
         >
           <div className="flex items-center space-x-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Buscar conversas..."
-                className="pl-10 pr-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent w-64"
+                placeholder="Buscar..."
+                className="pl-10 pr-4 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 w-64 transition-colors duration-150"
               />
             </div>
           </div>
           
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+              whileHover={{ scale: 1.02 }}
+              transition={{ duration: 0.15 }}
+              className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors duration-150"
             >
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+              <Bell className="h-4 w-4" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
             </motion.button>
           </div>
         </motion.header>
 
         {/* Page Content */}
-        <div className="h-[calc(100vh-4rem)] overflow-auto">
+        <div className="h-[calc(100vh-3.5rem)] overflow-auto bg-muted/20">
           <Outlet />
         </div>
       </main>
