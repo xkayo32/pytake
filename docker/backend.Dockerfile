@@ -17,10 +17,8 @@ WORKDIR /app
 # Copy manifests first for better caching
 COPY backend/Cargo.toml backend/Cargo.lock* ./
 
-# Copy crates if they exist
-COPY backend/crates ./crates/ 2>/dev/null || true
-
-# Copy simple_api
+# Copy all backend structure
+COPY backend/crates ./crates/
 COPY backend/simple_api ./simple_api/
 
 # Build dependencies (cached layer)
@@ -29,8 +27,8 @@ RUN cargo build --release || true
 # Copy remaining source code
 COPY backend/. .
 
-# Build application (both binaries)
-RUN cargo build --release --bin simple_api 2>/dev/null || cargo build --release --workspace
+# Build application
+RUN cargo build --release --bin simple_api || cargo build --release
 
 # Runtime stage
 FROM debian:bookworm-slim AS runtime
@@ -46,17 +44,11 @@ RUN apt-get update && apt-get install -y \
 # Create non-root user
 RUN useradd -m -u 1001 pytake
 
-# Copy binary from builder
-COPY --from=builder /app/target/release/simple_api /usr/local/bin/simple_api 2>/dev/null || \
-     COPY --from=builder /app/target/release/pytake-api /usr/local/bin/pytake-api
-
-# Create a symlink for consistency
-RUN ln -sf /usr/local/bin/simple_api /usr/local/bin/pytake-api 2>/dev/null || \
-    ln -sf /usr/local/bin/pytake-api /usr/local/bin/simple_api
+# Copy binary from builder (try simple_api first, then pytake-api)
+COPY --from=builder /app/target/release/simple_api /usr/local/bin/simple_api
 
 # Change ownership
-RUN chown pytake:pytake /usr/local/bin/simple_api 2>/dev/null || true
-RUN chown pytake:pytake /usr/local/bin/pytake-api 2>/dev/null || true
+RUN chown pytake:pytake /usr/local/bin/simple_api
 
 # Switch to non-root user
 USER pytake

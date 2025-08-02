@@ -152,10 +152,6 @@ volumes:
     driver: local
   redis_data:
     driver: local
-  backend_target:
-    driver: local
-  backend_cargo:
-    driver: local
   frontend_node_modules:
     driver: local
   pgadmin_data:
