@@ -47,7 +47,9 @@
       "Bash(node:*)",
       "Bash(git reset:*)",
       "Bash(npx tsc:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "WebFetch(domain:localhost)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": []
   }
