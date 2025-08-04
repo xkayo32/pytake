@@ -47,9 +47,17 @@ export function useToast() {
     }))
   }, [])
 
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    return toast({
+      title: message,
+      type,
+    })
+  }, [toast])
+
   return {
     toasts: state.toasts,
     toast,
     dismiss,
+    showToast,
   }
 }

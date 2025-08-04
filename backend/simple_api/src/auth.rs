@@ -75,8 +75,10 @@ impl AuthService {
         let encoding_key = EncodingKey::from_secret(JWT_SECRET.as_ref());
         let decoding_key = DecodingKey::from_secret(JWT_SECRET.as_ref());
         
-        // Add a demo user
+        // Add demo users for development
         let mut user_map = users.lock().unwrap();
+        
+        // Admin user
         user_map.insert(
             "admin@pytake.com".to_string(),
             User {
@@ -88,6 +90,46 @@ impl AuthService {
                 created_at: Utc::now().to_rfc3339(),
             }
         );
+        
+        // Supervisor user
+        user_map.insert(
+            "supervisor@pytake.com".to_string(),
+            User {
+                id: "user_002".to_string(),
+                email: "supervisor@pytake.com".to_string(),
+                name: "Supervisor User".to_string(),
+                password_hash: "supervisor123".to_string(),
+                role: "supervisor".to_string(),
+                created_at: Utc::now().to_rfc3339(),
+            }
+        );
+        
+        // Agent user
+        user_map.insert(
+            "agent@pytake.com".to_string(),
+            User {
+                id: "user_003".to_string(),
+                email: "agent@pytake.com".to_string(),
+                name: "Agent User".to_string(),
+                password_hash: "agent123".to_string(),
+                role: "agent".to_string(),
+                created_at: Utc::now().to_rfc3339(),
+            }
+        );
+        
+        // Viewer user
+        user_map.insert(
+            "viewer@pytake.com".to_string(),
+            User {
+                id: "user_004".to_string(),
+                email: "viewer@pytake.com".to_string(),
+                name: "Viewer User".to_string(),
+                password_hash: "viewer123".to_string(),
+                role: "viewer".to_string(),
+                created_at: Utc::now().to_rfc3339(),
+            }
+        );
+        
         drop(user_map);
         
         Self {

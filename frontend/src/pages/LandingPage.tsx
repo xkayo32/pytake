@@ -26,6 +26,7 @@ import {
   PlayCircle
 } from 'lucide-react'
 import { useState } from 'react'
+import { ThemeToggleCompact } from '@/components/ui/theme-toggle'
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -184,6 +185,7 @@ export default function LandingPage() {
               <a href="#faq" className="text-sm font-medium hover:text-primary transition-colors">
                 FAQ
               </a>
+              <ThemeToggleCompact />
               <Link to="/login">
                 <Button variant="outline" size="sm">
                   Login

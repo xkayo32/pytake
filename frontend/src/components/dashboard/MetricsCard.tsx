@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import type { LucideIcon } from 'lucide-react'
+import type { Icon } from '@/types/icons'
 
 interface MetricsCardProps {
   title: string;
@@ -9,7 +9,7 @@ interface MetricsCardProps {
     value: string;
     type: 'increase' | 'decrease' | 'neutral';
   };
-  icon: LucideIcon;
+  icon: Icon;
   iconColor?: string;
   loading?: boolean;
 }

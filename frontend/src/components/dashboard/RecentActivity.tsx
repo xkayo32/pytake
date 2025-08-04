@@ -26,64 +26,6 @@ interface RecentActivityProps {
   limit?: number;
 }
 
-// Mock data generator
-const generateMockActivities = (limit: number = 10): Activity[] => {
-  const activities: Activity[] = [];
-  const types: Activity['type'][] = ['message', 'contact_added', 'conversation_resolved', 'conversation_pending', 'call', 'alert'];
-  
-  for (let i = 0; i < limit; i++) {
-    const type = types[Math.floor(Math.random() * types.length)];
-    const timestamp = new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000); // Last 24h
-    
-    const mockData = {
-      message: {
-        title: 'Nova mensagem recebida',
-        description: 'João Silva enviou: "Olá, gostaria de saber sobre..."',
-        user: 'João Silva',
-        contact: '+55 11 99999-9999'
-      },
-      contact_added: {
-        title: 'Novo contato adicionado',
-        description: 'Maria Santos foi adicionada aos contatos',
-        user: 'Maria Santos',
-        contact: '+55 11 88888-8888'
-      },
-      conversation_resolved: {
-        title: 'Conversa resolvida',
-        description: 'Atendimento com Pedro finalizado com sucesso',
-        user: 'Pedro Oliveira',
-        contact: '+55 11 77777-7777'
-      },
-      conversation_pending: {
-        title: 'Conversa pendente',
-        description: 'Ana Costa aguarda retorno há 2 horas',
-        user: 'Ana Costa',
-        contact: '+55 11 66666-6666'
-      },
-      call: {
-        title: 'Chamada perdida',
-        description: 'Tentativa de ligação não atendida',
-        user: 'Carlos Ferreira',
-        contact: '+55 11 55555-5555'
-      },
-      alert: {
-        title: 'Alerta de sistema',
-        description: 'Alta demanda detectada - considere adicionar mais agentes',
-        user: 'Sistema',
-        contact: ''
-      }
-    };
-    
-    activities.push({
-      id: `activity-${i}`,
-      type,
-      timestamp,
-      ...mockData[type]
-    });
-  }
-  
-  return activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-};
 
 const getActivityIcon = (type: Activity['type']) => {
   const iconClass = "h-4 w-4";
@@ -130,7 +72,7 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({
   loading = false,
   limit = 10,
 }) => {
-  const activityData = activities || generateMockActivities(limit);
+  const activityData = activities || [];
 
   if (loading) {
     return (
@@ -158,44 +100,52 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({
           Atividade Recente
         </h3>
         <p className="text-sm text-gray-600">
-          Últimas {activityData.length} atividades do sistema
+          {activityData.length > 0 ? `Últimas ${activityData.length} atividades do sistema` : 'Nenhuma atividade recente'}
         </p>
       </div>
       
       <div className="space-y-4 max-h-96 overflow-y-auto">
-        {activityData.map((activity) => (
-          <div
-            key={activity.id}
-            className={`border-l-4 pl-4 py-3 ${getActivityColor(activity.type)} rounded-r-lg`}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex items-start space-x-3">
-                <div className="mt-0.5">
-                  {getActivityIcon(activity.type)}
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-medium text-gray-900">
-                    {activity.title}
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {activity.description}
-                  </p>
-                  {activity.contact && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      {activity.contact}
+        {activityData.length > 0 ? (
+          activityData.map((activity) => (
+            <div
+              key={activity.id}
+              className={`border-l-4 pl-4 py-3 ${getActivityColor(activity.type)} rounded-r-lg`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-start space-x-3">
+                  <div className="mt-0.5">
+                    {getActivityIcon(activity.type)}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-gray-900">
+                      {activity.title}
+                    </h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {activity.description}
                     </p>
-                  )}
+                    {activity.contact && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {activity.contact}
+                      </p>
+                    )}
+                  </div>
                 </div>
+                <span className="text-xs text-gray-500 whitespace-nowrap ml-4">
+                  {formatDistanceToNow(activity.timestamp, { 
+                    addSuffix: true, 
+                    locale: ptBR 
+                  })}
+                </span>
               </div>
-              <span className="text-xs text-gray-500 whitespace-nowrap ml-4">
-                {formatDistanceToNow(activity.timestamp, { 
-                  addSuffix: true, 
-                  locale: ptBR 
-                })}
-              </span>
             </div>
+          ))
+        ) : (
+          <div className="text-center py-8">
+            <MessageSquare className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-sm text-gray-500">Nenhuma atividade recente</p>
+            <p className="text-xs text-gray-400 mt-1">As atividades aparecerão aqui conforme acontecem</p>
           </div>
-        ))}
+        )}
       </div>
       
       <div className="mt-4 pt-4 border-t">

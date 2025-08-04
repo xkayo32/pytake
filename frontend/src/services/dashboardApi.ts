@@ -70,10 +70,10 @@ export class DashboardApiService {
   static async getDashboardMetrics(period: '7d' | '30d' | '90d' = '7d'): Promise<DashboardMetrics> {
     try {
       const response = await apiClient.get<DashboardMetrics>(`/v1/dashboard/metrics?period=${period}`);
-      return response.data || getMockDashboardMetrics();
+      return response.data || getEmptyDashboardMetrics();
     } catch (error) {
-      console.warn('Failed to fetch dashboard metrics, using mock data:', error);
-      return getMockDashboardMetrics();
+      console.warn('Failed to fetch dashboard metrics:', error);
+      return getEmptyDashboardMetrics();
     }
   }
 
@@ -85,7 +85,7 @@ export class DashboardApiService {
       const response = await apiClient.get<ConversationChartData[]>(`/v1/dashboard/charts/conversations?period=${period}`);
       return response.data || [];
     } catch (error) {
-      console.warn('Failed to fetch conversation chart, using mock data:', error);
+      console.warn('Failed to fetch conversation chart:', error);
       return [];
     }
   }
@@ -98,7 +98,7 @@ export class DashboardApiService {
       const response = await apiClient.get<ResponseTimeData[]>('/v1/dashboard/charts/response-time');
       return response.data || [];
     } catch (error) {
-      console.warn('Failed to fetch response time chart, using mock data:', error);
+      console.warn('Failed to fetch response time chart:', error);
       return [];
     }
   }
@@ -111,7 +111,7 @@ export class DashboardApiService {
       const response = await apiClient.get<ActivityItem[]>(`/v1/dashboard/activity?limit=${limit}`);
       return response.data || [];
     } catch (error) {
-      console.warn('Failed to fetch recent activity, using mock data:', error);
+      console.warn('Failed to fetch recent activity:', error);
       return [];
     }
   }
@@ -122,26 +122,10 @@ export class DashboardApiService {
   static async getQuickStats(): Promise<QuickStats> {
     try {
       const response = await apiClient.get<QuickStats>('/v1/dashboard/stats/quick');
-      return response.data || {
-        conversations_started: 0,
-        conversations_resolved: 0,
-        resolution_rate: 0,
-        new_contacts: 0,
-        peak_hour: "00:00",
-        total_agents: 0,
-        online_agents: 0,
-      };
+      return response.data || getEmptyQuickStats();
     } catch (error) {
-      console.warn('Failed to fetch quick stats, using mock data:', error);
-      return {
-        conversations_started: 23,
-        conversations_resolved: 18,
-        resolution_rate: 78.3,
-        new_contacts: 12,
-        peak_hour: "14:30",
-        total_agents: 12,
-        online_agents: 8,
-      };
+      console.warn('Failed to fetch quick stats:', error);
+      return getEmptyQuickStats();
     }
   }
 
@@ -151,24 +135,10 @@ export class DashboardApiService {
   static async getRealtimeMetrics(): Promise<RealtimeMetrics> {
     try {
       const response = await apiClient.get<RealtimeMetrics>('/v1/dashboard/realtime');
-      return response.data || {
-        active_conversations: 0,
-        online_agents: 0,
-        pending_messages: 0,
-        average_wait_time: "0min",
-        system_load: 0,
-        last_updated: new Date().toISOString(),
-      };
+      return response.data || getEmptyRealtimeMetrics();
     } catch (error) {
-      console.warn('Failed to fetch realtime metrics, using mock data:', error);
-      return {
-        active_conversations: 127,
-        online_agents: 8,
-        pending_messages: 23,
-        average_wait_time: "1.2min",
-        system_load: 0.65,
-        last_updated: new Date().toISOString(),
-      };
+      console.warn('Failed to fetch realtime metrics:', error);
+      return getEmptyRealtimeMetrics();
     }
   }
 
@@ -183,10 +153,10 @@ export class DashboardApiService {
       const startDateStr = startDate.toISOString();
       const endDateStr = endDate.toISOString();
       const response = await apiClient.get<DashboardMetrics>(`/v1/dashboard/metrics?start_date=${startDateStr}&end_date=${endDateStr}`);
-      return response.data || getMockDashboardMetrics();
+      return response.data || getEmptyDashboardMetrics();
     } catch (error) {
-      console.warn('Failed to fetch metrics by date range, using mock data:', error);
-      return getMockDashboardMetrics();
+      console.warn('Failed to fetch metrics by date range:', error);
+      return getEmptyDashboardMetrics();
     }
   }
 
@@ -203,7 +173,7 @@ export class DashboardApiService {
       const response = await apiClient.get<ConversationChartData[]>(`/v1/dashboard/charts/conversations?start_date=${startDateStr}&end_date=${endDateStr}`);
       return response.data || [];
     } catch (error) {
-      console.warn('Failed to fetch conversation chart by date range, using mock data:', error);
+      console.warn('Failed to fetch conversation chart by date range:', error);
       return [];
     }
   }
@@ -255,34 +225,53 @@ export const getTrendColor = (trend: string): string => {
   }
 };
 
-// Mock data fallback for development
-export const getMockDashboardMetrics = (): DashboardMetrics => ({
+// Empty data fallbacks
+export const getEmptyDashboardMetrics = (): DashboardMetrics => ({
   active_conversations: {
-    current: 127,
-    previous: 113,
-    change_percentage: 12.4,
-    trend: 'up'
+    current: 0,
+    previous: 0,
+    change_percentage: 0,
+    trend: 'stable'
   },
   total_messages: {
-    current: 2847,
-    previous: 2634,
-    change_percentage: 8.1,
-    trend: 'up'
+    current: 0,
+    previous: 0,
+    change_percentage: 0,
+    trend: 'stable'
   },
   avg_response_time: {
-    current: '2.3min',
-    previous: '2.7min',
-    change_percentage: -14.8,
-    trend: 'down'
+    current: '0min',
+    previous: '0min',
+    change_percentage: 0,
+    trend: 'stable'
   },
   customer_satisfaction: {
-    current: '94%',
-    previous: '92%',
-    change_percentage: 2.2,
-    trend: 'up'
+    current: '0%',
+    previous: '0%',
+    change_percentage: 0,
+    trend: 'stable'
   },
   period: '7d',
   last_updated: new Date().toISOString()
+});
+
+export const getEmptyQuickStats = (): QuickStats => ({
+  conversations_started: 0,
+  conversations_resolved: 0,
+  resolution_rate: 0,
+  new_contacts: 0,
+  peak_hour: "00:00",
+  total_agents: 0,
+  online_agents: 0,
+});
+
+export const getEmptyRealtimeMetrics = (): RealtimeMetrics => ({
+  active_conversations: 0,
+  online_agents: 0,
+  pending_messages: 0,
+  average_wait_time: "0min",
+  system_load: 0,
+  last_updated: new Date().toISOString(),
 });
 
 export default DashboardApiService;

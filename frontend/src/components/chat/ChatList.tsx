@@ -2,54 +2,47 @@ import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/Avatar'
-import { Badge } from '@/components/ui/Badge'
+import { Badge } from '@/components/ui/badge'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { CheckCircle2, Clock, AlertCircle } from 'lucide-react'
-
-interface Message {
-  id: string
-  content: string
-  timestamp: Date
-  type: 'text' | 'image' | 'audio' | 'document'
-}
-
-interface ChatConversation {
-  id: string
-  contact: {
-    name: string
-    phone: string
-    avatar?: string
-  }
-  lastMessage: Message
-  unreadCount: number
-  platform: 'whatsapp' | 'telegram' | 'instagram' | 'messenger'
-  status: 'active' | 'waiting' | 'closed'
-}
+import { 
+  CheckCircle2, 
+  Clock, 
+  AlertCircle, 
+  Search,
+  MessageSquare,
+  Phone,
+  Filter
+} from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import type { Conversation } from '@/types/conversation'
 
 interface ChatListProps {
-  conversations: ChatConversation[]
+  conversations: Conversation[]
   selectedConversationId?: string
   onSelectConversation: (conversationId: string) => void
-}
-
-const platformColors = {
-  whatsapp: 'bg-green-500',
-  telegram: 'bg-blue-500',
-  instagram: 'bg-pink-500',
-  messenger: 'bg-blue-600'
+  searchQuery: string
+  onSearchChange: (query: string) => void
 }
 
 const statusConfig = {
-  active: { color: 'bg-green-500', label: 'Ativa', icon: CheckCircle2 },
-  waiting: { color: 'bg-yellow-500', label: 'Aguardando', icon: Clock },
-  closed: { color: 'bg-gray-400', label: 'Finalizada', icon: AlertCircle }
+  active: { color: 'text-green-600', bgColor: 'bg-green-100', label: 'Ativa', icon: CheckCircle2 },
+  pending: { color: 'text-yellow-600', bgColor: 'bg-yellow-100', label: 'Pendente', icon: Clock },
+  resolved: { color: 'text-gray-600', bgColor: 'bg-gray-100', label: 'Resolvida', icon: CheckCircle2 }
+}
+
+const channelColors = {
+  whatsapp: 'bg-green-500',
+  webchat: 'bg-blue-500',
+  instagram: 'bg-pink-500'
 }
 
 export const ChatList: React.FC<ChatListProps> = ({
   conversations,
   selectedConversationId,
-  onSelectConversation
+  onSelectConversation,
+  searchQuery,
+  onSearchChange
 }) => {
   const getInitials = (name: string) => {
     return name
@@ -60,44 +53,66 @@ export const ChatList: React.FC<ChatListProps> = ({
       .slice(0, 2)
   }
 
-  const truncateMessage = (content: string, maxLength: number = 50) => {
-    return content.length > maxLength 
-      ? content.substring(0, maxLength) + '...'
-      : content
-  }
+  const activeCount = conversations.filter(c => c.status === 'active').length
+  const pendingCount = conversations.filter(c => c.status === 'pending').length
 
   return (
-    <div className="h-full border-r border-border bg-card">
+    <div className="h-full flex flex-col bg-card">
+      {/* Header */}
       <motion.div 
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="p-4 border-b border-border"
+        className="p-4 border-b border-border/50"
       >
-        <h2 className="text-lg font-semibold text-foreground">Conversas</h2>
-        <p className="text-sm text-muted-foreground">
-          {conversations.length} conversas carregadas
-        </p>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-foreground">Conversas</h2>
+          <div className="flex items-center gap-2">
+            {activeCount > 0 && (
+              <Badge className="bg-green-100 text-green-700">
+                {activeCount} ativas
+              </Badge>
+            )}
+            {pendingCount > 0 && (
+              <Badge className="bg-yellow-100 text-yellow-700">
+                {pendingCount} pendentes
+              </Badge>
+            )}
+          </div>
+        </div>
+        
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, telefone..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="pl-10 h-9"
+          />
+        </div>
       </motion.div>
       
-      <ScrollArea className="h-[calc(100%-80px)]">
+      {/* Conversations List */}
+      <ScrollArea className="flex-1">
         <div className="p-2">
           <AnimatePresence>
             {conversations.map((conversation, index) => {
-              const StatusIcon = statusConfig[conversation.status].icon
+              const config = statusConfig[conversation.status]
+              const StatusIcon = config.icon
+              
               return (
                 <motion.div
                   key={conversation.id}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  transition={{ delay: index * 0.05 }}
-                  whileHover={{ x: 4, transition: { duration: 0.2 } }}
+                  transition={{ delay: index * 0.03 }}
+                  whileHover={{ x: 2 }}
                   className={`
                     relative p-3 rounded-lg cursor-pointer transition-all duration-200 mb-2
-                    hover:bg-accent hover:shadow-sm
                     ${selectedConversationId === conversation.id 
-                      ? 'bg-primary/10 border border-primary/20 shadow-sm' 
-                      : 'hover:bg-accent'
+                      ? 'bg-primary/10 border border-primary/20' 
+                      : 'hover:bg-accent/50 border border-transparent'
                     }
                   `}
                   onClick={() => onSelectConversation(conversation.id)}
@@ -107,106 +122,93 @@ export const ChatList: React.FC<ChatListProps> = ({
                     <motion.div
                       layoutId="activeConversation"
                       className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r"
-                      initial={false}
                       transition={{ type: "spring", stiffness: 500, damping: 30 }}
                     />
                   )}
                   
-                  <div className="flex items-start space-x-3">
+                  <div className="flex items-start gap-3 pl-2">
+                    {/* Avatar */}
                     <div className="relative">
-                      <motion.div
-                        whileHover={{ scale: 1.05 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                      >
-                        <Avatar className="w-12 h-12">
-                          <AvatarImage 
-                            src={conversation.contact.avatar} 
-                            alt={conversation.contact.name}
-                          />
-                          <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                            {getInitials(conversation.contact.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                      </motion.div>
+                      <Avatar className="w-11 h-11">
+                        <AvatarImage 
+                          src={conversation.contactAvatar} 
+                          alt={conversation.contactName}
+                        />
+                        <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+                          {getInitials(conversation.contactName)}
+                        </AvatarFallback>
+                      </Avatar>
                       
-                      {/* Platform indicator */}
-                      <motion.div 
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 0.2 }}
-                        className={`
-                          absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-background
-                          ${platformColors[conversation.platform]}
-                        `} 
-                      />
+                      {/* Channel indicator */}
+                      <div className={`
+                        absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-background
+                        ${channelColors[conversation.channel]}
+                      `} />
                     </div>
                     
+                    {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start">
+                      <div className="flex justify-between items-start mb-1">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate text-foreground">
-                            {conversation.contact.name}
+                          <p className="font-medium text-sm truncate text-foreground">
+                            {conversation.contactName}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            {conversation.contact.phone}
-                          </p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Phone className="h-3 w-3" />
+                            <span>{conversation.contactPhone}</span>
+                          </div>
                         </div>
                         
-                        <div className="flex flex-col items-end space-y-1">
+                        <div className="flex flex-col items-end gap-1.5">
                           <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(conversation.lastMessage.timestamp, {
+                            {formatDistanceToNow(conversation.lastMessageTime, {
                               addSuffix: true,
                               locale: ptBR
                             })}
                           </span>
                           
-                          <div className="flex items-center space-x-1">
+                          {conversation.unreadCount > 0 && (
                             <motion.div
                               initial={{ scale: 0 }}
                               animate={{ scale: 1 }}
-                              transition={{ delay: 0.3 }}
+                              transition={{ type: "spring", stiffness: 500 }}
                             >
-                              <Badge
-                                variant="secondary"
-                                className="text-xs flex items-center space-x-1 bg-background"
+                              <Badge 
+                                variant="destructive" 
+                                className="text-xs h-5 min-w-[20px] px-1.5"
                               >
-                                <StatusIcon className="h-3 w-3" />
-                                <span>{statusConfig[conversation.status].label}</span>
+                                {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
                               </Badge>
                             </motion.div>
-                            
-                            <AnimatePresence>
-                              {conversation.unreadCount > 0 && (
-                                <motion.div
-                                  initial={{ scale: 0 }}
-                                  animate={{ scale: 1 }}
-                                  exit={{ scale: 0 }}
-                                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                >
-                                  <Badge 
-                                    variant="destructive" 
-                                    className="text-xs min-w-[20px] h-5 flex items-center justify-center animate-pulse"
-                                  >
-                                    {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
-                                  </Badge>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
+                          )}
                         </div>
                       </div>
                       
-                      <motion.p 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.4 }}
-                        className="text-sm text-muted-foreground mt-1 truncate"
-                      >
-                        {conversation.lastMessage.type === 'text' 
-                          ? truncateMessage(conversation.lastMessage.content)
-                          : `📎 ${conversation.lastMessage.type}`
-                        }
-                      </motion.p>
+                      {/* Last message */}
+                      <p className="text-sm text-muted-foreground truncate pr-2">
+                        {conversation.lastMessage}
+                      </p>
+                      
+                      {/* Tags and status */}
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className={`
+                          flex items-center gap-1 text-xs px-2 py-0.5 rounded-full
+                          ${config.bgColor} ${config.color}
+                        `}>
+                          <StatusIcon className="h-3 w-3" />
+                          <span>{config.label}</span>
+                        </div>
+                        
+                        {conversation.tags.map((tag, i) => (
+                          <Badge 
+                            key={i}
+                            variant="secondary" 
+                            className="text-xs h-5 px-1.5"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -218,7 +220,7 @@ export const ChatList: React.FC<ChatListProps> = ({
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-center py-8"
+              className="text-center py-12"
             >
               <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
                 <MessageSquare className="h-8 w-8 text-muted-foreground" />
@@ -227,7 +229,9 @@ export const ChatList: React.FC<ChatListProps> = ({
                 Nenhuma conversa encontrada
               </p>
               <p className="text-sm text-muted-foreground">
-                As conversas aparecerão aqui quando chegarem mensagens
+                {searchQuery 
+                  ? 'Tente buscar com outros termos'
+                  : 'As conversas aparecerão aqui'}
               </p>
             </motion.div>
           )}

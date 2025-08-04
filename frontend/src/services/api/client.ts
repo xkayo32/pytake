@@ -4,7 +4,7 @@ class ApiClient {
   private baseURL: string
   private token: string | null = null
 
-  constructor(baseURL = 'http://localhost:8080/api') {
+  constructor(baseURL = '/api/v1') {
     this.baseURL = baseURL
     this.token = localStorage.getItem('accessToken')
   }
@@ -64,7 +64,7 @@ class ApiClient {
 
       return {
         success: true,
-        data: data.data || data,
+        data: data,
         message: data.message
       }
     } catch (error) {
@@ -89,8 +89,15 @@ class ApiClient {
 
       if (response.ok) {
         const data = await response.json()
-        this.setToken(data.accessToken)
-        localStorage.setItem('refreshToken', data.refreshToken)
+        const accessToken = data.access_token || data.accessToken
+        const refreshToken = data.refresh_token || data.refreshToken
+        
+        if (accessToken) {
+          this.setToken(accessToken)
+        }
+        if (refreshToken) {
+          localStorage.setItem('refreshToken', refreshToken)
+        }
         return true
       }
     } catch (error) {
@@ -163,7 +170,7 @@ class ApiClient {
 
       return {
         success: true,
-        data: data.data || data,
+        data: data,
         message: data.message
       }
     } catch (error) {

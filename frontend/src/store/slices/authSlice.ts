@@ -1,10 +1,12 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { User } from '@/types'
+import type { AuthUser, Role, Permission } from '@/types/auth'
 import { authApi } from '@/services/api/auth'
+import { ROLE_PERMISSIONS, hasPermission, hasRole } from '@/utils/permissions'
 
 interface AuthState {
-  user: User | null
+  user: AuthUser | null
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
@@ -15,9 +17,11 @@ interface AuthActions {
   login: (email: string, password: string) => Promise<boolean>
   logout: () => Promise<void>
   getCurrentUser: () => Promise<void>
-  updateProfile: (data: Partial<User>) => Promise<boolean>
+  updateProfile: (data: Partial<AuthUser>) => Promise<boolean>
   clearError: () => void
   setLoading: (loading: boolean) => void
+  hasPermission: (permission: Permission) => boolean
+  hasRole: (role: Role) => boolean
 }
 
 export const useAuthStore = create<AuthState & AuthActions>()(
@@ -32,32 +36,69 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
       // Actions
       login: async (email: string, password: string) => {
-        set({ isLoading: true, error: null })
+        // Don't clear error immediately to prevent flash
+        set({ isLoading: true })
         
         try {
           const response = await authApi.login({ email, password })
+          console.log('Login response:', response) // Debug log
           
           if (response.success && response.data) {
+            const accessToken = response.data.tokens?.accessToken || response.data.access_token
+            const user = response.data.user
+            
+            if (!accessToken) {
+              console.error('No access token in response:', response.data)
+              throw new Error('Invalid response format')
+            }
+            
             set({
-              user: response.data.user,
-              token: response.data.tokens.accessToken,
+              user: user,
+              token: accessToken,
               isAuthenticated: true,
               isLoading: false,
               error: null
             })
             return true
           } else {
+            const errorMessage = response.error || 'Email ou senha incorretos'
             set({
-              error: response.error || 'Login failed',
-              isLoading: false
+              error: errorMessage,
+              isLoading: false,
+              isAuthenticated: false,
+              user: null,
+              token: null
             })
+            
+            // Keep error visible for at least 5 seconds
+            setTimeout(() => {
+              const state = get()
+              if (state.error === errorMessage && !state.isLoading) {
+                set({ error: null })
+              }
+            }, 5000)
+            
             return false
           }
         } catch (error) {
+          console.error('Login error:', error)
+          const errorMessage = error instanceof Error ? error.message : 'Erro ao conectar com servidor'
           set({
-            error: error instanceof Error ? error.message : 'Login failed',
-            isLoading: false
+            error: errorMessage,
+            isLoading: false,
+            isAuthenticated: false,
+            user: null,
+            token: null
           })
+          
+          // Keep error visible for at least 5 seconds
+          setTimeout(() => {
+            const state = get()
+            if (state.error === errorMessage && !state.isLoading) {
+              set({ error: null })
+            }
+          }, 5000)
+          
           return false
         }
       },
@@ -142,7 +183,19 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
       clearError: () => set({ error: null }),
       
-      setLoading: (loading: boolean) => set({ isLoading: loading })
+      setLoading: (loading: boolean) => set({ isLoading: loading }),
+
+      hasPermission: (permission: Permission) => {
+        const { user } = get()
+        if (!user) return false
+        return hasPermission(user.role, permission)
+      },
+
+      hasRole: (role: Role) => {
+        const { user } = get()
+        if (!user) return false
+        return hasRole(user.role, role)
+      }
     }),
     {
       name: 'auth-storage',

@@ -16,7 +16,7 @@ import {
 import { ChatContainer } from '@/components/chat/ChatContainer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/Badge'
+import { Badge } from '@/components/ui/badge'
 
 interface ConversationStats {
   total: number
@@ -36,19 +36,10 @@ export default function ConversationsPage() {
     resolved: 4
   })
 
-  // Simulate connection status updates
+  // Connection status will be managed by real WebSocket connection
   useEffect(() => {
-    const interval = setInterval(() => {
-      setIsConnected(prev => {
-        // Occasionally simulate connection drops for demo
-        if (Math.random() < 0.1) {
-          return !prev
-        }
-        return true
-      })
-    }, 10000)
-
-    return () => clearInterval(interval)
+    // TODO: Connect to real WebSocket for connection status
+    setIsConnected(true)
   }, [])
 
   return (

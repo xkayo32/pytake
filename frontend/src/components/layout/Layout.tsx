@@ -1,13 +1,11 @@
 import { Outlet, useLocation, Link } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   BarChart3,
   MessageSquare,
   Settings,
   LayoutDashboard,
-  Moon,
-  Sun,
   Bell,
   Search,
   User,
@@ -15,45 +13,89 @@ import {
   Smartphone,
   Wifi,
   WifiOff,
-  Presentation
+  Presentation,
+  Headphones,
+  Phone,
+  Shield
 } from 'lucide-react'
 import { useAuthStore } from '@/store/slices/authSlice'
+import { ThemeToggleCompact } from '@/components/ui/theme-toggle'
+import { usePermissionBasedUI } from '@/hooks/usePermissionsV2'
 
 interface NavItem {
   path: string
   label: string
   icon: React.ComponentType<{ className?: string }>
+  showIf?: () => boolean
 }
-
-const navItems: NavItem[] = [
-  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/conversations', label: 'Conversas', icon: MessageSquare },
-  { path: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { path: '/whatsapp-showcase', label: 'Showcase', icon: Presentation },
-  { path: '/settings', label: 'Configurações', icon: Settings },
-]
 
 export default function Layout() {
   const location = useLocation()
   const { user, logout } = useAuthStore()
-  const [isDarkMode, setIsDarkMode] = useState(false)
   const [isConnected, setIsConnected] = useState(true)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  
+  const {
+    showDashboard,
+    showConversations,
+    showAgents,
+    showAnalytics,
+    showWhatsApp,
+    showSettings,
+    showRoles,
+    canAssignConversation
+  } = usePermissionBasedUI()
 
-  useEffect(() => {
-    // Check for saved theme preference or default to light
-    const savedTheme = localStorage.getItem('theme')
-    const isDark = savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
-    setIsDarkMode(isDark)
-    document.documentElement.classList.toggle('dark', isDark)
-  }, [])
-
-  const toggleTheme = () => {
-    const newDarkMode = !isDarkMode
-    setIsDarkMode(newDarkMode)
-    document.documentElement.classList.toggle('dark', newDarkMode)
-    localStorage.setItem('theme', newDarkMode ? 'dark' : 'light')
-  }
+  const navItems: NavItem[] = [
+    { 
+      path: '/app/dashboard', 
+      label: 'Dashboard', 
+      icon: LayoutDashboard,
+      showIf: () => showDashboard
+    },
+    { 
+      path: '/app/conversations', 
+      label: 'Conversas', 
+      icon: MessageSquare,
+      showIf: () => showConversations
+    },
+    { 
+      path: '/app/agent', 
+      label: 'Atendimento', 
+      icon: Headphones,
+      showIf: () => showAgents || canAssignConversation
+    },
+    { 
+      path: '/app/analytics', 
+      label: 'Analytics', 
+      icon: BarChart3,
+      showIf: () => showAnalytics
+    },
+    { 
+      path: '/app/settings/whatsapp', 
+      label: 'WhatsApp Config', 
+      icon: Phone,
+      showIf: () => showWhatsApp
+    },
+    { 
+      path: '/app/admin/roles', 
+      label: 'Perfis', 
+      icon: Shield,
+      showIf: () => showRoles
+    },
+    { 
+      path: '/whatsapp-showcase', 
+      label: 'Showcase', 
+      icon: Presentation,
+      showIf: () => true
+    },
+    { 
+      path: '/app/settings', 
+      label: 'Configurações', 
+      icon: Settings,
+      showIf: () => showSettings || true // sempre mostrar configurações pessoais
+    },
+  ]
 
   const handleLogout = () => {
     logout()
@@ -76,8 +118,8 @@ export default function Layout() {
               <Smartphone className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <h1 className="text-lg font-medium text-foreground">PyTake</h1>
-              <p className="text-xs text-muted-foreground">WhatsApp Business</p>
+              <h1 className="text-lg font-medium text-foreground">PyChat</h1>
+              <p className="text-xs text-muted-foreground">Intelligent Business Messaging</p>
             </div>
           </div>
         </div>
@@ -102,7 +144,12 @@ export default function Layout() {
         {/* Clean Navigation */}
         <nav className="flex-1 px-4">
           <div className="space-y-1">
-            {navItems.map((item) => {
+            {navItems
+              .filter(item => {
+                // Mostrar item se showIf retornar true ou não estiver definido
+                return !item.showIf || item.showIf()
+              })
+              .map((item) => {
               const isActive = location.pathname === item.path
               const Icon = item.icon
               
@@ -141,8 +188,8 @@ export default function Layout() {
                 <User className="h-4 w-4 text-muted-foreground" />
               </div>
               <div className="flex-1 text-left">
-                <p className="text-sm font-medium text-foreground">{user?.name || 'Admin'}</p>
-                <p className="text-xs text-muted-foreground">{user?.email || 'admin@pytake.com'}</p>
+                <p className="text-sm font-medium text-foreground">{user?.name || 'User'}</p>
+                <p className="text-xs text-muted-foreground">{user?.email || 'user@pychat.com'}</p>
               </div>
             </button>
             
@@ -155,13 +202,6 @@ export default function Layout() {
                   transition={{ duration: 0.15 }}
                   className="absolute bottom-full left-0 right-0 mb-2 bg-card border border-border/50 rounded-md py-1"
                 >
-                  <button
-                    onClick={toggleTheme}
-                    className="w-full flex items-center space-x-2 px-3 py-2 text-sm hover:bg-accent/50 transition-colors duration-150"
-                  >
-                    {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                    <span>{isDarkMode ? 'Modo Claro' : 'Modo Escuro'}</span>
-                  </button>
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors duration-150"
@@ -197,6 +237,7 @@ export default function Layout() {
           </div>
           
           <div className="flex items-center space-x-2">
+            <ThemeToggleCompact />
             <motion.button
               whileHover={{ scale: 1.02 }}
               transition={{ duration: 0.15 }}

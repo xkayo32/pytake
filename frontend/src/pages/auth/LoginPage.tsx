@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { useAuthStore } from '@/store/slices/authSlice'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,7 +18,31 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await login(email, password)
+    e.stopPropagation()
+    
+    // Prevent any default form behavior
+    const form = e.target as HTMLFormElement
+    if (form.reportValidity && !form.reportValidity()) {
+      return
+    }
+    
+    try {
+      await login(email, password)
+    } catch (error) {
+      console.error('Login submit error:', error)
+    }
+    
+    return false
+  }
+
+  const handleQuickLogin = async (userEmail: string, userPassword: string) => {
+    setEmail(userEmail)
+    setPassword(userPassword)
+    
+    // Add small delay to ensure state updates
+    setTimeout(async () => {
+      await login(userEmail, userPassword)
+    }, 100)
   }
 
   return (
@@ -64,11 +89,29 @@ export default function LoginPage() {
             </div>
             
             {error && (
-              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg animate-fade-in">
-                <p className="text-sm text-destructive flex items-center gap-2">
-                  <span className="font-medium">Erro:</span> {error}
-                </p>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg shadow-sm"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="rounded-full bg-destructive/20 p-1">
+                    <svg className="h-4 w-4 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-destructive">
+                      Erro na autenticação
+                    </p>
+                    <p className="text-sm text-destructive/80 mt-1">
+                      {error}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
             )}
             
             <Button 
@@ -86,6 +129,63 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          {/* Quick Login Buttons - Development Only */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-8 space-y-3">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border/50" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Login Rápido (Dev)</span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleQuickLogin('admin@pytake.com', 'admin123')}
+                  className="text-xs"
+                >
+                  <Shield className="h-3 w-3 mr-1" />
+                  Admin
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleQuickLogin('supervisor@pytake.com', 'supervisor123')}
+                  className="text-xs"
+                >
+                  <Users className="h-3 w-3 mr-1" />
+                  Supervisor
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleQuickLogin('agent@pytake.com', 'agent123')}
+                  className="text-xs"
+                >
+                  <MessageSquare className="h-3 w-3 mr-1" />
+                  Agente
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleQuickLogin('viewer@pytake.com', 'viewer123')}
+                  className="text-xs"
+                >
+                  <Zap className="h-3 w-3 mr-1" />
+                  Visualizador
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Links */}
           <div className="mt-6 text-center space-y-2">

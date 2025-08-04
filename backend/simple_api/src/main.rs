@@ -2,6 +2,7 @@ use actix_web::{web, App, HttpServer, HttpResponse, Result, middleware::Logger};
 use actix_cors::Cors;
 use serde_json::json;
 use tracing::info;
+use std::sync::Arc;
 
 mod auth;
 mod auth_db;
@@ -9,6 +10,9 @@ mod database;
 mod websocket_improved;
 mod whatsapp_evolution;
 mod whatsapp_handlers;
+mod whatsapp_config;
+mod agent_conversations;
+mod dashboard;
 
 use auth::AuthService;
 use auth_db::AuthServiceDb;
@@ -129,6 +133,14 @@ async fn main() -> std::io::Result<()> {
     let whatsapp_manager = WhatsAppManager::new();
     info!("✅ WhatsApp manager initialized");
     
+    // Create WhatsApp config storage
+    let config_storage = Arc::new(whatsapp_config::ConfigStorage::new());
+    info!("✅ WhatsApp config storage initialized");
+    
+    // Create conversation storage
+    let conversation_storage = Arc::new(agent_conversations::ConversationStorage::new());
+    info!("✅ Conversation storage initialized");
+    
     HttpServer::new(move || {
         let cors = Cors::permissive();
             
@@ -138,6 +150,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(db.clone()))
             .app_data(web::Data::new(ws_manager.clone()))
             .app_data(web::Data::new(whatsapp_manager.clone()))
+            .app_data(web::Data::new(config_storage.clone()))
+            .app_data(web::Data::new(conversation_storage.clone()))
             .wrap(Logger::default())
             .wrap(cors)
             .route("/", web::get().to(root))
@@ -178,11 +192,17 @@ async fn main() -> std::io::Result<()> {
                             .route("/webhook", web::get().to(whatsapp_handlers::webhook_handler))
                             .route("/webhook", web::post().to(whatsapp_handlers::webhook_handler))
                     )
+                    // WhatsApp configuration routes
+                    .configure(whatsapp_config::configure_routes)
+                    // Agent conversation routes
+                    .configure(agent_conversations::configure_routes)
+                    // Dashboard routes
+                    .configure(dashboard::configure_routes)
             )
             // WebSocket connection endpoint
             .route("/ws", web::get().to(websocket_improved::websocket_handler))
     })
-    .bind("127.0.0.1:8080")?
+    .bind("0.0.0.0:8080")?
     .run()
     .await
 }

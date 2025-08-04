@@ -8,6 +8,7 @@ interface ApiResponse {
   version?: string;
   timestamp?: string;
   endpoints?: any;
+  cors_enabled?: boolean;
 }
 
 export function ApiTest() {

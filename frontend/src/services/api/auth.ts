@@ -3,11 +3,44 @@ import type { LoginRequest, LoginResponse, User } from '@/types'
 
 export const authApi = {
   async login(credentials: LoginRequest) {
-    const response = await apiClient.post<LoginResponse>('/auth/login', credentials)
+    // Use the in-memory auth endpoint for development
+    const response = await apiClient.post<any>('/auth/login', credentials)
+    console.log('Raw API response:', response)
     
     if (response.success && response.data) {
-      apiClient.setToken(response.data.tokens.accessToken)
-      localStorage.setItem('refreshToken', response.data.tokens.refreshToken)
+      // Store tokens - backend returns access_token directly
+      const accessToken = response.data.access_token
+      const refreshToken = response.data.refresh_token
+      
+      apiClient.setToken(accessToken)
+      localStorage.setItem('accessToken', accessToken)
+      localStorage.setItem('refreshToken', refreshToken)
+      
+      // Transform user data to match AuthUser type
+      const user = {
+        id: response.data.user.id,
+        email: response.data.user.email,
+        name: response.data.user.name,
+        role: response.data.user.role === 'admin' ? 'Admin' : 
+              response.data.user.role === 'supervisor' ? 'Supervisor' : 
+              response.data.user.role === 'agent' ? 'Agent' : 
+              response.data.user.role === 'viewer' ? 'Viewer' : 'Agent',
+        organization_id: response.data.user.organization_id || 'default',
+        permissions: [], // Will be populated based on role
+        status: 'Active' as const
+      }
+      
+      // Transform response to match expected format
+      return {
+        success: true,
+        data: {
+          user: user,
+          tokens: {
+            accessToken: accessToken,
+            refreshToken: refreshToken
+          }
+        }
+      }
     }
     
     return response
@@ -20,6 +53,8 @@ export const authApi = {
       console.error('Logout error:', error)
     } finally {
       apiClient.clearToken()
+      localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
     }
   },
 
@@ -38,8 +73,16 @@ export const authApi = {
     })
 
     if (response.success && response.data) {
-      apiClient.setToken(response.data.accessToken)
-      localStorage.setItem('refreshToken', response.data.refreshToken)
+      const accessToken = response.data.access_token || response.data.accessToken
+      const refreshToken = response.data.refresh_token || response.data.refreshToken
+      
+      if (accessToken) {
+        apiClient.setToken(accessToken)
+        localStorage.setItem('accessToken', accessToken)
+      }
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken)
+      }
     }
 
     return response

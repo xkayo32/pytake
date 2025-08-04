@@ -2,6 +2,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/slices/authSlice'
 import { useEffect } from 'react'
+import { LoadingScreen } from '@/components/ui/LoadingScreen'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 
 // Pages
 import LoginPage from '@/pages/auth/LoginPage'
@@ -13,10 +15,16 @@ import ConversationsPage from '@/pages/conversations/ConversationsPage'
 import AnalyticsPage from '@/pages/analytics/AnalyticsPage'
 import SettingsPage from '@/pages/settings/SettingsPage'
 import WhatsAppShowcasePage from '@/pages/showcase/WhatsAppShowcasePage'
+import { WhatsAppConfigPage } from '@/pages/settings/WhatsAppConfigPage'
+import { AgentWorkspace } from '@/pages/agent/AgentWorkspace'
+import { RoleManagementPage } from '@/pages/admin/RoleManagementPage'
 
 // Layout
 import Layout from '@/components/layout/Layout'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
+import { RoleBasedRoute } from '@/components/auth/RoleBasedRoute'
+import AccessDenied from '@/pages/errors/AccessDenied'
+import NotFound from '@/pages/errors/NotFound'
 
 // Test components
 import { ApiTest } from '@/components/ApiTest'
@@ -45,11 +53,21 @@ function App() {
     }
   }, [getCurrentUser, isAuthenticated])
 
+  // Show loading screen during initial auth check
+  if (isLoading && localStorage.getItem('accessToken')) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <LoadingScreen />
+      </QueryClientProvider>
+    )
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <div className="min-h-screen bg-background transition-colors duration-300">
-          <Routes>
+      <ThemeProvider>
+        <Router>
+          <div className="min-h-screen bg-background transition-colors duration-300">
+            <Routes>
             {/* Public routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/docs" element={<DocsPage />} />
@@ -71,19 +89,101 @@ function App() {
             <Route path="/app" element={<ProtectedRoute />}>
               <Route path="/app" element={<Layout />}>
                 <Route index element={<Navigate to="/app/dashboard" replace />} />
-                <Route path="dashboard" element={<DashboardPage />} />
-                <Route path="conversations" element={<ConversationsPage />} />
-                <Route path="conversations/:id" element={<ConversationsPage />} />
-                <Route path="analytics" element={<AnalyticsPage />} />
+                
+                {/* Dashboard - All roles */}
+                <Route 
+                  path="dashboard" 
+                  element={
+                    <RoleBasedRoute requiredPermissions={['ViewDashboard']}>
+                      <DashboardPage />
+                    </RoleBasedRoute>
+                  } 
+                />
+                
+                {/* Conversations - All roles with ViewConversations */}
+                <Route 
+                  path="conversations" 
+                  element={
+                    <RoleBasedRoute requiredPermissions={['ViewConversations']}>
+                      <ConversationsPage />
+                    </RoleBasedRoute>
+                  } 
+                />
+                <Route 
+                  path="conversations/:id" 
+                  element={
+                    <RoleBasedRoute requiredPermissions={['ViewConversations', 'ViewMessages']}>
+                      <ConversationsPage />
+                    </RoleBasedRoute>
+                  } 
+                />
+                
+                {/* Analytics - Supervisor and Admin */}
+                <Route 
+                  path="analytics" 
+                  element={
+                    <RoleBasedRoute 
+                      requiredPermissions={['ViewReports']}
+                      fallbackComponent={AccessDenied}
+                    >
+                      <AnalyticsPage />
+                    </RoleBasedRoute>
+                  } 
+                />
+                
+                {/* Settings - All authenticated users */}
                 <Route path="settings" element={<SettingsPage />} />
+                
+                {/* WhatsApp Config - Admin and Supervisor only */}
+                <Route 
+                  path="settings/whatsapp" 
+                  element={
+                    <RoleBasedRoute requiredRoles={['Admin', 'Supervisor']}>
+                      <WhatsAppConfigPage />
+                    </RoleBasedRoute>
+                  } 
+                />
+                
+                {/* Agent Workspace - Agent role */}
+                <Route 
+                  path="agent" 
+                  element={
+                    <RoleBasedRoute requiredRoles={['Agent', 'Supervisor', 'Admin']}>
+                      <AgentWorkspace />
+                    </RoleBasedRoute>
+                  } 
+                />
+
+                {/* Admin routes - Admin only */}
+                <Route 
+                  path="admin/roles" 
+                  element={
+                    <RoleBasedRoute requiredRoles={['Admin']}>
+                      <RoleManagementPage />
+                    </RoleBasedRoute>
+                  } 
+                />
+                <Route 
+                  path="admin/*" 
+                  element={
+                    <RoleBasedRoute requiredRoles={['Admin']}>
+                      <div>Admin Panel - To be implemented</div>
+                    </RoleBasedRoute>
+                  } 
+                />
               </Route>
             </Route>
             
+            {/* Error pages */}
+            <Route path="/403" element={<AccessDenied />} />
+            <Route path="/404" element={<NotFound />} />
+            
             {/* Catch all route */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
       </Router>
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }

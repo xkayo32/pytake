@@ -51,7 +51,10 @@
       "WebFetch(domain:localhost)",
       "Bash(npm uninstall:*)",
       "Bash(true)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(bash:*)",
+      "Bash(cat:*)",
+      "Bash(npm run dev:*)"
     ],
     "deny": []
   }
