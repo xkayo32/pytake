@@ -5,8 +5,8 @@
 
 set -e
 
-echo "🔧 PyTake Server Setup"
-echo "======================"
+echo "🔧 PyTake Development Server Setup"
+echo "==================================="
 echo ""
 
 # Colors for output
@@ -264,9 +264,9 @@ SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
 
 # Final setup message
 echo ""
-echo "================================"
-log_success "Server setup completed! 🎉"
-echo "================================"
+echo "====================================="
+log_success "Development Server setup completed! 🎉"
+echo "====================================="
 echo ""
 
 echo "📋 Server Information:"
@@ -284,22 +284,28 @@ echo ""
 
 echo "📋 Next Steps:"
 echo "   1. Clone PyTake repository:"
-echo "      sudo -u $DEPLOY_USER git clone https://github.com/your-repo/pytake.git /home/$DEPLOY_USER/pytake"
+echo "      sudo -u $DEPLOY_USER git clone https://github.com/xkayo32/pytake-backend.git /home/$DEPLOY_USER/pytake"
 echo ""
 echo "   2. Configure environment:"
-echo "      sudo -u $DEPLOY_USER cp /home/$DEPLOY_USER/pytake/.env.production /home/$DEPLOY_USER/pytake/.env.production.local"
-echo "      sudo -u $DEPLOY_USER nano /home/$DEPLOY_USER/pytake/.env.production.local"
+echo "      sudo -u $DEPLOY_USER cp /home/$DEPLOY_USER/pytake/.env.development /home/$DEPLOY_USER/pytake/.env.development.local"
+echo "      sudo -u $DEPLOY_USER nano /home/$DEPLOY_USER/pytake/.env.development.local"
 echo ""
-echo "   3. Deploy PyTake:"
+echo "   3. Configure hostname/domain and SSL:"
+echo "      echo 'your-hostname.com' > /etc/hostname"
+echo "      hostnamectl set-hostname your-hostname.com"
+echo ""
+echo "   4. Deploy PyTake with SSL:"
 echo "      cd /home/$DEPLOY_USER/pytake"
-echo "      sudo -u $DEPLOY_USER ./deploy.sh"
+echo "      sudo -u $DEPLOY_USER ./deploy.sh ssl    # Configure SSL first"
+echo "      sudo -u $DEPLOY_USER ./deploy.sh deploy # Then deploy"
 echo ""
 
 log_warning "IMPORTANT:"
-echo "   - Change all default passwords in .env.production"
-echo "   - Set up SSL certificates for production use"
 echo "   - Configure your domain DNS to point to $SERVER_IP"
-echo "   - Test the deployment thoroughly before going live"
+echo "   - Change hostname to your domain name"
+echo "   - Set up SSL certificates (required for WhatsApp webhooks)"
+echo "   - Update WhatsApp webhook URL to use HTTPS"
+echo "   - Configure .env.development.local with your settings"
 echo ""
 
 log_success "Server is ready for PyTake deployment!"

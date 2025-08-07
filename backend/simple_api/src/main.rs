@@ -11,6 +11,10 @@ mod websocket_improved;
 mod whatsapp_evolution;
 mod whatsapp_handlers;
 mod whatsapp_config;
+mod whatsapp_management;
+mod whatsapp_db_service;
+mod whatsapp_db_handlers;
+mod entities;
 mod agent_conversations;
 mod dashboard;
 mod flows;
@@ -76,6 +80,16 @@ async fn root() -> Result<HttpResponse> {
                 "list_instances": "/api/v1/whatsapp/instances",
                 "delete_instance": "/api/v1/whatsapp/instance/{name}",
                 "webhook": "/api/v1/whatsapp/webhook"
+            },
+            "whatsapp_configs": {
+                "list": "/api/v1/whatsapp-configs",
+                "create": "/api/v1/whatsapp-configs",
+                "get": "/api/v1/whatsapp-configs/{id}",
+                "update": "/api/v1/whatsapp-configs/{id}",
+                "delete": "/api/v1/whatsapp-configs/{id}",
+                "test": "/api/v1/whatsapp-configs/{id}/test",
+                "get_default": "/api/v1/whatsapp-configs/default",
+                "set_default": "/api/v1/whatsapp-configs/{id}/set-default"
             }
         },
         "demo_users": {
@@ -134,9 +148,16 @@ async fn main() -> std::io::Result<()> {
     let whatsapp_manager = WhatsAppManager::new();
     info!("✅ WhatsApp manager initialized");
     
-    // Create WhatsApp config storage
-    let config_storage = Arc::new(whatsapp_config::ConfigStorage::new());
-    info!("✅ WhatsApp config storage initialized");
+    // Create WhatsApp database service
+    let whatsapp_db_service = Arc::new(whatsapp_db_service::WhatsAppDbService::new(db.clone()));
+    info!("✅ WhatsApp database service initialized");
+    
+    // Run WhatsApp configuration migration
+    if let Err(e) = whatsapp_db_service.migrate().await {
+        info!("⚠️ Migration already exists or completed: {}", e);
+    } else {
+        info!("✅ WhatsApp configuration migration completed");
+    }
     
     // Create conversation storage
     let conversation_storage = Arc::new(agent_conversations::ConversationStorage::new());
@@ -151,7 +172,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(db.clone()))
             .app_data(web::Data::new(ws_manager.clone()))
             .app_data(web::Data::new(whatsapp_manager.clone()))
-            .app_data(web::Data::new(config_storage.clone()))
+            .app_data(web::Data::new(whatsapp_db_service.clone()))
             .app_data(web::Data::new(conversation_storage.clone()))
             .wrap(Logger::default())
             .wrap(cors)
@@ -193,8 +214,18 @@ async fn main() -> std::io::Result<()> {
                             .route("/webhook", web::get().to(whatsapp_handlers::webhook_handler))
                             .route("/webhook", web::post().to(whatsapp_handlers::webhook_handler))
                     )
-                    // WhatsApp configuration routes
-                    .configure(whatsapp_config::configure_routes)
+                    // WhatsApp configuration routes (database-backed)
+                    .service(
+                        web::scope("/whatsapp-configs")
+                            .route("", web::get().to(whatsapp_db_handlers::list_configs))
+                            .route("", web::post().to(whatsapp_db_handlers::create_config))
+                            .route("/default", web::get().to(whatsapp_db_handlers::get_default_config))
+                            .route("/{id}", web::get().to(whatsapp_db_handlers::get_config))
+                            .route("/{id}", web::put().to(whatsapp_db_handlers::update_config))
+                            .route("/{id}", web::delete().to(whatsapp_db_handlers::delete_config))
+                            .route("/{id}/test", web::post().to(whatsapp_db_handlers::test_config))
+                            .route("/{id}/set-default", web::post().to(whatsapp_db_handlers::set_default_config))
+                    )
                     // Agent conversation routes
                     .configure(agent_conversations::configure_routes)
                     // Dashboard routes

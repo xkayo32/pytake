@@ -1,89 +1,96 @@
-# PyTake Production Deployment Guide
+# PyTake Development Server Deployment Guide
 
-Este guia fornece instruções completas para fazer deploy do PyTake em um servidor de produção.
+Este guia fornece instruções para fazer deploy do PyTake em servidor de desenvolvimento com hostname e SSL.
 
 ## 🚀 Quick Start
 
 ### Pré-requisitos
 - Servidor Ubuntu/Debian 20.04+ com IP público
+- Domínio/hostname apontando para o IP do servidor
 - Acesso root/sudo ao servidor
-- Domínio apontando para o IP do servidor (opcional, mas recomendado)
 
 ### Deploy Rápido
 
 1. **Preparar o servidor:**
 ```bash
 # Execute no servidor como root
-wget https://raw.githubusercontent.com/your-repo/pytake/main/server-setup.sh
+wget https://raw.githubusercontent.com/xkayo32/pytake-backend/main/server-setup.sh
 chmod +x server-setup.sh
 sudo ./server-setup.sh
 ```
 
-2. **Fazer deploy da aplicação:**
+2. **Configurar hostname:**
 ```bash
-# Execute como usuário pytake (criado pelo script anterior)
-git clone https://github.com/your-repo/pytake.git
-cd pytake
-cp .env.production .env.production.local
-nano .env.production.local  # Configure suas credenciais
-chmod +x deploy.sh
-./deploy.sh deploy
+# Definir hostname do servidor
+echo 'seu-hostname.com' > /etc/hostname
+hostnamectl set-hostname seu-hostname.com
 ```
 
-3. **Acesse sua aplicação:**
+3. **Fazer deploy da aplicação:**
+```bash
+# Execute como usuário pytake
+cd /home/pytake
+git clone https://github.com/xkayo32/pytake-backend.git pytake
+cd pytake
+cp .env.development .env.development.local
+nano .env.development.local  # Configure seu hostname
+./deploy.sh ssl              # Configurar SSL primeiro
+./deploy.sh deploy          # Deploy da aplicação
 ```
-http://SEU_IP_DO_SERVIDOR
+
+4. **Acesse sua aplicação:**
+```
+https://seu-hostname.com
 ```
 
 ## 📋 Configuração Detalhada
 
-### 1. Preparação do Servidor
+### 1. Configuração de Environment
 
-O script `server-setup.sh` instala e configura:
-- Docker e Docker Compose
-- Nginx
-- PostgreSQL e Redis (via Docker)
-- Firewall (UFW)
-- Fail2ban para segurança
-- Certificados SSL via Let's Encrypt
-- Usuário não-root para deploy
-- Otimizações de sistema
-
-### 2. Configuração de Ambiente
-
-Copie e configure o arquivo de ambiente:
+Edite `.env.development.local`:
 ```bash
-cp .env.production .env.production.local
-```
+# Hostname/Domain Configuration
+SERVER_IP=SEU_IP_DO_SERVIDOR
+DOMAIN_NAME=seu-hostname.com
 
-**Variáveis importantes para alterar:**
-```bash
-# Segurança - ALTERE OBRIGATORIAMENTE!
-POSTGRES_PASSWORD=sua_senha_super_forte_aqui
-REDIS_PASSWORD=sua_senha_redis_aqui
-JWT_SECRET=uma_string_muito_longa_e_aleatoria_de_pelo_menos_64_caracteres
-WHATSAPP_WEBHOOK_VERIFY_TOKEN=seu_token_verificacao_webhook
+# Database (já configurado para desenvolvimento)
+POSTGRES_USER=pytake_dev
+POSTGRES_PASSWORD=pytake_dev_password_123
+POSTGRES_DB=pytake_development
 
-# WhatsApp Business API
+# Redis (já configurado)
+REDIS_PASSWORD=redis_dev_password_123
+
+# WhatsApp (credenciais reais já configuradas)
 WHATSAPP_PHONE_NUMBER_ID=574293335763643
-WHATSAPP_ACCESS_TOKEN=seu_token_permanente_whatsapp
+WHATSAPP_ACCESS_TOKEN=EAAJLLK95RIUBPBxhYMQQGrHFhhVTgGrdMKLDbTXK3p1udVslhZBkVMgzF4MfBIklsRVZAKXu9sHqpELTaZAZAEDuctKSFFGnPYDXQUU1tq9fa2M20vGtApxp5zdIH39pQyIxEUwm4Mm2e7EfNTOtqnNVSoZAFoJZBv0sheUaMyCXSKzOhr0U9vQMCrN1kBiRMkqQZDZD
+WHATSAPP_WEBHOOK_VERIFY_TOKEN=verify_token_dev_123
 
-# Domínio (se tiver)
-CORS_ALLOWED_ORIGINS=https://seudominio.com
+# CORS (permissivo para desenvolvimento)
+CORS_ALLOWED_ORIGINS=*
+
+# Logs (verbose para desenvolvimento)
+RUST_LOG=debug,simple_api=trace
 ```
 
-### 3. Deploy da Aplicação
+### 2. Configurar SSL com Let's Encrypt
 
 ```bash
-./deploy.sh deploy
+./deploy.sh ssl
 ```
 
-Este comando:
-- Para containers existentes
-- Constrói nova imagem Docker
-- Inicia todos os serviços
-- Executa health checks
-- Mostra informações de acesso
+O script irá:
+- Parar temporariamente o nginx
+- Obter certificado SSL via certbot
+- Configurar certificados
+- Reiniciar nginx com HTTPS
+
+### 3. Configurar Nginx para seu Hostname
+
+Edite `nginx.conf` e altere:
+```nginx
+server_name your-hostname.com;  # Mude para seu hostname real
+```
 
 ## 🔧 Comandos de Gerenciamento
 
@@ -91,34 +98,65 @@ Este comando:
 # Deploy/Redeploy
 ./deploy.sh deploy
 
+# Configurar SSL
+./deploy.sh ssl
+
 # Ver logs em tempo real
 ./deploy.sh logs
-
-# Parar serviços
-./deploy.sh stop
-
-# Reiniciar serviços
-./deploy.sh restart
 
 # Status dos serviços
 ./deploy.sh status
 
-# Criar backup
+# Backup
 ./deploy.sh backup
 
-# Configurar SSL
-./deploy.sh ssl
+# Parar/Reiniciar
+./deploy.sh stop
+./deploy.sh restart
+```
 
-# Atualizar do Git
-./deploy.sh update
+## 📱 Configuração do WhatsApp
+
+### 1. Configurar Webhook no Meta Business
+
+```
+URL do Webhook: https://seu-hostname.com/api/webhooks/whatsapp
+Verify Token: verify_token_dev_123
+```
+
+**⚠️ IMPORTANTE: WhatsApp exige HTTPS para webhooks!**
+
+### 2. Testar Integração
+
+```bash
+# Health check
+curl https://seu-hostname.com/health
+
+# Teste de envio (precisa de JWT token)
+curl -X POST https://seu-hostname.com/api/v1/whatsapp/send \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SEU_JWT_TOKEN" \
+  -d '{
+    "to": "+5561994013828",
+    "message": "Teste do servidor de desenvolvimento!",
+    "type": "text"
+  }'
+
+# Login para obter token
+curl -X POST https://seu-hostname.com/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@pytake.com",
+    "password": "admin123"
+  }'
 ```
 
 ## 🏗️ Arquitetura de Deploy
 
 ```
-Internet
+Internet (HTTPS)
     ↓
-[Nginx Reverse Proxy] :80, :443
+[Nginx SSL Termination] :443, :80
     ↓
 [PyTake Backend API] :8080
     ↓
@@ -128,185 +166,116 @@ Internet
 
 ### Componentes
 
-1. **Nginx**: Reverse proxy, SSL termination, rate limiting
-2. **PyTake Backend**: API Rust compilada para produção
-3. **PostgreSQL**: Banco de dados principal
-4. **Redis**: Cache e filas de mensagens
+1. **Nginx**: SSL termination, reverse proxy, rate limiting
+2. **PyTake Backend**: API Rust com logs debug
+3. **PostgreSQL**: Banco de desenvolvimento
+4. **Redis**: Cache e filas
+5. **Let's Encrypt**: SSL gratuito
 
-## 🔒 Segurança
+## 🔒 Segurança Configurada
 
-### Configurações de Segurança Implementadas
+- **SSL/TLS**: Certificados Let's Encrypt automáticos
+- **Firewall**: Apenas 22, 80, 443 abertas
+- **Fail2ban**: Proteção contra brute force
+- **Rate limiting**: Nginx limita requests
+- **Non-root**: Containers rodam sem privilégios
 
-- **Firewall**: Apenas portas 22, 80, 443 abertas
-- **Fail2ban**: Proteção contra ataques de força bruta
-- **Non-root containers**: Aplicação roda como usuário não-privilegiado
-- **Rate limiting**: Nginx limita requisições por IP
-- **CORS**: Configurado para domínios específicos
-- **SSL/TLS**: Suporte a Let's Encrypt
+## 📊 Endpoints Disponíveis
 
-### Senha Padrão
-```
-Email: admin@pytake.com
-Senha: admin123
-```
-**⚠️ IMPORTANTE: Altere esta senha imediatamente após o primeiro login!**
+### Desenvolvimento
+- `GET https://seu-hostname.com/health` - Health check
+- `GET https://seu-hostname.com/api/v1/ws/stats` - WebSocket stats
+- `POST https://seu-hostname.com/api/v1/auth/login` - Login
 
-## 🔄 Configuração do WhatsApp
+### WhatsApp
+- `POST https://seu-hostname.com/api/webhooks/whatsapp` - Webhook
+- `POST https://seu-hostname.com/api/v1/whatsapp/send` - Enviar mensagem
+- `GET https://seu-hostname.com/api/v1/whatsapp/config` - Config
 
-### 1. Configurar Webhook
-
-No Meta Business Dashboard:
-```
-URL do Webhook: https://seudominio.com/api/webhooks/whatsapp
-Verify Token: o_valor_que_você_colocou_no_WHATSAPP_WEBHOOK_VERIFY_TOKEN
-```
-
-### 2. Testar Integração
-
-```bash
-# Health check
-curl https://seudominio.com/health
-
-# Teste de envio de mensagem
-curl -X POST https://seudominio.com/api/v1/whatsapp/send \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer SEU_JWT_TOKEN" \
-  -d '{
-    "to": "+5561994013828",
-    "message": "Teste do PyTake em produção!",
-    "type": "text"
-  }'
-```
-
-## 📊 Monitoramento
-
-### Logs
-```bash
-# Ver logs de todos os serviços
-docker-compose -f docker-compose.production.yml logs -f
-
-# Logs específicos
-docker logs pytake-backend -f
-docker logs pytake-nginx -f
-docker logs pytake-postgres -f
-```
-
-### Métricas
-
-- **Health Check**: `GET /health`
-- **WebSocket Stats**: `GET /api/v1/ws/stats`
-- **Sistema**: `htop`, `docker stats`
-
-## 💾 Backup e Restauração
-
-### Backup Automático
-```bash
-./deploy.sh backup
-```
-
-Cria backup em `./backups/YYYYMMDD_HHMMSS/`:
-- Database dump (PostgreSQL)
-- Arquivos de upload
-- Configurações
-
-### Restauração
-```bash
-# Restaurar database
-docker-compose -f docker-compose.production.yml exec postgres psql -U pytake -d pytake_production < backup/database.sql
-
-# Restaurar uploads
-cp -r backup/uploads/* ./uploads/
-```
+### WebSocket
+- `wss://seu-hostname.com/ws` - Conexão WebSocket
 
 ## 🚨 Troubleshooting
 
-### Problemas Comuns
-
-1. **Containers não startam**
-   ```bash
-   docker-compose -f docker-compose.production.yml logs
-   ```
-
-2. **Erro de conexão com banco**
-   - Verifique se PostgreSQL está rodando
-   - Confira credenciais no .env
-
-3. **WhatsApp webhook falha**
-   - Verifique se o verify token está correto
-   - Teste conectividade: `curl https://seudominio.com/api/webhooks/whatsapp`
-
-4. **SSL não funciona**
-   - Execute: `./deploy.sh ssl`
-   - Verifique DNS do domínio
-
-### Debug Mode
-
-Para mais logs detalhados:
+### SSL não funciona
 ```bash
-# No .env.production.local
-RUST_LOG=debug,simple_api=trace
+# Verificar certificados
+sudo certbot certificates
+
+# Renovar certificados
+sudo certbot renew
+
+# Verificar nginx config
+sudo nginx -t
+
+# Reconfigurar SSL
+./deploy.sh ssl
 ```
 
-## 📈 Otimizações de Performance
+### Webhook WhatsApp falha
+1. Verificar se webhook URL está com HTTPS
+2. Testar manualmente:
+   ```bash
+   curl -X POST https://seu-hostname.com/api/webhooks/whatsapp \
+     -H "Content-Type: application/json" \
+     -d '{"test": "webhook"}'
+   ```
+3. Verificar logs: `./deploy.sh logs`
 
-### Configurações Aplicadas
-
-- **Nginx**: Gzip, keepalive, cache
-- **PostgreSQL**: Conexões otimizadas
-- **Redis**: Memory policies configuradas
-- **Docker**: Limites de recursos
-
-### Monitoramento de Performance
-
+### Containers não startam
 ```bash
-# CPU e Memória
-htop
-docker stats
+# Ver logs detalhados
+docker-compose logs backend
+docker-compose logs postgres
+docker-compose logs nginx
 
-# Rede
-nethogs
-iotop
-
-# Aplicação
-curl https://seudominio.com/api/v1/ws/stats
+# Recriar containers
+docker-compose down
+docker-compose up -d --build
 ```
 
 ## 🔄 Atualizações
 
-### Atualização Automática
 ```bash
+# Atualizar código
+git pull origin master
+./deploy.sh deploy
+
+# Ou usar comando direto
 ./deploy.sh update
 ```
 
-### Atualização Manual
-```bash
-git pull origin main
-./deploy.sh deploy
-```
+## 📋 Checklist de Deploy
 
-## 📞 Suporte
+- [ ] ✅ Servidor configurado com `server-setup.sh`
+- [ ] ✅ Hostname configurado no sistema
+- [ ] ✅ DNS apontando para IP do servidor
+- [ ] ✅ Arquivo `.env.development.local` configurado
+- [ ] ✅ SSL configurado com `./deploy.sh ssl`
+- [ ] ✅ Deploy realizado com `./deploy.sh deploy`
+- [ ] ✅ Health check respondendo: `curl https://seu-hostname.com/health`
+- [ ] ✅ WhatsApp webhook configurado no Meta Business
+- [ ] ✅ Teste de envio de mensagem funcionando
+- [ ] ✅ Login admin testado: admin@pytake.com / admin123
 
-### Logs Importantes
-- Application: `docker logs pytake-backend`
-- Nginx: `docker logs pytake-nginx`
-- Database: `docker logs pytake-postgres`
+## 📞 Credenciais de Desenvolvimento
 
-### Contatos
-- Email: admin@pytake.com
-- WhatsApp Test: +5561994013828
+### Login Admin
+- **Email**: admin@pytake.com
+- **Senha**: admin123
+
+### WhatsApp Test
+- **Número**: +5561994013828
+- **Phone ID**: 574293335763643
+- **Webhook Token**: verify_token_dev_123
+
+### Banco de Dados
+- **Usuário**: pytake_dev
+- **Senha**: pytake_dev_password_123
+- **Database**: pytake_development
 
 ---
 
-**✅ Checklist Final de Deploy:**
+🎉 **Servidor de desenvolvimento PyTake pronto com SSL!**
 
-- [ ] Servidor configurado com `server-setup.sh`
-- [ ] Arquivo `.env.production.local` configurado
-- [ ] Senhas padrão alteradas
-- [ ] Deploy executado com sucesso
-- [ ] Health check respondendo
-- [ ] WhatsApp webhook configurado
-- [ ] SSL configurado (se usando domínio)
-- [ ] Backup testado
-- [ ] Monitoramento verificado
-
-🎉 **PyTake está pronto para produção!**
+Acesse: `https://seu-hostname.com`

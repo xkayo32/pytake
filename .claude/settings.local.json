@@ -58,7 +58,10 @@
       "Bash(set DATABASE_URL=postgresql://pytake:pytake123@localhost:5432/pytake)",
       "Bash(set JWT_SECRET=development-secret-key)",
       "Bash(set RUST_LOG=info)",
-      "Bash(set DATABASE_URL=postgresql://pytake:pytake_dev@localhost:5432/pytake)"
+      "Bash(set DATABASE_URL=postgresql://pytake:pytake_dev@localhost:5432/pytake)",
+      "Bash(git push:*)",
+      "Bash(git remote add:*)",
+      "Bash(git remote set-url:*)"
     ],
     "deny": []
   }

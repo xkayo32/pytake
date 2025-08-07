@@ -5,8 +5,8 @@
 
 set -e
 
-echo "🚀 PyTake Production Deployment"
-echo "================================"
+echo "🚀 PyTake Development Deployment"
+echo "================================="
 echo ""
 
 # Colors for output
@@ -18,8 +18,8 @@ NC='\033[0m' # No Color
 
 # Configuration
 PROJECT_NAME="pytake"
-COMPOSE_FILE="docker-compose.production.yml"
-ENV_FILE=".env.production"
+COMPOSE_FILE="docker-compose.yml"
+ENV_FILE=".env.development"
 
 # Functions
 log_info() {
@@ -150,8 +150,8 @@ check_health() {
 show_info() {
     echo ""
     echo "================================"
-    log_success "PyTake deployed successfully! 🎉"
-    echo "================================"
+    log_success "PyTake Development Server deployed! 🎉"
+    echo "========================================"
     echo ""
     
     # Get server IP
@@ -171,13 +171,13 @@ show_info() {
     echo ""
     
     echo "📋 Next Steps:"
-    echo "   1. Configure your domain to point to $SERVER_IP"
-    echo "   2. Set up SSL certificates (Let's Encrypt recommended)"
-    echo "   3. Configure WhatsApp webhook URL"
-    echo "   4. Change default admin password (admin@pytake.com / admin123)"
+    echo "   1. Configure WhatsApp webhook URL to: http://$SERVER_IP/api/webhooks/whatsapp"
+    echo "   2. Test API endpoints with your credentials"
+    echo "   3. Access admin panel: admin@pytake.com / admin123"
+    echo "   4. Test WhatsApp integration with: +5561994013828"
     echo ""
     
-    log_warning "IMPORTANT: Change default passwords and secrets in $ENV_FILE!"
+    log_warning "DEVELOPMENT SERVER: Logs are verbose and CORS is permissive!"
 }
 
 # Backup function
