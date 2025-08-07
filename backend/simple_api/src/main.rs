@@ -3,6 +3,8 @@ use actix_cors::Cors;
 use serde_json::json;
 use tracing::info;
 use std::sync::Arc;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 mod auth;
 mod auth_db;
@@ -18,6 +20,7 @@ mod entities;
 mod agent_conversations;
 mod dashboard;
 mod flows;
+mod api_docs;
 
 use auth::AuthService;
 use auth_db::AuthServiceDb;
@@ -25,7 +28,18 @@ use database::establish_connection;
 use websocket_improved::ConnectionManager;
 use whatsapp_handlers::WhatsAppManager;
 
-// Simple health check
+/// Health check endpoint
+/// 
+/// Returns the current health status of the API service
+#[utoipa::path(
+    get,
+    path = "/health",
+    tag = "Health",
+    responses(
+        (status = 200, description = "Service is healthy", body = api_docs::HealthCheckResponse),
+        (status = 503, description = "Service is unhealthy")
+    )
+)]
 async fn health() -> Result<HttpResponse> {
     info!("Health check requested");
     Ok(HttpResponse::Ok().json(json!({
@@ -91,6 +105,14 @@ async fn root() -> Result<HttpResponse> {
                 "get_default": "/api/v1/whatsapp-configs/default",
                 "set_default": "/api/v1/whatsapp-configs/{id}/set-default"
             }
+        },
+        "documentation": {
+            "swagger_ui": "/docs",
+            "redoc": "/redoc",
+            "rapidoc": "/rapidoc",
+            "openapi_json": "/api-docs/openapi.json",
+            "readme": "https://github.com/xkayo32/pytake-backend/blob/master/backend/simple_api/README.md",
+            "api_reference": "https://github.com/xkayo32/pytake-backend/blob/master/backend/API-REFERENCE.md"
         },
         "demo_users": {
             "memory": {
@@ -176,6 +198,13 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(conversation_storage.clone()))
             .wrap(Logger::default())
             .wrap(cors)
+            // Documentation endpoints
+            .configure(api_docs::configure_docs)
+            .route("/api-docs/openapi.json", web::get().to(|| async { 
+                HttpResponse::Ok()
+                    .content_type("application/json")
+                    .body(api_docs::get_openapi_json())
+            }))
             .route("/", web::get().to(root))
             .route("/health", web::get().to(health))
             .service(
