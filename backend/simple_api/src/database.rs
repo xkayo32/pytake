@@ -4,9 +4,25 @@ use tracing::info;
 
 pub async fn establish_connection() -> Result<DatabaseConnection, DbErr> {
     let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://pytake:pytake_dev@localhost:5432/pytake".to_string());
+        .unwrap_or_else(|_| "postgresql://pytake:pytake123@localhost:5432/pytake".to_string());
 
-    info!("Connecting to database: {}", database_url.replace("pytake_dev", "****"));
+    let masked_url = database_url
+        .split("@")
+        .enumerate()
+        .map(|(i, part)| {
+            if i == 0 {
+                if let Some(idx) = part.rfind(":") {
+                    format!("{}:****", &part[..idx])
+                } else {
+                    part.to_string()
+                }
+            } else {
+                part.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("@");
+    info!("Connecting to database: {}", masked_url);
 
     let mut opt = ConnectOptions::new(database_url);
     opt.max_connections(100)

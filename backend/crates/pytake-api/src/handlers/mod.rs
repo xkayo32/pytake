@@ -13,6 +13,7 @@ pub mod notification;
 pub mod metrics;
 pub mod dashboard;
 pub mod orchestration;
+pub mod flow;
 // Temporarily disabled due to db dependencies
 // pub mod template;
 // pub mod media; 

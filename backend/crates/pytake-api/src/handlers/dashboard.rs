@@ -172,30 +172,32 @@ fn generate_mock_dashboard_metrics(
     _start_date: DateTime<Utc>,
     _end_date: DateTime<Utc>,
 ) -> DashboardMetrics {
+    // TODO: Replace with real database queries
+    // For now returning empty/zero values instead of mock data
     DashboardMetrics {
         active_conversations: MetricValue {
-            current: serde_json::Value::Number(127.into()),
-            previous: serde_json::Value::Number(113.into()),
-            change_percentage: 12.4,
-            trend: "up".to_string(),
+            current: serde_json::Value::Number(0.into()),
+            previous: serde_json::Value::Number(0.into()),
+            change_percentage: 0.0,
+            trend: "stable".to_string(),
         },
         total_messages: MetricValue {
-            current: serde_json::Value::Number(2847.into()),
-            previous: serde_json::Value::Number(2634.into()),
-            change_percentage: 8.1,
-            trend: "up".to_string(),
+            current: serde_json::Value::Number(0.into()),
+            previous: serde_json::Value::Number(0.into()),
+            change_percentage: 0.0,
+            trend: "stable".to_string(),
         },
         avg_response_time: MetricValue {
-            current: serde_json::Value::String("2.3min".to_string()),
-            previous: serde_json::Value::String("2.7min".to_string()),
-            change_percentage: -14.8,
-            trend: "down".to_string(),
+            current: serde_json::Value::String("0min".to_string()),
+            previous: serde_json::Value::String("0min".to_string()),
+            change_percentage: 0.0,
+            trend: "stable".to_string(),
         },
         customer_satisfaction: MetricValue {
-            current: serde_json::Value::String("94%".to_string()),
-            previous: serde_json::Value::String("92%".to_string()),
-            change_percentage: 2.2,
-            trend: "up".to_string(),
+            current: serde_json::Value::String("0%".to_string()),
+            previous: serde_json::Value::String("0%".to_string()),
+            change_percentage: 0.0,
+            trend: "stable".to_string(),
         },
         period: period.to_string(),
         last_updated: Utc::now(),
@@ -211,26 +213,14 @@ fn generate_mock_conversation_chart(
     let end = end_date.date_naive();
 
     while current <= end {
-        // Generate realistic mock data based on day of week
-        let day_factor = match current.weekday().num_days_from_monday() {
-            0..=4 => 1.0,  // Monday-Friday (higher activity)
-            5 => 0.8,      // Saturday
-            6 => 0.6,      // Sunday
-            _ => 1.0,
-        };
-
-        let base_total = (30.0 + (current.ordinal() % 20) as f64) * day_factor;
-        let total = base_total as u32;
-        let active = (total as f64 * 0.35) as u32;
-        let resolved = (total as f64 * 0.55) as u32;
-        let pending = total - active - resolved;
-
+        // TODO: Replace with real database queries
+        // For now returning empty data
         data.push(ConversationChartData {
             date: current.format("%d/%m").to_string(),
-            total,
-            active,
-            resolved,
-            pending,
+            total: 0,
+            active: 0,
+            resolved: 0,
+            pending: 0,
         });
 
         current = current.succ_opt().unwrap_or(current);

@@ -54,7 +54,11 @@
       "Bash(cp:*)",
       "Bash(bash:*)",
       "Bash(cat:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(set DATABASE_URL=postgresql://pytake:pytake123@localhost:5432/pytake)",
+      "Bash(set JWT_SECRET=development-secret-key)",
+      "Bash(set RUST_LOG=info)",
+      "Bash(set DATABASE_URL=postgresql://pytake:pytake_dev@localhost:5432/pytake)"
     ],
     "deny": []
   }

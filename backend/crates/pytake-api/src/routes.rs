@@ -18,6 +18,7 @@ use crate::handlers::{
     orchestration,
     template,
     user,
+    flow,
 };
 
 /// Configure all application routes
@@ -91,11 +92,10 @@ fn configure_user_routes() -> Scope {
         .route("/{id}/password/reset", web::post().to(user::reset_password))
 }
 
-/// Configure flow-related routes (placeholder)
+/// Configure flow-related routes
 fn configure_flow_routes() -> Scope {
     web::scope("/flows")
-        // TODO: Add flow routes
-        .route("", web::get().to(placeholder_handler))
+        .configure(flow::configure)
 }
 
 /// Configure WhatsApp-related routes

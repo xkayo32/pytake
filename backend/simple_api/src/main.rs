@@ -13,6 +13,7 @@ mod whatsapp_handlers;
 mod whatsapp_config;
 mod agent_conversations;
 mod dashboard;
+mod flows;
 
 use auth::AuthService;
 use auth_db::AuthServiceDb;
@@ -198,6 +199,8 @@ async fn main() -> std::io::Result<()> {
                     .configure(agent_conversations::configure_routes)
                     // Dashboard routes
                     .configure(dashboard::configure_routes)
+                    // Flow builder routes
+                    .configure(flows::configure_routes)
             )
             // WebSocket connection endpoint
             .route("/ws", web::get().to(websocket_improved::websocket_handler))
