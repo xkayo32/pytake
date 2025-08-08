@@ -25,6 +25,7 @@ mod message_queue;
 mod auto_responder;
 mod webhook_manager;
 mod ai_assistant;
+mod campaign_manager;
 
 use auth::AuthService;
 use auth_db::AuthServiceDb;
@@ -125,6 +126,17 @@ async fn root() -> Result<HttpResponse> {
                 "classify": "/api/v1/ai/classify",
                 "prompts": "/api/v1/ai/prompts",
                 "usage": "/api/v1/ai/usage/{user_id}"
+            },
+            "campaigns": {
+                "create": "/api/v1/campaigns",
+                "list": "/api/v1/campaigns",
+                "start": "/api/v1/campaigns/{id}/start",
+                "pause": "/api/v1/campaigns/{id}/pause",
+                "analytics": "/api/v1/campaigns/{id}/analytics"
+            },
+            "contacts": {
+                "import": "/api/v1/contacts/import",
+                "add_tags": "/api/v1/contacts/tags"
             }
         },
         "documentation": {
@@ -224,6 +236,17 @@ async fn main() -> std::io::Result<()> {
     let ai_service = Arc::new(ai_assistant::AIService::new());
     info!("✅ AI assistant service initialized");
     
+    // Create campaign manager
+    let campaign_manager = Arc::new(campaign_manager::CampaignManager::new(db.clone()));
+    info!("✅ Campaign manager initialized");
+    
+    // Run campaign manager migration
+    if let Err(e) = campaign_manager.migrate().await {
+        info!("⚠️ Campaign migration already exists or completed: {}", e);
+    } else {
+        info!("✅ Campaign management migration completed");
+    }
+    
     // Webhook worker will be started internally if needed
     
     HttpServer::new(move || {
@@ -241,6 +264,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(auto_responder.clone()))
             .app_data(web::Data::new(webhook_manager.clone()))
             .app_data(web::Data::new(ai_service.clone()))
+            .app_data(web::Data::new(campaign_manager.clone()))
             .wrap(Logger::default())
             .wrap(cors)
             // Documentation endpoints
@@ -355,6 +379,8 @@ async fn main() -> std::io::Result<()> {
                     )
                     // AI Assistant routes
                     .configure(ai_assistant::configure_routes)
+                    // Campaign management routes
+                    .configure(campaign_manager::configure_routes)
             )
             // WebSocket connection endpoint
             .route("/ws", web::get().to(websocket_improved::websocket_handler))

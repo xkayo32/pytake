@@ -19,6 +19,14 @@ use crate::ai_assistant::{
     IntentClassificationRequest, IntentClassificationResponse, CustomPrompt,
     CreatePromptRequest, AIProvider, AnalysisType, IntentAlternative
 };
+use crate::campaign_manager::{
+    Campaign, CampaignObjective, CampaignStatus, CreateCampaignRequest, 
+    ListCampaignsQuery, UpdateCampaignRequest, CampaignAnalytics, 
+    ImportContactsRequest, ImportResult, AddTagsRequest, Contact, 
+    ContactGroup, MessageTemplate, MessageTemplateType, RecurrenceConfig, 
+    ThrottleConfig, ContactSegmentation, ABTestConfig, CampaignMetrics,
+    ImportContactData, ContactImportSource, MergeStrategy
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -81,6 +89,30 @@ use crate::ai_assistant::{
             AnalysisType,
             IntentAlternative,
             
+            // Campaign Management schemas
+            Campaign,
+            CampaignObjective,
+            CampaignStatus,
+            CreateCampaignRequest,
+            ListCampaignsQuery,
+            UpdateCampaignRequest,
+            CampaignAnalytics,
+            ImportContactsRequest,
+            ImportResult,
+            AddTagsRequest,
+            Contact,
+            ContactGroup,
+            MessageTemplate,
+            MessageTemplateType,
+            RecurrenceConfig,
+            ThrottleConfig,
+            ContactSegmentation,
+            ABTestConfig,
+            CampaignMetrics,
+            ImportContactData,
+            ContactImportSource,
+            MergeStrategy,
+            
             // TODO: WhatsAppConfigModel requires special handling as SeaORM entity
         )
     ),
@@ -95,6 +127,8 @@ use crate::ai_assistant::{
         (name = "Dashboard", description = "Analytics and metrics"),
         (name = "Flows", description = "Conversation flow builder"),
         (name = "AI Assistant", description = "AI-powered chat, analysis and intent classification"),
+        (name = "Campaigns", description = "Mass messaging campaign management"),
+        (name = "Contacts", description = "Contact and group management"),
     )
 )]
 pub struct ApiDoc;

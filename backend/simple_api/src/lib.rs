@@ -11,6 +11,7 @@ pub mod dashboard;
 pub mod flows;
 pub mod webhook_manager;
 pub mod ai_assistant;
+pub mod campaign_manager;
 
 // Re-export main functions
 use actix_web::{HttpResponse, Result};
