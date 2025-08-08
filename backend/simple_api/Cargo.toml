@@ -47,6 +47,7 @@ utoipa-swagger-ui = { version = "6", features = ["actix-web"] }
 utoipa-redoc = { version = "3", features = ["actix-web"] }
 utoipa-rapidoc = { version = "3", features = ["actix-web"] }
 serde_yaml = "0.9"
+actix-web-httpauth = "0.8"
 
 [dev-dependencies]
 actix-http = "3"

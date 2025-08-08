@@ -27,6 +27,13 @@ use crate::campaign_manager::{
     ThrottleConfig, ContactSegmentation, ABTestConfig, CampaignMetrics,
     ImportContactData, ContactImportSource, MergeStrategy
 };
+use crate::multi_tenant::{
+    Tenant, TenantPlan, TenantStatus, TenantLimits, TenantSettings,
+    BillingInfo, BillingCycle, TenantUser, TenantRole, Permission,
+    UserStatus, TenantApiKey, UsageMetrics, Invoice, InvoiceStatus,
+    LineItem, CreateTenantRequest, UpdateTenantRequest, AddUserRequest,
+    UpgradePlanRequest, CreateApiKeyRequest, ApiKeyResponse, TenantResponse
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -113,6 +120,31 @@ use crate::campaign_manager::{
             ContactImportSource,
             MergeStrategy,
             
+            // Multi-tenancy schemas
+            Tenant,
+            TenantPlan,
+            TenantStatus,
+            TenantLimits,
+            TenantSettings,
+            BillingInfo,
+            BillingCycle,
+            TenantUser,
+            TenantRole,
+            Permission,
+            UserStatus,
+            TenantApiKey,
+            UsageMetrics,
+            Invoice,
+            InvoiceStatus,
+            LineItem,
+            CreateTenantRequest,
+            UpdateTenantRequest,
+            AddUserRequest,
+            UpgradePlanRequest,
+            CreateApiKeyRequest,
+            ApiKeyResponse,
+            TenantResponse,
+            
             // TODO: WhatsAppConfigModel requires special handling as SeaORM entity
         )
     ),
@@ -129,6 +161,7 @@ use crate::campaign_manager::{
         (name = "AI Assistant", description = "AI-powered chat, analysis and intent classification"),
         (name = "Campaigns", description = "Mass messaging campaign management"),
         (name = "Contacts", description = "Contact and group management"),
+        (name = "Multi-Tenancy", description = "Multi-tenant organization management with billing and user roles"),
     )
 )]
 pub struct ApiDoc;

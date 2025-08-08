@@ -26,6 +26,7 @@ mod auto_responder;
 mod webhook_manager;
 mod ai_assistant;
 mod campaign_manager;
+mod multi_tenant;
 
 use auth::AuthService;
 use auth_db::AuthServiceDb;
@@ -137,6 +138,18 @@ async fn root() -> Result<HttpResponse> {
             "contacts": {
                 "import": "/api/v1/contacts/import",
                 "add_tags": "/api/v1/contacts/tags"
+            },
+            "tenants": {
+                "create": "/api/v1/tenants",
+                "get": "/api/v1/tenants/{tenant_id}",
+                "update": "/api/v1/tenants/{tenant_id}",
+                "add_user": "/api/v1/tenants/{tenant_id}/users",
+                "list_users": "/api/v1/tenants/{tenant_id}/users",
+                "billing": "/api/v1/tenants/{tenant_id}/billing",
+                "upgrade": "/api/v1/tenants/{tenant_id}/upgrade",
+                "usage": "/api/v1/tenants/{tenant_id}/usage",
+                "api_keys": "/api/v1/tenants/{tenant_id}/api-keys",
+                "invoices": "/api/v1/tenants/{tenant_id}/invoices"
             }
         },
         "documentation": {
@@ -381,6 +394,8 @@ async fn main() -> std::io::Result<()> {
                     .configure(ai_assistant::configure_routes)
                     // Campaign management routes
                     .configure(campaign_manager::configure_routes)
+                    // Multi-tenancy routes
+                    .configure(multi_tenant::configure_tenant_routes)
             )
             // WebSocket connection endpoint
             .route("/ws", web::get().to(websocket_improved::websocket_handler))
