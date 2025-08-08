@@ -17,6 +17,7 @@ pub mod erp_connectors;
 pub mod erp_handlers;
 pub mod langchain_ai;
 pub mod google_integrations;
+pub mod data_privacy;
 
 // Re-export main functions
 use actix_web::{HttpResponse, Result};

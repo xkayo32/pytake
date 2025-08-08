@@ -33,6 +33,7 @@ mod langchain_ai;
 mod flow_builder;
 mod realtime_dashboard;
 mod google_integrations;
+mod data_privacy;
 
 use auth::AuthService;
 use auth_db::AuthServiceDb;
@@ -235,6 +236,39 @@ async fn root() -> Result<HttpResponse> {
                 },
                 "supported_services": ["sheets", "calendar", "drive", "all"],
                 "supported_automations": ["daily_metrics_export", "weekly_backup", "automated_scheduling", "document_sharing", "report_generation"]
+            },
+            "data_privacy": {
+                "consent": {
+                    "register": "/api/v1/privacy/consent",
+                    "withdraw": "/api/v1/privacy/consent/withdraw",
+                    "history": "/api/v1/privacy/consent/{user_id}/history"
+                },
+                "data_subject_rights": {
+                    "export": "/api/v1/privacy/data/{user_id}/export",
+                    "delete": "/api/v1/privacy/data/{user_id}/delete",
+                    "rectify": "/api/v1/privacy/data/{user_id}/rectify",
+                    "request": "/api/v1/privacy/request",
+                    "status": "/api/v1/privacy/request/{request_id}/status"
+                },
+                "compliance": {
+                    "status": "/api/v1/privacy/compliance/status",
+                    "metrics": "/api/v1/privacy/compliance/metrics",
+                    "audit": "/api/v1/privacy/audit/{user_id}",
+                    "dpia": "/api/v1/privacy/dpia",
+                    "breach": "/api/v1/privacy/breach"
+                },
+                "retention": {
+                    "policies": "/api/v1/privacy/retention/policies",
+                    "violations": "/api/v1/privacy/retention/violations",
+                    "cleanup": "/api/v1/privacy/retention/cleanup"
+                },
+                "transfers": {
+                    "international": "/api/v1/privacy/transfers/international",
+                    "adequacy": "/api/v1/privacy/transfers/adequacy"
+                },
+                "supported_rights": ["access", "rectification", "erasure", "portability", "object", "restrict_processing"],
+                "supported_formats": ["json", "csv", "xml", "pdf"],
+                "compliance_frameworks": ["LGPD", "GDPR", "CCPA", "PIPEDA"]
             }
         },
         "documentation": {
@@ -387,6 +421,10 @@ async fn main() -> std::io::Result<()> {
     };
     info!("✅ Google Integrations manager initialized");
     
+    // Create Data Privacy service
+    let privacy_service = Arc::new(data_privacy::DataPrivacyService::new(db.clone()));
+    info!("✅ Data Privacy service initialized");
+    
     // Create ERP state
     let erp_state = erp_handlers::ErpState {
         manager: erp_manager.clone(),
@@ -420,6 +458,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(flow_engine.clone()))
             .app_data(web::Data::new(dashboard_manager.clone()))
             .app_data(web::Data::new(google_manager.clone()))
+            .app_data(web::Data::new(privacy_service.clone()))
             .wrap(Logger::default())
             .wrap(cors)
             // Documentation endpoints
@@ -564,6 +603,8 @@ async fn main() -> std::io::Result<()> {
             )
             // Google Workspace Integration routes
             .configure(google_integrations::configure_google_integrations)
+            // Data Privacy LGPD/GDPR routes
+            .configure(data_privacy::configure_privacy_routes)
             // WebSocket connection endpoint
             .route("/ws", web::get().to(websocket_improved::websocket_handler))
     })
