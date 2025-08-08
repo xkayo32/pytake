@@ -29,20 +29,20 @@ pub struct Claims {
     pub iat: i64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct LoginRequest {
     pub email: String,
     pub password: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct RegisterRequest {
     pub email: String,
     pub password: String,
     pub name: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct AuthResponse {
     pub access_token: String,
     pub refresh_token: String,
@@ -51,8 +51,16 @@ pub struct AuthResponse {
     pub user: UserInfo,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct UserInfo {
+    pub id: String,
+    pub email: String,
+    pub name: String,
+    pub role: String,
+}
+
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct UserResponse {
     pub id: String,
     pub email: String,
     pub name: String,

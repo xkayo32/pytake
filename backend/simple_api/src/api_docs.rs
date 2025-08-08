@@ -14,7 +14,6 @@ use crate::whatsapp_management::{
     WhatsAppConfig, WhatsAppConfigResponse, HealthStatus, WhatsAppProvider
 };
 use crate::whatsapp_handlers::{SendMessageRequest, CreateInstanceRequest};
-use crate::entities::whatsapp_config::Model as WhatsAppConfigModel;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -35,90 +34,36 @@ use crate::entities::whatsapp_config::Model as WhatsAppConfigModel;
         (url = "https://api.pytake.com", description = "Production server")
     ),
     paths(
-        // Health & Status
-        crate::health,
-        crate::status,
-        crate::root,
-        
-        // Authentication - In-Memory
-        crate::auth::login,
-        crate::auth::register,
-        crate::auth::me,
-        crate::auth::logout,
-        
-        // Authentication - Database
-        crate::auth_db::login_db,
-        crate::auth_db::register_db,
-        crate::auth_db::me_db,
-        crate::auth_db::logout_db,
-        
-        // WhatsApp Configuration Management
-        crate::whatsapp_db_handlers::list_configs,
-        crate::whatsapp_db_handlers::get_config,
-        crate::whatsapp_db_handlers::create_config,
-        crate::whatsapp_db_handlers::update_config,
-        crate::whatsapp_db_handlers::delete_config,
-        crate::whatsapp_db_handlers::test_config,
-        crate::whatsapp_db_handlers::get_default_config,
-        crate::whatsapp_db_handlers::set_default_config,
-        
-        // WhatsApp Operations
-        crate::whatsapp_handlers::create_instance,
-        crate::whatsapp_handlers::get_instance_status,
-        crate::whatsapp_handlers::get_qr_code,
-        crate::whatsapp_handlers::send_message,
-        crate::whatsapp_handlers::list_instances,
-        crate::whatsapp_handlers::delete_instance,
-        crate::whatsapp_handlers::webhook_handler,
-        
-        // WebSocket
-        crate::websocket_improved::websocket_stats,
-        
-        // Agent Conversations
-        crate::agent_conversations::get_agent_conversations,
-        crate::agent_conversations::get_conversation_messages,
-        crate::agent_conversations::assign_conversation,
-        crate::agent_conversations::resolve_conversation,
-        
-        // Dashboard
-        crate::dashboard::get_dashboard_metrics,
-        crate::dashboard::get_conversation_analytics,
-        crate::dashboard::get_agent_performance,
-        
-        // Flows
-        crate::flows::list_flows,
-        crate::flows::get_flow,
-        crate::flows::create_flow,
-        crate::flows::update_flow,
-        crate::flows::delete_flow,
-        crate::flows::test_flow,
+        // TODO: Add utoipa::path attributes to handlers to enable auto-documentation
+        // For now, leaving empty to allow compilation
     ),
     components(
         schemas(
-            // Auth Schemas
-            LoginRequest,
-            RegisterRequest,
-            AuthResponse,
-            UserResponse,
-            
-            // WhatsApp Config Schemas
-            CreateWhatsAppConfigRequest,
-            UpdateWhatsAppConfigRequest,
-            WhatsAppConfig,
-            WhatsAppConfigResponse,
-            WhatsAppConfigModel,
-            HealthStatus,
-            WhatsAppProvider,
-            
-            // WhatsApp Operation Schemas
-            SendMessageRequest,
-            CreateInstanceRequest,
-            
             // Common Response Schemas
             ErrorResponse,
             SuccessResponse,
             HealthCheckResponse,
             StatusResponse,
+            
+            // Auth schemas
+            LoginRequest,
+            RegisterRequest, 
+            AuthResponse,
+            UserResponse,
+            
+            // WhatsApp Config schemas
+            CreateWhatsAppConfigRequest,
+            UpdateWhatsAppConfigRequest,
+            WhatsAppConfig,
+            WhatsAppConfigResponse,
+            HealthStatus,
+            WhatsAppProvider,
+            
+            // WhatsApp Operation schemas
+            SendMessageRequest,
+            CreateInstanceRequest,
+            
+            // TODO: WhatsAppConfigModel requires special handling as SeaORM entity
         )
     ),
     modifiers(&SecurityAddon),
@@ -188,7 +133,6 @@ pub fn configure_docs(cfg: &mut web::ServiceConfig) {
                 .config(utoipa_swagger_ui::Config::default()
                     .try_it_out_enabled(true)
                     .filter(true)
-                    .sort_alphabetically(true)
                     .deep_linking(true)
                     .display_request_duration(true)
                     .show_extensions(true)
@@ -271,15 +215,15 @@ const CUSTOM_RAPIDOC_HTML: &str = r#"<!DOCTYPE html>
         allow-server-selection="true"
         show-info="true"
         show-components="true"
-        nav-bg-color="#2c3e50"
-        primary-color="#3498db"
-        regular-font="Inter, system-ui, sans-serif"
-        mono-font="'Fira Code', monospace"
+        nav-bg-color='#2c3e50'
+        primary-color='#3498db'
+        regular-font='Inter, system-ui, sans-serif'
+        mono-font='Fira Code, monospace'
         font-size="default"
         use-path-in-nav-bar="false"
-        nav-hover-bg-color="#34495e"
-        nav-accent-color="#e74c3c"
-        nav-text-color="#ecf0f1"
+        nav-hover-bg-color='#34495e'
+        nav-accent-color='#e74c3c'
+        nav-text-color='#ecf0f1'
         layout="row"
         render-style="view"
         schema-style="tree"
@@ -287,14 +231,14 @@ const CUSTOM_RAPIDOC_HTML: &str = r#"<!DOCTYPE html>
         schema-description-expanded="true"
         default-schema-tab="model"
         response-area-height="400px"
-        fetch-credentials="same-origin"
+        fetch-credentials='same-origin'
         update-route="true"
-        route-prefix="#"
+        route-prefix='#'
         sort-tags="false"
         sort-endpoints-by="method"
     >
         <div slot="logo" style="display: flex; align-items: center; padding: 12px;">
-            <span style="color: #fff; font-size: 20px; font-weight: bold;">🚀 PyTake API</span>
+            <span style='color: #fff; font-size: 20px; font-weight: bold;'>🚀 PyTake API</span>
         </div>
     </rapi-doc>
 </body>

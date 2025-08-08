@@ -8,7 +8,7 @@ use uuid::Uuid;
 use chrono::{DateTime, Utc};
 
 // Database model for WhatsApp configurations
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct WhatsAppConfig {
     pub id: String,
     pub name: String,
@@ -35,14 +35,14 @@ pub struct WhatsAppConfig {
     pub error_message: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum WhatsAppProvider {
     Official,
     Evolution,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum HealthStatus {
     Healthy,
@@ -52,7 +52,7 @@ pub enum HealthStatus {
 }
 
 // Request/Response DTOs
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreateWhatsAppConfigRequest {
     pub name: String,
     pub provider: WhatsAppProvider,
@@ -71,7 +71,7 @@ pub struct CreateWhatsAppConfigRequest {
     pub is_default: Option<bool>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct UpdateWhatsAppConfigRequest {
     pub name: Option<String>,
     pub phone_number_id: Option<String>,
@@ -86,7 +86,7 @@ pub struct UpdateWhatsAppConfigRequest {
     pub is_default: Option<bool>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct WhatsAppConfigResponse {
     pub id: String,
     pub name: String,

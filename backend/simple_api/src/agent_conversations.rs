@@ -1,8 +1,7 @@
 use actix_web::{web, HttpResponse, HttpRequest};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
-use chrono::{DateTime, Utc};
-use uuid::Uuid;
+// Removed unused imports: DateTime, Utc, and Uuid
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Conversation {

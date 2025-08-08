@@ -7,6 +7,7 @@ use crate::whatsapp_evolution::{
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{info, error};
+use sea_orm::{Database, FromQueryResult};
 
 /// WhatsApp instance manager
 #[derive(Clone)]
@@ -39,7 +40,7 @@ impl WhatsAppManager {
 
 // Request/Response types
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreateInstanceRequest {
     pub provider: WhatsAppProvider,
     pub instance_name: String,
@@ -60,7 +61,7 @@ pub struct OfficialConfigRequest {
     pub webhook_verify_token: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct SendMessageRequest {
     pub instance_name: String,
     pub to: String,
@@ -330,12 +331,14 @@ async fn webhook_verification(req: HttpRequest) -> Result<HttpResponse> {
     
     // Check if this is a subscription verification
     if hub_mode == Some(&"subscribe".to_string()) {
-        // In production, verify the token matches your configured verify token
-        // For testing, we'll accept any token for now
-        let expected_verify_token = "verify_token_123"; // Should match frontend default
+        // Try to get webhook verify token from environment, fallback to hardcoded
+        let expected_verify_token = std::env::var("WHATSAPP_WEBHOOK_VERIFY_TOKEN")
+            .unwrap_or_else(|_| "verify_token_123".to_string());
+        
+        info!("Using webhook verify token: {}...", &expected_verify_token[0..20.min(expected_verify_token.len())]);
         
         if let Some(token) = hub_verify_token {
-            if token == expected_verify_token {
+            if token == &expected_verify_token {
                 if let Some(challenge) = hub_challenge {
                     info!("Webhook verification successful, returning challenge: {}", challenge);
                     return Ok(HttpResponse::Ok()
@@ -421,12 +424,16 @@ async fn send_auto_response(to: &str, received_text: &str) {
         return;
     }
     
+    // Get the actual webhook verify token
+    let webhook_verify_token = get_webhook_verify_token().await
+        .unwrap_or_else(|| "verify_token_123".to_string());
+    
     // Create official client and send response
     let config = crate::whatsapp_evolution::OfficialConfig {
         phone_number_id: phone_number_id.clone(),
         access_token: access_token.clone(),
         instance_name: "auto_responder".to_string(),
-        webhook_verify_token: "verify_token_123".to_string(),
+        webhook_verify_token,
     };
     
     let client = crate::whatsapp_evolution::OfficialClient::new(config);
@@ -482,6 +489,51 @@ async fn handle_message_status(status: &serde_json::Value) {
     let timestamp = status["timestamp"].as_str().unwrap_or("unknown");
     
     info!("Message status update: {} -> {} (Time: {})", recipient_id, msg_status, timestamp);
+}
+
+/// Get webhook verify token from database
+async fn get_webhook_verify_token() -> Option<String> {
+    let database_url = std::env::var("DATABASE_URL").ok()?;
+    info!("Connecting to database for webhook token: {}", &database_url[0..20] + "...");
+    
+    let db = match Database::connect(&database_url).await {
+        Ok(db) => {
+            info!("Database connection successful for webhook token");
+            db
+        }
+        Err(e) => {
+            error!("Failed to connect to database for webhook token: {}", e);
+            return None;
+        }
+    };
+    
+    // Use raw SQL to get the webhook verify token from JSONB config_data
+    let query_result = sea_orm::Statement::from_sql_and_values(
+        sea_orm::DatabaseBackend::Postgres,
+        "SELECT config_data->>'webhook_verify_token' as webhook_verify_token FROM whatsapp_configs WHERE provider = $1 AND is_active = $2 LIMIT 1",
+        [sea_orm::Value::from("official"), sea_orm::Value::from(true)]
+    );
+    
+    #[derive(FromQueryResult)]
+    struct WebhookTokenResult {
+        webhook_verify_token: Option<String>,
+    }
+    
+    match WebhookTokenResult::find_by_statement(query_result).one(&db).await {
+        Ok(result) => {
+            if let Some(token_result) = result {
+                info!("Found webhook token in database");
+                return token_result.webhook_verify_token;
+            } else {
+                error!("No webhook token found in database");
+                None
+            }
+        }
+        Err(e) => {
+            error!("Database query failed for webhook token: {}", e);
+            None
+        }
+    }
 }
 
 /// DELETE /api/v1/whatsapp/instance/:name

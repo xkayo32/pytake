@@ -3,8 +3,7 @@ use actix_cors::Cors;
 use serde_json::json;
 use tracing::info;
 use std::sync::Arc;
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
+// OpenAPI imports removed as they're not used in main.rs
 
 mod auth;
 mod auth_db;

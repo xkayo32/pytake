@@ -1,0 +1,96 @@
+# PyTake Backend Optimized Dockerfile
+# Multi-stage build with better caching
+
+# Stage 1: Dependencies
+FROM rust:1.75-slim as deps
+
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy only Cargo files first for better caching
+COPY backend/Cargo.toml ./Cargo.toml
+
+# Create dummy src files to build dependencies
+RUN mkdir -p simple_api/src crates/pytake-core/src crates/pytake-api/src \
+    crates/pytake-db/src crates/pytake-flow/src crates/pytake-whatsapp/src \
+    crates/pytake-modules/src
+
+# Copy all Cargo.toml files first
+COPY backend/simple_api/Cargo.toml ./simple_api/
+COPY backend/crates/pytake-core/Cargo.toml ./crates/pytake-core/
+COPY backend/crates/pytake-api/Cargo.toml ./crates/pytake-api/
+COPY backend/crates/pytake-db/Cargo.toml ./crates/pytake-db/
+COPY backend/crates/pytake-flow/Cargo.toml ./crates/pytake-flow/
+COPY backend/crates/pytake-whatsapp/Cargo.toml ./crates/pytake-whatsapp/
+COPY backend/crates/pytake-modules/Cargo.toml ./crates/pytake-modules/
+
+# Create dummy lib.rs files
+RUN echo "fn main() {}" > simple_api/src/main.rs && \
+    echo "pub fn lib() {}" > simple_api/src/lib.rs && \
+    echo "pub fn lib() {}" > crates/pytake-core/src/lib.rs && \
+    echo "pub fn lib() {}" > crates/pytake-api/src/lib.rs && \
+    echo "pub fn lib() {}" > crates/pytake-db/src/lib.rs && \
+    echo "pub fn lib() {}" > crates/pytake-flow/src/lib.rs && \
+    echo "pub fn lib() {}" > crates/pytake-whatsapp/src/lib.rs && \
+    echo "pub fn lib() {}" > crates/pytake-modules/src/lib.rs
+
+# Build dependencies only
+WORKDIR /app/simple_api
+RUN cargo build --release
+
+# Stage 2: Builder
+FROM deps as builder
+
+WORKDIR /app
+
+# Now copy the actual source code
+COPY backend/ ./
+
+# Build the application (dependencies are already cached)
+WORKDIR /app/simple_api
+RUN touch src/main.rs && cargo build --release
+
+# Stage 3: Runtime
+FROM debian:bookworm-slim
+
+ARG API_PORT=8080
+ARG API_HOST=0.0.0.0
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -u 1000 -s /bin/bash pytake
+
+WORKDIR /app
+
+COPY --from=builder /app/simple_api/target/release/simple_api /app/pytake-api
+
+RUN mkdir -p /app/uploads /app/logs && \
+    chown -R pytake:pytake /app
+
+RUN echo '#!/bin/bash\n\
+export BIND_ADDRESS="${API_HOST:-0.0.0.0}:${API_PORT:-8080}"\n\
+echo "Starting PyTake API on $BIND_ADDRESS"\n\
+exec ./pytake-api' > /app/start.sh && \
+    chmod +x /app/start.sh && \
+    chown pytake:pytake /app/start.sh
+
+USER pytake
+
+EXPOSE ${API_PORT}
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${API_PORT:-8080}/health || exit 1
+
+ENV RUST_LOG=info,simple_api=debug \
+    API_HOST=0.0.0.0 \
+    API_PORT=8080
+
+CMD ["/app/start.sh"]

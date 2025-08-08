@@ -102,6 +102,7 @@ pub enum WSCommand {
 #[derive(Debug, Clone)]
 struct ConnectionInfo {
     user: Option<UserInfo>,
+    #[allow(dead_code)]
     connected_at: DateTime<Utc>,
     current_rooms: Vec<String>,
     sender: mpsc::UnboundedSender<WSCommand>,
@@ -258,7 +259,7 @@ pub async fn websocket_handler(
     let (response, session, msg_stream) = actix_ws::handle(&req, stream)?;
     
     // Create channel for sending messages to this connection
-    let (tx, mut rx) = mpsc::unbounded_channel::<WSCommand>();
+    let (tx, rx) = mpsc::unbounded_channel::<WSCommand>();
     
     // Add connection to manager
     manager.add_connection(connection_id.clone(), tx).await;
