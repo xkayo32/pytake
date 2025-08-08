@@ -83,7 +83,14 @@
       "Bash(-p 80:80 -p 443:443 )",
       "Bash(-v /home/administrator/pytake-backend/ssl:/etc/nginx/ssl:ro )",
       "Bash(-v /home/administrator/pytake-backend/certbot-webroot:/var/www/certbot:ro )",
-      "Bash(nginx:alpine sh -c:*)"
+      "Bash(nginx:alpine sh -c:*)",
+      "Bash(/home/administrator/.cargo/bin/cargo check --package simple_api --message-format=short)",
+      "Bash(python test_metrics.py:*)",
+      "Bash(python3:*)",
+      "Bash(~/.cargo/bin/cargo check)",
+      "Bash(~/.cargo/bin/cargo test webhook_manager --lib)",
+      "Bash(~/.cargo/bin/cargo check --tests)",
+      "Bash(~/.cargo/bin/cargo check --bin simple_api)"
     ],
     "deny": []
   }

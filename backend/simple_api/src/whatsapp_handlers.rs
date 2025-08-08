@@ -494,7 +494,7 @@ async fn handle_message_status(status: &serde_json::Value) {
 /// Get webhook verify token from database
 async fn get_webhook_verify_token() -> Option<String> {
     let database_url = std::env::var("DATABASE_URL").ok()?;
-    info!("Connecting to database for webhook token: {}", &database_url[0..20] + "...");
+    info!("Connecting to database for webhook token: {}...", &database_url[0..20]);
     
     let db = match Database::connect(&database_url).await {
         Ok(db) => {

@@ -20,6 +20,11 @@ mod agent_conversations;
 mod dashboard;
 mod flows;
 mod api_docs;
+mod whatsapp_metrics;
+mod message_queue;
+mod auto_responder;
+mod webhook_manager;
+mod ai_assistant;
 
 use auth::AuthService;
 use auth_db::AuthServiceDb;
@@ -103,6 +108,23 @@ async fn root() -> Result<HttpResponse> {
                 "test": "/api/v1/whatsapp-configs/{id}/test",
                 "get_default": "/api/v1/whatsapp-configs/default",
                 "set_default": "/api/v1/whatsapp-configs/{id}/set-default"
+            },
+            "webhooks": {
+                "configure": "/api/v1/webhooks/configure",
+                "send": "/api/v1/webhooks/send",
+                "list_configs": "/api/v1/webhooks/configs",
+                "metrics": "/api/v1/webhooks/metrics/{tenant_id}",
+                "dead_letter": "/api/v1/webhooks/dead-letter",
+                "retry_event": "/api/v1/webhooks/retry/{event_id}",
+                "remove_config": "/api/v1/webhooks/config/{tenant_id}",
+                "receive": "/api/v1/webhooks/receive"
+            },
+            "ai_assistant": {
+                "chat": "/api/v1/ai/chat",
+                "analyze": "/api/v1/ai/analyze",
+                "classify": "/api/v1/ai/classify",
+                "prompts": "/api/v1/ai/prompts",
+                "usage": "/api/v1/ai/usage/{user_id}"
             }
         },
         "documentation": {
@@ -184,6 +206,26 @@ async fn main() -> std::io::Result<()> {
     let conversation_storage = Arc::new(agent_conversations::ConversationStorage::new());
     info!("✅ Conversation storage initialized");
     
+    // Create message queue
+    let message_queue = Arc::new(message_queue::MessageQueue::new());
+    info!("✅ Message queue initialized");
+    
+    // Queue processor will be started separately if needed
+    
+    // Create auto responder
+    let auto_responder = Arc::new(auto_responder::AutoResponder::new());
+    info!("✅ Auto responder initialized");
+    
+    // Create webhook manager
+    let webhook_manager = Arc::new(webhook_manager::WebhookManager::new());
+    info!("✅ Webhook manager initialized");
+    
+    // Create AI assistant service
+    let ai_service = Arc::new(ai_assistant::AIService::new());
+    info!("✅ AI assistant service initialized");
+    
+    // Webhook worker will be started internally if needed
+    
     HttpServer::new(move || {
         let cors = Cors::permissive();
             
@@ -195,6 +237,10 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(whatsapp_manager.clone()))
             .app_data(web::Data::new(whatsapp_db_service.clone()))
             .app_data(web::Data::new(conversation_storage.clone()))
+            .app_data(web::Data::new(message_queue.clone()))
+            .app_data(web::Data::new(auto_responder.clone()))
+            .app_data(web::Data::new(webhook_manager.clone()))
+            .app_data(web::Data::new(ai_service.clone()))
             .wrap(Logger::default())
             .wrap(cors)
             // Documentation endpoints
@@ -241,6 +287,12 @@ async fn main() -> std::io::Result<()> {
                             .route("/instance/{name}", web::delete().to(whatsapp_handlers::delete_instance))
                             .route("/webhook", web::get().to(whatsapp_handlers::webhook_handler))
                             .route("/webhook", web::post().to(whatsapp_handlers::webhook_handler))
+                            // WhatsApp metrics endpoints
+                            .route("/health", web::get().to(whatsapp_metrics::get_phone_health))
+                            .route("/analytics", web::get().to(whatsapp_metrics::get_message_analytics))
+                            .route("/quality", web::get().to(whatsapp_metrics::get_quality_metrics))
+                            .route("/limits", web::get().to(whatsapp_metrics::get_messaging_limits))
+                            .route("/dashboard", web::get().to(whatsapp_metrics::get_metrics_dashboard))
                     )
                     // WhatsApp configuration routes (database-backed)
                     .service(
@@ -260,6 +312,49 @@ async fn main() -> std::io::Result<()> {
                     .configure(dashboard::configure_routes)
                     // Flow builder routes
                     .configure(flows::configure_routes)
+                    // Message queue routes
+                    .service(
+                        web::scope("/queue")
+                            .route("/send", web::post().to(message_queue::enqueue_message))
+                            .route("/stats", web::get().to(message_queue::get_queue_statistics))
+                            .route("/message/{id}", web::get().to(message_queue::get_message_info))
+                            .route("/message/{id}/cancel", web::post().to(message_queue::cancel_queued_message))
+                    )
+                    // Auto responder routes
+                    .service(
+                        web::scope("/auto-responder")
+                            .route("/process", web::post().to(auto_responder::process_incoming_message))
+                            .route("/rules", web::get().to(auto_responder::list_auto_responses))
+                            .route("/rules", web::post().to(auto_responder::create_auto_response))
+                            .route("/rules/{id}", web::put().to(auto_responder::update_auto_response))
+                            .route("/rules/{id}", web::delete().to(auto_responder::delete_auto_response))
+                            .route("/rules/{id}/toggle", web::post().to(auto_responder::toggle_auto_response))
+                    )
+                    // Webhook manager routes
+                    .service(
+                        web::scope("/webhooks")
+                            .route("/configure", web::post().to(webhook_manager::configure_webhook))
+                            .route("/send", web::post().to(webhook_manager::send_webhook))
+                            .route("/configs", web::get().to(webhook_manager::list_webhook_configs))
+                            .route("/config/{id}", web::delete().to(webhook_manager::remove_webhook_config))
+                            .route("/metrics/{id}", web::get().to(webhook_manager::get_webhook_metrics))
+                            .route("/dead-letter", web::get().to(webhook_manager::list_dead_letter_events))
+                            .route("/retry/{id}", web::post().to(webhook_manager::retry_dead_letter_event))
+                    )
+                    // Webhook routes
+                    .service(
+                        web::scope("/webhooks")
+                            .route("/configure", web::post().to(webhook_manager::configure_webhook))
+                            .route("/send", web::post().to(webhook_manager::send_webhook))
+                            .route("/configs", web::get().to(webhook_manager::list_webhook_configs))
+                            .route("/metrics/{tenant_id}", web::get().to(webhook_manager::get_webhook_metrics))
+                            .route("/dead-letter", web::get().to(webhook_manager::list_dead_letter_events))
+                            .route("/retry/{event_id}", web::post().to(webhook_manager::retry_dead_letter_event))
+                            .route("/config/{tenant_id}", web::delete().to(webhook_manager::remove_webhook_config))
+                            .route("/receive", web::post().to(webhook_manager::receive_webhook))
+                    )
+                    // AI Assistant routes
+                    .configure(ai_assistant::configure_routes)
             )
             // WebSocket connection endpoint
             .route("/ws", web::get().to(websocket_improved::websocket_handler))

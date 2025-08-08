@@ -9,6 +9,8 @@ pub mod whatsapp_config;
 pub mod agent_conversations;
 pub mod dashboard;
 pub mod flows;
+pub mod webhook_manager;
+pub mod ai_assistant;
 
 // Re-export main functions
 use actix_web::{HttpResponse, Result};

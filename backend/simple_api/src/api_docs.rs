@@ -14,6 +14,11 @@ use crate::whatsapp_management::{
     WhatsAppConfig, WhatsAppConfigResponse, HealthStatus, WhatsAppProvider
 };
 use crate::whatsapp_handlers::{SendMessageRequest, CreateInstanceRequest};
+use crate::ai_assistant::{
+    ChatRequest, ChatResponse, AnalyzeRequest, AnalyzeResponse,
+    IntentClassificationRequest, IntentClassificationResponse, CustomPrompt,
+    CreatePromptRequest, AIProvider, AnalysisType, IntentAlternative
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -63,6 +68,19 @@ use crate::whatsapp_handlers::{SendMessageRequest, CreateInstanceRequest};
             SendMessageRequest,
             CreateInstanceRequest,
             
+            // AI Assistant schemas
+            ChatRequest,
+            ChatResponse,
+            AnalyzeRequest,
+            AnalyzeResponse,
+            IntentClassificationRequest,
+            IntentClassificationResponse,
+            CustomPrompt,
+            CreatePromptRequest,
+            AIProvider,
+            AnalysisType,
+            IntentAlternative,
+            
             // TODO: WhatsAppConfigModel requires special handling as SeaORM entity
         )
     ),
@@ -76,6 +94,7 @@ use crate::whatsapp_handlers::{SendMessageRequest, CreateInstanceRequest};
         (name = "Agent", description = "Agent conversation management"),
         (name = "Dashboard", description = "Analytics and metrics"),
         (name = "Flows", description = "Conversation flow builder"),
+        (name = "AI Assistant", description = "AI-powered chat, analysis and intent classification"),
     )
 )]
 pub struct ApiDoc;
