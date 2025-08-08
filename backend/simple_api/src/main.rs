@@ -29,6 +29,10 @@ mod campaign_manager;
 mod multi_tenant;
 mod erp_connectors;
 mod erp_handlers;
+mod langchain_ai;
+mod flow_builder;
+mod realtime_dashboard;
+mod google_integrations;
 
 use auth::AuthService;
 use auth_db::AuthServiceDb;
@@ -130,6 +134,14 @@ async fn root() -> Result<HttpResponse> {
                 "prompts": "/api/v1/ai/prompts",
                 "usage": "/api/v1/ai/usage/{user_id}"
             },
+            "ai_v2_langchain": {
+                "chat": "/api/v1/ai-v2/chat",
+                "rag_query": "/api/v1/ai-v2/rag/query",
+                "run_agent": "/api/v1/ai-v2/agents/run",
+                "upload_knowledge": "/api/v1/ai-v2/knowledge/upload",
+                "available_chains": "/api/v1/ai-v2/chains/available",
+                "call_function": "/api/v1/ai-v2/functions/call"
+            },
             "campaigns": {
                 "create": "/api/v1/campaigns",
                 "list": "/api/v1/campaigns",
@@ -165,6 +177,64 @@ async fn root() -> Result<HttpResponse> {
                 "health_check": "/api/v1/erp/{provider}/health",
                 "metrics": "/api/v1/erp/metrics",
                 "supported_providers": ["hubsoft", "ixcsoft", "mksolutions", "sisgp"]
+            },
+            "flow_builder": {
+                "create_flow": "/api/v1/flows",
+                "list_flows": "/api/v1/flows",
+                "get_flow": "/api/v1/flows/{id}",
+                "update_flow": "/api/v1/flows/{id}",
+                "delete_flow": "/api/v1/flows/{id}",
+                "validate_flow": "/api/v1/flows/{id}/validate",
+                "test_flow": "/api/v1/flows/{id}/test",
+                "publish_flow": "/api/v1/flows/{id}/publish",
+                "execute_flow": "/api/v1/flows/{id}/execute",
+                "get_analytics": "/api/v1/flows/{id}/analytics",
+                "get_session": "/api/v1/flows/sessions/{session_id}",
+                "send_input": "/api/v1/flows/sessions/{session_id}/input",
+                "get_templates": "/api/v1/flows/templates",
+                "supported_nodes": ["Start", "Message", "Question", "Condition", "Action", "Wait", "End", "Integration", "Template"],
+                "supported_industries": ["ISP", "E-commerce", "Healthcare", "Education", "Delivery", "Financial", "Real Estate", "Automotive", "Retail"]
+            },
+            "realtime_dashboard": {
+                "overview": "/api/v1/dashboard/overview",
+                "metrics": "/api/v1/dashboard/metrics",
+                "alerts": "/api/v1/dashboard/alerts",
+                "widgets": "/api/v1/dashboard/widgets",
+                "export": "/api/v1/dashboard/export",
+                "websocket": "ws://localhost:8080/ws/dashboard",
+                "supported_rooms": ["dashboard", "conversations", "campaigns", "erp", "ai", "alerts", "messages", "tickets", "system"],
+                "supported_events": ["MessageSent", "MessageReceived", "ConversationStarted", "TicketCreated", "CampaignUpdate", "AIInteraction", "ERPCall", "SystemAlert"],
+                "supported_widgets": ["metrics", "charts", "kpi", "activity_feed", "heat_maps", "geographic", "performance_gauges"],
+                "subscription_endpoints": ["ws://localhost:8080/ws/dashboard", "ws://localhost:8080/ws/conversations", "ws://localhost:8080/ws/campaigns", "ws://localhost:8080/ws/erp", "ws://localhost:8080/ws/ai", "ws://localhost:8080/ws/tenant/{id}"]
+            },
+            "google_workspace": {
+                "auth": "/api/v1/google/auth",
+                "callback": "/api/v1/google/callback",
+                "sheets": {
+                    "read": "/api/v1/google/sheets/{user_id}",
+                    "update": "/api/v1/google/sheets/{user_id}/update",
+                    "export_metrics": "/api/v1/google/sheets/{user_id}/export-metrics",
+                    "import_contacts": "/api/v1/google/sheets/{user_id}/import-contacts"
+                },
+                "calendar": {
+                    "create_event": "/api/v1/google/calendar/{user_id}/events",
+                    "list_events": "/api/v1/google/calendar/{user_id}/events",
+                    "schedule_visit": "/api/v1/google/calendar/{user_id}/schedule-visit",
+                    "check_availability": "/api/v1/google/calendar/{user_id}/availability"
+                },
+                "drive": {
+                    "upload": "/api/v1/google/drive/{user_id}/upload",
+                    "list_files": "/api/v1/google/drive/{user_id}/files",
+                    "share_file": "/api/v1/google/drive/{user_id}/share",
+                    "create_folder": "/api/v1/google/drive/{user_id}/folders"
+                },
+                "automation": {
+                    "daily_metrics": "/api/v1/google/automation/daily-metrics",
+                    "backup_conversations": "/api/v1/google/automation/backup",
+                    "weekly_report": "/api/v1/google/automation/weekly-report"
+                },
+                "supported_services": ["sheets", "calendar", "drive", "all"],
+                "supported_automations": ["daily_metrics_export", "weekly_backup", "automated_scheduling", "document_sharing", "report_generation"]
             }
         },
         "documentation": {
@@ -264,6 +334,10 @@ async fn main() -> std::io::Result<()> {
     let tenant_manager = Arc::new(multi_tenant::TenantService);
     info!("✅ Multi-tenant service initialized");
     
+    // Create ERP connector manager
+    let erp_manager = Arc::new(erp_connectors::ErpManager::new());
+    info!("✅ ERP connector manager initialized");
+    
     // Create AI service
     let ai_service = Arc::new(ai_assistant::AIService::new());
     info!("✅ AI service initialized");
@@ -279,10 +353,39 @@ async fn main() -> std::io::Result<()> {
         info!("✅ Campaign management migration completed");
     }
     
+    // Create LangChain AI service
+    let langchain_service = langchain_ai::create_langchain_service();
+    info!("✅ LangChain AI service initialized");
+    
+    // Create Flow Builder execution engine
+    let flow_engine = Arc::new(std::sync::Mutex::new(flow_builder::FlowExecutionEngine::new()));
+    info!("✅ Flow Builder execution engine initialized");
+    
     // Create ERP manager and metrics collector
-    let erp_manager = Arc::new(erp_connectors::ErpManager::new());
     let erp_metrics = Arc::new(erp_connectors::ErpMetricsCollector::new());
-    info!("✅ ERP integration system initialized");
+    info!("✅ ERP metrics collector initialized");
+    
+    // Create realtime dashboard manager
+    let dashboard_manager = realtime_dashboard::start_dashboard_manager().await;
+    info!("✅ Realtime dashboard manager initialized");
+    
+    // Create Google Integrations manager
+    let google_manager = match google_integrations::create_google_integrations_manager().await {
+        Ok(manager) => Arc::new(manager),
+        Err(e) => {
+            info!("⚠️ Google Integrations disabled (missing configuration): {}", e);
+            // Create a dummy manager or handle gracefully
+            Arc::new(google_integrations::GoogleIntegrationsManager::new(
+                google_integrations::GoogleConfig {
+                    client_id: "dummy".to_string(),
+                    client_secret: "dummy".to_string(),
+                    redirect_uri: "http://localhost:8080/api/v1/google/callback".to_string(),
+                    scopes: vec![],
+                }
+            ))
+        }
+    };
+    info!("✅ Google Integrations manager initialized");
     
     // Create ERP state
     let erp_state = erp_handlers::ErpState {
@@ -309,9 +412,14 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(auto_responder.clone()))
             .app_data(web::Data::new(webhook_manager.clone()))
             .app_data(web::Data::new(tenant_manager.clone()))
+            .app_data(web::Data::new(erp_manager.clone()))
             .app_data(web::Data::new(ai_service.clone()))
             .app_data(web::Data::new(campaign_manager.clone()))
+            .app_data(web::Data::new(langchain_service.clone()))
             .app_data(web::Data::new(erp_state.clone()))
+            .app_data(web::Data::new(flow_engine.clone()))
+            .app_data(web::Data::new(dashboard_manager.clone()))
+            .app_data(web::Data::new(google_manager.clone()))
             .wrap(Logger::default())
             .wrap(cors)
             // Documentation endpoints
@@ -382,7 +490,7 @@ async fn main() -> std::io::Result<()> {
                     // Dashboard routes
                     .configure(dashboard::configure_routes)
                     // Flow builder routes
-                    .configure(flows::configure_routes)
+                    .configure(flow_builder::configure_routes)
                     // Message queue routes
                     .service(
                         web::scope("/queue")
@@ -426,16 +534,36 @@ async fn main() -> std::io::Result<()> {
                     )
                     // AI Assistant routes
                     .configure(ai_assistant::configure_routes)
+                    // LangChain AI v2 routes
+                    .configure(langchain_ai::configure_routes)
                     // Campaign management routes
                     .configure(campaign_manager::configure_routes)
                     // Multi-tenancy routes
                     .configure(multi_tenant::configure_tenant_routes)
+                    // ERP integration routes
+                    .service(
+                        web::scope("/erp")
+                            .route("/{provider}/connect", web::post().to(erp_handlers::connect_erp))
+                            .route("/{provider}/customers/{cpf_cnpj}", web::get().to(erp_handlers::get_customer))
+                            .route("/{provider}/customers/search", web::post().to(erp_handlers::search_customers))
+                            .route("/{provider}/customers/{id}/invoices", web::get().to(erp_handlers::get_customer_invoices))
+                            .route("/{provider}/customers/{id}/status", web::get().to(erp_handlers::get_service_status))
+                            .route("/{provider}/tickets", web::post().to(erp_handlers::create_ticket))
+                            .route("/{provider}/customers/{id}/schedule-visit", web::post().to(erp_handlers::schedule_visit))
+                            .route("/{provider}/plans", web::get().to(erp_handlers::get_service_plans))
+                            .route("/{provider}/health", web::get().to(erp_handlers::get_erp_health))
+                            .route("/metrics", web::get().to(erp_handlers::get_erp_metrics))
+                    )
+                    // Realtime dashboard routes
+                    .configure(realtime_dashboard::configure_dashboard_routes)
             )
             // ERP Integration routes
             .service(
                 web::scope("/api/v1/erp")
                     .configure(erp_handlers::configure_erp_routes)
             )
+            // Google Workspace Integration routes
+            .configure(google_integrations::configure_google_integrations)
             // WebSocket connection endpoint
             .route("/ws", web::get().to(websocket_improved::websocket_handler))
     })

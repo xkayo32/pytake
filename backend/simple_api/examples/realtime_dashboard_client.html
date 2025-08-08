@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyTake Realtime Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+        
+        .widget {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e0e0e0;
+        }
+        
+        .widget h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 18px;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .metric-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-online {
+            background-color: #4caf50;
+        }
+        
+        .status-offline {
+            background-color: #f44336;
+        }
+        
+        .status-warning {
+            background-color: #ff9800;
+        }
+        
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+        
+        .connected {
+            background-color: #4caf50;
+            color: white;
+        }
+        
+        .disconnected {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .reconnecting {
+            background-color: #ff9800;
+            color: white;
+        }
+        
+        .activity-feed {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .activity-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+        }
+        
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+        
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .activity-message {
+            background-color: #2196f3;
+        }
+        
+        .activity-alert {
+            background-color: #f44336;
+        }
+        
+        .activity-system {
+            background-color: #4caf50;
+        }
+        
+        .activity-content {
+            flex: 1;
+        }
+        
+        .activity-text {
+            margin: 0 0 5px 0;
+            color: #333;
+        }
+        
+        .activity-time {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            background: #2196f3;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background: #1976d2;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .room-selector {
+            padding: 8px 15px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        
+        .alert {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .alert-error {
+            background-color: #ffebee;
+            border-left: 4px solid #f44336;
+            color: #d32f2f;
+        }
+        
+        .alert-warning {
+            background-color: #fff3e0;
+            border-left: 4px solid #ff9800;
+            color: #f57c00;
+        }
+        
+        .alert-success {
+            background-color: #e8f5e8;
+            border-left: 4px solid #4caf50;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connectionStatus">Conectando...</div>
+    
+    <h1>PyTake Realtime Dashboard</h1>
+    
+    <div class="controls">
+        <button onclick="connect()">Conectar</button>
+        <button onclick="disconnect()">Desconectar</button>
+        <select class="room-selector" id="roomSelector" onchange="subscribeToRoom()">
+            <option value="dashboard">Dashboard Geral</option>
+            <option value="messages">Mensagens</option>
+            <option value="conversations">Conversações</option>
+            <option value="campaigns">Campanhas</option>
+            <option value="erp">ERP</option>
+            <option value="ai">IA</option>
+            <option value="alerts">Alertas</option>
+        </select>
+        <button onclick="exportData()">Exportar Dados</button>
+    </div>
+    
+    <div class="dashboard-container">
+        <!-- KPIs principais -->
+        <div class="widget">
+            <h3>Métricas em Tempo Real</h3>
+            <div class="metrics-grid" id="metricsGrid">
+                <div class="metric-card">
+                    <div class="metric-value" id="messagesSent">-</div>
+                    <div class="metric-label">Mensagens Enviadas</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="messagesReceived">-</div>
+                    <div class="metric-label">Mensagens Recebidas</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="activeConversations">-</div>
+                    <div class="metric-label">Conversações Ativas</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="systemCpu">-</div>
+                    <div class="metric-label">CPU %</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Gráfico de mensagens ao longo do tempo -->
+        <div class="widget">
+            <h3>Mensagens por Minuto</h3>
+            <div class="chart-container">
+                <canvas id="messagesChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Status dos sistemas -->
+        <div class="widget">
+            <h3>Status dos Sistemas</h3>
+            <div id="systemStatus">
+                <div class="activity-item">
+                    <span class="status-indicator status-online"></span>
+                    <span>WhatsApp API: <strong id="whatsappStatus">Verificando...</strong></span>
+                </div>
+                <div class="activity-item">
+                    <span class="status-indicator status-online"></span>
+                    <span>Database: <strong id="databaseStatus">Verificando...</strong></span>
+                </div>
+                <div class="activity-item">
+                    <span class="status-indicator status-online"></span>
+                    <span>Redis: <strong id="redisStatus">Verificando...</strong></span>
+                </div>
+                <div class="activity-item">
+                    <span class="status-indicator status-online"></span>
+                    <span>WebSocket: <strong id="websocketStatus">Desconectado</strong></span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Feed de atividade em tempo real -->
+        <div class="widget">
+            <h3>Atividade em Tempo Real</h3>
+            <div class="activity-feed" id="activityFeed">
+                <!-- Atividades serão adicionadas aqui dinamicamente -->
+            </div>
+        </div>
+        
+        <!-- Gráfico de performance -->
+        <div class="widget">
+            <h3>Performance do Sistema</h3>
+            <div class="chart-container">
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Alertas -->
+        <div class="widget">
+            <h3>Alertas Ativos</h3>
+            <div id="alertsContainer">
+                <div class="alert alert-success">
+                    <span>✅ Sistema funcionando normalmente</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuração do WebSocket
+        let ws = null;
+        let reconnectInterval = null;
+        let currentRoom = 'dashboard';
+        let messagesChart = null;
+        let performanceChart = null;
+        let metricsData = [];
+        
+        // Dados para os gráficos
+        const messagesChartData = {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Enviadas',
+                    data: [],
+                    borderColor: '#4caf50',
+                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                    tension: 0.4
+                },
+                {
+                    label: 'Recebidas',
+                    data: [],
+                    borderColor: '#2196f3',
+                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                    tension: 0.4
+                },
+                {
+                    label: 'Falhas',
+                    data: [],
+                    borderColor: '#f44336',
+                    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                    tension: 0.4
+                }
+            ]
+        };
+        
+        const performanceChartData = {
+            labels: [],
+            datasets: [
+                {
+                    label: 'CPU %',
+                    data: [],
+                    borderColor: '#ff9800',
+                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                    tension: 0.4
+                },
+                {
+                    label: 'Memória %',
+                    data: [],
+                    borderColor: '#9c27b0',
+                    backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                    tension: 0.4
+                }
+            ]
+        };
+        
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            connect();
+            
+            // Carregar dados históricos
+            loadDashboardOverview();
+        });
+        
+        // Inicializar gráficos
+        function initializeCharts() {
+            const messagesCtx = document.getElementById('messagesChart').getContext('2d');
+            messagesChart = new Chart(messagesCtx, {
+                type: 'line',
+                data: messagesChartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+            performanceChart = new Chart(performanceCtx, {
+                type: 'line',
+                data: performanceChartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Conexão WebSocket
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                return;
+            }
+            
+            updateConnectionStatus('Conectando...', 'reconnecting');
+            
+            // URL do WebSocket (ajustar conforme necessário)
+            const wsUrl = 'ws://localhost:8080/ws/dashboard';
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function(event) {
+                console.log('✅ WebSocket conectado');
+                updateConnectionStatus('Conectado', 'connected');
+                document.getElementById('websocketStatus').textContent = 'Conectado';
+                
+                // Autenticação (simulada)
+                sendMessage({
+                    message_type: 'Auth',
+                    payload: {
+                        token: 'dummy-jwt-token'
+                    },
+                    timestamp: new Date().toISOString(),
+                    room: null
+                });
+                
+                // Subscrever ao room atual
+                subscribeToRoom();
+                
+                // Heartbeat
+                setInterval(() => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        sendMessage({
+                            message_type: 'Heartbeat',
+                            payload: {},
+                            timestamp: new Date().toISOString(),
+                            room: null
+                        });
+                    }
+                }, 30000);
+            };
+            
+            ws.onmessage = function(event) {
+                try {
+                    const message = JSON.parse(event.data);
+                    handleWebSocketMessage(message);
+                } catch (error) {
+                    console.error('Erro ao processar mensagem:', error);
+                }
+            };
+            
+            ws.onclose = function(event) {
+                console.log('🔌 WebSocket desconectado');
+                updateConnectionStatus('Desconectado', 'disconnected');
+                document.getElementById('websocketStatus').textContent = 'Desconectado';
+                
+                // Reconnect automaticamente
+                setTimeout(connect, 3000);
+            };
+            
+            ws.onerror = function(error) {
+                console.error('❌ Erro no WebSocket:', error);
+                updateConnectionStatus('Erro de conexão', 'disconnected');
+            };
+        }
+        
+        // Desconectar WebSocket
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            updateConnectionStatus('Desconectado', 'disconnected');
+        }
+        
+        // Enviar mensagem via WebSocket
+        function sendMessage(message) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(message));
+            }
+        }
+        
+        // Processar mensagens recebidas
+        function handleWebSocketMessage(message) {
+            console.log('📨 Mensagem recebida:', message);
+            
+            switch (message.message_type) {
+                case 'Metrics':
+                    updateMetrics(message.payload);
+                    break;
+                    
+                case 'Event':
+                    addActivityItem(message.payload);
+                    break;
+                    
+                case 'Alert':
+                    showAlert(message.payload);
+                    break;
+                    
+                case 'Auth':
+                    console.log('✅ Autenticação bem-sucedida');
+                    break;
+                    
+                case 'Heartbeat':
+                    console.log('💓 Heartbeat recebido');
+                    break;
+                    
+                case 'Error':
+                    console.error('❌ Erro:', message.payload);
+                    break;
+            }
+        }
+        
+        // Atualizar status da conexão
+        function updateConnectionStatus(status, className) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.textContent = status;
+            statusEl.className = `connection-status ${className}`;
+        }
+        
+        // Subscrever a um room
+        function subscribeToRoom() {
+            const roomSelector = document.getElementById('roomSelector');
+            currentRoom = roomSelector.value;
+            
+            sendMessage({
+                message_type: 'Subscription',
+                payload: {
+                    rooms: [currentRoom],
+                    event_types: [],
+                    tenant_id: null
+                },
+                timestamp: new Date().toISOString(),
+                room: null
+            });
+            
+            console.log(`📡 Subscrito ao room: ${currentRoom}`);
+        }
+        
+        // Atualizar métricas
+        function updateMetrics(metrics) {
+            document.getElementById('messagesSent').textContent = metrics.messages_sent || '-';
+            document.getElementById('messagesReceived').textContent = metrics.messages_received || '-';
+            document.getElementById('activeConversations').textContent = metrics.active_conversations || '-';
+            document.getElementById('systemCpu').textContent = Math.round(metrics.system_cpu_usage || 0) + '%';
+            
+            // Atualizar gráficos
+            const now = new Date();
+            const timeLabel = now.toLocaleTimeString();
+            
+            // Limitar dados dos gráficos
+            if (messagesChartData.labels.length > 20) {
+                messagesChartData.labels.shift();
+                messagesChartData.datasets.forEach(dataset => dataset.data.shift());
+                
+                performanceChartData.labels.shift();
+                performanceChartData.datasets.forEach(dataset => dataset.data.shift());
+            }
+            
+            // Adicionar novos dados
+            messagesChartData.labels.push(timeLabel);
+            messagesChartData.datasets[0].data.push(metrics.messages_sent || 0);
+            messagesChartData.datasets[1].data.push(metrics.messages_received || 0);
+            messagesChartData.datasets[2].data.push(metrics.messages_failed || 0);
+            
+            performanceChartData.labels.push(timeLabel);
+            performanceChartData.datasets[0].data.push(metrics.system_cpu_usage || 0);
+            performanceChartData.datasets[1].data.push(metrics.system_memory_usage || 0);
+            
+            // Atualizar gráficos
+            messagesChart.update('none');
+            performanceChart.update('none');
+        }
+        
+        // Adicionar item de atividade
+        function addActivityItem(event) {
+            const activityFeed = document.getElementById('activityFeed');
+            
+            let iconClass = 'activity-system';
+            let iconText = '⚡';
+            let eventText = '';
+            
+            switch (event.event_type) {
+                case 'MessageSent':
+                    iconClass = 'activity-message';
+                    iconText = '📤';
+                    eventText = `Mensagem enviada para ${event.data.to || 'destinatário'}`;
+                    break;
+                case 'MessageReceived':
+                    iconClass = 'activity-message';
+                    iconText = '📥';
+                    eventText = `Mensagem recebida de ${event.data.from || 'remetente'}`;
+                    break;
+                case 'ConversationStarted':
+                    iconClass = 'activity-system';
+                    iconText = '💬';
+                    eventText = `Nova conversação iniciada`;
+                    break;
+                case 'SystemAlert':
+                    iconClass = 'activity-alert';
+                    iconText = '⚠️';
+                    eventText = `Alerta: ${event.data.rule_name || 'Sistema'}`;
+                    break;
+                default:
+                    eventText = `Evento: ${event.event_type}`;
+            }
+            
+            const itemEl = document.createElement('div');
+            itemEl.className = 'activity-item';
+            itemEl.innerHTML = `
+                <div class="activity-icon ${iconClass}">${iconText}</div>
+                <div class="activity-content">
+                    <p class="activity-text">${eventText}</p>
+                    <p class="activity-time">${new Date(event.timestamp).toLocaleString()}</p>
+                </div>
+            `;
+            
+            activityFeed.insertBefore(itemEl, activityFeed.firstChild);
+            
+            // Limitar número de itens
+            const items = activityFeed.children;
+            if (items.length > 50) {
+                activityFeed.removeChild(items[items.length - 1]);
+            }
+        }
+        
+        // Mostrar alerta
+        function showAlert(alertData) {
+            const alertsContainer = document.getElementById('alertsContainer');
+            
+            let alertClass = 'alert-warning';
+            let alertIcon = '⚠️';
+            
+            if (alertData.rule_name && alertData.rule_name.includes('Error')) {
+                alertClass = 'alert-error';
+                alertIcon = '❌';
+            }
+            
+            const alertEl = document.createElement('div');
+            alertEl.className = `alert ${alertClass}`;
+            alertEl.innerHTML = `
+                <span>${alertIcon} ${alertData.rule_name || 'Alerta do Sistema'}: ${alertData.current_value || 'N/A'}</span>
+            `;
+            
+            // Remover alertas antigos da mesma regra
+            const existingAlerts = alertsContainer.querySelectorAll('.alert');
+            existingAlerts.forEach(alert => {
+                if (alert.textContent.includes(alertData.rule_name)) {
+                    alert.remove();
+                }
+            });
+            
+            alertsContainer.insertBefore(alertEl, alertsContainer.firstChild);
+            
+            // Auto-remover após 10 segundos
+            setTimeout(() => {
+                if (alertEl.parentNode) {
+                    alertEl.remove();
+                }
+            }, 10000);
+        }
+        
+        // Carregar overview do dashboard
+        async function loadDashboardOverview() {
+            try {
+                const response = await fetch('/api/v1/dashboard/overview');
+                const data = await response.json();
+                
+                // Atualizar status dos sistemas
+                document.getElementById('whatsappStatus').textContent = 'Online';
+                document.getElementById('databaseStatus').textContent = data.system_health?.database_status || 'Unknown';
+                document.getElementById('redisStatus').textContent = data.system_health?.redis_status || 'Unknown';
+                
+                // Adicionar eventos recentes
+                if (data.recent_events) {
+                    data.recent_events.forEach(event => addActivityItem(event));
+                }
+                
+            } catch (error) {
+                console.error('Erro ao carregar overview:', error);
+                document.getElementById('whatsappStatus').textContent = 'Erro';
+                document.getElementById('databaseStatus').textContent = 'Erro';
+                document.getElementById('redisStatus').textContent = 'Erro';
+            }
+        }
+        
+        // Exportar dados
+        async function exportData() {
+            try {
+                const response = await fetch('/api/v1/dashboard/export', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        format: 'csv',
+                        period: '24h',
+                        metrics: ['messages_sent', 'messages_received', 'active_conversations']
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.download_url) {
+                    window.open(data.download_url, '_blank');
+                } else {
+                    alert('Relatório será gerado em breve. ID: ' + data.report_id);
+                }
+                
+            } catch (error) {
+                console.error('Erro ao exportar dados:', error);
+                alert('Erro ao exportar dados');
+            }
+        }
+        
+        // Cleanup ao fechar a página
+        window.addEventListener('beforeunload', function() {
+            if (ws) {
+                ws.close();
+            }
+        });
+    </script>
+</body>
+</html>

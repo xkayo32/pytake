@@ -36,20 +36,30 @@ base64 = "0.21"
 hex = "0.4"
 thiserror = "1.0"
 anyhow = "1.0"
-backoff = "0.4"
-# ERP integration dependencies
-redis = { version = "0.24", features = ["tokio-comp"] }
-# AI integration dependencies
-async-trait = "0.1"
+backoff = { version = "0.4", features = ["tokio"] }
 dashmap = "5.5"
-tiktoken-rs = "0.5"
 leaky-bucket = "1.0"
+cached = "0.46"
+redis = { version = "0.24", features = ["tokio-comp"] }
+async-trait = "0.1"
+tiktoken-rs = "0.5"
 utoipa = { version = "4", features = ["actix_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "6", features = ["actix-web"] }
 utoipa-redoc = { version = "3", features = ["actix-web"] }
 utoipa-rapidoc = { version = "3", features = ["actix-web"] }
 serde_yaml = "0.9"
 actix-web-httpauth = "0.8"
+tokio-stream = "0.1"
+futures = "0.3"
+pdf-extract = "0.7"
+docx-rs = "0.4"
+encoding_rs = "0.8"
+mime = "0.3"
+walkdir = "2.4"
+actix = "0.13"
+actix-web-actors = "4.3"
+bitflags = "2.4"
+urlencoding = "2.1"
 
 [dev-dependencies]
 actix-http = "3"

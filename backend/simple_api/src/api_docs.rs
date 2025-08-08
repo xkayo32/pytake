@@ -34,6 +34,19 @@ use crate::multi_tenant::{
     LineItem, CreateTenantRequest, UpdateTenantRequest, AddUserRequest,
     UpgradePlanRequest, CreateApiKeyRequest, ApiKeyResponse, TenantResponse
 };
+use crate::flow_builder::{
+    FlowDefinition, NodeDefinition, NodeType, Connection, FlowSettings,
+    ErrorHandlingStrategy, Position, NodeMetadata, NodeData, 
+    MessageNodeData, QuestionNodeData, ConditionNodeData, ActionNodeData,
+    WaitNodeData, EndNodeData, IntegrationNodeData, TemplateNodeData,
+    InputType, ValidationRule, Condition, LogicalOperator, ComparisonOperator,
+    ActionType, WaitType, IntegrationType, ExecutionContext, FlowSession,
+    ConversationEntry, MessageSender, ExecutionStatus, FlowValidationResult,
+    ValidationError, ValidationErrorType, Severity, FlowTemplate, Industry,
+    FlowAnalytics, NodeMetrics, ExecutionMetrics, ABTestResults,
+    CreateFlowRequest, UpdateFlowRequest, TestFlowRequest,
+    ExecuteFlowRequest, FlowInputRequest
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -145,6 +158,53 @@ use crate::multi_tenant::{
             ApiKeyResponse,
             TenantResponse,
             
+            // Flow Builder schemas
+            FlowDefinition,
+            NodeDefinition, 
+            NodeType,
+            Connection,
+            FlowSettings,
+            ErrorHandlingStrategy,
+            Position,
+            NodeMetadata,
+            NodeData,
+            MessageNodeData,
+            QuestionNodeData,
+            ConditionNodeData,
+            ActionNodeData,
+            WaitNodeData,
+            EndNodeData,
+            IntegrationNodeData,
+            TemplateNodeData,
+            InputType,
+            ValidationRule,
+            Condition,
+            LogicalOperator,
+            ComparisonOperator,
+            ActionType,
+            WaitType,
+            IntegrationType,
+            ExecutionContext,
+            FlowSession,
+            ConversationEntry,
+            MessageSender,
+            ExecutionStatus,
+            FlowValidationResult,
+            ValidationError,
+            ValidationErrorType,
+            Severity,
+            FlowTemplate,
+            Industry,
+            FlowAnalytics,
+            NodeMetrics,
+            ExecutionMetrics,
+            ABTestResults,
+            CreateFlowRequest,
+            UpdateFlowRequest,
+            TestFlowRequest,
+            ExecuteFlowRequest,
+            FlowInputRequest,
+            
             // TODO: WhatsAppConfigModel requires special handling as SeaORM entity
         )
     ),
@@ -157,7 +217,7 @@ use crate::multi_tenant::{
         (name = "WebSocket", description = "Real-time WebSocket connections"),
         (name = "Agent", description = "Agent conversation management"),
         (name = "Dashboard", description = "Analytics and metrics"),
-        (name = "Flows", description = "Conversation flow builder"),
+        (name = "Flow Builder", description = "Visual drag-and-drop chatbot flow builder with execution engine"),
         (name = "AI Assistant", description = "AI-powered chat, analysis and intent classification"),
         (name = "Campaigns", description = "Mass messaging campaign management"),
         (name = "Contacts", description = "Contact and group management"),
