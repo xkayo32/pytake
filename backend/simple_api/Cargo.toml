@@ -37,6 +37,8 @@ hex = "0.4"
 thiserror = "1.0"
 anyhow = "1.0"
 backoff = "0.4"
+# ERP integration dependencies
+redis = { version = "0.24", features = ["tokio-comp"] }
 # AI integration dependencies
 async-trait = "0.1"
 dashmap = "5.5"

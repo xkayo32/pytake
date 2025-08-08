@@ -27,6 +27,8 @@ mod webhook_manager;
 mod ai_assistant;
 mod campaign_manager;
 mod multi_tenant;
+mod erp_connectors;
+mod erp_handlers;
 
 use auth::AuthService;
 use auth_db::AuthServiceDb;
@@ -150,6 +152,19 @@ async fn root() -> Result<HttpResponse> {
                 "usage": "/api/v1/tenants/{tenant_id}/usage",
                 "api_keys": "/api/v1/tenants/{tenant_id}/api-keys",
                 "invoices": "/api/v1/tenants/{tenant_id}/invoices"
+            },
+            "erp_integration": {
+                "connect": "/api/v1/erp/connect/{provider}",
+                "get_customer": "/api/v1/erp/{provider}/customers/{cpf_cnpj}",
+                "search_customers": "/api/v1/erp/{provider}/customers/search",
+                "get_invoices": "/api/v1/erp/{provider}/customers/{customer_id}/invoices",
+                "get_service_status": "/api/v1/erp/{provider}/customers/{customer_id}/status",
+                "create_ticket": "/api/v1/erp/{provider}/tickets",
+                "schedule_visit": "/api/v1/erp/{provider}/customers/{customer_id}/schedule-visit",
+                "get_plans": "/api/v1/erp/{provider}/plans",
+                "health_check": "/api/v1/erp/{provider}/health",
+                "metrics": "/api/v1/erp/metrics",
+                "supported_providers": ["hubsoft", "ixcsoft", "mksolutions", "sisgp"]
             }
         },
         "documentation": {
@@ -245,9 +260,13 @@ async fn main() -> std::io::Result<()> {
     let webhook_manager = Arc::new(webhook_manager::WebhookManager::new());
     info!("✅ Webhook manager initialized");
     
-    // Create AI assistant service
+    // Create multi-tenant service
+    let tenant_manager = Arc::new(multi_tenant::TenantService);
+    info!("✅ Multi-tenant service initialized");
+    
+    // Create AI service
     let ai_service = Arc::new(ai_assistant::AIService::new());
-    info!("✅ AI assistant service initialized");
+    info!("✅ AI service initialized");
     
     // Create campaign manager
     let campaign_manager = Arc::new(campaign_manager::CampaignManager::new(db.clone()));
@@ -259,6 +278,19 @@ async fn main() -> std::io::Result<()> {
     } else {
         info!("✅ Campaign management migration completed");
     }
+    
+    // Create ERP manager and metrics collector
+    let erp_manager = Arc::new(erp_connectors::ErpManager::new());
+    let erp_metrics = Arc::new(erp_connectors::ErpMetricsCollector::new());
+    info!("✅ ERP integration system initialized");
+    
+    // Create ERP state
+    let erp_state = erp_handlers::ErpState {
+        manager: erp_manager.clone(),
+        metrics: erp_metrics.clone(),
+        auth: Arc::new(auth_service.clone()),
+    };
+    info!("✅ ERP state initialized");
     
     // Webhook worker will be started internally if needed
     
@@ -276,8 +308,10 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(message_queue.clone()))
             .app_data(web::Data::new(auto_responder.clone()))
             .app_data(web::Data::new(webhook_manager.clone()))
+            .app_data(web::Data::new(tenant_manager.clone()))
             .app_data(web::Data::new(ai_service.clone()))
             .app_data(web::Data::new(campaign_manager.clone()))
+            .app_data(web::Data::new(erp_state.clone()))
             .wrap(Logger::default())
             .wrap(cors)
             // Documentation endpoints
@@ -396,6 +430,11 @@ async fn main() -> std::io::Result<()> {
                     .configure(campaign_manager::configure_routes)
                     // Multi-tenancy routes
                     .configure(multi_tenant::configure_tenant_routes)
+            )
+            // ERP Integration routes
+            .service(
+                web::scope("/api/v1/erp")
+                    .configure(erp_handlers::configure_erp_routes)
             )
             // WebSocket connection endpoint
             .route("/ws", web::get().to(websocket_improved::websocket_handler))
