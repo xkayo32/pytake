@@ -60,6 +60,10 @@ actix = "0.13"
 actix-web-actors = "4.3"
 bitflags = "2.4"
 urlencoding = "2.1"
+async-graphql = { version = "7.0", features = ["dataloader", "playground", "opentelemetry", "chrono"] }
+async-graphql-actix-web = "7.0"
+dataloader = "0.17"
+async-stream = "0.3"
 
 [dev-dependencies]
 actix-http = "3"

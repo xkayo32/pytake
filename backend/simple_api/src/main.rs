@@ -29,11 +29,14 @@ mod campaign_manager;
 mod multi_tenant;
 mod erp_connectors;
 mod erp_handlers;
+mod graphql_simple;
 mod langchain_ai;
 mod flow_builder;
 mod realtime_dashboard;
 mod google_integrations;
 mod data_privacy;
+// mod graphql_api;
+// mod graphql_minimal;
 
 use auth::AuthService;
 use auth_db::AuthServiceDb;
@@ -77,8 +80,17 @@ async fn status() -> Result<HttpResponse> {
 async fn root() -> Result<HttpResponse> {
     info!("Root endpoint accessed");
     Ok(HttpResponse::Ok().json(json!({
-        "message": "PyTake API - Test Server with PostgreSQL Authentication",
+        "name": "PyTake API",
         "version": "0.1.0",
+        "status": "operational",
+        "documentation": "/docs"
+    })))
+}
+
+// Original root with full info - DISABLED FOR SECURITY
+#[allow(dead_code)]
+async fn root_debug() -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok().json(json!({
         "endpoints": {
             "health": "/health",
             "status": "/api/v1/status",
@@ -276,22 +288,26 @@ async fn root() -> Result<HttpResponse> {
             "redoc": "/redoc",
             "rapidoc": "/rapidoc",
             "openapi_json": "/api-docs/openapi.json",
+            "graphql_playground": "/graphql/playground",
             "readme": "https://github.com/xkayo32/pytake-backend/blob/master/backend/simple_api/README.md",
             "api_reference": "https://github.com/xkayo32/pytake-backend/blob/master/backend/API-REFERENCE.md"
         },
-        "demo_users": {
-            "memory": {
-                "email": "admin@pytake.com",
-                "password": "admin123"
-            },
-            "database": {
-                "email": "admin@pytake.com", 
-                "password": "admin123",
-                "note": "Pre-created admin user in PostgreSQL"
-            }
+        "graphql": {
+            "endpoint": "/graphql",
+            "playground": "/graphql/playground",
+            "websocket": "/graphql/ws",
+            "features": [
+                "Enterprise Schema",
+                "DataLoader N+1 Query Optimization",
+                "Real-time Subscriptions",
+                "Multi-tenant Context",
+                "ERP Integration Queries",
+                "Campaign Analytics",
+                "AI Assistant Integration",
+                "Flow Builder API",
+                "Advanced Metrics & Analytics"
+            ]
         },
-        "cors_enabled": true,
-        "frontend_url": "http://localhost:3000"
     })))
 }
 
@@ -309,6 +325,7 @@ async fn main() -> std::io::Result<()> {
     info!("📍 Server will be available at: http://localhost:8080");
     info!("🌐 CORS enabled for: http://localhost:3000, http://localhost:3001");
     info!("🔐 Authentication endpoints available at: /api/v1/auth/*");
+    info!("🔗 GraphQL API available at: /graphql (Playground: /graphql/playground)");
     
     // Connect to database
     info!("🗄️ Connecting to PostgreSQL database...");
@@ -424,6 +441,11 @@ async fn main() -> std::io::Result<()> {
     // Create Data Privacy service
     let privacy_service = Arc::new(data_privacy::DataPrivacyService::new(db.clone()));
     info!("✅ Data Privacy service initialized");
+
+    // Create GraphQL schema (using simple version for now)
+    info!("🔗 Initializing GraphQL schema...");
+    let graphql_schema = graphql_simple::create_simple_schema().await;
+    info!("✅ GraphQL schema initialized (simple version)");
     
     // Create ERP state
     let erp_state = erp_handlers::ErpState {
@@ -459,6 +481,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(dashboard_manager.clone()))
             .app_data(web::Data::new(google_manager.clone()))
             .app_data(web::Data::new(privacy_service.clone()))
+            .app_data(web::Data::new(graphql_schema.clone()))
             .wrap(Logger::default())
             .wrap(cors)
             // Documentation endpoints
@@ -468,6 +491,8 @@ async fn main() -> std::io::Result<()> {
                     .content_type("application/json")
                     .body(api_docs::get_openapi_json())
             }))
+            // GraphQL endpoints  
+            .configure(graphql_simple::configure_simple_graphql)
             .route("/", web::get().to(root))
             .route("/health", web::get().to(health))
             .service(
@@ -605,6 +630,15 @@ async fn main() -> std::io::Result<()> {
             .configure(google_integrations::configure_google_integrations)
             // Data Privacy LGPD/GDPR routes
             .configure(data_privacy::configure_privacy_routes)
+            // API Documentation endpoints (commented out - functions not implemented)
+            // .service(
+            //     web::scope("")
+            //         .route("/docs", web::get().to(serve_swagger_ui))
+            //         .route("/redoc", web::get().to(serve_redoc))
+            //         .route("/rapidoc", web::get().to(serve_rapidoc))
+            //         .route("/api-docs/openapi.json", web::get().to(serve_openapi_json))
+            //         .route("/api-docs/openapi.yaml", web::get().to(serve_openapi_yaml))
+            // )
             // WebSocket connection endpoint
             .route("/ws", web::get().to(websocket_improved::websocket_handler))
     })
