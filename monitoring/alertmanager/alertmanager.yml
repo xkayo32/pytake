@@ -1,0 +1,197 @@
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alerts@pytake.com'
+  smtp_auth_username: 'alerts@pytake.com'
+  smtp_auth_password: 'your-email-password'
+
+# Define notification templates
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Define the notification routing tree
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  receiver: 'default-receiver'
+  routes:
+    # Critical alerts go to all channels immediately
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      repeat_interval: 5m
+      
+    # Warning alerts go to development team
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 5m
+      repeat_interval: 1h
+      
+    # Info alerts go to logs only
+    - match:
+        severity: info
+      receiver: 'info-alerts'
+      group_wait: 10m
+      repeat_interval: 24h
+      
+    # Component-specific routing
+    - match:
+        component: database
+      receiver: 'database-alerts'
+      
+    - match:
+        component: whatsapp
+      receiver: 'whatsapp-alerts'
+      
+    - match:
+        component: ai
+      receiver: 'ai-alerts'
+
+# Inhibition rules to suppress redundant alerts
+inhibit_rules:
+  # Suppress warning alerts when critical alerts are firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']
+    
+  # Suppress specific alerts when service is down
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match_re:
+      alertname: '^(High.*|Database.*|Redis.*)'
+    equal: ['instance']
+
+# Define receivers (notification channels)
+receivers:
+  - name: 'default-receiver'
+    webhook_configs:
+      - url: 'http://pytake-api:8080/api/v1/webhooks/alerts'
+        send_resolved: true
+        http_config:
+          bearer_token: 'your-webhook-token'
+
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'admin@pytake.com'
+        subject: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          
+          Details:
+          {{ range .Labels.SortedPairs }}  - {{ .Name }}: {{ .Value }}
+          {{ end }}
+          
+          Runbook: {{ .Annotations.runbook_url }}
+          {{ end }}
+        headers:
+          Priority: 'high'
+          
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        channel: '#alerts-critical'
+        title: '🚨 Critical Alert'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          
+          *Details:*
+          {{ range .Labels.SortedPairs }}• {{ .Name }}: {{ .Value }}
+          {{ end }}
+          
+          <{{ .Annotations.runbook_url }}|📖 Runbook>
+          {{ end }}
+        send_resolved: true
+        
+    webhook_configs:
+      - url: 'http://pytake-api:8080/api/v1/webhooks/alerts/critical'
+        send_resolved: true
+        
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'team@pytake.com'
+        subject: '⚠️ WARNING: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          
+          Details:
+          {{ range .Labels.SortedPairs }}  - {{ .Name }}: {{ .Value }}
+          {{ end }}
+          
+          Runbook: {{ .Annotations.runbook_url }}
+          {{ end }}
+          
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        channel: '#alerts-warning'
+        title: '⚠️ Warning Alert'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
+
+  - name: 'info-alerts'
+    webhook_configs:
+      - url: 'http://pytake-api:8080/api/v1/webhooks/alerts/info'
+        send_resolved: true
+
+  - name: 'database-alerts'
+    email_configs:
+      - to: 'dba@pytake.com'
+        subject: '🗄️ Database Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          A database-related alert has been triggered:
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          
+          Instance: {{ .Labels.instance }}
+          Database: {{ .Labels.database }}
+          
+          Runbook: {{ .Annotations.runbook_url }}
+          {{ end }}
+          
+  - name: 'whatsapp-alerts'
+    email_configs:
+      - to: 'whatsapp-team@pytake.com'
+        subject: '💬 WhatsApp Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          A WhatsApp-related alert has been triggered:
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          
+          Instance: {{ .Labels.instance }}
+          
+          Runbook: {{ .Annotations.runbook_url }}
+          {{ end }}
+          
+  - name: 'ai-alerts'
+    email_configs:
+      - to: 'ai-team@pytake.com'
+        subject: '🤖 AI Service Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          An AI service alert has been triggered:
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          
+          Model: {{ .Labels.model }}
+          Operation: {{ .Labels.operation }}
+          
+          Runbook: {{ .Annotations.runbook_url }}
+          {{ end }}

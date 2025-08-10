@@ -1,0 +1,196 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'pytake-production'
+    region: 'us-east-1'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "rules.yml"
+
+# Scrape configurations
+scrape_configs:
+  # PyTake API monitoring
+  - job_name: 'pytake-api'
+    static_configs:
+      - targets: ['pytake-api:8080']
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    honor_labels: false
+    scheme: http
+    params:
+      format: ['prometheus']
+    metric_relabel_configs:
+      # Drop high cardinality metrics that might cause performance issues
+      - source_labels: [__name__]
+        regex: 'http_request_duration_seconds_bucket|http_response_size_bytes_bucket'
+        target_label: __tmp_drop_high_cardinality
+        replacement: 'true'
+      # Relabel instance names for better dashboard visualization
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+)(:[0-9]+)?'
+        replacement: '${1}'
+
+  # PyTake health check monitoring (separate from metrics)
+  - job_name: 'pytake-health'
+    static_configs:
+      - targets: ['pytake-api:8080']
+    metrics_path: /observability/health
+    scrape_interval: 30s
+    scrape_timeout: 5s
+    scheme: http
+
+  # Node Exporter for system metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # PostgreSQL metrics
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # Redis metrics
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # Cadvisor for container metrics
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Blackbox exporter for external service monitoring
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - https://graph.facebook.com/v18.0/  # WhatsApp API health
+        - https://api.openai.com/v1/models    # OpenAI API health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+# Storage configuration
+storage:
+  tsdb:
+    path: /prometheus/data
+    retention.time: 30d
+    retention.size: 10GB
+    wal-compression: true
+
+# Remote write for long-term storage (optional)
+# remote_write:
+#   - url: "https://your-remote-prometheus-endpoint/api/v1/write"
+#     basic_auth:
+#       username: "your-username"
+#       password: "your-password"
+
+# Configure recording rules for better query performance
+recording_rules:
+  - name: PyTake Recording Rules
+    rules:
+      # HTTP request rate per minute
+      - record: pytake:http_requests_per_minute
+        expr: rate(http_requests_total[1m]) * 60
+        labels:
+          job: pytake-api
+
+      # HTTP error rate
+      - record: pytake:http_error_rate
+        expr: |
+          rate(http_requests_total{status=~"5.."}[5m]) /
+          rate(http_requests_total[5m])
+        labels:
+          job: pytake-api
+
+      # Average response time
+      - record: pytake:http_response_time_avg
+        expr: |
+          rate(http_request_duration_seconds_sum[5m]) /
+          rate(http_request_duration_seconds_count[5m])
+        labels:
+          job: pytake-api
+
+      # WhatsApp message success rate
+      - record: pytake:whatsapp_success_rate
+        expr: |
+          rate(whatsapp_messages_total{status="sent"}[5m]) /
+          rate(whatsapp_messages_total[5m])
+        labels:
+          job: pytake-api
+
+      # AI request rate and latency
+      - record: pytake:ai_requests_per_minute
+        expr: rate(ai_requests_total[1m]) * 60
+        labels:
+          job: pytake-api
+
+      - record: pytake:ai_avg_response_time
+        expr: |
+          rate(ai_request_duration_seconds_sum[5m]) /
+          rate(ai_request_duration_seconds_count[5m])
+        labels:
+          job: pytake-api
+
+      # Database performance metrics
+      - record: pytake:db_query_rate
+        expr: rate(database_queries_total[1m]) * 60
+        labels:
+          job: pytake-api
+
+      - record: pytake:db_avg_query_time
+        expr: |
+          rate(database_query_duration_seconds_sum[5m]) /
+          rate(database_query_duration_seconds_count[5m])
+        labels:
+          job: pytake-api
+
+      # Cache performance
+      - record: pytake:cache_hit_rate
+        expr: |
+          rate(cache_operations_total{result="hit"}[5m]) /
+          rate(cache_operations_total[5m])
+        labels:
+          job: pytake-api
+
+# Global query configuration
+query:
+  timeout: 2m
+  max_concurrency: 20
+  max_samples: 50000000
+
+# Web console configuration
+web:
+  enable_lifecycle: true
+  enable_admin_api: true
+  console.templates: /etc/prometheus/consoles
+  console.libraries: /etc/prometheus/console_libraries
+  external_url: http://prometheus.pytake.com
+  route_prefix: /
+  max_connections: 512
+  read_timeout: 30s

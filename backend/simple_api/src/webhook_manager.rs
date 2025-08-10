@@ -645,6 +645,7 @@ impl WebhookManager {
         let metrics = self.metrics.clone();
         let http_client = self.http_client.clone();
         let manager_ref = self.clone();
+        let retry_worker_handle_ref = self.retry_worker_handle.clone();
         
         let handle = tokio::spawn(async move {
             info!("Worker de retry de webhooks iniciado");
@@ -739,14 +740,8 @@ impl WebhookManager {
         });
         
         // Armazena o handle do worker no manager
-        let handle_ref = unsafe { 
-            std::mem::transmute::<&Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>, &'static Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>>(
-                &manager_ref.retry_worker_handle
-            )
-        };
-        
         tokio::spawn(async move {
-            let mut handle_guard = handle_ref.lock().await;
+            let mut handle_guard = retry_worker_handle_ref.lock().await;
             *handle_guard = Some(handle);
         });
     }
@@ -884,11 +879,7 @@ impl WebhookManager {
     }
 }
 
-impl Default for WebhookManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// Default implementation removed due to Arc<WebhookManager> return type from new()
 
 // ===== HANDLERS HTTP =====
 

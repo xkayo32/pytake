@@ -899,7 +899,7 @@ impl ErpConnector for HubSoftConnector {
         }).collect())
     }
 
-    async fn schedule_visit(&self, customer_id: &str, visit: ScheduleVisitRequest) -> ErpResult<ServiceTicket> {
+    async fn schedule_visit(&self, _customer_id: &str, _visit: ScheduleVisitRequest) -> ErpResult<ServiceTicket> {
         // Implementation would create a scheduled visit ticket
         Err(ErpError::Other { message: "Not implemented".to_string() })
     }
@@ -1063,19 +1063,19 @@ impl ErpConnector for IxcSoftConnector {
         Ok(result)
     }
 
-    async fn get_service_status(&self, customer_id: &str) -> ErpResult<ServiceStatus> {
+    async fn get_service_status(&self, _customer_id: &str) -> ErpResult<ServiceStatus> {
         Err(ErpError::Other { message: "Not implemented".to_string() })
     }
 
-    async fn create_ticket(&self, ticket: CreateTicketRequest) -> ErpResult<ServiceTicket> {
+    async fn create_ticket(&self, _ticket: CreateTicketRequest) -> ErpResult<ServiceTicket> {
         Err(ErpError::Other { message: "Not implemented".to_string() })
     }
 
-    async fn get_customer_tickets(&self, customer_id: &str, limit: Option<u32>) -> ErpResult<Vec<ServiceTicket>> {
+    async fn get_customer_tickets(&self, _customer_id: &str, _limit: Option<u32>) -> ErpResult<Vec<ServiceTicket>> {
         Ok(vec![])
     }
 
-    async fn update_customer(&self, customer_id: &str, updates: UpdateCustomerRequest) -> ErpResult<Customer> {
+    async fn update_customer(&self, _customer_id: &str, _updates: UpdateCustomerRequest) -> ErpResult<Customer> {
         Err(ErpError::Other { message: "Not implemented".to_string() })
     }
 
@@ -1105,7 +1105,7 @@ impl ErpConnector for IxcSoftConnector {
         }).collect())
     }
 
-    async fn schedule_visit(&self, customer_id: &str, visit: ScheduleVisitRequest) -> ErpResult<ServiceTicket> {
+    async fn schedule_visit(&self, _customer_id: &str, _visit: ScheduleVisitRequest) -> ErpResult<ServiceTicket> {
         Err(ErpError::Other { message: "Not implemented".to_string() })
     }
 }

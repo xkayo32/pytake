@@ -58,26 +58,10 @@ CREATE TRIGGER update_whatsapp_configs_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
--- Insert default configuration from environment (for migration)
-INSERT INTO whatsapp_configs (
-    name, 
-    provider, 
-    phone_number_id, 
-    access_token, 
-    webhook_verify_token,
-    is_active,
-    is_default,
-    created_by
-) VALUES (
-    'Default Official API',
-    'official',
-    '574293335763643',
-    'EAAJLLK95RIUBPBxhYMQQGrHFhhVTgGrdMKLDbTXK3p1udVslhZBkVMgzF4MfBIklsRVZAKXu9sHqpELTaZAZAEDuctKSFFGnPYDXQUU1tq9fa2M20vGtApxp5zdIH39pQyIxEUwm4Mm2e7EfNTOtqnNVSoZAFoJZBv0sheUaMyCXSKzOhr0U9vQMCrN1kBiRMkqQZDZD',
-    'verify_token_dev_123',
-    true,
-    true,
-    'migration'
-) ON CONFLICT (name) DO NOTHING;
+-- NOTE: Default configuration removed for security
+-- Administrators must create WhatsApp configurations through the API after deployment
+-- This prevents hardcoded credentials from being stored in migrations
+-- Use POST /api/v1/whatsapp-configs to create configurations with proper credentials
 
 -- Grant permissions
 GRANT ALL PRIVILEGES ON whatsapp_configs TO pytake;

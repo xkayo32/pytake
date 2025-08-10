@@ -42,6 +42,9 @@ leaky-bucket = "1.0"
 cached = "0.46"
 redis = { version = "0.24", features = ["tokio-comp"] }
 async-trait = "0.1"
+actix-governor = "0.5"
+governor = "0.6"
+nonzero_ext = "0.3"
 tiktoken-rs = "0.5"
 utoipa = { version = "4", features = ["actix_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "6", features = ["actix-web"] }
@@ -65,5 +68,35 @@ async-graphql-actix-web = "7.0"
 dataloader = "0.17"
 async-stream = "0.3"
 
+# OpenTelemetry dependencies
+opentelemetry = { version = "0.21", features = ["rt-tokio"] }
+opentelemetry_sdk = { version = "0.21", features = ["rt-tokio"] }
+opentelemetry-stdout = { version = "0.2" }
+tracing-opentelemetry = "0.22"
+
+# Prometheus metrics
+prometheus = "0.13"
+
 [dev-dependencies]
 actix-http = "3"
+# Testing framework dependencies
+tokio-test = "0.4"
+mockall = "0.12"
+wiremock = "0.6"
+testcontainers = "0.23"
+serial_test = "3.0"
+pretty_assertions = "1.4"
+rstest = "0.18"
+tempfile = "3.8"
+# Test coverage
+tarpaulin = "0.27"
+# Database testing
+sea-orm = { workspace = true, features = ["mock"] }
+# Redis testing for mocking
+redis-test = "0.4"
+# HTTP client testing
+reqwest = { version = "0.11", features = ["json"] }
+# JSON assertions
+serde_json = "1.0"
+# UUID for test data generation
+uuid = { version = "1.0", features = ["v4", "serde"] }

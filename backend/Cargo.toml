@@ -60,3 +60,11 @@ dotenvy = "0.15"
 
 # Testing
 mockall = "0.12"
+
+# OpenTelemetry
+opentelemetry = { version = "0.21", features = ["rt-tokio"] }
+opentelemetry_sdk = { version = "0.21", features = ["rt-tokio"] }
+tracing-opentelemetry = "0.22"
+
+# Metrics
+prometheus = "0.13"

@@ -1,0 +1,303 @@
+groups:
+  - name: PyTake API Critical Alerts
+    rules:
+      - alert: ServiceDown
+        expr: up{job="pytake-api"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "PyTake API service is down"
+          description: "The PyTake API service {{ $labels.instance }} has been down for more than 30 seconds."
+          runbook_url: "https://docs.pytake.com/runbooks/service-down"
+
+      - alert: HighErrorRate
+        expr: |
+          (
+            rate(http_requests_total{job="pytake-api",status=~"5.."}[5m]) /
+            rate(http_requests_total{job="pytake-api"}[5m])
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for {{ $labels.instance }}"
+          runbook_url: "https://docs.pytake.com/runbooks/high-error-rate"
+
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.95, 
+            rate(http_request_duration_seconds_bucket{job="pytake-api"}[5m])
+          ) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s for {{ $labels.instance }}"
+          runbook_url: "https://docs.pytake.com/runbooks/high-latency"
+
+      - alert: DatabaseConnectionFailure
+        expr: database_connections_active == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection lost"
+          description: "No active database connections for {{ $labels.instance }}"
+          runbook_url: "https://docs.pytake.com/runbooks/database-connection"
+
+      - alert: RedisConnectionFailure
+        expr: redis_connections_active == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: redis
+        annotations:
+          summary: "Redis connection lost"
+          description: "No active Redis connections for {{ $labels.instance }}"
+          runbook_url: "https://docs.pytake.com/runbooks/redis-connection"
+
+  - name: PyTake WhatsApp Alerts
+    rules:
+      - alert: WhatsAppHighFailureRate
+        expr: |
+          (
+            rate(whatsapp_messages_total{status="failed"}[10m]) /
+            rate(whatsapp_messages_total[10m])
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          component: whatsapp
+        annotations:
+          summary: "High WhatsApp message failure rate"
+          description: "WhatsApp failure rate is {{ $value | humanizePercentage }} for instance {{ $labels.instance }}"
+          runbook_url: "https://docs.pytake.com/runbooks/whatsapp-failures"
+
+      - alert: WhatsAppAPITimeout
+        expr: |
+          histogram_quantile(0.95,
+            rate(whatsapp_api_request_duration_seconds_bucket[5m])
+          ) > 30.0
+        for: 3m
+        labels:
+          severity: warning
+          component: whatsapp
+        annotations:
+          summary: "WhatsApp API requests timing out"
+          description: "95th percentile WhatsApp API response time is {{ $value }}s"
+          runbook_url: "https://docs.pytake.com/runbooks/whatsapp-timeout"
+
+      - alert: NoRecentWhatsAppMessages
+        expr: |
+          increase(whatsapp_messages_total[1h]) == 0
+        for: 2h
+        labels:
+          severity: warning
+          component: whatsapp
+        annotations:
+          summary: "No WhatsApp messages in last hour"
+          description: "No WhatsApp messages processed in the last hour for {{ $labels.instance }}"
+          runbook_url: "https://docs.pytake.com/runbooks/whatsapp-no-messages"
+
+  - name: PyTake Resource Alerts
+    rules:
+      - alert: HighMemoryUsage
+        expr: system_memory_usage_bytes / (1024 * 1024 * 1024) > 1.5
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}GB on {{ $labels.instance }}"
+          runbook_url: "https://docs.pytake.com/runbooks/high-memory"
+
+      - alert: HighCPUUsage
+        expr: system_cpu_usage_percent > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+          runbook_url: "https://docs.pytake.com/runbooks/high-cpu"
+
+      - alert: TooManyActiveConnections
+        expr: websocket_connections_active > 1000
+        for: 2m
+        labels:
+          severity: warning
+          component: websocket
+        annotations:
+          summary: "High number of WebSocket connections"
+          description: "{{ $value }} active WebSocket connections on {{ $labels.instance }}"
+          runbook_url: "https://docs.pytake.com/runbooks/websocket-connections"
+
+  - name: PyTake Database Alerts
+    rules:
+      - alert: SlowDatabaseQueries
+        expr: |
+          histogram_quantile(0.95,
+            rate(database_query_duration_seconds_bucket[5m])
+          ) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Slow database queries detected"
+          description: "95th percentile database query time is {{ $value }}s"
+          runbook_url: "https://docs.pytake.com/runbooks/slow-queries"
+
+      - alert: HighDatabaseErrorRate
+        expr: |
+          (
+            rate(database_queries_total{status="error"}[5m]) /
+            rate(database_queries_total[5m])
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "High database error rate"
+          description: "Database error rate is {{ $value | humanizePercentage }}"
+          runbook_url: "https://docs.pytake.com/runbooks/database-errors"
+
+  - name: PyTake Business Logic Alerts
+    rules:
+      - alert: NoActiveConversations
+        expr: active_conversations_total == 0
+        for: 1h
+        labels:
+          severity: info
+          component: business
+        annotations:
+          summary: "No active conversations"
+          description: "No active conversations for the last hour"
+          runbook_url: "https://docs.pytake.com/runbooks/no-conversations"
+
+      - alert: AIServiceHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(ai_request_duration_seconds_bucket[5m])
+          ) > 10.0
+        for: 5m
+        labels:
+          severity: warning
+          component: ai
+        annotations:
+          summary: "AI service high latency"
+          description: "95th percentile AI request time is {{ $value }}s"
+          runbook_url: "https://docs.pytake.com/runbooks/ai-latency"
+
+      - alert: AIServiceErrors
+        expr: |
+          rate(ai_requests_total{status="error"}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          component: ai
+        annotations:
+          summary: "AI service errors detected"
+          description: "AI service error rate: {{ $value }} errors/second"
+          runbook_url: "https://docs.pytake.com/runbooks/ai-errors"
+
+  - name: PyTake Cache Alerts
+    rules:
+      - alert: LowCacheHitRate
+        expr: |
+          (
+            rate(cache_operations_total{result="hit"}[10m]) /
+            rate(cache_operations_total[10m])
+          ) < 0.7
+        for: 10m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }}"
+          runbook_url: "https://docs.pytake.com/runbooks/cache-hit-rate"
+
+      - alert: RedisHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(redis_operation_duration_seconds_bucket[5m])
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: redis
+        annotations:
+          summary: "Redis high latency"
+          description: "95th percentile Redis operation time is {{ $value }}s"
+          runbook_url: "https://docs.pytake.com/runbooks/redis-latency"
+
+  - name: PyTake SLI/SLO Alerts
+    rules:
+      # SLI: Availability (99.9% uptime)
+      - alert: SLOAvailabilityBreach
+        expr: |
+          (
+            avg_over_time(up{job="pytake-api"}[7d]) < 0.999
+          )
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "SLO breach: Availability below 99.9%"
+          description: "7-day availability is {{ $value | humanizePercentage }}, below SLO of 99.9%"
+
+      # SLI: Request Success Rate (99.5%)
+      - alert: SLOSuccessRateBreach
+        expr: |
+          (
+            1 - (
+              rate(http_requests_total{status=~"5.."}[7d]) /
+              rate(http_requests_total[7d])
+            )
+          ) < 0.995
+        labels:
+          severity: critical
+          slo: success_rate
+        annotations:
+          summary: "SLO breach: Success rate below 99.5%"
+          description: "7-day success rate is {{ $value | humanizePercentage }}, below SLO of 99.5%"
+
+      # SLI: Response Time (95th percentile < 2s)
+      - alert: SLOLatencyBreach
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket[7d])
+          ) > 2.0
+        labels:
+          severity: warning
+          slo: latency
+        annotations:
+          summary: "SLO breach: 95th percentile latency above 2s"
+          description: "7-day 95th percentile latency is {{ $value }}s, above SLO of 2s"
+
+      # SLI: WhatsApp Message Delivery (95% success rate)
+      - alert: SLOWhatsAppDeliveryBreach
+        expr: |
+          (
+            1 - (
+              rate(whatsapp_messages_total{status="failed"}[7d]) /
+              rate(whatsapp_messages_total[7d])
+            )
+          ) < 0.95
+        labels:
+          severity: warning
+          slo: whatsapp_delivery
+        annotations:
+          summary: "SLO breach: WhatsApp delivery rate below 95%"
+          description: "7-day WhatsApp delivery rate is {{ $value | humanizePercentage }}, below SLO of 95%"

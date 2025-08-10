@@ -747,7 +747,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_langchain_service_creation() {
-        let service = create_langchain_service();
+        let _service = create_langchain_service();
         // Service should be created successfully
         assert!(true);
     }

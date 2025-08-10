@@ -3,9 +3,9 @@ pub mod auth;
 pub mod auth_db;
 pub mod database;
 pub mod websocket_improved;
-pub mod whatsapp_evolution;
-pub mod whatsapp_handlers;
-pub mod whatsapp_config;
+// pub mod whatsapp_evolution; // File missing
+// pub mod whatsapp_handlers;  // File missing  
+// pub mod whatsapp_config;    // File missing
 pub mod agent_conversations;
 pub mod dashboard;
 pub mod flows;
@@ -56,7 +56,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_auth_service_creation() {
-        let auth_service = auth::AuthService::new();
+        let _auth_service = auth::AuthService::new();
         // Service should be created successfully
         assert!(true);
     }
@@ -149,7 +149,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_erp_manager_creation() {
-        let erp_manager = erp_connectors::ErpManager::new();
+        let _erp_manager = erp_connectors::ErpManager::new();
         // Manager should be created successfully
         assert!(true);
     }

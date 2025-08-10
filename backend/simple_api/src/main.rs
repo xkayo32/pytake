@@ -1,20 +1,20 @@
 use actix_web::{web, App, HttpServer, HttpResponse, Result, middleware::Logger};
 use actix_cors::Cors;
 use serde_json::json;
-use tracing::info;
+use tracing::{info, warn, error};
 use std::sync::Arc;
+use tokio::signal;
+use std::time::Duration;
 // OpenAPI imports removed as they're not used in main.rs
 
 mod auth;
 mod auth_db;
 mod database;
+mod redis_service;
+mod rate_limiter;
+mod performance_monitor;
 mod websocket_improved;
-mod whatsapp_evolution;
-mod whatsapp_handlers;
-mod whatsapp_config;
-mod whatsapp_management;
-mod whatsapp_db_service;
-mod whatsapp_db_handlers;
+mod whatsapp;
 mod entities;
 mod agent_conversations;
 mod dashboard;
@@ -35,6 +35,7 @@ mod flow_builder;
 mod realtime_dashboard;
 mod google_integrations;
 mod data_privacy;
+mod observability;
 // mod graphql_api;
 // mod graphql_minimal;
 
@@ -42,7 +43,9 @@ use auth::AuthService;
 use auth_db::AuthServiceDb;
 use database::establish_connection;
 use websocket_improved::ConnectionManager;
-use whatsapp_handlers::WhatsAppManager;
+use whatsapp::{ConfigService, WhatsAppService};
+use observability::{TelemetryConfig, MetricsCollector, HealthChecker, TracingMiddlewareFactory};
+use std::sync::Arc;
 
 /// Health check endpoint
 /// 
@@ -311,15 +314,68 @@ async fn root_debug() -> Result<HttpResponse> {
     })))
 }
 
+/// Handle graceful shutdown signals
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("Failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {
+            info!("Received Ctrl+C signal, initiating graceful shutdown...");
+        },
+        _ = terminate => {
+            info!("Received terminate signal, initiating graceful shutdown...");
+        }
+    }
+}
+
+/// Perform cleanup operations before shutdown
+async fn cleanup_resources() {
+    info!("Starting cleanup operations...");
+    
+    // Give time for ongoing requests to complete
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    
+    // Here you would typically:
+    // - Close database connections (handled automatically by SeaORM)
+    // - Close Redis connections (handled automatically)
+    // - Finish processing queued messages
+    // - Close WebSocket connections gracefully
+    // - Flush any pending logs
+    
+    info!("Cleanup operations completed");
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // Load environment variables
     dotenvy::dotenv().ok();
     
-    // Initialize logging
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .init();
+    // Initialize telemetry and observability
+    info!("🔭 Initializing OpenTelemetry and observability...");
+    let telemetry_config = TelemetryConfig::default();
+    if let Err(e) = observability::init_telemetry(telemetry_config) {
+        eprintln!("Failed to initialize telemetry: {}", e);
+        // Continue without telemetry for development
+        tracing_subscriber::fmt()
+            .with_env_filter("info,pytake=debug,simple_api=debug")
+            .json()
+            .init();
+    }
     
     info!("🚀 Starting PyTake API Test Server with PostgreSQL Authentication...");
     info!("📍 Server will be available at: http://localhost:8080");
@@ -348,20 +404,13 @@ async fn main() -> std::io::Result<()> {
     let ws_manager = ConnectionManager::new();
     info!("✅ WebSocket connection manager initialized");
     
-    // Create WhatsApp manager
-    let whatsapp_manager = WhatsAppManager::new();
-    info!("✅ WhatsApp manager initialized");
+    // Create WhatsApp configuration service
+    let whatsapp_config_service = Arc::new(ConfigService::new(db.clone()));
+    info!("✅ WhatsApp configuration service initialized");
     
-    // Create WhatsApp database service
-    let whatsapp_db_service = Arc::new(whatsapp_db_service::WhatsAppDbService::new(db.clone()));
-    info!("✅ WhatsApp database service initialized");
-    
-    // Run WhatsApp configuration migration
-    if let Err(e) = whatsapp_db_service.migrate().await {
-        info!("⚠️ Migration already exists or completed: {}", e);
-    } else {
-        info!("✅ WhatsApp configuration migration completed");
-    }
+    // Create WhatsApp service
+    let whatsapp_service = Arc::new(WhatsAppService::new(whatsapp_config_service.clone()));
+    info!("✅ WhatsApp service initialized");
     
     // Create conversation storage
     let conversation_storage = Arc::new(agent_conversations::ConversationStorage::new());
@@ -442,6 +491,11 @@ async fn main() -> std::io::Result<()> {
     let privacy_service = Arc::new(data_privacy::DataPrivacyService::new(db.clone()));
     info!("✅ Data Privacy service initialized");
 
+    // Create observability services
+    let metrics_collector = Arc::new(MetricsCollector::new());
+    let health_checker = Arc::new(HealthChecker::new());
+    info!("✅ Observability services initialized");
+
     // Create GraphQL schema (using simple version for now)
     info!("🔗 Initializing GraphQL schema...");
     let graphql_schema = graphql_simple::create_simple_schema().await;
@@ -457,16 +511,38 @@ async fn main() -> std::io::Result<()> {
     
     // Webhook worker will be started internally if needed
     
-    HttpServer::new(move || {
-        let cors = Cors::permissive();
+    info!("🔧 Configuring HTTP server...");
+    let server = HttpServer::new(move || {
+        // Secure CORS configuration based on environment
+        let cors = if std::env::var("APP_ENV").unwrap_or_default() == "production" {
+            // Production: Restrictive CORS
+            Cors::default()
+                .allowed_origin("https://app.pytake.com")
+                .allowed_origin("https://dashboard.pytake.com") 
+                .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+                .allowed_headers(vec!["content-type", "authorization", "accept"])
+                .supports_credentials()
+                .max_age(3600)
+        } else {
+            // Development: Allow localhost origins only
+            Cors::default()
+                .allowed_origin("http://localhost:3000")
+                .allowed_origin("http://localhost:3001")
+                .allowed_origin("http://127.0.0.1:3000")
+                .allowed_origin("http://127.0.0.1:3001")
+                .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+                .allowed_headers(vec!["content-type", "authorization", "accept", "x-requested-with"])
+                .supports_credentials()
+                .max_age(86400)
+        };
             
         App::new()
             .app_data(web::Data::new(auth_service.clone()))
             .app_data(web::Data::new(auth_service_db.clone()))
             .app_data(web::Data::new(db.clone()))
             .app_data(web::Data::new(ws_manager.clone()))
-            .app_data(web::Data::new(whatsapp_manager.clone()))
-            .app_data(web::Data::new(whatsapp_db_service.clone()))
+            .app_data(web::Data::new(whatsapp_config_service.clone()))
+            .app_data(web::Data::new(whatsapp_service.clone()))
             .app_data(web::Data::new(conversation_storage.clone()))
             .app_data(web::Data::new(message_queue.clone()))
             .app_data(web::Data::new(auto_responder.clone()))
@@ -482,6 +558,9 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(google_manager.clone()))
             .app_data(web::Data::new(privacy_service.clone()))
             .app_data(web::Data::new(graphql_schema.clone()))
+            .app_data(web::Data::new(metrics_collector.clone()))
+            .app_data(web::Data::new(health_checker.clone()))
+            .wrap(TracingMiddlewareFactory::new(metrics_collector.clone()))
             .wrap(Logger::default())
             .wrap(cors)
             // Documentation endpoints
@@ -500,7 +579,8 @@ async fn main() -> std::io::Result<()> {
                     .route("/status", web::get().to(status))
                     .service(
                         web::scope("/auth")
-                            // In-memory auth (original)
+                            // In-memory auth (original) with rate limiting
+                            .wrap(rate_limiter::auth_rate_limiter())
                             .route("/login", web::post().to(auth::login))
                             .route("/register", web::post().to(auth::register))
                             .route("/me", web::get().to(auth::me))
@@ -508,7 +588,8 @@ async fn main() -> std::io::Result<()> {
                     )
                     .service(
                         web::scope("/auth-db")
-                            // PostgreSQL auth (new)
+                            // PostgreSQL auth (new) with rate limiting
+                            .wrap(rate_limiter::auth_rate_limiter())
                             .route("/login", web::post().to(auth_db::login_db))
                             .route("/register", web::post().to(auth_db::register_db))
                             .route("/me", web::get().to(auth_db::me_db))
@@ -519,36 +600,10 @@ async fn main() -> std::io::Result<()> {
                             // WebSocket endpoints
                             .route("/stats", web::get().to(websocket_improved::websocket_stats))
                     )
-                    .service(
-                        web::scope("/whatsapp")
-                            // WhatsApp endpoints
-                            .route("/instance/create", web::post().to(whatsapp_handlers::create_instance))
-                            .route("/instance/{name}/status", web::get().to(whatsapp_handlers::get_instance_status))
-                            .route("/instance/{name}/qrcode", web::get().to(whatsapp_handlers::get_qr_code))
-                            .route("/send", web::post().to(whatsapp_handlers::send_message))
-                            .route("/instances", web::get().to(whatsapp_handlers::list_instances))
-                            .route("/instance/{name}", web::delete().to(whatsapp_handlers::delete_instance))
-                            .route("/webhook", web::get().to(whatsapp_handlers::webhook_handler))
-                            .route("/webhook", web::post().to(whatsapp_handlers::webhook_handler))
-                            // WhatsApp metrics endpoints
-                            .route("/health", web::get().to(whatsapp_metrics::get_phone_health))
-                            .route("/analytics", web::get().to(whatsapp_metrics::get_message_analytics))
-                            .route("/quality", web::get().to(whatsapp_metrics::get_quality_metrics))
-                            .route("/limits", web::get().to(whatsapp_metrics::get_messaging_limits))
-                            .route("/dashboard", web::get().to(whatsapp_metrics::get_metrics_dashboard))
-                    )
-                    // WhatsApp configuration routes (database-backed)
-                    .service(
-                        web::scope("/whatsapp-configs")
-                            .route("", web::get().to(whatsapp_db_handlers::list_configs))
-                            .route("", web::post().to(whatsapp_db_handlers::create_config))
-                            .route("/default", web::get().to(whatsapp_db_handlers::get_default_config))
-                            .route("/{id}", web::get().to(whatsapp_db_handlers::get_config))
-                            .route("/{id}", web::put().to(whatsapp_db_handlers::update_config))
-                            .route("/{id}", web::delete().to(whatsapp_db_handlers::delete_config))
-                            .route("/{id}/test", web::post().to(whatsapp_db_handlers::test_config))
-                            .route("/{id}/set-default", web::post().to(whatsapp_db_handlers::set_default_config))
-                    )
+                    // WhatsApp routes - new consolidated structure
+                    .configure(whatsapp::configure_routes)
+                    // WhatsApp legacy routes for backward compatibility
+                    .configure(whatsapp::configure_legacy_routes)
                     // Agent conversation routes
                     .configure(agent_conversations::configure_routes)
                     // Dashboard routes
@@ -630,6 +685,14 @@ async fn main() -> std::io::Result<()> {
             .configure(google_integrations::configure_google_integrations)
             // Data Privacy LGPD/GDPR routes
             .configure(data_privacy::configure_privacy_routes)
+            // Observability routes
+            .configure(observability::configure_observability_routes)
+            .route("/metrics", web::get().to(observability::metrics_handler))
+            // Performance monitoring routes
+            .service(
+                web::scope("/api/v1")
+                    .configure(performance_monitor::configure_performance_routes)
+            )
             // API Documentation endpoints (commented out - functions not implemented)
             // .service(
             //     web::scope("")
@@ -643,6 +706,32 @@ async fn main() -> std::io::Result<()> {
             .route("/ws", web::get().to(websocket_improved::websocket_handler))
     })
     .bind("0.0.0.0:8080")?
-    .run()
-    .await
+    .workers(4) // Configure worker processes
+    .keep_alive(Duration::from_secs(75)) // Keep-alive timeout
+    .client_timeout(5000) // Client timeout in milliseconds
+    .shutdown_timeout(30); // Graceful shutdown timeout in seconds
+    
+    info!("✅ HTTP server configured successfully");
+    info!("🚀 Starting server at http://0.0.0.0:8080");
+    info!("📱 Health check available at: http://localhost:8080/health");
+    info!("📖 API documentation at: http://localhost:8080/docs");
+    
+    // Run server with graceful shutdown
+    let server_handle = server.run();
+    
+    tokio::select! {
+        result = server_handle => {
+            match result {
+                Ok(_) => info!("Server stopped successfully"),
+                Err(e) => error!("Server stopped with error: {}", e),
+            }
+        }
+        _ = shutdown_signal() => {
+            info!("🛑 Shutdown signal received, stopping server...");
+            cleanup_resources().await;
+            info!("✅ Graceful shutdown completed");
+        }
+    }
+    
+    Ok(())
 }
