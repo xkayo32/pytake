@@ -162,7 +162,15 @@
       "Bash(-p 80:80 )",
       "Bash(-p 443:443 )",
       "Bash(-v /home/administrator/pytake-backend/nginx-https.conf:/etc/nginx/nginx.conf:ro )",
-      "Bash(-v /home/administrator/pytake-backend/ssl:/etc/nginx/ssl:ro )"
+      "Bash(-v /home/administrator/pytake-backend/ssl:/etc/nginx/ssl:ro )",
+      "Bash(--name pytake-backend )",
+      "Bash(--network pytake-backend_pytake-network )",
+      "Bash(-p 8789:8789 )",
+      "Bash(-e DATABASE_URL=\"postgres://pytake:L8RV1fe9DwP@postgres:5432/pytake\" )",
+      "Bash(-e REDIS_URL=\"redis://default:0nv2Uj89Q@redis:6379\" )",
+      "Bash(-e RUST_LOG=info )",
+      "Bash(pytake-backend:latest)",
+      "Bash(DATABASE_URL=\"postgres://pytake:L8RV1fe9DwP@localhost:8543/pytake\" RUST_LOG=info /home/administrator/pytake-backend/backend/target/release/simple_api)"
     ],
     "deny": []
   }

@@ -378,7 +378,7 @@ async fn main() -> std::io::Result<()> {
     info!("✅ Auto responder initialized");
     
     // Create webhook manager
-    let webhook_manager = Arc::new(webhook_manager::WebhookManager::new());
+    let webhook_manager = webhook_manager::WebhookManager::new();
     info!("✅ Webhook manager initialized");
     
     // Create multi-tenant service

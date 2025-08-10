@@ -366,8 +366,8 @@ pub struct WebhookManager {
 
 impl WebhookManager {
     /// Cria uma nova instância do WebhookManager
-    pub fn new() -> Self {
-        let manager = Self {
+    pub fn new() -> Arc<Self> {
+        let manager = Arc::new(Self {
             configs: Arc::new(RwLock::new(HashMap::new())),
             http_client: Client::builder()
                 .timeout(Duration::from_secs(60))
@@ -377,10 +377,10 @@ impl WebhookManager {
             retry_queue: Arc::new(RwLock::new(HashMap::new())),
             metrics: Arc::new(RwLock::new(HashMap::new())),
             retry_worker_handle: Arc::new(Mutex::new(None)),
-        };
+        });
         
         // Inicia worker de retry
-        manager.start_retry_worker();
+        manager.clone().start_retry_worker();
         
         manager
     }
@@ -638,16 +638,13 @@ impl WebhookManager {
     }
     
     /// Inicia worker de background para processar retries
-    fn start_retry_worker(&self) {
+    fn start_retry_worker(self: Arc<Self>) {
         let configs = self.configs.clone();
         let retry_queue = self.retry_queue.clone();
         let dead_letter_queue = self.dead_letter_queue.clone();
-        let _metrics = self.metrics.clone();
-        let _http_client = self.http_client.clone();
-        let manager_ref = unsafe {
-            // SAFETY: O manager vive pelo menos tanto quanto o worker
-            std::mem::transmute::<&WebhookManager, &'static WebhookManager>(self)
-        };
+        let metrics = self.metrics.clone();
+        let http_client = self.http_client.clone();
+        let manager_ref = self.clone();
         
         let handle = tokio::spawn(async move {
             info!("Worker de retry de webhooks iniciado");
