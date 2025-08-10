@@ -44,17 +44,19 @@ services:
 
   # Backend API
   backend:
-    image: pytake-backend:fast
+    image: pytake-backend:latest
     build:
       context: .
-      dockerfile: Dockerfile.fast
+      dockerfile: Dockerfile
       args:
-        - API_PORT=8080
-        - API_HOST=${API_HOST}
+        API_PORT: ${API_PORT}
+        API_HOST: ${API_HOST}
+        RUST_LOG: ${RUST_LOG}
+        APP_ENV: ${APP_ENV:-production}
     container_name: pytake-backend
     restart: unless-stopped
     ports:
-      - "${API_PORT:-8789}:8080"
+      - "${API_PORT}:${API_PORT}"
     environment:
       # Database
       DATABASE_URL: ${DATABASE_URL}
@@ -112,62 +114,6 @@ services:
       - ${UPLOADS_PATH:-./uploads}:/app/uploads
       - ${LOGS_PATH:-./logs}:/app/logs
 
-  # Frontend React Application
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: pytake-frontend
-    restart: unless-stopped
-    ports:
-      - "${FRONTEND_PORT:-5174}:80"
-    environment:
-      - API_URL=http://backend:8080
-    depends_on:
-      - backend
-    networks:
-      - pytake-network
-    volumes:
-      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
-      interval: ${HEALTH_CHECK_INTERVAL:-30s}
-      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
-      retries: ${HEALTH_CHECK_RETRIES:-3}
-
-  # Nginx Reverse Proxy
-  nginx:
-    build:
-      context: .
-      dockerfile: nginx.Dockerfile
-    container_name: pytake-nginx
-    restart: unless-stopped
-    ports:
-      - "${NGINX_HTTP_PORT:-80}:80"
-      - "${NGINX_HTTPS_PORT:-443}:443"
-    environment:
-      - SERVER_NAME=${SERVER_NAME:-localhost}
-      - DOMAIN_NAME=${DOMAIN_NAME:-localhost}
-      - BACKEND_HOST=backend
-      - BACKEND_PORT=8080
-      - CLIENT_MAX_BODY_SIZE=${CLIENT_MAX_BODY_SIZE:-50M}
-      - API_RATE_LIMIT=${API_RATE_LIMIT:-10r/s}
-      - WEBHOOK_RATE_LIMIT=${WEBHOOK_RATE_LIMIT:-50r/s}
-      - CONNECTION_LIMIT=${CONNECTION_LIMIT:-10}
-      - SSL_ENABLED=${SSL_ENABLED:-false}
-    volumes:
-      - ${SSL_PATH:-./ssl}:/etc/nginx/ssl:ro
-      - nginx_cache:/var/cache/nginx
-      - ./certbot-webroot:/var/www/certbot:ro
-    depends_on:
-      - backend
-    networks:
-      - pytake-network
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
-      interval: ${HEALTH_CHECK_INTERVAL:-30s}
-      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
-      retries: ${HEALTH_CHECK_RETRIES:-3}
 
 networks:
   pytake-network:
@@ -180,6 +126,4 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
-    driver: local
-  nginx_cache:
     driver: local
