@@ -1,23 +1,11 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc, NaiveDateTime};
 
-/// WhatsApp provider types
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema)]
-#[serde(rename_all = "lowercase")]
-pub enum WhatsAppProvider {
-    Official,   // WhatsApp Business API (Meta)
-    Evolution,  // Evolution API
-}
+// Re-export WhatsAppProvider from entities to avoid duplication
+pub use crate::entities::whatsapp_config::WhatsAppProvider;
 
-/// Health status for configurations
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, utoipa::ToSchema)]
-#[serde(rename_all = "lowercase")]
-pub enum HealthStatus {
-    Healthy,
-    Unhealthy,
-    Unknown,
-    Inactive,
-}
+// Re-export HealthStatus from entities to avoid duplication
+pub use crate::entities::whatsapp_config::HealthStatus;
 
 /// Message types supported by WhatsApp
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]

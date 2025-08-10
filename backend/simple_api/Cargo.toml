@@ -20,6 +20,7 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 serde = { workspace = true }
 uuid = { workspace = true }
+bytes = "1.0"
 jsonwebtoken = "9.2"
 sea-orm = { workspace = true }
 dotenvy = { workspace = true }
@@ -69,7 +70,7 @@ dataloader = "0.17"
 async-stream = "0.3"
 
 # OpenTelemetry dependencies
-opentelemetry = { version = "0.21", features = ["rt-tokio"] }
+opentelemetry = { version = "0.21" }
 opentelemetry_sdk = { version = "0.21", features = ["rt-tokio"] }
 opentelemetry-stdout = { version = "0.2" }
 tracing-opentelemetry = "0.22"
@@ -89,7 +90,7 @@ pretty_assertions = "1.4"
 rstest = "0.18"
 tempfile = "3.8"
 # Test coverage
-tarpaulin = "0.27"
+# tarpaulin = "0.27" # Only needed as a CLI tool, not as dependency
 # Database testing
 sea-orm = { workspace = true, features = ["mock"] }
 # Redis testing for mocking

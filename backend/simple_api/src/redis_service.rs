@@ -125,7 +125,7 @@ impl RedisService {
     pub async fn health_check(&self) -> bool {
         match self.get_connection().await {
             Ok(mut conn) => {
-                let result: RedisResult<String> = conn.ping().await;
+                let result: RedisResult<String> = redis::cmd("PING").query_async(&mut conn).await;
                 match result {
                     Ok(_) => true,
                     Err(e) => {
@@ -149,7 +149,7 @@ impl RedisService {
                 if let (Ok(value), Some(ttl)) = (&result, ttl_seconds) {
                     // Set TTL only if this is the first increment (value == 1)
                     if *value == 1 {
-                        let _: RedisResult<()> = conn.expire(key, ttl as usize).await;
+                        let _: RedisResult<()> = conn.expire(key, ttl as i64).await;
                     }
                 }
                 result

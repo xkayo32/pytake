@@ -1,6 +1,6 @@
 use actix_web::{web, HttpResponse, Result};
 use serde::{Deserialize, Serialize};
-use sea_orm::{Database, DatabaseConnection, DbErr};
+use sea_orm::{DatabaseConnection, DbErr};
 use std::collections::HashMap;
 use chrono::{DateTime, Utc, Duration};
 use uuid::Uuid;

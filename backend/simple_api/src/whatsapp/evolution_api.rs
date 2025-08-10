@@ -78,9 +78,10 @@ impl EvolutionClient {
             .await?;
             
         if !response.status().is_success() {
+            let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
             return Err(WhatsAppError::InstanceCreationFailed(
-                format!("API error {}: {}", response.status(), error_text)
+                format!("API error {}: {}", status, error_text)
             ));
         }
         
@@ -137,9 +138,10 @@ impl EvolutionClient {
             .await?;
             
         if !response.status().is_success() {
+            let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
             return Err(WhatsAppError::MessageSendFailed(
-                format!("API error {}: {}", response.status(), error_text)
+                format!("API error {}: {}", status, error_text)
             ));
         }
         
@@ -187,9 +189,10 @@ impl EvolutionClient {
             .await?;
             
         if !response.status().is_success() {
+            let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
             return Err(WhatsAppError::MessageSendFailed(
-                format!("API error {}: {}", response.status(), error_text)
+                format!("API error {}: {}", status, error_text)
             ));
         }
         

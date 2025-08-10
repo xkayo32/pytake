@@ -2,6 +2,7 @@ use crate::whatsapp::error::{WhatsAppError, WhatsAppResult};
 use crate::whatsapp::types::*;
 use serde_json::json;
 use tracing::{info, debug, error};
+use bytes::Bytes;
 
 /// Official WhatsApp API configuration
 #[derive(Debug, Clone)]
@@ -58,9 +59,10 @@ impl OfficialClient {
             .await?;
             
         if !response.status().is_success() {
+            let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
             return Err(WhatsAppError::MessageSendFailed(
-                format!("Official API error {}: {}", response.status(), error_text)
+                format!("Official API error {}: {}", status, error_text)
             ));
         }
         
@@ -117,9 +119,10 @@ impl OfficialClient {
             .await?;
             
         if !response.status().is_success() {
+            let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
             return Err(WhatsAppError::MessageSendFailed(
-                format!("Official API error {}: {}", response.status(), error_text)
+                format!("Official API error {}: {}", status, error_text)
             ));
         }
         
@@ -170,9 +173,10 @@ impl OfficialClient {
             .await?;
             
         if !response.status().is_success() {
+            let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
             return Err(WhatsAppError::MessageSendFailed(
-                format!("Official API error {}: {}", response.status(), error_text)
+                format!("Official API error {}: {}", status, error_text)
             ));
         }
         
@@ -194,9 +198,10 @@ impl OfficialClient {
             .await?;
             
         if !response.status().is_success() {
+            let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
             return Err(WhatsAppError::ApiRequestFailed(
-                format!("Official API error {}: {}", response.status(), error_text)
+                format!("Official API error {}: {}", status, error_text)
             ));
         }
         
@@ -217,9 +222,10 @@ impl OfficialClient {
             .await?;
             
         if !response.status().is_success() {
+            let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
             return Err(WhatsAppError::ApiRequestFailed(
-                format!("Official API error {}: {}", response.status(), error_text)
+                format!("Official API error {}: {}", status, error_text)
             ));
         }
         
@@ -242,9 +248,10 @@ impl OfficialClient {
             .await?;
             
         if !response.status().is_success() {
+            let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
             return Err(WhatsAppError::ApiRequestFailed(
-                format!("Official API error {}: {}", response.status(), error_text)
+                format!("Official API error {}: {}", status, error_text)
             ));
         }
         
@@ -267,9 +274,10 @@ impl OfficialClient {
             .await?;
             
         if !response.status().is_success() {
+            let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
             return Err(WhatsAppError::ApiRequestFailed(
-                format!("Official API error {}: {}", response.status(), error_text)
+                format!("Official API error {}: {}", status, error_text)
             ));
         }
         
@@ -298,9 +306,10 @@ impl OfficialClient {
             .await?;
             
         if !response.status().is_success() {
+            let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
             return Err(WhatsAppError::ApiRequestFailed(
-                format!("Official API error {}: {}", response.status(), error_text)
+                format!("Official API error {}: {}", status, error_text)
             ));
         }
         
@@ -308,7 +317,7 @@ impl OfficialClient {
     }
 
     /// Download media by media ID
-    pub async fn download_media(&self, media_id: &str) -> WhatsAppResult<bytes::Bytes> {
+    pub async fn download_media(&self, media_id: &str) -> WhatsAppResult<Bytes> {
         // First get media URL
         let media_url = self.get_media_url(media_id).await?;
         
@@ -320,9 +329,10 @@ impl OfficialClient {
             .await?;
             
         if !response.status().is_success() {
+            let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
             return Err(WhatsAppError::ApiRequestFailed(
-                format!("Media download failed {}: {}", response.status(), error_text)
+                format!("Media download failed {}: {}", status, error_text)
             ));
         }
         
@@ -343,9 +353,10 @@ impl OfficialClient {
             .await?;
             
         if !response.status().is_success() {
+            let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
             return Err(WhatsAppError::ApiRequestFailed(
-                format!("Official API error {}: {}", response.status(), error_text)
+                format!("Official API error {}: {}", status, error_text)
             ));
         }
         

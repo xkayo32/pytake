@@ -249,7 +249,7 @@ impl WhatsAppService {
     async fn create_evolution_instance(&self, request: CreateInstanceRequest) -> WhatsAppResult<InstanceStatusResponse> {
         let evolution_config = if let Some(config_id) = request.config_id {
             // Use stored configuration
-            let config = self.config_service.get_config_by_id(&config_id).await?
+            let config = self.config_service.get_config_model_by_id(&config_id).await?
                 .ok_or_else(|| WhatsAppError::ConfigNotFound(format!("Configuration {} not found", config_id)))?;
             
             if config.provider != WhatsAppProvider::Evolution {
@@ -288,7 +288,7 @@ impl WhatsAppService {
     async fn create_official_instance(&self, request: CreateInstanceRequest) -> WhatsAppResult<InstanceStatusResponse> {
         let official_client = if let Some(config_id) = request.config_id {
             // Use stored configuration
-            let config = self.config_service.get_config_by_id(&config_id).await?
+            let config = self.config_service.get_config_model_by_id(&config_id).await?
                 .ok_or_else(|| WhatsAppError::ConfigNotFound(format!("Configuration {} not found", config_id)))?;
             
             if config.provider != WhatsAppProvider::Official {

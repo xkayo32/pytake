@@ -79,10 +79,8 @@ pub fn init_telemetry(config: TelemetryConfig) -> anyhow::Result<()> {
 
     global::set_tracer_provider(tracer_provider);
 
-    // Configure tracing subscriber with OpenTelemetry
-    let telemetry = tracing_opentelemetry::layer().with_tracer(
-        global::tracer("pytake-api")
-    );
+    // Configure tracing subscriber with OpenTelemetry (simplified)
+    let telemetry = tracing_opentelemetry::layer();
 
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
     
@@ -91,7 +89,7 @@ pub fn init_telemetry(config: TelemetryConfig) -> anyhow::Result<()> {
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| "info,pytake=debug,simple_api=debug".into())
         )
-        .with(tracing_subscriber::fmt::layer().json())
+        .with(tracing_subscriber::fmt::layer())
         .with(telemetry)
         .init();
 
@@ -105,7 +103,6 @@ fn create_stdout_tracer(resource: Resource) -> anyhow::Result<opentelemetry_sdk:
     let exporter = SpanExporterBuilder::default().build();
     let tracer_provider = opentelemetry_sdk::trace::TracerProvider::builder()
         .with_batch_exporter(exporter, Tokio)
-        .with_resource(resource)
         .build();
     
     Ok(tracer_provider)
@@ -447,7 +444,8 @@ where
             http.request_id = %request_id
         );
         
-        let _enter = span.enter();
+        let span_clone = span.clone();
+        let _enter = span_clone.enter();
         
         // Add span context to OpenTelemetry
         let cx = Context::current();

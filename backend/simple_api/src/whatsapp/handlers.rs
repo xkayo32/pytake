@@ -2,7 +2,7 @@ use crate::whatsapp::error::{WhatsAppError, WhatsAppResult};
 use crate::whatsapp::types::*;
 use crate::whatsapp::config::ConfigService;
 use crate::whatsapp::service::WhatsAppService;
-use crate::whatsapp_metrics;
+// use crate::whatsapp_metrics; // Disabled for now
 use actix_web::{web, HttpResponse, HttpRequest, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -332,6 +332,8 @@ async fn webhook_verification(req: HttpRequest) -> Result<HttpResponse, WhatsApp
 // Metrics and Health Handlers
 // =============================================================================
 
+// Metrics functions temporarily disabled
+/*
 /// Get WhatsApp phone health metrics
 pub async fn get_phone_health() -> HttpResponse {
     whatsapp_metrics::get_phone_health().await
@@ -358,6 +360,7 @@ pub async fn get_messaging_limits() -> HttpResponse {
 pub async fn get_metrics_dashboard() -> HttpResponse {
     whatsapp_metrics::get_metrics_dashboard().await
 }
+*/
 
 // =============================================================================
 // Route Configuration
@@ -396,15 +399,15 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             // Webhook routes
             .route("/webhook", web::get().to(webhook_handler))
             .route("/webhook", web::post().to(webhook_handler))
-            // Metrics routes
-            .service(
-                web::scope("/metrics")
-                    .route("/health", web::get().to(get_phone_health))
-                    .route("/analytics", web::get().to(get_message_analytics))
-                    .route("/quality", web::get().to(get_quality_metrics))
-                    .route("/limits", web::get().to(get_messaging_limits))
-                    .route("/dashboard", web::get().to(get_metrics_dashboard))
-            )
+            // Metrics routes - temporarily disabled
+            // .service(
+            //     web::scope("/metrics")
+            //         .route("/health", web::get().to(get_phone_health))
+            //         .route("/analytics", web::get().to(get_message_analytics))
+            //         .route("/quality", web::get().to(get_quality_metrics))
+            //         .route("/limits", web::get().to(get_messaging_limits))
+            //         .route("/dashboard", web::get().to(get_metrics_dashboard))
+            // )
     );
 }
 
@@ -423,11 +426,12 @@ pub fn configure_legacy_routes(cfg: &mut web::ServiceConfig) {
                     .route("/instance/{name}", web::delete().to(delete_instance))
                     .route("/webhook", web::get().to(webhook_handler))
                     .route("/webhook", web::post().to(webhook_handler))
-                    .route("/health", web::get().to(get_phone_health))
-                    .route("/analytics", web::get().to(get_message_analytics))
-                    .route("/quality", web::get().to(get_quality_metrics))
-                    .route("/limits", web::get().to(get_messaging_limits))
-                    .route("/dashboard", web::get().to(get_metrics_dashboard))
+                    // Metrics routes temporarily disabled
+                    // .route("/health", web::get().to(get_phone_health))
+                    // .route("/analytics", web::get().to(get_message_analytics))
+                    // .route("/quality", web::get().to(get_quality_metrics))
+                    // .route("/limits", web::get().to(get_messaging_limits))
+                    // .route("/dashboard", web::get().to(get_metrics_dashboard))
             )
             // Legacy WhatsApp configuration routes
             .service(

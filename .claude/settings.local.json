@@ -171,7 +171,10 @@
       "Bash(-e RUST_LOG=info )",
       "Bash(pytake-backend:latest)",
       "Bash(DATABASE_URL=\"postgres://pytake:L8RV1fe9DwP@localhost:8543/pytake\" RUST_LOG=info /home/administrator/pytake-backend/backend/target/release/simple_api)",
-      "Bash(openssl rand:*)"
+      "Bash(openssl rand:*)",
+      "Bash(~/.cargo/bin/cargo check --package simple_api)",
+      "Bash(~/.cargo/bin/cargo build --package simple_api)",
+      "WebFetch(domain:api.pytake.net)"
     ],
     "deny": []
   }

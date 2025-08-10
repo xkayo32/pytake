@@ -1,11 +1,11 @@
 use crate::whatsapp::error::{WhatsAppError, WhatsAppResult};
-use crate::whatsapp::types::*;
+use crate::whatsapp::types::{WhatsAppProvider, TestResult, PaginationParams, PaginatedResponse, PaginationInfo, CreateWhatsAppConfigRequest, UpdateWhatsAppConfigRequest};
 use crate::whatsapp::evolution_api::{EvolutionClient, EvolutionConfig};
 use crate::whatsapp::official_api::{OfficialClient, OfficialConfig};
-use crate::entities::whatsapp_config::{Entity as WhatsAppConfigEntity, Model, WhatsAppProvider as DbProvider, HealthStatus as DbHealthStatus, Column, WhatsAppConfigResponse as EntityResponse};
+use crate::entities::whatsapp_config::{Entity as WhatsAppConfigEntity, Model, WhatsAppProvider as DbProvider, HealthStatus as DbHealthStatus, Column, WhatsAppConfigResponse};
 use crate::redis_service::{RedisService, CacheKeys};
 use sea_orm::{ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, ConnectionTrait, PaginatorTrait, QuerySelect};
-use chrono::Utc;
+use chrono::{Utc, DateTime};
 use uuid::Uuid;
 use std::sync::Arc;
 use tracing::{info, warn, debug, error};
@@ -38,15 +38,12 @@ impl ConfigService {
     }
 
     /// Create a new WhatsApp configuration
-    pub async fn create_config(&self, req: CreateWhatsAppConfigRequest, created_by: &str) -> WhatsAppResult<EntityResponse> {
+    pub async fn create_config(&self, req: CreateWhatsAppConfigRequest, created_by: &str) -> WhatsAppResult<WhatsAppConfigResponse> {
         // Validate provider-specific requirements
         self.validate_config_request(&req)?;
 
-        // Convert provider enum
-        let provider = match req.provider {
-            WhatsAppProvider::Official => DbProvider::Official,
-            WhatsAppProvider::Evolution => DbProvider::Evolution,
-        };
+        // Convert provider enum - direct conversion
+        let provider = req.provider.clone();
 
         // If this is set as default, unset other defaults first
         if req.is_default.unwrap_or(false) {
@@ -81,11 +78,11 @@ impl ConfigService {
         // Invalidate cache after creating new config
         self.invalidate_all_config_cache().await;
         
-        Ok(result.to_response())
+        Ok(self.model_to_response(result))
     }
 
     /// Get configuration by ID
-    pub async fn get_config_by_id(&self, id: &str) -> WhatsAppResult<Option<EntityResponse>> {
+    pub async fn get_config_by_id(&self, id: &str) -> WhatsAppResult<Option<WhatsAppConfigResponse>> {
         let uuid = Uuid::parse_str(id)?;
         
         // Try cache first
@@ -108,6 +105,17 @@ impl ConfigService {
         Ok(config.map(|c| self.model_to_response(c)))
     }
 
+    /// Get configuration model by ID (internal use)
+    pub async fn get_config_model_by_id(&self, id: &str) -> WhatsAppResult<Option<Model>> {
+        let uuid = Uuid::parse_str(id)?;
+        
+        let config = WhatsAppConfigEntity::find_by_id(uuid)
+            .one(&self.db)
+            .await?;
+        
+        Ok(config)
+    }
+
     /// Get all configurations with optional pagination
     pub async fn get_all_configs(&self, params: Option<PaginationParams>) -> WhatsAppResult<PaginatedResponse<WhatsAppConfigResponse>> {
         match params {
@@ -127,12 +135,13 @@ impl ConfigService {
                     .map(|c| self.model_to_response(c))
                     .collect();
 
+                let total_items = responses.len() as u64;
                 Ok(PaginatedResponse {
-                    data: responses.clone(),
+                    data: responses,
                     pagination: PaginationInfo {
                         current_page: 1,
-                        page_size: responses.len() as u64,
-                        total_items: responses.len() as u64,
+                        page_size: total_items,
+                        total_items,
                         total_pages: 1,
                         has_next: false,
                         has_prev: false,
@@ -326,7 +335,7 @@ impl ConfigService {
     }
 
     /// Create Evolution API client from configuration
-    pub fn create_evolution_client(&self, config: &WhatsAppConfigResponse) -> WhatsAppResult<EvolutionClient> {
+    pub fn create_evolution_client(&self, config: &crate::entities::whatsapp_config::Model) -> WhatsAppResult<EvolutionClient> {
         let evolution_config = EvolutionConfig {
             base_url: config.evolution_url.as_ref()
                 .ok_or_else(|| WhatsAppError::InvalidConfig("Evolution URL is required".to_string()))?.clone(),
@@ -340,12 +349,13 @@ impl ConfigService {
     }
 
     /// Create Official API client from configuration  
-    pub fn create_official_client(&self, config: &WhatsAppConfigResponse) -> WhatsAppResult<OfficialClient> {
+    pub fn create_official_client(&self, config: &crate::entities::whatsapp_config::Model) -> WhatsAppResult<OfficialClient> {
         let official_config = OfficialConfig {
             phone_number_id: config.phone_number_id.as_ref()
                 .ok_or_else(|| WhatsAppError::InvalidConfig("Phone number ID is required".to_string()))?.clone(),
-            access_token: "PROTECTED".to_string(), // Access token is not included in response for security
-            instance_name: config.instance_name.as_ref().unwrap_or(&config.id).clone(),
+            access_token: config.access_token.as_ref()
+                .ok_or_else(|| WhatsAppError::InvalidConfig("Access token is required".to_string()))?.clone(),
+            instance_name: config.instance_name.as_ref().unwrap_or(&config.id.to_string()).clone(),
             webhook_verify_token: config.webhook_verify_token.clone(),
             app_secret: config.app_secret.clone(),
             business_account_id: config.business_account_id.clone(),
@@ -426,7 +436,7 @@ impl ConfigService {
             } else {
                 "Missing phone number ID".to_string()
             },
-            provider: WhatsAppProvider::Official,
+            provider: config.provider.clone(),
             details: Some(serde_json::json!({
                 "phone_number_id": config.phone_number_id,
                 "has_access_token": false, // We don't expose this in the response
@@ -445,7 +455,7 @@ impl ConfigService {
             } else {
                 "Missing Evolution URL or instance name".to_string()
             },
-            provider: WhatsAppProvider::Evolution,
+            provider: config.provider.clone(),
             details: Some(serde_json::json!({
                 "evolution_url": config.evolution_url,
                 "instance_name": config.instance_name,
@@ -456,17 +466,9 @@ impl ConfigService {
     }
 
     fn model_to_response(&self, model: Model) -> WhatsAppConfigResponse {
-        let provider = match model.provider {
-            DbProvider::Official => WhatsAppProvider::Official,
-            DbProvider::Evolution => WhatsAppProvider::Evolution,
-        };
+        let provider = model.provider.clone();
 
-        let health_status = match model.health_status {
-            DbHealthStatus::Healthy => HealthStatus::Healthy,
-            DbHealthStatus::Unhealthy => HealthStatus::Unhealthy,
-            DbHealthStatus::Unknown => HealthStatus::Unknown,
-            DbHealthStatus::Inactive => HealthStatus::Inactive,
-        };
+        let health_status = model.health_status.clone();
 
         WhatsAppConfigResponse {
             id: model.id.to_string(),
@@ -480,11 +482,11 @@ impl ConfigService {
             instance_name: model.instance_name,
             is_active: model.is_active,
             is_default: model.is_default,
-            created_at: DateTime::from_utc(model.created_at, Utc),
-            updated_at: DateTime::from_utc(model.updated_at, Utc),
+            created_at: model.created_at,
+            updated_at: model.updated_at,
             created_by: model.created_by,
             health_status,
-            last_health_check: model.last_health_check.map(|dt| DateTime::from_utc(dt, Utc)),
+            last_health_check: model.last_health_check,
             error_message: model.error_message,
         }
     }

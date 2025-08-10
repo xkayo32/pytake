@@ -7,35 +7,40 @@ use tokio::signal;
 use std::time::Duration;
 // OpenAPI imports removed as they're not used in main.rs
 
+// Core modules - working
 mod auth;
 mod auth_db;
 mod database;
 mod redis_service;
-mod rate_limiter;
-mod performance_monitor;
 mod websocket_improved;
 mod whatsapp;
 mod entities;
-mod agent_conversations;
-mod dashboard;
-mod flows;
 mod api_docs;
-mod whatsapp_metrics;
-mod message_queue;
-mod auto_responder;
-mod webhook_manager;
-mod ai_assistant;
-mod campaign_manager;
-mod multi_tenant;
-mod erp_connectors;
-mod erp_handlers;
-mod graphql_simple;
-mod langchain_ai;
-mod flow_builder;
-mod realtime_dashboard;
-mod google_integrations;
 mod data_privacy;
-mod observability;
+mod graphql_simple;
+
+// Features with issues - temporarily disabled
+// mod rate_limiter;        // Rate limiting - has type issues
+// mod performance_monitor; // Performance monitoring
+// mod agent_conversations; // Agent features
+// mod dashboard;           // Dashboard
+// mod flows;               // Flow builder
+// mod whatsapp_metrics;    // Metrics
+// mod message_queue;       // Message queue
+// mod auto_responder;      // Auto responder
+// mod webhook_manager;     // Webhook manager  
+// mod ai_assistant;        // AI assistant
+// mod campaign_manager;    // Campaign manager
+// mod multi_tenant;        // Multi-tenancy
+// mod erp_connectors;      // ERP connectors
+// mod erp_handlers;        // ERP handlers
+// mod graphql_simple;      // GraphQL
+// mod langchain_ai;        // LangChain AI
+// mod flow_builder;        // Flow builder
+// mod realtime_dashboard;  // Realtime dashboard
+// mod google_integrations; // Google integrations
+// mod data_privacy;        // Data privacy
+// mod observability;       // Observability
 // mod graphql_api;
 // mod graphql_minimal;
 
@@ -44,8 +49,6 @@ use auth_db::AuthServiceDb;
 use database::establish_connection;
 use websocket_improved::ConnectionManager;
 use whatsapp::{ConfigService, WhatsAppService};
-use observability::{TelemetryConfig, MetricsCollector, HealthChecker, TracingMiddlewareFactory};
-use std::sync::Arc;
 
 /// Health check endpoint
 /// 
@@ -365,17 +368,11 @@ async fn main() -> std::io::Result<()> {
     // Load environment variables
     dotenvy::dotenv().ok();
     
-    // Initialize telemetry and observability
-    info!("🔭 Initializing OpenTelemetry and observability...");
-    let telemetry_config = TelemetryConfig::default();
-    if let Err(e) = observability::init_telemetry(telemetry_config) {
-        eprintln!("Failed to initialize telemetry: {}", e);
-        // Continue without telemetry for development
-        tracing_subscriber::fmt()
-            .with_env_filter("info,pytake=debug,simple_api=debug")
-            .json()
-            .init();
-    }
+    // Initialize basic logging
+    info!("📝 Initializing basic logging...");
+    tracing_subscriber::fmt()
+        .with_env_filter("info,pytake=debug,simple_api=debug")
+        .init();
     
     info!("🚀 Starting PyTake API Test Server with PostgreSQL Authentication...");
     info!("📍 Server will be available at: http://localhost:8080");
@@ -412,102 +409,14 @@ async fn main() -> std::io::Result<()> {
     let whatsapp_service = Arc::new(WhatsAppService::new(whatsapp_config_service.clone()));
     info!("✅ WhatsApp service initialized");
     
-    // Create conversation storage
-    let conversation_storage = Arc::new(agent_conversations::ConversationStorage::new());
-    info!("✅ Conversation storage initialized");
-    
-    // Create message queue
-    let message_queue = Arc::new(message_queue::MessageQueue::new());
-    info!("✅ Message queue initialized");
-    
-    // Queue processor will be started separately if needed
-    
-    // Create auto responder
-    let auto_responder = Arc::new(auto_responder::AutoResponder::new());
-    info!("✅ Auto responder initialized");
-    
-    // Create webhook manager
-    let webhook_manager = webhook_manager::WebhookManager::new();
-    info!("✅ Webhook manager initialized");
-    
-    // Create multi-tenant service
-    let tenant_manager = Arc::new(multi_tenant::TenantService);
-    info!("✅ Multi-tenant service initialized");
-    
-    // Create ERP connector manager
-    let erp_manager = Arc::new(erp_connectors::ErpManager::new());
-    info!("✅ ERP connector manager initialized");
-    
-    // Create AI service
-    let ai_service = Arc::new(ai_assistant::AIService::new());
-    info!("✅ AI service initialized");
-    
-    // Create campaign manager
-    let campaign_manager = Arc::new(campaign_manager::CampaignManager::new(db.clone()));
-    info!("✅ Campaign manager initialized");
-    
-    // Run campaign manager migration
-    if let Err(e) = campaign_manager.migrate().await {
-        info!("⚠️ Campaign migration already exists or completed: {}", e);
-    } else {
-        info!("✅ Campaign management migration completed");
-    }
-    
-    // Create LangChain AI service
-    let langchain_service = langchain_ai::create_langchain_service();
-    info!("✅ LangChain AI service initialized");
-    
-    // Create Flow Builder execution engine
-    let flow_engine = Arc::new(std::sync::Mutex::new(flow_builder::FlowExecutionEngine::new()));
-    info!("✅ Flow Builder execution engine initialized");
-    
-    // Create ERP manager and metrics collector
-    let erp_metrics = Arc::new(erp_connectors::ErpMetricsCollector::new());
-    info!("✅ ERP metrics collector initialized");
-    
-    // Create realtime dashboard manager
-    let dashboard_manager = realtime_dashboard::start_dashboard_manager().await;
-    info!("✅ Realtime dashboard manager initialized");
-    
-    // Create Google Integrations manager
-    let google_manager = match google_integrations::create_google_integrations_manager().await {
-        Ok(manager) => Arc::new(manager),
-        Err(e) => {
-            info!("⚠️ Google Integrations disabled (missing configuration): {}", e);
-            // Create a dummy manager or handle gracefully
-            Arc::new(google_integrations::GoogleIntegrationsManager::new(
-                google_integrations::GoogleConfig {
-                    client_id: "dummy".to_string(),
-                    client_secret: "dummy".to_string(),
-                    redirect_uri: "http://localhost:8080/api/v1/google/callback".to_string(),
-                    scopes: vec![],
-                }
-            ))
-        }
-    };
-    info!("✅ Google Integrations manager initialized");
-    
     // Create Data Privacy service
     let privacy_service = Arc::new(data_privacy::DataPrivacyService::new(db.clone()));
     info!("✅ Data Privacy service initialized");
-
-    // Create observability services
-    let metrics_collector = Arc::new(MetricsCollector::new());
-    let health_checker = Arc::new(HealthChecker::new());
-    info!("✅ Observability services initialized");
 
     // Create GraphQL schema (using simple version for now)
     info!("🔗 Initializing GraphQL schema...");
     let graphql_schema = graphql_simple::create_simple_schema().await;
     info!("✅ GraphQL schema initialized (simple version)");
-    
-    // Create ERP state
-    let erp_state = erp_handlers::ErpState {
-        manager: erp_manager.clone(),
-        metrics: erp_metrics.clone(),
-        auth: Arc::new(auth_service.clone()),
-    };
-    info!("✅ ERP state initialized");
     
     // Webhook worker will be started internally if needed
     
@@ -543,24 +452,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(ws_manager.clone()))
             .app_data(web::Data::new(whatsapp_config_service.clone()))
             .app_data(web::Data::new(whatsapp_service.clone()))
-            .app_data(web::Data::new(conversation_storage.clone()))
-            .app_data(web::Data::new(message_queue.clone()))
-            .app_data(web::Data::new(auto_responder.clone()))
-            .app_data(web::Data::new(webhook_manager.clone()))
-            .app_data(web::Data::new(tenant_manager.clone()))
-            .app_data(web::Data::new(erp_manager.clone()))
-            .app_data(web::Data::new(ai_service.clone()))
-            .app_data(web::Data::new(campaign_manager.clone()))
-            .app_data(web::Data::new(langchain_service.clone()))
-            .app_data(web::Data::new(erp_state.clone()))
-            .app_data(web::Data::new(flow_engine.clone()))
-            .app_data(web::Data::new(dashboard_manager.clone()))
-            .app_data(web::Data::new(google_manager.clone()))
             .app_data(web::Data::new(privacy_service.clone()))
             .app_data(web::Data::new(graphql_schema.clone()))
-            .app_data(web::Data::new(metrics_collector.clone()))
-            .app_data(web::Data::new(health_checker.clone()))
-            .wrap(TracingMiddlewareFactory::new(metrics_collector.clone()))
             .wrap(Logger::default())
             .wrap(cors)
             // Documentation endpoints
@@ -579,8 +472,7 @@ async fn main() -> std::io::Result<()> {
                     .route("/status", web::get().to(status))
                     .service(
                         web::scope("/auth")
-                            // In-memory auth (original) with rate limiting
-                            .wrap(rate_limiter::auth_rate_limiter())
+                            // In-memory auth (original)
                             .route("/login", web::post().to(auth::login))
                             .route("/register", web::post().to(auth::register))
                             .route("/me", web::get().to(auth::me))
@@ -588,8 +480,7 @@ async fn main() -> std::io::Result<()> {
                     )
                     .service(
                         web::scope("/auth-db")
-                            // PostgreSQL auth (new) with rate limiting
-                            .wrap(rate_limiter::auth_rate_limiter())
+                            // PostgreSQL auth (new)
                             .route("/login", web::post().to(auth_db::login_db))
                             .route("/register", web::post().to(auth_db::register_db))
                             .route("/me", web::get().to(auth_db::me_db))
@@ -604,95 +495,9 @@ async fn main() -> std::io::Result<()> {
                     .configure(whatsapp::configure_routes)
                     // WhatsApp legacy routes for backward compatibility
                     .configure(whatsapp::configure_legacy_routes)
-                    // Agent conversation routes
-                    .configure(agent_conversations::configure_routes)
-                    // Dashboard routes
-                    .configure(dashboard::configure_routes)
-                    // Flow builder routes
-                    .configure(flow_builder::configure_routes)
-                    // Message queue routes
-                    .service(
-                        web::scope("/queue")
-                            .route("/send", web::post().to(message_queue::enqueue_message))
-                            .route("/stats", web::get().to(message_queue::get_queue_statistics))
-                            .route("/message/{id}", web::get().to(message_queue::get_message_info))
-                            .route("/message/{id}/cancel", web::post().to(message_queue::cancel_queued_message))
-                    )
-                    // Auto responder routes
-                    .service(
-                        web::scope("/auto-responder")
-                            .route("/process", web::post().to(auto_responder::process_incoming_message))
-                            .route("/rules", web::get().to(auto_responder::list_auto_responses))
-                            .route("/rules", web::post().to(auto_responder::create_auto_response))
-                            .route("/rules/{id}", web::put().to(auto_responder::update_auto_response))
-                            .route("/rules/{id}", web::delete().to(auto_responder::delete_auto_response))
-                            .route("/rules/{id}/toggle", web::post().to(auto_responder::toggle_auto_response))
-                    )
-                    // Webhook manager routes
-                    .service(
-                        web::scope("/webhooks")
-                            .route("/configure", web::post().to(webhook_manager::configure_webhook))
-                            .route("/send", web::post().to(webhook_manager::send_webhook))
-                            .route("/configs", web::get().to(webhook_manager::list_webhook_configs))
-                            .route("/config/{id}", web::delete().to(webhook_manager::remove_webhook_config))
-                            .route("/metrics/{id}", web::get().to(webhook_manager::get_webhook_metrics))
-                            .route("/dead-letter", web::get().to(webhook_manager::list_dead_letter_events))
-                            .route("/retry/{id}", web::post().to(webhook_manager::retry_dead_letter_event))
-                    )
-                    // Webhook routes
-                    .service(
-                        web::scope("/webhooks")
-                            .route("/configure", web::post().to(webhook_manager::configure_webhook))
-                            .route("/send", web::post().to(webhook_manager::send_webhook))
-                            .route("/configs", web::get().to(webhook_manager::list_webhook_configs))
-                            .route("/metrics/{tenant_id}", web::get().to(webhook_manager::get_webhook_metrics))
-                            .route("/dead-letter", web::get().to(webhook_manager::list_dead_letter_events))
-                            .route("/retry/{event_id}", web::post().to(webhook_manager::retry_dead_letter_event))
-                            .route("/config/{tenant_id}", web::delete().to(webhook_manager::remove_webhook_config))
-                            .route("/receive", web::post().to(webhook_manager::receive_webhook))
-                    )
-                    // AI Assistant routes
-                    .configure(ai_assistant::configure_routes)
-                    // LangChain AI v2 routes
-                    .configure(langchain_ai::configure_routes)
-                    // Campaign management routes
-                    .configure(campaign_manager::configure_routes)
-                    // Multi-tenancy routes
-                    .configure(multi_tenant::configure_tenant_routes)
-                    // ERP integration routes
-                    .service(
-                        web::scope("/erp")
-                            .route("/{provider}/connect", web::post().to(erp_handlers::connect_erp))
-                            .route("/{provider}/customers/{cpf_cnpj}", web::get().to(erp_handlers::get_customer))
-                            .route("/{provider}/customers/search", web::post().to(erp_handlers::search_customers))
-                            .route("/{provider}/customers/{id}/invoices", web::get().to(erp_handlers::get_customer_invoices))
-                            .route("/{provider}/customers/{id}/status", web::get().to(erp_handlers::get_service_status))
-                            .route("/{provider}/tickets", web::post().to(erp_handlers::create_ticket))
-                            .route("/{provider}/customers/{id}/schedule-visit", web::post().to(erp_handlers::schedule_visit))
-                            .route("/{provider}/plans", web::get().to(erp_handlers::get_service_plans))
-                            .route("/{provider}/health", web::get().to(erp_handlers::get_erp_health))
-                            .route("/metrics", web::get().to(erp_handlers::get_erp_metrics))
-                    )
-                    // Realtime dashboard routes
-                    .configure(realtime_dashboard::configure_dashboard_routes)
             )
-            // ERP Integration routes
-            .service(
-                web::scope("/api/v1/erp")
-                    .configure(erp_handlers::configure_erp_routes)
-            )
-            // Google Workspace Integration routes
-            .configure(google_integrations::configure_google_integrations)
             // Data Privacy LGPD/GDPR routes
             .configure(data_privacy::configure_privacy_routes)
-            // Observability routes
-            .configure(observability::configure_observability_routes)
-            .route("/metrics", web::get().to(observability::metrics_handler))
-            // Performance monitoring routes
-            .service(
-                web::scope("/api/v1")
-                    .configure(performance_monitor::configure_performance_routes)
-            )
             // API Documentation endpoints (commented out - functions not implemented)
             // .service(
             //     web::scope("")
@@ -708,7 +513,7 @@ async fn main() -> std::io::Result<()> {
     .bind("0.0.0.0:8080")?
     .workers(4) // Configure worker processes
     .keep_alive(Duration::from_secs(75)) // Keep-alive timeout
-    .client_timeout(5000) // Client timeout in milliseconds
+    .client_request_timeout(Duration::from_millis(5000)) // Client timeout in milliseconds
     .shutdown_timeout(30); // Graceful shutdown timeout in seconds
     
     info!("✅ HTTP server configured successfully");

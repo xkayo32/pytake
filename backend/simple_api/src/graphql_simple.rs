@@ -1,6 +1,6 @@
 use actix_web::{web, HttpResponse, Result};
 use async_graphql::{
-    Context, Object, Schema, SimpleObject, InputObject,
+    Object, Schema, SimpleObject, InputObject,
     ID, FieldResult,
 };
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
