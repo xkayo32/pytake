@@ -83,7 +83,7 @@ impl AuthServiceDb {
         let claims = Claims {
             sub: user.id.to_string(),
             email: user.email.clone(),
-            name: user.full_name.clone().unwrap_or_else(|| "Unknown".to_string()),
+            name: user.name.clone().unwrap_or_else(|| "Unknown".to_string()),
             role: user.role.clone(),
             exp: expires_at.timestamp(),
             iat: now.timestamp(),
@@ -128,7 +128,7 @@ impl AuthServiceDb {
             user: UserInfo {
                 id: user.id.to_string(),
                 email: user.email,
-                name: user.full_name.unwrap_or_else(|| "Unknown".to_string()),
+                name: user.name.unwrap_or_else(|| "Unknown".to_string()),
                 role: user.role,
             },
         })
@@ -161,7 +161,7 @@ impl AuthServiceDb {
             user: UserInfo {
                 id: user.id.to_string(),
                 email: user.email,
-                name: user.full_name.unwrap_or_else(|| "Unknown".to_string()),
+                name: user.name.unwrap_or_else(|| "Unknown".to_string()),
                 role: user.role,
             },
         })
@@ -182,7 +182,7 @@ impl AuthServiceDb {
         Ok(UserInfo {
             id: user.id.to_string(),
             email: user.email,
-            name: user.full_name.unwrap_or_else(|| "Unknown".to_string()),
+            name: user.name.unwrap_or_else(|| "Unknown".to_string()),
             role: user.role,
         })
     }

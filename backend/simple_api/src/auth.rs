@@ -86,14 +86,18 @@ impl AuthService {
         // Add demo users for development
         let mut user_map = users.lock().unwrap();
         
-        // Admin user
+        // Admin user - use environment variables or defaults
+        let admin_email = std::env::var("ADMIN_EMAIL").unwrap_or_else(|_| "admin@pytake.com".to_string());
+        let admin_password = std::env::var("ADMIN_PASSWORD").unwrap_or_else(|_| "vOTJc8CZUNIeMzReyJaX".to_string());
+        let admin_name = std::env::var("ADMIN_NAME").unwrap_or_else(|_| "PyTake Administrator".to_string());
+        
         user_map.insert(
-            "admin@pytake.com".to_string(),
+            admin_email.clone(),
             User {
                 id: "user_001".to_string(),
-                email: "admin@pytake.com".to_string(),
-                name: "Admin User".to_string(),
-                password_hash: "admin123".to_string(), // In production, this should be hashed
+                email: admin_email,
+                name: admin_name,
+                password_hash: admin_password, // In production, this should be hashed
                 role: "admin".to_string(),
                 created_at: Utc::now().to_rfc3339(),
             }

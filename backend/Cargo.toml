@@ -6,7 +6,7 @@ members = [
     "crates/pytake-db",        # Re-enabling for PostgreSQL integration
     "crates/pytake-flow",
     "crates/pytake-whatsapp",
-    "crates/pytake-modules", "simple_api",
+    "simple_api",
 ]
 
 [workspace.dependencies]

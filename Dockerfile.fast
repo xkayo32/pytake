@@ -1,0 +1,48 @@
+# Fast Docker build using pre-compiled binary
+FROM debian:bookworm-slim
+
+# Accept build arguments
+ARG API_PORT=8789
+ARG API_HOST=0.0.0.0
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    curl \
+    gettext-base \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN useradd -m -u 1000 -s /bin/bash pytake
+
+# Create app directory
+WORKDIR /app
+
+# Copy the pre-compiled binary
+COPY ./backend/target/release/simple_api /app/pytake-api
+
+# Make sure binary is executable
+RUN chmod +x /app/pytake-api
+
+# Create directories for uploads and logs
+RUN mkdir -p /app/uploads /app/logs && \
+    chown -R pytake:pytake /app
+
+# Switch to non-root user
+USER pytake
+
+# Expose port
+EXPOSE ${API_PORT}
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${API_PORT:-8789}/health || exit 1
+
+# Default environment variables
+ENV RUST_LOG=info \
+    API_HOST=0.0.0.0 \
+    API_PORT=8789
+
+# Run the application directly
+CMD ["/app/pytake-api"]
