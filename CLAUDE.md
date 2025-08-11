@@ -2,19 +2,22 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Current Repository Status
+
+**IMPORTANT**: This repository currently contains comprehensive documentation and specifications for the PyTake system. The actual Rust codebase is not yet present - this is a blueprint for complete system reconstruction.
+
 ## Project Overview
 
-PyTake is a WhatsApp Business API integration platform built with Rust. It provides a production-ready backend for managing WhatsApp conversations, messages, and business workflows.
+PyTake is a multi-tenant WhatsApp Business API automation platform built with Rust. It provides enterprise-grade backend for managing WhatsApp conversations, automated flows, marketing campaigns, and ERP integrations.
 
 ## Architecture
 
-The backend follows a modular architecture with workspace crates:
-- **pytake-api**: Main API server with REST endpoints and WebSocket support
+The system uses a Rust workspace with modular crates:
+- **simple_api**: Main API server entry point with REST, WebSocket, and GraphQL
 - **pytake-core**: Core business logic and domain entities
 - **pytake-db**: Database layer with Sea-ORM entities and migrations
-- **pytake-whatsapp**: WhatsApp API client and webhook handling
-- **pytake-flow**: Conversation flow engine
-- **simple_api**: Simplified API with Swagger documentation
+- **pytake-whatsapp**: WhatsApp API client (Official API + Evolution API)
+- **pytake-flow**: Conversation flow engine with visual builder support
 
 ## Development Commands
 
@@ -133,73 +136,73 @@ WHATSAPP_ACCESS_TOKEN=your-access-token
 WHATSAPP_WEBHOOK_VERIFY_TOKEN=verify-token
 ```
 
+
 ## Database Schema
 
 The project uses PostgreSQL with Sea-ORM. Key tables:
-- `users` - User authentication and profiles
-- `whatsapp_configs` - WhatsApp configuration management
-- `messages` - Message history
-- `conversations` - Conversation threads
-- `flows` - Automated conversation flows
-
-## Testing Credentials
-
-Development credentials:
-- Admin login: admin@pytake.com / admin123
-- Test WhatsApp: +5561994013828
+- `users` - User authentication and profiles with multi-tenant support
+- `whatsapp_configs` - WhatsApp configuration management per tenant
+- `messages` - Message history with full media support
+- `conversations` - Conversation threads with AI context
+- `flows` - Automated conversation flows with visual builder
+- `campaigns` - Marketing campaigns with segmentation
+- `contacts` - CRM with custom fields and tags
+- `templates` - WhatsApp message templates
 
 ## Code Organization
 
 When implementing features:
-1. Domain logic goes in `pytake-core/src/services/`
-2. Database entities in `pytake-db/src/entities/`
-3. API handlers in `simple_api/src/` or `pytake-api/src/handlers/`
-4. WebSocket logic in `websocket_improved.rs` or `websocket.rs`
-5. WhatsApp integration in `whatsapp_handlers.rs` or `whatsapp_evolution.rs`
+1. API handlers in `simple_api/src/` modules
+2. Business logic in `pytake-core/src/services/`
+3. Database entities in `pytake-db/src/entities/`
+4. WhatsApp integration in `pytake-whatsapp/src/`
+5. Flow engine logic in `pytake-flow/src/`
 
 ## Important Patterns
 
-1. **Error Handling**: Use Result types with custom errors
-2. **Authentication**: JWT tokens with Bearer auth
-3. **Database**: Sea-ORM with async operations
-4. **WebSocket**: ActixWeb WebSocket with connection manager
-5. **Configuration**: Database-driven WhatsApp configs (not env vars)
+1. **Error Handling**: Result<T, AppError> with detailed error variants
+2. **Authentication**: JWT RS256 with refresh tokens
+3. **Multi-tenancy**: UUID tenant_id isolation at database level
+4. **Database**: Sea-ORM with connection pooling and transactions
+5. **Configuration**: Database-driven configs per tenant
+6. **Real-time**: WebSocket with ActixWeb actors
+7. **Rate Limiting**: 10 req/sec per IP, configurable per tenant
 
 ## Security Considerations
 
-- JWT tokens expire after 24 hours
-- Passwords are hashed with argon2
-- CORS is permissive in development, restrictive in production
-- WhatsApp webhooks require verify token validation
-- SSL/TLS required for production deployment
+- JWT RS256 tokens with 24h expiration, 7d refresh tokens
+- Passwords hashed with argon2id
+- CORS configured per environment
+- WhatsApp webhook signature validation (X-Hub-Signature-256)
+- Mandatory SSL/TLS in production
+- LGPD/GDPR compliance with data encryption and audit logs
 
-## Common Development Tasks
+## Key Features to Implement
 
-### Adding a New API Endpoint
-1. Define handler in appropriate module
-2. Add route in `main.rs` configuration
-3. Update OpenAPI documentation with `#[utoipa::path]`
-4. Add integration test
+### Multi-tenant Architecture
+- Tenant isolation with UUID tenant_id
+- Per-tenant WhatsApp configurations
+- Separate rate limits and quotas
+- Custom branding support
 
-### Modifying Database Schema
-1. Create migration in `pytake-db/src/migration/`
-2. Update entities in `pytake-db/src/entities/`
-3. Run migration with Sea-ORM CLI
-4. Update repository methods if needed
+### WhatsApp Integration
+- Official WhatsApp Business API
+- Evolution API for unofficial features
+- Webhook processing with signature validation
+- Media handling (images, documents, audio, video)
+- Template message management
 
-### Implementing WhatsApp Features
-1. Add handler in `whatsapp_handlers.rs`
-2. Update webhook processing if needed
-3. Test with WhatsApp Business API sandbox
-4. Verify webhook signature in production
+### Conversation Automation
+- Visual flow builder with drag-and-drop
+- AI-powered responses with ChatGPT/Claude
+- Context-aware conversation handling
+- Multi-language support
 
-## Performance Considerations
-
-- Use connection pooling for PostgreSQL
-- Redis for caching and message queues
-- WebSocket connection manager for efficient broadcasting
-- Async/await for non-blocking I/O
-- Rate limiting on API endpoints
+### ERP Integrations
+- HubSoft, IxcSoft, MkSolutions, SisGP
+- Webhooks for real-time sync
+- Billing and invoice automation
+- Customer data synchronization
 
 ## Deployment Notes
 
@@ -211,38 +214,31 @@ Production deployment requires:
 - Docker and Docker Compose
 - Valid WhatsApp Business API credentials
 
-## Production Readiness Status
+## Implementation Status
 
-✅ **Backend API** - Complete and ready for production
-✅ **Database Layer** - PostgreSQL with Sea-ORM, migrations ready
-✅ **Authentication** - JWT-based with role management
-✅ **WhatsApp Integration** - Official API and Evolution API support
-✅ **WebSocket** - Real-time messaging implemented
-✅ **API Documentation** - OpenAPI/Swagger configured (paths need utoipa::path attributes)
-✅ **Local Installation** - Successfully compiles and runs locally
-✅ **Docker** - Multi-stage builds optimized for Rust (ready for deployment)
-🔄 **Frontend** - React dashboard exists but needs API connection
-🔄 **Testing** - Basic structure exists, needs expansion
+**Current State**: Documentation and specifications repository for system reconstruction
 
-## Recent Updates (2025-08-07)
+### Documented Components
+✅ **API Specification** - 150+ routes across 17 categories documented
+✅ **Database Schema** - Complete with all tables and relationships
+✅ **Architecture Design** - Modular workspace structure defined
+✅ **Security Specs** - Authentication, authorization, LGPD compliance
+✅ **Docker Configuration** - Multi-stage Rust builds ready
+✅ **Environment Setup** - All configuration files present
 
-### Fixed Compilation Issues
-- Added ToSchema derives to all API request/response structs
-- Added serde_yaml dependency for OpenAPI YAML generation
-- Temporarily disabled path documentation in OpenAPI (requires utoipa::path attributes)
-- Fixed unused variable warnings in websocket_improved.rs
-- Removed unused imports from agent_conversations.rs
+### Implementation Required
+🔄 **Rust Codebase** - Full implementation needed based on specs
+🔄 **Database Migrations** - Sea-ORM migrations to be created
+🔄 **API Endpoints** - All 150+ routes to be implemented
+🔄 **WhatsApp Integration** - Both Official and Evolution API
+🔄 **Flow Engine** - Visual builder and execution engine
+🔄 **Testing Suite** - Unit, integration, and E2E tests
 
-### Local Installation Verified
-```bash
-# Successfully tested with:
-cargo check --package simple_api  # ✅ No errors
-cargo build --package simple_api  # ✅ Builds successfully
-cargo run --package simple_api    # ✅ Runs successfully
-```
+## Reference Documentation
 
-### Docker Configuration Updated
-- All ports and hosts now use environment variables (no hardcoded values)
-- Domain configured as api.pytake.net
-- Uses standard ports 80/443 for direct domain access
-- Nginx configured with dynamic template for environment variables
+Key specification files in repository:
+- `SYSTEM_REQUIREMENTS_COMPLETE.md` - Full technical specifications
+- `API_ROUTES_COMPLETE.md` - All 150+ API endpoints documented
+- `README.md` - Project overview and setup instructions
+- `.env.development` - Development environment template
+- `.env.docker` - Docker deployment configuration
