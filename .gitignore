@@ -1,0 +1,79 @@
+# Environment Variables
+.env
+.env.local
+.env.*.local
+!.env.example
+!.env.development
+!.env.docker
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencies
+node_modules/
+vendor/
+target/
+
+# Build outputs
+dist/
+build/
+out/
+*.exe
+*.dll
+*.so
+*.dylib
+*.bin
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.cache
+
+# Docker
+docker-compose.override.yml
+
+# Certificates
+*.pem
+*.key
+*.crt
+ssl/
+
+# Backups
+*.backup
+*.bak
+*.old
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+
+# Rust
+Cargo.lock
+target/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads
+uploads/
+media/
