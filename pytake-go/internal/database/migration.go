@@ -22,5 +22,23 @@ func Migrate(db *gorm.DB) error {
 		&models.Contact{},
 		&models.Conversation{},
 		&models.Message{},
+		
+		// Flow models
+		&models.Flow{},
+		&models.FlowTemplate{},
+		&models.FlowVariable{},
+		&models.FlowTrigger{},
+		&models.FlowVersion{},
+		&models.FlowExecution{},
+		&models.FlowExecutionStep{},
+		&models.FlowExecutionEvent{},
+		
+		// Flow analytics models
+		&models.FlowAnalytics{},
+		&models.FlowNodeAnalytics{},
+		&models.FlowUserJourney{},
+		&models.FlowABTest{},
+		&models.FlowPerformanceAlert{},
+		&models.FlowReport{},
 	)
 }

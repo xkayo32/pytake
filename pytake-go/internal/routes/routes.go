@@ -5,6 +5,8 @@ import (
 	"github.com/pytake/pytake-go/internal/auth"
 	"github.com/pytake/pytake-go/internal/config"
 	"github.com/pytake/pytake-go/internal/conversation"
+	"github.com/pytake/pytake-go/internal/flow"
+	"github.com/pytake/pytake-go/internal/flow/engine"
 	"github.com/pytake/pytake-go/internal/logger"
 	"github.com/pytake/pytake-go/internal/middleware"
 	"github.com/pytake/pytake-go/internal/redis"
@@ -24,12 +26,25 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB, rdb *redis.Client, cfg *c
 		})
 	})
 
+	// Create service container for flows
+	services := &engine.ServiceContainer{
+		WhatsAppService:     nil, // Would need to implement interface adapter
+		ConversationService: nil, // Would need to implement interface adapter
+		ContactService:      nil, // Would need to implement interface adapter
+		WebSocketService:    wsService,
+		RedisClient:         rdb,
+		Database:           nil, // Would need to implement interface adapter
+		TriggerManager:     nil, // Would need to implement
+		AnalyticsCollector: nil, // Would need to implement
+	}
+
 	// Create handlers
 	authHandler := auth.NewHandler(db, rdb, cfg, log)
 	tenantHandler := tenant.NewHandler(db, cfg, log)
 	whatsappHandler := whatsapp.NewHandler(db, rdb, cfg, log)
 	conversationHandler := conversation.NewHandler(db, rdb, cfg, log)
 	wsHandler := websocket.NewHandler(wsHub, cfg, log)
+	flowHandler := flow.NewHandler(db, services, log)
 
 	// Auth routes (public)
 	authRoutes := router.Group("/auth")
@@ -123,6 +138,36 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB, rdb *redis.Client, cfg *c
 			
 			// Contact notes
 			contactRoutes.POST("/:id/notes", conversationHandler.AddContactNote)
+		}
+
+		// Flow routes (require tenant context)
+		flowRoutes := protected.Group("/flows")
+		flowRoutes.Use(middleware.TenantMiddleware(db))
+		{
+			// Flow management
+			flowRoutes.POST("/", flowHandler.CreateFlow)
+			flowRoutes.GET("/", flowHandler.ListFlows)
+			flowRoutes.GET("/:id", flowHandler.GetFlow)
+			flowRoutes.PUT("/:id", flowHandler.UpdateFlow)
+			flowRoutes.DELETE("/:id", flowHandler.DeleteFlow)
+			
+			// Flow execution
+			flowRoutes.POST("/:id/execute", flowHandler.ExecuteFlow)
+			
+			// Flow builder
+			flowRoutes.POST("/validate", flowHandler.ValidateFlow)
+			flowRoutes.GET("/builder/nodes", flowHandler.GetAvailableNodes)
+		}
+
+		// Flow execution routes (require tenant context)
+		executionRoutes := protected.Group("/executions")
+		executionRoutes.Use(middleware.TenantMiddleware(db))
+		{
+			executionRoutes.GET("/", flowHandler.ListExecutions)
+			executionRoutes.GET("/:id", flowHandler.GetExecution)
+			executionRoutes.POST("/:id/stop", flowHandler.StopExecution)
+			executionRoutes.POST("/:id/pause", flowHandler.PauseExecution)
+			executionRoutes.POST("/:id/resume", flowHandler.ResumeExecution)
 		}
 
 		// Admin routes (require admin role)
