@@ -254,7 +254,7 @@ type ServiceContainer struct {
 	WebSocketService   WebSocketService
 	RedisClient        RedisClient
 	Database          Database
-	TriggerManager    TriggerManager
+	TriggerManager    interface{} // Will be defined in trigger package to avoid circular import
 	AnalyticsCollector AnalyticsCollector
 }
 

@@ -40,5 +40,12 @@ func Migrate(db *gorm.DB) error {
 		&models.FlowABTest{},
 		&models.FlowPerformanceAlert{},
 		&models.FlowReport{},
+		
+		// Trigger models
+		&models.TriggerCondition{},
+		&models.TriggerEvent{},
+		&models.TriggerExecution{},
+		&models.TriggerSchedule{},
+		&models.TriggerStats{},
 	)
 }

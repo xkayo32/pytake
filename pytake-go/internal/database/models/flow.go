@@ -170,26 +170,7 @@ type FlowTemplate struct {
 	CreatedBy *User `gorm:"foreignKey:CreatedByID" json:"created_by,omitempty"`
 }
 
-// FlowTrigger stores trigger configurations
-type FlowTrigger struct {
-	TenantModel
-	FlowID uuid.UUID `gorm:"type:uuid;not null;index" json:"flow_id"`
-
-	// Trigger configuration
-	Name        string `gorm:"not null" json:"name"`
-	Type        string `gorm:"not null" json:"type"`        // message, keyword, schedule, webhook, manual
-	Status      string `gorm:"default:'active'" json:"status"` // active, inactive
-	Priority    int    `gorm:"default:0" json:"priority"`
-	Conditions  JSON   `gorm:"type:jsonb" json:"conditions"`
-	Schedule    *string `json:"schedule,omitempty"` // Cron expression for scheduled triggers
-
-	// Statistics
-	TriggerCount    int        `gorm:"default:0" json:"trigger_count"`
-	LastTriggeredAt *time.Time `json:"last_triggered_at"`
-
-	// Relations
-	Flow Flow `gorm:"foreignKey:FlowID" json:"flow,omitempty"`
-}
+// FlowTrigger moved to flow_trigger.go to avoid duplication
 
 // FlowVersion tracks flow versions for rollback capabilities
 type FlowVersion struct {
