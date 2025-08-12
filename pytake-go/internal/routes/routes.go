@@ -2,14 +2,29 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/pytake/pytake-go/internal/ai"
+	"github.com/pytake/pytake-go/internal/ai/context"
+	"github.com/pytake/pytake-go/internal/ai/providers/openai"
+	"github.com/pytake/pytake-go/internal/analytics"
 	"github.com/pytake/pytake-go/internal/auth"
+	"github.com/pytake/pytake-go/internal/campaign"
+	"github.com/pytake/pytake-go/internal/campaign/analytics"
+	"github.com/pytake/pytake-go/internal/campaign/engine"
+	"github.com/pytake/pytake-go/internal/campaign/segmentation"
+	"github.com/pytake/pytake-go/internal/campaign/templates"
 	"github.com/pytake/pytake-go/internal/config"
 	"github.com/pytake/pytake-go/internal/conversation"
+	"github.com/pytake/pytake-go/internal/erp"
+	"github.com/pytake/pytake-go/internal/erp/auth"
+	"github.com/pytake/pytake-go/internal/erp/mapping"
+	"github.com/pytake/pytake-go/internal/erp/sync"
+	"github.com/pytake/pytake-go/internal/erp/webhooks"
 	"github.com/pytake/pytake-go/internal/flow"
-	"github.com/pytake/pytake-go/internal/flow/engine"
+	flowEngine "github.com/pytake/pytake-go/internal/flow/engine"
 	"github.com/pytake/pytake-go/internal/logger"
 	"github.com/pytake/pytake-go/internal/middleware"
 	"github.com/pytake/pytake-go/internal/redis"
+	"github.com/pytake/pytake-go/internal/reports"
 	"github.com/pytake/pytake-go/internal/tenant"
 	"github.com/pytake/pytake-go/internal/websocket"
 	"github.com/pytake/pytake-go/internal/whatsapp"
@@ -27,7 +42,7 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB, rdb *redis.Client, cfg *c
 	})
 
 	// Create service container for flows
-	services := &engine.ServiceContainer{
+	services := &flowEngine.ServiceContainer{
 		WhatsAppService:     nil, // Would need to implement interface adapter
 		ConversationService: nil, // Would need to implement interface adapter
 		ContactService:      nil, // Would need to implement interface adapter
@@ -38,6 +53,22 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB, rdb *redis.Client, cfg *c
 		AnalyticsCollector: nil, // Would need to implement
 	}
 
+	// Create AI services
+	contextManager := context.NewManagerImpl(db, log)
+	openaiClient := openai.NewClientImpl(cfg.OpenAI.APIKey, log)
+
+	// Create ERP services
+	erpAuthManager := auth.NewManagerImpl(cfg.ERP.EncryptionKey)
+	mappingEngine := mapping.NewEngineImpl(db, log)
+	syncEngine := sync.NewEngineImpl(db, log)
+	webhookProcessor := webhooks.NewProcessorImpl(db, log)
+
+	// Create Campaign services
+	campaignEngine := engine.NewEngineImpl(db, log)
+	segmentEngine := segmentation.NewEngineImpl(db, log)
+	templateEngine := templates.NewEngineImpl(db, log)
+	campaignAnalytics := analytics.NewEngineImpl(db, log)
+
 	// Create handlers
 	authHandler := auth.NewHandler(db, rdb, cfg, log)
 	tenantHandler := tenant.NewHandler(db, cfg, log)
@@ -45,6 +76,11 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB, rdb *redis.Client, cfg *c
 	conversationHandler := conversation.NewHandler(db, rdb, cfg, log)
 	wsHandler := websocket.NewHandler(wsHub, cfg, log)
 	flowHandler := flow.NewHandler(db, services, log)
+	aiHandler := ai.NewHandler(db, contextManager, openaiClient, log)
+	erpHandler := erp.NewHandler(db, erpAuthManager, mappingEngine, syncEngine, webhookProcessor, log)
+	campaignHandler := campaign.NewHandler(db, campaignEngine, segmentEngine, templateEngine, campaignAnalytics, log)
+	reportsHandler := reports.NewHandler(db, log)
+	analyticsHandler := analytics.NewHandler(db, log)
 
 	// Auth routes (public)
 	authRoutes := router.Group("/auth")
@@ -170,6 +206,110 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB, rdb *redis.Client, cfg *c
 			executionRoutes.POST("/:id/resume", flowHandler.ResumeExecution)
 		}
 
+		// Campaign routes (require tenant context)
+		campaignRoutes := protected.Group("/campaigns")
+		campaignRoutes.Use(middleware.TenantMiddleware(db))
+		{
+			// Campaign CRUD
+			campaignRoutes.POST("/", campaignHandler.CreateCampaign)
+			campaignRoutes.GET("/", campaignHandler.GetCampaigns)
+			campaignRoutes.GET("/:id", campaignHandler.GetCampaign)
+			campaignRoutes.PUT("/:id", campaignHandler.UpdateCampaign)
+			campaignRoutes.DELETE("/:id", campaignHandler.DeleteCampaign)
+			
+			// Campaign execution
+			campaignRoutes.POST("/:id/start", campaignHandler.StartCampaign)
+			campaignRoutes.POST("/:id/pause", campaignHandler.PauseCampaign)
+			campaignRoutes.POST("/:id/stop", campaignHandler.StopCampaign)
+			campaignRoutes.POST("/:id/test", campaignHandler.TestCampaign)
+			campaignRoutes.POST("/:id/duplicate", campaignHandler.DuplicateCampaign)
+			
+			// Campaign analytics
+			campaignRoutes.GET("/:id/stats", campaignHandler.GetCampaignStats)
+			campaignRoutes.GET("/:id/recipients", campaignHandler.GetCampaignRecipients)
+		}
+
+		// AI routes (require tenant context)
+		aiRoutes := protected.Group("/ai")
+		aiRoutes.Use(middleware.TenantMiddleware(db))
+		{
+			// AI chat
+			aiRoutes.POST("/chat", aiHandler.Chat)
+			
+			// AI contexts
+			aiRoutes.GET("/contexts", aiHandler.GetContexts)
+			aiRoutes.GET("/contexts/:id", aiHandler.GetContext)
+			aiRoutes.POST("/contexts/:id/clear", aiHandler.ClearContext)
+			
+			// AI personas
+			aiRoutes.GET("/personas", aiHandler.GetPersonas)
+			aiRoutes.POST("/personas", aiHandler.CreatePersona)
+			
+			// AI templates
+			aiRoutes.GET("/templates", aiHandler.GetTemplates)
+			
+			// AI analytics
+			aiRoutes.GET("/interactions", aiHandler.GetInteractions)
+			aiRoutes.GET("/stats", aiHandler.GetUsageStats)
+		}
+
+		// ERP routes (require tenant context)
+		erpRoutes := protected.Group("/erp")
+		erpRoutes.Use(middleware.TenantMiddleware(db))
+		{
+			// ERP connections
+			erpRoutes.POST("/connections", erpHandler.CreateConnection)
+			erpRoutes.GET("/connections", erpHandler.GetConnections)
+			erpRoutes.GET("/connections/:id", erpHandler.GetConnection)
+			erpRoutes.PUT("/connections/:id", erpHandler.UpdateConnection)
+			erpRoutes.DELETE("/connections/:id", erpHandler.DeleteConnection)
+			erpRoutes.POST("/connections/:id/test", erpHandler.TestConnectionEndpoint)
+			
+			// ERP synchronization
+			erpRoutes.POST("/connections/:id/sync", erpHandler.SyncData)
+			erpRoutes.GET("/connections/:id/sync/:sync_id", erpHandler.GetSyncStatus)
+			erpRoutes.GET("/connections/:id/sync-history", erpHandler.GetSyncHistory)
+			
+			// ERP field mappings
+			erpRoutes.GET("/connections/:id/mappings", erpHandler.GetMappings)
+			erpRoutes.POST("/connections/:id/mappings", erpHandler.CreateMapping)
+		}
+
+		// Reports routes (require tenant context)
+		reportsRoutes := protected.Group("/reports")
+		reportsRoutes.Use(middleware.TenantMiddleware(db))
+		{
+			// Report generation
+			reportsRoutes.POST("/generate", reportsHandler.GenerateReport)
+			reportsRoutes.GET("/", reportsHandler.GetReports)
+			reportsRoutes.GET("/:id", reportsHandler.GetReport)
+			reportsRoutes.GET("/:id/download", reportsHandler.DownloadReport)
+			reportsRoutes.DELETE("/:id", reportsHandler.DeleteReport)
+			
+			// Quick reports
+			reportsRoutes.GET("/conversations", reportsHandler.GetConversationReport)
+			reportsRoutes.GET("/campaigns", reportsHandler.GetCampaignReport)
+			
+			// Scheduled reports
+			reportsRoutes.POST("/schedule", reportsHandler.ScheduleReport)
+		}
+
+		// Analytics routes (require tenant context)
+		analyticsRoutes := protected.Group("/analytics")
+		analyticsRoutes.Use(middleware.TenantMiddleware(db))
+		{
+			// Dashboard
+			analyticsRoutes.GET("/dashboard", analyticsHandler.GetDashboard)
+			analyticsRoutes.GET("/realtime", analyticsHandler.GetRealtimeStats)
+			analyticsRoutes.GET("/alerts", analyticsHandler.GetAlertsEndpoint)
+			
+			// Detailed analytics
+			analyticsRoutes.GET("/conversations", analyticsHandler.GetConversationAnalytics)
+			analyticsRoutes.GET("/campaigns", analyticsHandler.GetCampaignAnalytics)
+			analyticsRoutes.GET("/agents", analyticsHandler.GetAgentPerformance)
+			analyticsRoutes.GET("/system", analyticsHandler.GetSystemMetrics)
+		}
+
 		// Admin routes (require admin role)
 		admin := protected.Group("/admin")
 		admin.Use(middleware.RequireRole("admin"))
@@ -187,8 +327,12 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB, rdb *redis.Client, cfg *c
 	// Webhook routes (public but with signature verification)
 	webhooks := router.Group("/webhooks")
 	{
+		// WhatsApp webhooks
 		webhooks.GET("/whatsapp", whatsappHandler.VerifyWebhook)
 		webhooks.POST("/whatsapp", whatsappHandler.HandleWebhook)
+		
+		// ERP webhooks
+		webhooks.POST("/erp/:id", erpHandler.WebhookHandler)
 	}
 
 	// Test authenticated endpoint
