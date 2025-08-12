@@ -391,14 +391,14 @@ const (
 	CampaignTypeRecurring CampaignType = "recurring"  // recurring broadcasts
 )
 
-// MessageStatus represents message delivery status
-type MessageStatus string
+// CampaignMessageStatus represents campaign message delivery status
+type CampaignMessageStatus string
 
 const (
-	MessageStatusPending   MessageStatus = "pending"
-	MessageStatusSent      MessageStatus = "sent"
-	MessageStatusDelivered MessageStatus = "delivered"
-	MessageStatusRead      MessageStatus = "read"
-	MessageStatusFailed    MessageStatus = "failed"
-	MessageStatusBounced   MessageStatus = "bounced"
+	CampaignMessageStatusPending   CampaignMessageStatus = "pending"
+	CampaignMessageStatusSent      CampaignMessageStatus = "sent"
+	CampaignMessageStatusDelivered CampaignMessageStatus = "delivered"
+	CampaignMessageStatusRead      CampaignMessageStatus = "read"
+	CampaignMessageStatusFailed    CampaignMessageStatus = "failed"
+	CampaignMessageStatusBounced   CampaignMessageStatus = "bounced"
 )

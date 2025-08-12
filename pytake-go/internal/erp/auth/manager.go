@@ -14,7 +14,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pytake/pytake-go/internal/database/models"
-	"github.com/pytake/pytake-go/internal/erp"
 	"golang.org/x/crypto/pbkdf2"
 	"gorm.io/gorm"
 )

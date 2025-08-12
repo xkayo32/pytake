@@ -24,7 +24,8 @@
       "Bash(taskkill:*)",
       "Bash(TASKKILL //F //PID 28952)",
       "Bash(git add:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(touch:*)"
     ],
     "deny": []
   }

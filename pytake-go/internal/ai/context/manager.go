@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pytake/pytake-go/internal/ai"
 	"github.com/pytake/pytake-go/internal/database/models"
 	"gorm.io/gorm"
 )

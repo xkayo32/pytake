@@ -10,8 +10,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/pytake/pytake-go/internal/ai"
 )
 
 const (

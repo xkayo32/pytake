@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/pytake/pytake-go/internal/database/models"
+	"github.com/pytake/pytake-go/internal/middleware"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -73,19 +74,18 @@ func (h *WebhookHandler) VerifyWebhook(c *gin.Context) {
 
 // HandleWebhook processes incoming webhook events from WhatsApp
 func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
-	// Read raw body for signature verification
-	rawBody, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		h.logger.Errorw("Failed to read webhook body", "error", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read body"})
+	// Get raw body from middleware (already validated)
+	rawBodyInterface, exists := c.Get("webhook_raw_body")
+	if !exists {
+		h.logger.Errorw("Raw webhook body not found in context")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal processing error"})
 		return
 	}
 
-	// Get signature from header
-	signature := c.GetHeader("X-Hub-Signature-256")
-	if signature == "" {
-		h.logger.Warnw("Missing webhook signature")
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing signature"})
+	rawBody, ok := rawBodyInterface.([]byte)
+	if !ok {
+		h.logger.Errorw("Invalid raw body type in context")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal processing error"})
 		return
 	}
 
@@ -116,8 +116,8 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 				continue
 			}
 
-			// Verify signature with the config's app secret
-			if !h.verifySignature(rawBody, signature, config.AccessToken) {
+			// Verify signature with the config's webhook secret using middleware helper
+			if !middleware.ValidateWebhookSignature(c, config.WebhookSecret) {
 				h.logger.Warnw("Invalid webhook signature",
 					"config_id", config.ID,
 					"phone_number_id", phoneNumberID,

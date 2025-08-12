@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"time"
+	
 	"github.com/gin-gonic/gin"
 	"github.com/pytake/pytake-go/internal/ai"
 	"github.com/pytake/pytake-go/internal/ai/context"
@@ -21,18 +23,54 @@ import (
 	"github.com/pytake/pytake-go/internal/erp/webhooks"
 	"github.com/pytake/pytake-go/internal/flow"
 	flowEngine "github.com/pytake/pytake-go/internal/flow/engine"
+	"github.com/pytake/pytake-go/internal/health"
 	"github.com/pytake/pytake-go/internal/logger"
 	"github.com/pytake/pytake-go/internal/middleware"
-	"github.com/pytake/pytake-go/internal/redis"
+	"github.com/pytake/pytake-go/internal/queue"
+	"github.com/redis/go-redis/v9"
 	"github.com/pytake/pytake-go/internal/reports"
 	"github.com/pytake/pytake-go/internal/tenant"
 	"github.com/pytake/pytake-go/internal/websocket"
 	"github.com/pytake/pytake-go/internal/whatsapp"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gorm.io/gorm"
 )
 
 // SetupRoutes configures all API routes
 func SetupRoutes(router *gin.RouterGroup, db *gorm.DB, rdb *redis.Client, cfg *config.Config, log *logger.Logger, wsHub *websocket.Hub, wsService *websocket.Service) {
+	// Initialize custom metrics
+	middleware.InitCustomMetrics()
+	
+	// Add global middlewares in order of importance
+	router.Use(middleware.ErrorRecoveryLogging(log))
+	router.Use(middleware.RequestID())
+	
+	// Add security headers based on environment
+	securityConfig := middleware.SecurityHeadersForEnvironment(cfg.AppEnv, cfg.ServerTLS.Enabled)
+	router.Use(middleware.SecurityHeaders(securityConfig))
+	
+	// Add metrics collection
+	router.Use(middleware.PrometheusMetrics(middleware.DefaultMetricsConfig()))
+	
+	// Add structured logging
+	loggingConfig := middleware.DefaultLoggingConfig()
+	if cfg.AppEnv == "development" {
+		loggingConfig.LogRequestBody = false // Keep false for security even in dev
+		loggingConfig.ErrorsOnly = false
+	} else {
+		loggingConfig.ErrorsOnly = false // Log all requests in production for audit
+	}
+	router.Use(middleware.StructuredLogging(log, loggingConfig))
+	
+	// Add security logging
+	router.Use(middleware.SecurityLogging(log))
+	
+	// Add audit logging
+	router.Use(middleware.AuditLogging(log))
+	
+	// Add performance monitoring (5 second threshold)
+	router.Use(middleware.PerformanceLogging(log, 5*time.Second))
+	
 	// Base route for testing
 	router.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -40,6 +78,17 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB, rdb *redis.Client, cfg *c
 			"version": cfg.AppVersion,
 		})
 	})
+
+	// Health check routes (public)
+	healthRoutes := router.Group("/health")
+	{
+		healthRoutes.GET("/", healthHandler.GetHealth)
+		healthRoutes.GET("/live", healthHandler.GetLiveness)
+		healthRoutes.GET("/ready", healthHandler.GetReadiness)
+	}
+
+	// Metrics endpoint (public but should be restricted in production)
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Create service container for flows
 	services := &flowEngine.ServiceContainer{
@@ -69,6 +118,39 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB, rdb *redis.Client, cfg *c
 	templateEngine := templates.NewEngineImpl(db, log)
 	campaignAnalytics := analytics.NewEngineImpl(db, log)
 
+	// Create Queue System
+	redisQueue := queue.NewRedisQueue(rdb, "pytake:queue")
+	scheduler := queue.NewScheduler(redisQueue)
+	queueManager := queue.NewManager(redisQueue, scheduler)
+	
+	// Setup queue middleware and event listeners
+	queueManager.RegisterMiddleware(queue.NewLoggingMiddleware(func(level, message string, fields ...interface{}) {
+		log.Info(message, fields...)
+	}))
+	queueManager.RegisterMiddleware(queue.NewMetricsMiddleware())
+	queueManager.SetRetryStrategy(queue.NewDefaultRetryStrategy())
+	
+	// Register job handlers
+	emailHandler := queue.NewEmailJobHandler(db)
+	webhookHandler := queue.NewWebhookJobHandler(db)
+	syncHandler := queue.NewSyncJobHandler(db)
+	cleanupHandler := queue.NewCleanupJobHandler(db)
+	
+	// Create and configure workers
+	defaultWorker := queueManager.CreateWorker("default-worker", []string{"default", "high", "low"}, 5)
+	emailWorker := queueManager.CreateWorker("email-worker", []string{"email"}, 3)
+	webhookWorker := queueManager.CreateWorker("webhook-worker", []string{"webhook"}, 10)
+	syncWorker := queueManager.CreateWorker("sync-worker", []string{"sync"}, 2)
+	cleanupWorker := queueManager.CreateWorker("cleanup-worker", []string{"cleanup"}, 1)
+	
+	// Register handlers with workers
+	defaultWorker.RegisterHandler(emailHandler)
+	defaultWorker.RegisterHandler(webhookHandler)
+	emailWorker.RegisterHandler(emailHandler)
+	webhookWorker.RegisterHandler(webhookHandler)
+	syncWorker.RegisterHandler(syncHandler)
+	cleanupWorker.RegisterHandler(cleanupHandler)
+
 	// Create handlers
 	authHandler := auth.NewHandler(db, rdb, cfg, log)
 	tenantHandler := tenant.NewHandler(db, cfg, log)
@@ -81,6 +163,8 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB, rdb *redis.Client, cfg *c
 	campaignHandler := campaign.NewHandler(db, campaignEngine, segmentEngine, templateEngine, campaignAnalytics, log)
 	reportsHandler := reports.NewHandler(db, log)
 	analyticsHandler := analytics.NewHandler(db, log)
+	queueHandler := queue.NewHTTPHandler(queueManager, log)
+	healthHandler := health.NewHandler(db, rdb, log)
 
 	// Auth routes (public)
 	authRoutes := router.Group("/auth")
@@ -310,6 +394,27 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB, rdb *redis.Client, cfg *c
 			analyticsRoutes.GET("/system", analyticsHandler.GetSystemMetrics)
 		}
 
+		// Queue routes (require authentication)
+		queueRoutes := protected.Group("/queue")
+		{
+			// Job management
+			queueRoutes.POST("/jobs", queueHandler.EnqueueJob)
+			queueRoutes.GET("/jobs", queueHandler.ListJobs)
+			queueRoutes.GET("/jobs/:id", queueHandler.GetJob)
+			queueRoutes.POST("/jobs/:id/cancel", queueHandler.CancelJob)
+			
+			// Queue statistics and monitoring
+			queueRoutes.GET("/stats", queueHandler.GetSystemStats)
+			queueRoutes.GET("/stats/:name", queueHandler.GetQueueStats)
+			queueRoutes.GET("/health", queueHandler.GetHealthStatus)
+			queueRoutes.POST("/:name/purge", middleware.RequireRole("admin"), queueHandler.PurgeQueue)
+			
+			// Scheduled jobs
+			queueRoutes.POST("/schedules", queueHandler.CreateSchedule)
+			queueRoutes.GET("/schedules", queueHandler.ListSchedules)
+			queueRoutes.DELETE("/schedules/:name", queueHandler.DeleteSchedule)
+		}
+
 		// Admin routes (require admin role)
 		admin := protected.Group("/admin")
 		admin.Use(middleware.RequireRole("admin"))
@@ -326,13 +431,34 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB, rdb *redis.Client, cfg *c
 
 	// Webhook routes (public but with signature verification)
 	webhooks := router.Group("/webhooks")
+	webhooks.Use(middleware.SecurityHeaders(middleware.WebhookSecurityHeadersConfig()))
+	webhooks.Use(middleware.NoCache())
 	{
 		// WhatsApp webhooks
-		webhooks.GET("/whatsapp", whatsappHandler.VerifyWebhook)
-		webhooks.POST("/whatsapp", whatsappHandler.HandleWebhook)
+		whatsappWebhooks := webhooks.Group("/whatsapp")
+		whatsappWebhooks.Use(middleware.WebhookMetrics("whatsapp"))
+		whatsappWebhooks.Use(middleware.WhatsAppWebhookValidation(log))
+		whatsappWebhooks.Use(middleware.WebhookRateLimiter(rdb, 100, log)) // 100 requests per minute for webhooks
+		{
+			whatsappWebhooks.GET("", whatsappHandler.VerifyWebhook)
+			whatsappWebhooks.POST("", whatsappHandler.HandleWebhook)
+		}
 		
 		// ERP webhooks
-		webhooks.POST("/erp/:id", erpHandler.WebhookHandler)
+		erpWebhooks := webhooks.Group("/erp")
+		erpWebhooks.Use(middleware.WebhookMetrics("erp"))
+		erpWebhooks.Use(middleware.GenericWebhookValidation(&middleware.WebhookValidationConfig{
+			SignatureHeader:    "X-Hub-Signature-256",
+			SignaturePrefix:    "sha256=",
+			TimestampHeader:    "X-Request-Timestamp",
+			TimestampTolerance: 5 * time.Minute,
+			RequireTimestamp:   true,
+			RequireSignature:   true,
+		}, log))
+		erpWebhooks.Use(middleware.WebhookRateLimiter(rdb, 50, log)) // 50 requests per minute for ERP webhooks
+		{
+			erpWebhooks.POST("/:id", erpHandler.WebhookHandler)
+		}
 	}
 
 	// Test authenticated endpoint
