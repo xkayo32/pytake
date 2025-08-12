@@ -1,0 +1,289 @@
+# PyTake Backend - Prometheus Alert Rules
+# Critical alerts for production monitoring
+
+groups:
+- name: pytake-api
+  rules:
+  # API Health Alerts
+  - alert: PyTakeAPIDown
+    expr: up{job="pytake-api"} == 0
+    for: 1m
+    labels:
+      severity: critical
+      service: pytake-api
+    annotations:
+      summary: "PyTake API is down"
+      description: "PyTake API has been down for more than 1 minute"
+
+  - alert: PyTakeAPIHighErrorRate
+    expr: rate(http_requests_total{job="pytake-api",status=~"5.."}[5m]) > 0.1
+    for: 2m
+    labels:
+      severity: warning
+      service: pytake-api
+    annotations:
+      summary: "High error rate in PyTake API"
+      description: "Error rate is {{ $value }} requests per second for more than 2 minutes"
+
+  - alert: PyTakeAPISlowResponse
+    expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="pytake-api"}[5m])) > 2.0
+    for: 5m
+    labels:
+      severity: warning
+      service: pytake-api
+    annotations:
+      summary: "PyTake API slow response times"
+      description: "95th percentile response time is {{ $value }}s for more than 5 minutes"
+
+  # Rate Limiting Alerts
+  - alert: PyTakeHighRateLimitHits
+    expr: rate(rate_limit_hits_total{job="pytake-api"}[5m]) > 10
+    for: 3m
+    labels:
+      severity: warning
+      service: pytake-api
+    annotations:
+      summary: "High rate limit violations"
+      description: "Rate limit hits are {{ $value }} per second, indicating potential abuse"
+
+  # Authentication Alerts
+  - alert: PyTakeAuthFailures
+    expr: rate(auth_attempts_total{job="pytake-api",result="failure"}[5m]) > 5
+    for: 2m
+    labels:
+      severity: warning
+      service: pytake-api
+    annotations:
+      summary: "High authentication failure rate"
+      description: "Authentication failures are {{ $value }} per second, possible brute force attack"
+
+  # Memory and Resource Alerts
+  - alert: PyTakeHighMemoryUsage
+    expr: process_resident_memory_bytes{job="pytake-api"} / 1024 / 1024 > 1000
+    for: 5m
+    labels:
+      severity: warning
+      service: pytake-api
+    annotations:
+      summary: "PyTake API high memory usage"
+      description: "Memory usage is {{ $value }}MB, investigate potential memory leaks"
+
+  - alert: PyTakeHighCPUUsage
+    expr: rate(process_cpu_seconds_total{job="pytake-api"}[5m]) > 0.8
+    for: 10m
+    labels:
+      severity: warning
+      service: pytake-api
+    annotations:
+      summary: "PyTake API high CPU usage"
+      description: "CPU usage is {{ $value }} for more than 10 minutes"
+
+- name: pytake-database
+  rules:
+  # Database Connectivity
+  - alert: PostgreSQLDown
+    expr: up{job="postgres"} == 0
+    for: 30s
+    labels:
+      severity: critical
+      service: postgresql
+    annotations:
+      summary: "PostgreSQL database is down"
+      description: "PostgreSQL has been down for more than 30 seconds"
+
+  - alert: PostgreSQLTooManyConnections
+    expr: pg_stat_activity_count > 80
+    for: 2m
+    labels:
+      severity: warning
+      service: postgresql
+    annotations:
+      summary: "PostgreSQL too many connections"
+      description: "PostgreSQL has {{ $value }} active connections (>80)"
+
+  - alert: PostgreSQLSlowQueries
+    expr: pg_stat_activity_max_tx_duration > 30
+    for: 1m
+    labels:
+      severity: warning
+      service: postgresql
+    annotations:
+      summary: "PostgreSQL slow queries detected"
+      description: "Longest running query is {{ $value }} seconds"
+
+- name: pytake-redis
+  rules:
+  # Redis Connectivity
+  - alert: RedisDown
+    expr: up{job="redis"} == 0
+    for: 30s
+    labels:
+      severity: critical
+      service: redis
+    annotations:
+      summary: "Redis is down"
+      description: "Redis has been down for more than 30 seconds"
+
+  - alert: RedisHighMemoryUsage
+    expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+    for: 5m
+    labels:
+      severity: warning
+      service: redis
+    annotations:
+      summary: "Redis high memory usage"
+      description: "Redis memory usage is {{ $value | humanizePercentage }}"
+
+  - alert: RedisHighConnections
+    expr: redis_connected_clients > 100
+    for: 2m
+    labels:
+      severity: warning
+      service: redis
+    annotations:
+      summary: "Redis too many connections"
+      description: "Redis has {{ $value }} connected clients"
+
+- name: pytake-infrastructure
+  rules:
+  # Nginx Alerts
+  - alert: NginxDown
+    expr: up{job="nginx"} == 0
+    for: 1m
+    labels:
+      severity: critical
+      service: nginx
+    annotations:
+      summary: "Nginx is down"
+      description: "Nginx has been down for more than 1 minute"
+
+  - alert: NginxHighErrorRate
+    expr: rate(nginx_http_requests_total{status=~"4..|5.."}[5m]) / rate(nginx_http_requests_total[5m]) > 0.05
+    for: 2m
+    labels:
+      severity: warning
+      service: nginx
+    annotations:
+      summary: "Nginx high error rate"
+      description: "Error rate is {{ $value | humanizePercentage }}"
+
+  # System Resource Alerts
+  - alert: HighDiskUsage
+    expr: (node_filesystem_size_bytes - node_filesystem_avail_bytes) / node_filesystem_size_bytes > 0.85
+    for: 5m
+    labels:
+      severity: warning
+      service: system
+    annotations:
+      summary: "High disk usage"
+      description: "Disk usage on {{ $labels.mountpoint }} is {{ $value | humanizePercentage }}"
+
+  - alert: HighLoadAverage
+    expr: node_load15 > 2.0
+    for: 10m
+    labels:
+      severity: warning
+      service: system
+    annotations:
+      summary: "High system load average"
+      description: "15-minute load average is {{ $value }}"
+
+- name: pytake-business
+  rules:
+  # WhatsApp Integration Alerts
+  - alert: WhatsAppHighFailureRate
+    expr: rate(whatsapp_messages_total{status="error"}[5m]) / rate(whatsapp_messages_total[5m]) > 0.1
+    for: 5m
+    labels:
+      severity: warning
+      service: whatsapp
+    annotations:
+      summary: "High WhatsApp message failure rate"
+      description: "WhatsApp message failure rate is {{ $value | humanizePercentage }}"
+
+  - alert: WhatsAppLowMessageVolume
+    expr: rate(whatsapp_messages_total[10m]) < 0.1
+    for: 30m
+    labels:
+      severity: info
+      service: whatsapp
+    annotations:
+      summary: "Low WhatsApp message volume"
+      description: "WhatsApp message rate is {{ $value }} messages per second (unusually low)"
+
+  # Queue System Alerts
+  - alert: QueueHighBacklog
+    expr: queue_jobs_pending > 100
+    for: 5m
+    labels:
+      severity: warning
+      service: queue
+    annotations:
+      summary: "High queue backlog"
+      description: "Queue has {{ $value }} pending jobs"
+
+  - alert: QueueWorkerDown
+    expr: queue_workers_active < 3
+    for: 2m
+    labels:
+      severity: critical
+      service: queue
+    annotations:
+      summary: "Queue workers are down"
+      description: "Only {{ $value }} queue workers are active (expected: >=3)"
+
+- name: pytake-security
+  rules:
+  # Security Alerts
+  - alert: UnauthorizedAPIAccess
+    expr: rate(http_requests_total{status="401"}[5m]) > 2
+    for: 2m
+    labels:
+      severity: warning
+      service: security
+    annotations:
+      summary: "High unauthorized access attempts"
+      description: "Unauthorized access rate is {{ $value }} requests per second"
+
+  - alert: WebhookValidationFailures
+    expr: rate(webhook_events_total{status="error"}[5m]) > 1
+    for: 3m
+    labels:
+      severity: warning
+      service: security
+    annotations:
+      summary: "Webhook validation failures"
+      description: "Webhook validation failure rate is {{ $value }} per second"
+
+  - alert: SuspiciousUserActivity
+    expr: rate(http_requests_total{endpoint="/admin"}[5m]) > 0.5
+    for: 1m
+    labels:
+      severity: info
+      service: security
+    annotations:
+      summary: "Suspicious admin endpoint access"
+      description: "Admin endpoint access rate is {{ $value }} requests per second"
+
+- name: pytake-ssl
+  rules:
+  # SSL Certificate Alerts
+  - alert: SSLCertificateExpiringSoon
+    expr: probe_ssl_earliest_cert_expiry - time() < 7 * 24 * 3600
+    for: 1h
+    labels:
+      severity: warning
+      service: ssl
+    annotations:
+      summary: "SSL certificate expiring soon"
+      description: "SSL certificate for {{ $labels.instance }} expires in {{ $value | humanizeDuration }}"
+
+  - alert: SSLCertificateExpired
+    expr: probe_ssl_earliest_cert_expiry - time() <= 0
+    for: 1m
+    labels:
+      severity: critical
+      service: ssl
+    annotations:
+      summary: "SSL certificate expired"
+      description: "SSL certificate for {{ $labels.instance }} has expired"

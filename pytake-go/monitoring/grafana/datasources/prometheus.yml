@@ -1,0 +1,56 @@
+# Grafana Datasource Configuration for Prometheus
+apiVersion: 1
+
+datasources:
+  # PyTake Prometheus Data Source
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    orgId: 1
+    url: http://pytake-prometheus:9090
+    basicAuth: false
+    isDefault: true
+    version: 1
+    editable: true
+    jsonData:
+      httpMethod: POST
+      manageAlerts: true
+      prometheusType: Prometheus
+      prometheusVersion: 2.40.0
+      cacheLevel: 'High'
+      disableMetricsLookup: false
+      customQueryParameters: ''
+      timeInterval: '15s'
+      queryTimeout: '60s'
+      defaultRegion: 'default'
+      tlsSkipVerify: false
+      # Enable exemplars for better trace correlation
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: 'jaeger'
+    # Security settings
+    secureJsonData: {}
+    
+  # Additional datasources can be added here
+  # - name: Loki
+  #   type: loki
+  #   access: proxy
+  #   orgId: 1
+  #   url: http://loki:3100
+  #   isDefault: false
+  #   version: 1
+  #   editable: true
+
+# Optional: Database storage for Grafana metadata
+# - name: PyTake-DB
+#   type: postgres
+#   access: proxy
+#   orgId: 1
+#   url: pytake-postgres:5432
+#   database: pytake
+#   user: grafana_user
+#   isDefault: false
+#   version: 1
+#   editable: false
+#   secureJsonData:
+#     password: 'grafana_password'
