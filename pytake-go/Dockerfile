@@ -1,16 +1,14 @@
-# PyTake Backend - Production Dockerfile
-# Multi-stage build for optimal image size
-
-# Build stage
-FROM golang:1.21-alpine AS builder
+# Multi-stage build for Go application
+# Stage 1: Build
+FROM golang:1.23-alpine AS builder
 
 # Install build dependencies
-RUN apk add --no-cache git ca-certificates tzdata
+RUN apk add --no-cache git gcc musl-dev
 
 # Set working directory
 WORKDIR /app
 
-# Copy go mod files first for better caching
+# Copy go mod files
 COPY go.mod go.sum ./
 
 # Download dependencies
@@ -20,42 +18,40 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags='-w -s -extldflags "-static"' \
-    -a -installsuffix cgo \
-    -o pytake-api ./cmd/api
+RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/api
 
-# Production stage
+# Stage 2: Runtime
 FROM alpine:latest
 
 # Install runtime dependencies
 RUN apk --no-cache add ca-certificates tzdata curl
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S pytake && \
-    adduser -u 1001 -S pytake -G pytake
+# Create non-root user
+RUN addgroup -g 1000 -S pytake && \
+    adduser -u 1000 -S pytake -G pytake
 
 # Set working directory
 WORKDIR /app
 
-# Copy binary from builder stage
-COPY --from=builder /app/pytake-api .
+# Copy binary from builder
+COPY --from=builder /app/main .
 
-# Copy configuration files
-COPY --from=builder /app/.env.production .env
+# Copy migration files
+COPY --from=builder /app/migrations ./migrations
 
-# Create logs directory
-RUN mkdir -p logs && chown -R pytake:pytake /app
+# Create necessary directories
+RUN mkdir -p /app/logs /app/uploads && \
+    chown -R pytake:pytake /app
 
 # Switch to non-root user
 USER pytake
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
-
 # Expose port
 EXPOSE 8080
 
-# Command to run
-CMD ["./pytake-api"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Run the application
+CMD ["./main"]
