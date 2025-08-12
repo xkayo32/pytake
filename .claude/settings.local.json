@@ -28,7 +28,14 @@
       "Bash(touch:*)",
       "Bash(docker:*)",
       "Bash(./tests/validation/deployment_check.sh:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(./dev.sh:*)",
+      "Bash(openssl rand:*)",
+      "Bash(./deploy-production.sh:*)",
+      "Bash(sudo:*)",
+      "Bash(certbot/certbot certonly:*)",
+      "WebFetch(domain:api.pytake.net)",
+      "Bash(git config:*)"
     ],
     "deny": []
   }
