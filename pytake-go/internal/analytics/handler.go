@@ -1,6 +1,7 @@
 package analytics
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -260,76 +261,223 @@ func (h *Handler) GetConversationAnalytics(c *gin.Context) {
 	agentID := c.Query("agent_id")
 	department := c.Query("department")
 
-	// Build base query
-	query := h.db.Model(&models.Conversation{}).Where("tenant_id = ?", tid)
+	// Build base query with proper filters
+	whereClause := "tenant_id = ?"
+	args := []interface{}{tid}
 
 	if !fromDate.IsZero() {
-		query = query.Where("created_at >= ?", fromDate)
+		whereClause += " AND created_at >= ?"
+		args = append(args, fromDate)
 	}
 	if !toDate.IsZero() {
-		query = query.Where("created_at <= ?", toDate)
+		whereClause += " AND created_at <= ?"
+		args = append(args, toDate)
 	}
 	if agentID != "" {
 		if aid, err := uuid.Parse(agentID); err == nil {
-			query = query.Where("assigned_to = ?", aid)
+			whereClause += " AND assigned_to = ?"
+			args = append(args, aid)
 		}
 	}
 	if department != "" {
-		query = query.Where("department = ?", department)
+		whereClause += " AND department = ?"
+		args = append(args, department)
 	}
 
 	// Get time series data
 	timeFormat := h.getTimeFormat(groupBy)
 	type TimeSeriesData struct {
-		Period string `json:"period"`
-		Count  int64  `json:"count"`
+		Period     string  `json:"period"`
+		Count      int64   `json:"count"`
+		NewCount   int64   `json:"new_count"`
+		ActiveCount int64  `json:"active_count"`
+		ClosedCount int64  `json:"closed_count"`
+		AvgResponseTime float64 `json:"avg_response_time"`
 	}
 
 	var timeSeries []TimeSeriesData
-	h.db.Raw(`
+	timeSeriesQuery := fmt.Sprintf(`
 		SELECT 
-			TO_CHAR(created_at, ?) as period,
-			COUNT(*) as count
+			TO_CHAR(created_at, '%s') as period,
+			COUNT(*) as count,
+			COUNT(CASE WHEN status = 'new' THEN 1 END) as new_count,
+			COUNT(CASE WHEN status IN ('open', 'in_progress') THEN 1 END) as active_count,
+			COUNT(CASE WHEN status IN ('closed', 'resolved') THEN 1 END) as closed_count,
+			AVG(CASE 
+				WHEN first_response_at IS NOT NULL 
+				THEN EXTRACT(EPOCH FROM (first_response_at - created_at))/60 
+			END) as avg_response_time
 		FROM conversations
-		WHERE tenant_id = ? AND created_at BETWEEN ? AND ?
-		GROUP BY TO_CHAR(created_at, ?)
+		WHERE %s
+		GROUP BY TO_CHAR(created_at, '%s')
 		ORDER BY period
-	`, timeFormat, tid, fromDate, toDate, timeFormat).Scan(&timeSeries)
+	`, timeFormat, whereClause, timeFormat)
+	
+	h.db.Raw(timeSeriesQuery, args...).Scan(&timeSeries)
 
 	// Get status distribution
 	type StatusCount struct {
 		Status string `json:"status"`
 		Count  int64  `json:"count"`
+		Percentage float64 `json:"percentage"`
 	}
 
 	var statusCounts []StatusCount
-	query.Select("status, COUNT(*) as count").Group("status").Scan(&statusCounts)
+	var totalConversations int64
+	
+	// Get total count first
+	h.db.Raw(fmt.Sprintf("SELECT COUNT(*) FROM conversations WHERE %s", whereClause), args...).Scan(&totalConversations)
+	
+	statusQuery := fmt.Sprintf(`
+		SELECT 
+			status,
+			COUNT(*) as count,
+			CASE WHEN %d > 0 THEN (COUNT(*) * 100.0 / %d) ELSE 0 END as percentage
+		FROM conversations 
+		WHERE %s
+		GROUP BY status 
+		ORDER BY count DESC
+	`, totalConversations, totalConversations, whereClause)
+	
+	h.db.Raw(statusQuery, args...).Scan(&statusCounts)
 
-	// Get response time distribution
+	// Get comprehensive response time statistics
 	type ResponseTimeStats struct {
-		AvgResponseTime float64 `json:"avg_response_time"`
-		P50ResponseTime float64 `json:"p50_response_time"`
-		P90ResponseTime float64 `json:"p90_response_time"`
-		P95ResponseTime float64 `json:"p95_response_time"`
+		AvgResponseTime  float64 `json:"avg_response_time"`
+		P50ResponseTime  float64 `json:"p50_response_time"`
+		P90ResponseTime  float64 `json:"p90_response_time"`
+		P95ResponseTime  float64 `json:"p95_response_time"`
+		P99ResponseTime  float64 `json:"p99_response_time"`
+		MinResponseTime  float64 `json:"min_response_time"`
+		MaxResponseTime  float64 `json:"max_response_time"`
+		ResponseCount    int64   `json:"response_count"`
+		NoResponseCount  int64   `json:"no_response_count"`
+		FirstResponseRate float64 `json:"first_response_rate"`
 	}
 
 	var responseStats ResponseTimeStats
-	h.db.Raw(`
+	responseStatsQuery := fmt.Sprintf(`
 		SELECT 
 			AVG(EXTRACT(EPOCH FROM (first_response_at - created_at))/60) as avg_response_time,
 			PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (first_response_at - created_at))/60) as p50_response_time,
 			PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (first_response_at - created_at))/60) as p90_response_time,
-			PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (first_response_at - created_at))/60) as p95_response_time
+			PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (first_response_at - created_at))/60) as p95_response_time,
+			PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (first_response_at - created_at))/60) as p99_response_time,
+			MIN(EXTRACT(EPOCH FROM (first_response_at - created_at))/60) as min_response_time,
+			MAX(EXTRACT(EPOCH FROM (first_response_at - created_at))/60) as max_response_time,
+			COUNT(CASE WHEN first_response_at IS NOT NULL THEN 1 END) as response_count,
+			COUNT(CASE WHEN first_response_at IS NULL THEN 1 END) as no_response_count,
+			CASE WHEN COUNT(*) > 0 THEN 
+				(COUNT(CASE WHEN first_response_at IS NOT NULL THEN 1 END) * 100.0 / COUNT(*))
+			ELSE 0 END as first_response_rate
 		FROM conversations
-		WHERE tenant_id = ? AND first_response_at IS NOT NULL AND created_at BETWEEN ? AND ?
-	`, tid, fromDate, toDate).Scan(&responseStats)
+		WHERE %s
+	`, whereClause)
+	
+	h.db.Raw(responseStatsQuery, args...).Scan(&responseStats)
+
+	// Get resolution statistics
+	type ResolutionStats struct {
+		AvgResolutionTime float64 `json:"avg_resolution_time"`
+		P50ResolutionTime float64 `json:"p50_resolution_time"`
+		P90ResolutionTime float64 `json:"p90_resolution_time"`
+		ResolutionRate    float64 `json:"resolution_rate"`
+		ResolvedCount     int64   `json:"resolved_count"`
+		TotalCount        int64   `json:"total_count"`
+	}
+
+	var resolutionStats ResolutionStats
+	resolutionQuery := fmt.Sprintf(`
+		SELECT 
+			AVG(CASE 
+				WHEN ended_at IS NOT NULL AND started_at IS NOT NULL 
+				THEN EXTRACT(EPOCH FROM (ended_at - started_at))/60 
+			END) as avg_resolution_time,
+			PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY 
+				CASE 
+					WHEN ended_at IS NOT NULL AND started_at IS NOT NULL 
+					THEN EXTRACT(EPOCH FROM (ended_at - started_at))/60 
+				END) as p50_resolution_time,
+			PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY 
+				CASE 
+					WHEN ended_at IS NOT NULL AND started_at IS NOT NULL 
+					THEN EXTRACT(EPOCH FROM (ended_at - started_at))/60 
+				END) as p90_resolution_time,
+			COUNT(CASE WHEN status IN ('resolved', 'closed') THEN 1 END) as resolved_count,
+			COUNT(*) as total_count,
+			CASE WHEN COUNT(*) > 0 THEN 
+				(COUNT(CASE WHEN status IN ('resolved', 'closed') THEN 1 END) * 100.0 / COUNT(*))
+			ELSE 0 END as resolution_rate
+		FROM conversations
+		WHERE %s
+	`, whereClause)
+	
+	h.db.Raw(resolutionQuery, args...).Scan(&resolutionStats)
+
+	// Get satisfaction scores
+	type SatisfactionStats struct {
+		AvgRating    float64 `json:"avg_rating"`
+		RatedCount   int64   `json:"rated_count"`
+		UnratedCount int64   `json:"unrated_count"`
+		RatingRate   float64 `json:"rating_rate"`
+	}
+
+	var satisfactionStats SatisfactionStats
+	satisfactionQuery := fmt.Sprintf(`
+		SELECT 
+			AVG(CASE WHEN rating > 0 THEN rating END) as avg_rating,
+			COUNT(CASE WHEN rating > 0 THEN 1 END) as rated_count,
+			COUNT(CASE WHEN rating = 0 OR rating IS NULL THEN 1 END) as unrated_count,
+			CASE WHEN COUNT(*) > 0 THEN 
+				(COUNT(CASE WHEN rating > 0 THEN 1 END) * 100.0 / COUNT(*))
+			ELSE 0 END as rating_rate
+		FROM conversations
+		WHERE %s
+	`, whereClause)
+	
+	h.db.Raw(satisfactionQuery, args...).Scan(&satisfactionStats)
+
+	// Get escalation statistics
+	type EscalationStats struct {
+		EscalatedCount   int64   `json:"escalated_count"`
+		EscalationRate   float64 `json:"escalation_rate"`
+		AvgTimeToEscalation float64 `json:"avg_time_to_escalation"`
+	}
+
+	var escalationStats EscalationStats
+	escalationQuery := fmt.Sprintf(`
+		SELECT 
+			COUNT(CASE WHEN is_escalated = true THEN 1 END) as escalated_count,
+			CASE WHEN COUNT(*) > 0 THEN 
+				(COUNT(CASE WHEN is_escalated = true THEN 1 END) * 100.0 / COUNT(*))
+			ELSE 0 END as escalation_rate,
+			AVG(CASE 
+				WHEN is_escalated = true AND escalated_at IS NOT NULL 
+				THEN EXTRACT(EPOCH FROM (escalated_at - created_at))/60 
+			END) as avg_time_to_escalation
+		FROM conversations
+		WHERE %s
+	`, whereClause)
+	
+	h.db.Raw(escalationQuery, args...).Scan(&escalationStats)
 
 	analyticsData := map[string]interface{}{
-		"period":        fmt.Sprintf("%s to %s", fromDate.Format("2006-01-02"), toDate.Format("2006-01-02")),
-		"group_by":      groupBy,
-		"time_series":   timeSeries,
-		"status_counts": statusCounts,
-		"response_stats": responseStats,
+		"period":          fmt.Sprintf("%s to %s", fromDate.Format("2006-01-02"), toDate.Format("2006-01-02")),
+		"group_by":        groupBy,
+		"time_series":     timeSeries,
+		"status_counts":   statusCounts,
+		"response_stats":  responseStats,
+		"resolution_stats": resolutionStats,
+		"satisfaction_stats": satisfactionStats,
+		"escalation_stats": escalationStats,
+		"summary": map[string]interface{}{
+			"total_conversations": totalConversations,
+			"avg_response_time":   responseStats.AvgResponseTime,
+			"first_response_rate": responseStats.FirstResponseRate,
+			"resolution_rate":     resolutionStats.ResolutionRate,
+			"avg_satisfaction":    satisfactionStats.AvgRating,
+			"escalation_rate":     escalationStats.EscalationRate,
+		},
 		"filters": map[string]interface{}{
 			"agent_id":   agentID,
 			"department": department,
@@ -366,19 +514,280 @@ func (h *Handler) GetCampaignAnalytics(c *gin.Context) {
 	groupBy := c.DefaultQuery("group_by", "day")
 	campaignID := c.Query("campaign_id")
 
-	// Implementation would include detailed campaign analytics
-	// Similar structure to conversation analytics but for campaigns
+	// Build base query with proper filters
+	whereClause := "tenant_id = ?"
+	args := []interface{}{tid}
+
+	if !fromDate.IsZero() {
+		whereClause += " AND created_at >= ?"
+		args = append(args, fromDate)
+	}
+	if !toDate.IsZero() {
+		whereClause += " AND created_at <= ?"
+		args = append(args, toDate)
+	}
+	if campaignID != "" {
+		if cid, err := uuid.Parse(campaignID); err == nil {
+			whereClause += " AND id = ?"
+			args = append(args, cid)
+		}
+	}
+
+	// Get time series data for campaigns
+	timeFormat := h.getTimeFormat(groupBy)
+	type CampaignTimeSeriesData struct {
+		Period         string  `json:"period"`
+		CampaignsCount int64   `json:"campaigns_count"`
+		MessagesSent   int64   `json:"messages_sent"`
+		DeliveryRate   float64 `json:"delivery_rate"`
+		OpenRate       float64 `json:"open_rate"`
+		ClickRate      float64 `json:"click_rate"`
+		ConversionRate float64 `json:"conversion_rate"`
+		TotalCost      float64 `json:"total_cost"`
+		Revenue        float64 `json:"revenue"`
+	}
+
+	var timeSeries []CampaignTimeSeriesData
+	timeSeriesQuery := fmt.Sprintf(`
+		SELECT 
+			TO_CHAR(c.created_at, '%s') as period,
+			COUNT(DISTINCT c.id) as campaigns_count,
+			COALESCE(SUM(cs.messages_sent), 0) as messages_sent,
+			CASE WHEN SUM(cs.messages_sent) > 0 THEN 
+				(SUM(cs.messages_delivered) * 100.0 / SUM(cs.messages_sent))
+			ELSE 0 END as delivery_rate,
+			CASE WHEN SUM(cs.messages_delivered) > 0 THEN 
+				(SUM(cs.messages_read) * 100.0 / SUM(cs.messages_delivered))
+			ELSE 0 END as open_rate,
+			CASE WHEN SUM(cs.messages_read) > 0 THEN 
+				(SUM(cs.clicks) * 100.0 / SUM(cs.messages_read))
+			ELSE 0 END as click_rate,
+			CASE WHEN SUM(cs.clicks) > 0 THEN 
+				(SUM(cs.conversions) * 100.0 / SUM(cs.clicks))
+			ELSE 0 END as conversion_rate,
+			COALESCE(SUM(cs.total_cost), 0) as total_cost,
+			COALESCE(SUM(cs.conversion_value), 0) as revenue
+		FROM campaigns c
+		LEFT JOIN campaign_statistics cs ON cs.campaign_id = c.id
+		WHERE %s
+		GROUP BY TO_CHAR(c.created_at, '%s')
+		ORDER BY period
+	`, timeFormat, whereClause, timeFormat)
+	
+	h.db.Raw(timeSeriesQuery, args...).Scan(&timeSeries)
+
+	// Get campaign status distribution
+	type CampaignStatusCount struct {
+		Status     string  `json:"status"`
+		Count      int64   `json:"count"`
+		Percentage float64 `json:"percentage"`
+	}
+
+	var statusCounts []CampaignStatusCount
+	var totalCampaigns int64
+	
+	// Get total count first
+	h.db.Raw(fmt.Sprintf("SELECT COUNT(*) FROM campaigns WHERE %s", whereClause), args...).Scan(&totalCampaigns)
+	
+	statusQuery := fmt.Sprintf(`
+		SELECT 
+			status,
+			COUNT(*) as count,
+			CASE WHEN %d > 0 THEN (COUNT(*) * 100.0 / %d) ELSE 0 END as percentage
+		FROM campaigns 
+		WHERE %s
+		GROUP BY status 
+		ORDER BY count DESC
+	`, totalCampaigns, totalCampaigns, whereClause)
+	
+	h.db.Raw(statusQuery, args...).Scan(&statusCounts)
+
+	// Get comprehensive campaign performance metrics
+	type CampaignMetricsStats struct {
+		TotalCampaigns       int64   `json:"total_campaigns"`
+		ActiveCampaigns      int64   `json:"active_campaigns"`
+		CompletedCampaigns   int64   `json:"completed_campaigns"`
+		TotalMessagesSent    int64   `json:"total_messages_sent"`
+		TotalDelivered       int64   `json:"total_delivered"`
+		TotalOpened          int64   `json:"total_opened"`
+		TotalClicked         int64   `json:"total_clicked"`
+		TotalConversions     int64   `json:"total_conversions"`
+		TotalCost            float64 `json:"total_cost"`
+		TotalRevenue         float64 `json:"total_revenue"`
+		AvgDeliveryRate      float64 `json:"avg_delivery_rate"`
+		AvgOpenRate          float64 `json:"avg_open_rate"`
+		AvgClickRate         float64 `json:"avg_click_rate"`
+		AvgConversionRate    float64 `json:"avg_conversion_rate"`
+		AvgCostPerMessage    float64 `json:"avg_cost_per_message"`
+		AvgCostPerConversion float64 `json:"avg_cost_per_conversion"`
+		ROI                  float64 `json:"roi"`
+	}
+
+	var metricsStats CampaignMetricsStats
+	metricsQuery := fmt.Sprintf(`
+		SELECT 
+			COUNT(c.id) as total_campaigns,
+			COUNT(CASE WHEN c.status = 'running' THEN 1 END) as active_campaigns,
+			COUNT(CASE WHEN c.status = 'completed' THEN 1 END) as completed_campaigns,
+			COALESCE(SUM(cs.messages_sent), 0) as total_messages_sent,
+			COALESCE(SUM(cs.messages_delivered), 0) as total_delivered,
+			COALESCE(SUM(cs.messages_read), 0) as total_opened,
+			COALESCE(SUM(cs.clicks), 0) as total_clicked,
+			COALESCE(SUM(cs.conversions), 0) as total_conversions,
+			COALESCE(SUM(cs.total_cost), 0) as total_cost,
+			COALESCE(SUM(cs.conversion_value), 0) as total_revenue,
+			CASE WHEN COUNT(c.id) > 0 THEN 
+				AVG(CASE WHEN cs.messages_sent > 0 THEN 
+					(cs.messages_delivered * 100.0 / cs.messages_sent) 
+				END)
+			ELSE 0 END as avg_delivery_rate,
+			CASE WHEN COUNT(c.id) > 0 THEN 
+				AVG(CASE WHEN cs.messages_delivered > 0 THEN 
+					(cs.messages_read * 100.0 / cs.messages_delivered) 
+				END)
+			ELSE 0 END as avg_open_rate,
+			CASE WHEN COUNT(c.id) > 0 THEN 
+				AVG(CASE WHEN cs.messages_read > 0 THEN 
+					(cs.clicks * 100.0 / cs.messages_read) 
+				END)
+			ELSE 0 END as avg_click_rate,
+			CASE WHEN COUNT(c.id) > 0 THEN 
+				AVG(CASE WHEN cs.clicks > 0 THEN 
+					(cs.conversions * 100.0 / cs.clicks) 
+				END)
+			ELSE 0 END as avg_conversion_rate,
+			CASE WHEN SUM(cs.messages_sent) > 0 THEN 
+				(SUM(cs.total_cost) / SUM(cs.messages_sent))
+			ELSE 0 END as avg_cost_per_message,
+			CASE WHEN SUM(cs.conversions) > 0 THEN 
+				(SUM(cs.total_cost) / SUM(cs.conversions))
+			ELSE 0 END as avg_cost_per_conversion,
+			CASE WHEN SUM(cs.total_cost) > 0 THEN 
+				((SUM(cs.conversion_value) - SUM(cs.total_cost)) * 100.0 / SUM(cs.total_cost))
+			ELSE 0 END as roi
+		FROM campaigns c
+		LEFT JOIN campaign_statistics cs ON cs.campaign_id = c.id
+		WHERE %s
+	`, whereClause)
+	
+	h.db.Raw(metricsQuery, args...).Scan(&metricsStats)
+
+	// Get top performing campaigns
+	type TopCampaign struct {
+		CampaignID     uuid.UUID `json:"campaign_id"`
+		CampaignName   string    `json:"campaign_name"`
+		MessagesSent   int64     `json:"messages_sent"`
+		DeliveryRate   float64   `json:"delivery_rate"`
+		OpenRate       float64   `json:"open_rate"`
+		ClickRate      float64   `json:"click_rate"`
+		ConversionRate float64   `json:"conversion_rate"`
+		Conversions    int64     `json:"conversions"`
+		Cost           float64   `json:"cost"`
+		Revenue        float64   `json:"revenue"`
+		ROI            float64   `json:"roi"`
+	}
+
+	var topCampaigns []TopCampaign
+	topCampaignsQuery := fmt.Sprintf(`
+		SELECT 
+			c.id as campaign_id,
+			c.name as campaign_name,
+			COALESCE(cs.messages_sent, 0) as messages_sent,
+			CASE WHEN cs.messages_sent > 0 THEN 
+				(cs.messages_delivered * 100.0 / cs.messages_sent)
+			ELSE 0 END as delivery_rate,
+			CASE WHEN cs.messages_delivered > 0 THEN 
+				(cs.messages_read * 100.0 / cs.messages_delivered)
+			ELSE 0 END as open_rate,
+			CASE WHEN cs.messages_read > 0 THEN 
+				(cs.clicks * 100.0 / cs.messages_read)
+			ELSE 0 END as click_rate,
+			CASE WHEN cs.clicks > 0 THEN 
+				(cs.conversions * 100.0 / cs.clicks)
+			ELSE 0 END as conversion_rate,
+			COALESCE(cs.conversions, 0) as conversions,
+			COALESCE(cs.total_cost, 0) as cost,
+			COALESCE(cs.conversion_value, 0) as revenue,
+			CASE WHEN cs.total_cost > 0 THEN 
+				((cs.conversion_value - cs.total_cost) * 100.0 / cs.total_cost)
+			ELSE 0 END as roi
+		FROM campaigns c
+		LEFT JOIN campaign_statistics cs ON cs.campaign_id = c.id
+		WHERE %s
+		ORDER BY cs.conversions DESC, cs.conversion_value DESC
+		LIMIT 10
+	`, whereClause)
+	
+	h.db.Raw(topCampaignsQuery, args...).Scan(&topCampaigns)
+
+	// Get channel performance
+	type ChannelPerformance struct {
+		Channel        string  `json:"channel"`
+		CampaignsCount int64   `json:"campaigns_count"`
+		MessagesSent   int64   `json:"messages_sent"`
+		DeliveryRate   float64 `json:"delivery_rate"`
+		OpenRate       float64 `json:"open_rate"`
+		ClickRate      float64 `json:"click_rate"`
+		ConversionRate float64 `json:"conversion_rate"`
+		Cost           float64 `json:"cost"`
+		Revenue        float64 `json:"revenue"`
+		ROI            float64 `json:"roi"`
+	}
+
+	var channelPerformance []ChannelPerformance
+	channelQuery := fmt.Sprintf(`
+		SELECT 
+			c.channel,
+			COUNT(c.id) as campaigns_count,
+			COALESCE(SUM(cs.messages_sent), 0) as messages_sent,
+			CASE WHEN SUM(cs.messages_sent) > 0 THEN 
+				(SUM(cs.messages_delivered) * 100.0 / SUM(cs.messages_sent))
+			ELSE 0 END as delivery_rate,
+			CASE WHEN SUM(cs.messages_delivered) > 0 THEN 
+				(SUM(cs.messages_read) * 100.0 / SUM(cs.messages_delivered))
+			ELSE 0 END as open_rate,
+			CASE WHEN SUM(cs.messages_read) > 0 THEN 
+				(SUM(cs.clicks) * 100.0 / SUM(cs.messages_read))
+			ELSE 0 END as click_rate,
+			CASE WHEN SUM(cs.clicks) > 0 THEN 
+				(SUM(cs.conversions) * 100.0 / SUM(cs.clicks))
+			ELSE 0 END as conversion_rate,
+			COALESCE(SUM(cs.total_cost), 0) as cost,
+			COALESCE(SUM(cs.conversion_value), 0) as revenue,
+			CASE WHEN SUM(cs.total_cost) > 0 THEN 
+				((SUM(cs.conversion_value) - SUM(cs.total_cost)) * 100.0 / SUM(cs.total_cost))
+			ELSE 0 END as roi
+		FROM campaigns c
+		LEFT JOIN campaign_statistics cs ON cs.campaign_id = c.id
+		WHERE %s
+		GROUP BY c.channel
+		ORDER BY campaigns_count DESC
+	`, whereClause)
+	
+	h.db.Raw(channelQuery, args...).Scan(&channelPerformance)
 
 	analyticsData := map[string]interface{}{
 		"period":     fmt.Sprintf("%s to %s", fromDate.Format("2006-01-02"), toDate.Format("2006-01-02")),
 		"group_by":   groupBy,
 		"campaign_id": campaignID,
-		"metrics": map[string]interface{}{
-			"total_sent":      0,
-			"delivery_rate":   0.0,
-			"open_rate":       0.0,
-			"click_rate":      0.0,
-			"conversion_rate": 0.0,
+		"time_series": timeSeries,
+		"status_counts": statusCounts,
+		"metrics": metricsStats,
+		"top_campaigns": topCampaigns,
+		"channel_performance": channelPerformance,
+		"summary": map[string]interface{}{
+			"total_campaigns":     metricsStats.TotalCampaigns,
+			"total_messages_sent": metricsStats.TotalMessagesSent,
+			"avg_delivery_rate":   metricsStats.AvgDeliveryRate,
+			"avg_open_rate":       metricsStats.AvgOpenRate,
+			"avg_click_rate":      metricsStats.AvgClickRate,
+			"avg_conversion_rate": metricsStats.AvgConversionRate,
+			"total_cost":          metricsStats.TotalCost,
+			"total_revenue":       metricsStats.TotalRevenue,
+			"roi":                 metricsStats.ROI,
+		},
+		"filters": map[string]interface{}{
+			"campaign_id": campaignID,
 		},
 	}
 

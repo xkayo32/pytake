@@ -494,3 +494,325 @@ func (s *ContactService) GetContactStats(tenantID uuid.UUID) (*models.ContactSta
 
 	return stats, nil
 }
+
+// ImportContacts imports contacts from a CSV file
+func (s *ContactService) ImportContacts(tenantID uuid.UUID, fileName string, data [][]string, mappingRules map[string]interface{}, userID uuid.UUID) (*models.ContactImport, error) {
+	// Create import record
+	importRecord := &models.ContactImport{
+		TenantModel: models.TenantModel{
+			TenantID: tenantID,
+		},
+		FileName:       fileName,
+		Status:         "processing",
+		TotalRecords:   len(data) - 1, // Exclude header
+		MappingRules:   models.JSON(mappingRules),
+		CreatedByID:    userID,
+	}
+
+	now := time.Now()
+	importRecord.StartedAt = &now
+
+	if err := s.db.Create(importRecord).Error; err != nil {
+		return nil, fmt.Errorf("failed to create import record: %w", err)
+	}
+
+	// Process contacts in batches
+	go s.processContactImport(importRecord, data, mappingRules)
+
+	return importRecord, nil
+}
+
+// processContactImport processes the contact import in background
+func (s *ContactService) processContactImport(importRecord *models.ContactImport, data [][]string, mappingRules map[string]interface{}) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Errorw("Contact import panicked", "error", r, "import_id", importRecord.ID)
+			now := time.Now()
+			importRecord.Status = "failed"
+			importRecord.CompletedAt = &now
+			s.db.Save(importRecord)
+		}
+	}()
+
+	headers := data[0]
+	rows := data[1:]
+
+	var errors []string
+	successCount := 0
+	errorCount := 0
+
+	// Process each row
+	for i, row := range rows {
+		// Map row data to contact fields
+		contactData := make(map[string]string)
+		for j, value := range row {
+			if j < len(headers) {
+				header := headers[j]
+				contactData[header] = value
+			}
+		}
+
+		// Create contact from mapped data
+		contact := &models.Contact{
+			TenantModel: models.TenantModel{
+				TenantID: importRecord.TenantID,
+			},
+			Source: "import",
+			Status: models.ContactStatusActive,
+		}
+
+		// Apply mapping rules
+		if name, ok := contactData["name"]; ok && name != "" {
+			contact.Name = name
+		}
+		if phone, ok := contactData["phone"]; ok && phone != "" {
+			contact.Phone = phone
+			contact.WhatsAppPhone = phone // Default to same as phone
+		}
+		if whatsappPhone, ok := contactData["whatsapp_phone"]; ok && whatsappPhone != "" {
+			contact.WhatsAppPhone = whatsappPhone
+		}
+		if email, ok := contactData["email"]; ok && email != "" {
+			contact.Email = email
+		}
+		if company, ok := contactData["company"]; ok && company != "" {
+			contact.CompanyName = company
+		}
+		if jobTitle, ok := contactData["job_title"]; ok && jobTitle != "" {
+			contact.JobTitle = jobTitle
+		}
+
+		// Validate required fields
+		if contact.Name == "" {
+			errorMsg := fmt.Sprintf("Row %d: Name is required", i+2)
+			errors = append(errors, errorMsg)
+			errorCount++
+			continue
+		}
+
+		// Check for duplicates
+		if contact.WhatsAppPhone != "" {
+			var existing models.Contact
+			err := s.db.Where("whatsapp_phone = ? AND tenant_id = ?", contact.WhatsAppPhone, importRecord.TenantID).First(&existing).Error
+			if err == nil {
+				errorMsg := fmt.Sprintf("Row %d: Contact with WhatsApp phone %s already exists", i+2, contact.WhatsAppPhone)
+				errors = append(errors, errorMsg)
+				errorCount++
+				continue
+			}
+		}
+
+		// Create contact
+		if err := s.db.Create(contact).Error; err != nil {
+			errorMsg := fmt.Sprintf("Row %d: Failed to create contact - %v", i+2, err)
+			errors = append(errors, errorMsg)
+			errorCount++
+		} else {
+			successCount++
+		}
+
+		// Update progress
+		importRecord.ProcessedRecords = i + 1
+		importRecord.SuccessCount = successCount
+		importRecord.ErrorCount = errorCount
+		s.db.Save(importRecord)
+	}
+
+	// Complete import
+	now := time.Now()
+	importRecord.Status = "completed"
+	importRecord.CompletedAt = &now
+	importRecord.SuccessCount = successCount
+	importRecord.ErrorCount = errorCount
+	if len(errors) > 0 {
+		importRecord.Errors = models.JSON(errors)
+	}
+
+	s.db.Save(importRecord)
+
+	s.logger.Infow("Contact import completed",
+		"import_id", importRecord.ID,
+		"success_count", successCount,
+		"error_count", errorCount,
+		"total_records", importRecord.TotalRecords,
+	)
+}
+
+// GetContactImport retrieves an import record
+func (s *ContactService) GetContactImport(id uuid.UUID, tenantID uuid.UUID) (*models.ContactImport, error) {
+	var importRecord models.ContactImport
+	err := s.db.Where("id = ? AND tenant_id = ?", id, tenantID).First(&importRecord).Error
+	if err != nil {
+		return nil, fmt.Errorf("import record not found: %w", err)
+	}
+	return &importRecord, nil
+}
+
+// GetContactImports retrieves import history
+func (s *ContactService) GetContactImports(tenantID uuid.UUID, limit, offset int) ([]models.ContactImport, int64, error) {
+	var imports []models.ContactImport
+	var total int64
+
+	query := s.db.Model(&models.ContactImport{}).Where("tenant_id = ?", tenantID)
+	query.Count(&total)
+
+	err := query.Preload("CreatedBy").
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&imports).Error
+
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get imports: %w", err)
+	}
+
+	return imports, total, nil
+}
+
+// MergeContacts merges two contacts
+func (s *ContactService) MergeContacts(primaryID, secondaryID uuid.UUID, tenantID uuid.UUID) error {
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	// Get both contacts
+	var primary, secondary models.Contact
+	if err := tx.Where("id = ? AND tenant_id = ?", primaryID, tenantID).First(&primary).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("primary contact not found: %w", err)
+	}
+	if err := tx.Where("id = ? AND tenant_id = ?", secondaryID, tenantID).First(&secondary).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("secondary contact not found: %w", err)
+	}
+
+	// Merge data from secondary to primary
+	if primary.Email == "" && secondary.Email != "" {
+		primary.Email = secondary.Email
+	}
+	if primary.Phone == "" && secondary.Phone != "" {
+		primary.Phone = secondary.Phone
+	}
+	if primary.CompanyName == "" && secondary.CompanyName != "" {
+		primary.CompanyName = secondary.CompanyName
+	}
+	if primary.JobTitle == "" && secondary.JobTitle != "" {
+		primary.JobTitle = secondary.JobTitle
+	}
+	if primary.Address == "" && secondary.Address != "" {
+		primary.Address = secondary.Address
+	}
+	if primary.ProfilePictureURL == "" && secondary.ProfilePictureURL != "" {
+		primary.ProfilePictureURL = secondary.ProfilePictureURL
+	}
+
+	// Merge custom fields
+	if len(primary.CustomFields) == 0 && len(secondary.CustomFields) > 0 {
+		primary.CustomFields = secondary.CustomFields
+	}
+
+	// Update statistics
+	primary.TotalMessages += secondary.TotalMessages
+	primary.TotalConversations += secondary.TotalConversations
+	primary.LifetimeValue += secondary.LifetimeValue
+
+	// Use earliest contact date
+	if secondary.FirstContactAt != nil && (primary.FirstContactAt == nil || secondary.FirstContactAt.Before(*primary.FirstContactAt)) {
+		primary.FirstContactAt = secondary.FirstContactAt
+	}
+
+	// Use latest contact date
+	if secondary.LastContactAt != nil && (primary.LastContactAt == nil || secondary.LastContactAt.After(*primary.LastContactAt)) {
+		primary.LastContactAt = secondary.LastContactAt
+	}
+
+	// Update primary contact
+	if err := tx.Save(&primary).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to update primary contact: %w", err)
+	}
+
+	// Move conversations from secondary to primary
+	if err := tx.Model(&models.Conversation{}).Where("contact_id = ?", secondaryID).Update("contact_id", primaryID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to move conversations: %w", err)
+	}
+
+	// Move messages from secondary to primary
+	if err := tx.Model(&models.Message{}).Where("contact_id = ?", secondaryID).Update("contact_id", primaryID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to move messages: %w", err)
+	}
+
+	// Move tags from secondary to primary (avoid duplicates)
+	var secondaryTags []models.ContactTag
+	tx.Where("contact_id = ?", secondaryID).Find(&secondaryTags)
+	for _, tag := range secondaryTags {
+		// Check if tag already exists on primary
+		var existingTag models.ContactTag
+		err := tx.Where("contact_id = ? AND tag = ?", primaryID, tag.Tag).First(&existingTag).Error
+		if err != nil {
+			// Tag doesn't exist, move it
+			tag.ContactID = primaryID
+			tx.Save(&tag)
+		} else {
+			// Tag exists, delete the duplicate
+			tx.Delete(&tag)
+		}
+	}
+
+	// Move notes from secondary to primary
+	if err := tx.Model(&models.ContactNote{}).Where("contact_id = ?", secondaryID).Update("contact_id", primaryID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to move notes: %w", err)
+	}
+
+	// Delete secondary contact
+	if err := tx.Delete(&secondary).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete secondary contact: %w", err)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit merge: %w", err)
+	}
+
+	s.logger.Infow("Contacts merged successfully",
+		"primary_id", primaryID,
+		"secondary_id", secondaryID,
+		"tenant_id", tenantID,
+	)
+
+	return nil
+}
+
+// UpdateContactStats updates contact statistics
+func (s *ContactService) UpdateContactStats(contactID uuid.UUID) error {
+	// Count total messages for this contact
+	var messageCount int64
+	s.db.Model(&models.Message{}).Where("contact_id = ?", contactID).Count(&messageCount)
+
+	// Count total conversations for this contact
+	var conversationCount int64
+	s.db.Model(&models.Conversation{}).Where("contact_id = ?", contactID).Count(&conversationCount)
+
+	// Get last contact time from latest message
+	var lastMessage models.Message
+	err := s.db.Where("contact_id = ?", contactID).Order("created_at DESC").First(&lastMessage).Error
+	var lastContactAt *time.Time
+	if err == nil {
+		lastContactAt = &lastMessage.CreatedAt
+	}
+
+	// Update contact statistics
+	return s.db.Model(&models.Contact{}).Where("id = ?", contactID).Updates(map[string]interface{}{
+		"total_messages":     messageCount,
+		"total_conversations": conversationCount,
+		"last_contact_at":    lastContactAt,
+		"updated_at":         time.Now(),
+	}).Error
+}

@@ -25,7 +25,9 @@
       "Bash(TASKKILL //F //PID 28952)",
       "Bash(git add:*)",
       "Bash(grep:*)",
-      "Bash(touch:*)"
+      "Bash(touch:*)",
+      "Bash(docker:*)",
+      "Bash(./tests/validation/deployment_check.sh:*)"
     ],
     "deny": []
   }

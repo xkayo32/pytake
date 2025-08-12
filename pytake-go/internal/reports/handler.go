@@ -2,9 +2,15 @@ package reports
 
 import (
 	"bytes"
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -761,22 +767,25 @@ func (h *Handler) generateReportAsync(report *models.Report, req ReportRequest) 
 		}
 	}()
 
+	startTime := time.Now()
+
 	// Update status to generating
 	h.updateReportStatus(report.ID, "generating", "")
 
 	// Generate report data based on type
 	var data interface{}
+	var rowCount int64
 	var err error
 
 	switch report.Type {
 	case "conversations":
-		data, err = h.generateConversationReportData(report)
+		data, rowCount, err = h.generateConversationReportData(report)
 	case "campaigns":
-		data, err = h.generateCampaignReportData(report)
+		data, rowCount, err = h.generateCampaignReportData(report)
 	case "messages":
-		data, err = h.generateMessageReportData(report)
+		data, rowCount, err = h.generateMessageReportData(report)
 	case "erp":
-		data, err = h.generateERPReportData(report)
+		data, rowCount, err = h.generateERPReportData(report)
 	default:
 		err = fmt.Errorf("unsupported report type: %s", report.Type)
 	}
@@ -795,14 +804,19 @@ func (h *Handler) generateReportAsync(report *models.Report, req ReportRequest) 
 		return
 	}
 
+	// Calculate generation time
+	generationTime := time.Since(startTime)
+
 	// Update report with completion info
 	now := time.Now()
 	updates := map[string]interface{}{
-		"status":       "completed",
-		"progress":     100,
-		"file_path":    filePath,
-		"file_size":    size,
-		"generated_at": &now,
+		"status":          "completed",
+		"progress":        100,
+		"file_path":       filePath,
+		"file_size":       size,
+		"row_count":       rowCount,
+		"generated_at":    &now,
+		"generation_time": generationTime.Milliseconds(),
 	}
 
 	h.db.Model(&models.Report{}).Where("id = ?", report.ID).Updates(updates)
@@ -811,6 +825,14 @@ func (h *Handler) generateReportAsync(report *models.Report, req ReportRequest) 
 	if req.Email != nil && len(req.Email.Recipients) > 0 {
 		h.sendReportEmail(report, req.Email, filePath)
 	}
+
+	h.log.Info("Report generated successfully", 
+		"report_id", report.ID, 
+		"type", report.Type, 
+		"format", report.Format,
+		"rows", rowCount,
+		"size", size,
+		"duration", generationTime)
 }
 
 // Helper functions
@@ -881,33 +903,601 @@ func (h *Handler) calculateNextRun(schedule *ScheduleConfig) time.Time {
 	}
 }
 
-// Placeholder implementations for data generation
-func (h *Handler) generateConversationReportData(report *models.Report) (interface{}, error) {
-	// Implementation would generate detailed conversation report data
-	return map[string]interface{}{"type": "conversations"}, nil
+// Real implementations for data generation
+func (h *Handler) generateConversationReportData(report *models.Report) (interface{}, int64, error) {
+	// Build query filters
+	whereClause := "tenant_id = ?"
+	args := []interface{}{report.TenantID}
+
+	if !report.FromDate.IsZero() {
+		whereClause += " AND created_at >= ?"
+		args = append(args, report.FromDate)
+	}
+	if !report.ToDate.IsZero() {
+		whereClause += " AND created_at <= ?"
+		args = append(args, report.ToDate)
+	}
+
+	// Apply additional filters
+	if report.Filters != nil {
+		if agentID, exists := report.Filters["agent_id"]; exists && agentID != nil {
+			if agentIDStr, ok := agentID.(string); ok {
+				if aid, err := uuid.Parse(agentIDStr); err == nil {
+					whereClause += " AND assigned_to = ?"
+					args = append(args, aid)
+				}
+			}
+		}
+		if department, exists := report.Filters["department"]; exists && department != nil {
+			whereClause += " AND department = ?"
+			args = append(args, department)
+		}
+		if status, exists := report.Filters["status"]; exists && status != nil {
+			whereClause += " AND status = ?"
+			args = append(args, status)
+		}
+	}
+
+	// Get conversation data
+	type ConversationReportRow struct {
+		ID               uuid.UUID  `json:"id"`
+		ContactName      string     `json:"contact_name"`
+		ContactPhone     string     `json:"contact_phone"`
+		AgentName        string     `json:"agent_name"`
+		Department       string     `json:"department"`
+		Status           string     `json:"status"`
+		CreatedAt        time.Time  `json:"created_at"`
+		FirstResponseAt  *time.Time `json:"first_response_at"`
+		EndedAt          *time.Time `json:"ended_at"`
+		ResponseTime     *float64   `json:"response_time_minutes"`
+		ResolutionTime   *float64   `json:"resolution_time_minutes"`
+		MessageCount     int64      `json:"message_count"`
+		Rating           *float64   `json:"rating"`
+		IsEscalated      bool       `json:"is_escalated"`
+		EscalatedAt      *time.Time `json:"escalated_at"`
+		Tags             []string   `json:"tags"`
+	}
+
+	var conversations []ConversationReportRow
+	query := fmt.Sprintf(`
+		SELECT 
+			c.id,
+			COALESCE(ct.name, ct.phone) as contact_name,
+			ct.phone as contact_phone,
+			COALESCE(u.name, 'Unassigned') as agent_name,
+			COALESCE(c.department, 'General') as department,
+			c.status,
+			c.created_at,
+			c.first_response_at,
+			c.ended_at,
+			CASE 
+				WHEN c.first_response_at IS NOT NULL 
+				THEN EXTRACT(EPOCH FROM (c.first_response_at - c.created_at))/60 
+			END as response_time,
+			CASE 
+				WHEN c.ended_at IS NOT NULL AND c.started_at IS NOT NULL 
+				THEN EXTRACT(EPOCH FROM (c.ended_at - c.started_at))/60 
+			END as resolution_time,
+			(SELECT COUNT(*) FROM messages WHERE conversation_id = c.id) as message_count,
+			c.rating,
+			COALESCE(c.is_escalated, false) as is_escalated,
+			c.escalated_at,
+			c.tags
+		FROM conversations c
+		LEFT JOIN contacts ct ON ct.id = c.contact_id
+		LEFT JOIN users u ON u.id = c.assigned_to
+		WHERE %s
+		ORDER BY c.created_at DESC
+	`, whereClause)
+
+	if err := h.db.Raw(query, args...).Scan(&conversations).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to generate conversation report data: %w", err)
+	}
+
+	return conversations, int64(len(conversations)), nil
 }
 
-func (h *Handler) generateCampaignReportData(report *models.Report) (interface{}, error) {
-	// Implementation would generate detailed campaign report data
-	return map[string]interface{}{"type": "campaigns"}, nil
+func (h *Handler) generateCampaignReportData(report *models.Report) (interface{}, int64, error) {
+	// Build query filters
+	whereClause := "c.tenant_id = ?"
+	args := []interface{}{report.TenantID}
+
+	if !report.FromDate.IsZero() {
+		whereClause += " AND c.created_at >= ?"
+		args = append(args, report.FromDate)
+	}
+	if !report.ToDate.IsZero() {
+		whereClause += " AND c.created_at <= ?"
+		args = append(args, report.ToDate)
+	}
+
+	// Apply additional filters
+	if report.Filters != nil {
+		if campaignID, exists := report.Filters["campaign_id"]; exists && campaignID != nil {
+			if campaignIDStr, ok := campaignID.(string); ok {
+				if cid, err := uuid.Parse(campaignIDStr); err == nil {
+					whereClause += " AND c.id = ?"
+					args = append(args, cid)
+				}
+			}
+		}
+		if status, exists := report.Filters["status"]; exists && status != nil {
+			whereClause += " AND c.status = ?"
+			args = append(args, status)
+		}
+		if channel, exists := report.Filters["channel"]; exists && channel != nil {
+			whereClause += " AND c.channel = ?"
+			args = append(args, channel)
+		}
+	}
+
+	// Get campaign data
+	type CampaignReportRow struct {
+		ID                uuid.UUID  `json:"id"`
+		Name              string     `json:"name"`
+		Type              string     `json:"type"`
+		Channel           string     `json:"channel"`
+		Status            string     `json:"status"`
+		CreatedAt         time.Time  `json:"created_at"`
+		StartedAt         *time.Time `json:"started_at"`
+		CompletedAt       *time.Time `json:"completed_at"`
+		MessagesSent      int64      `json:"messages_sent"`
+		MessagesDelivered int64      `json:"messages_delivered"`
+		MessagesRead      int64      `json:"messages_read"`
+		Clicks            int64      `json:"clicks"`
+		Conversions       int64      `json:"conversions"`
+		TotalCost         float64    `json:"total_cost"`
+		ConversionValue   float64    `json:"conversion_value"`
+		DeliveryRate      float64    `json:"delivery_rate"`
+		OpenRate          float64    `json:"open_rate"`
+		ClickRate         float64    `json:"click_rate"`
+		ConversionRate    float64    `json:"conversion_rate"`
+		ROI               float64    `json:"roi"`
+		TargetAudience    int64      `json:"target_audience"`
+	}
+
+	var campaigns []CampaignReportRow
+	query := fmt.Sprintf(`
+		SELECT 
+			c.id,
+			c.name,
+			c.type,
+			c.channel,
+			c.status,
+			c.created_at,
+			c.started_at,
+			c.completed_at,
+			COALESCE(cs.messages_sent, 0) as messages_sent,
+			COALESCE(cs.messages_delivered, 0) as messages_delivered,
+			COALESCE(cs.messages_read, 0) as messages_read,
+			COALESCE(cs.clicks, 0) as clicks,
+			COALESCE(cs.conversions, 0) as conversions,
+			COALESCE(cs.total_cost, 0) as total_cost,
+			COALESCE(cs.conversion_value, 0) as conversion_value,
+			CASE WHEN cs.messages_sent > 0 THEN 
+				(cs.messages_delivered * 100.0 / cs.messages_sent)
+			ELSE 0 END as delivery_rate,
+			CASE WHEN cs.messages_delivered > 0 THEN 
+				(cs.messages_read * 100.0 / cs.messages_delivered)
+			ELSE 0 END as open_rate,
+			CASE WHEN cs.messages_read > 0 THEN 
+				(cs.clicks * 100.0 / cs.messages_read)
+			ELSE 0 END as click_rate,
+			CASE WHEN cs.clicks > 0 THEN 
+				(cs.conversions * 100.0 / cs.clicks)
+			ELSE 0 END as conversion_rate,
+			CASE WHEN cs.total_cost > 0 THEN 
+				((cs.conversion_value - cs.total_cost) * 100.0 / cs.total_cost)
+			ELSE 0 END as roi,
+			COALESCE(c.target_audience_count, 0) as target_audience
+		FROM campaigns c
+		LEFT JOIN campaign_statistics cs ON cs.campaign_id = c.id
+		WHERE %s
+		ORDER BY c.created_at DESC
+	`, whereClause)
+
+	if err := h.db.Raw(query, args...).Scan(&campaigns).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to generate campaign report data: %w", err)
+	}
+
+	return campaigns, int64(len(campaigns)), nil
 }
 
-func (h *Handler) generateMessageReportData(report *models.Report) (interface{}, error) {
-	// Implementation would generate detailed message report data
-	return map[string]interface{}{"type": "messages"}, nil
+func (h *Handler) generateMessageReportData(report *models.Report) (interface{}, int64, error) {
+	// Build query filters
+	whereClause := "m.tenant_id = ?"
+	args := []interface{}{report.TenantID}
+
+	if !report.FromDate.IsZero() {
+		whereClause += " AND m.created_at >= ?"
+		args = append(args, report.FromDate)
+	}
+	if !report.ToDate.IsZero() {
+		whereClause += " AND m.created_at <= ?"
+		args = append(args, report.ToDate)
+	}
+
+	// Apply additional filters
+	if report.Filters != nil {
+		if direction, exists := report.Filters["direction"]; exists && direction != nil {
+			whereClause += " AND m.direction = ?"
+			args = append(args, direction)
+		}
+		if status, exists := report.Filters["status"]; exists && status != nil {
+			whereClause += " AND m.status = ?"
+			args = append(args, status)
+		}
+		if messageType, exists := report.Filters["type"]; exists && messageType != nil {
+			whereClause += " AND m.type = ?"
+			args = append(args, messageType)
+		}
+	}
+
+	// Get message data
+	type MessageReportRow struct {
+		ID              uuid.UUID  `json:"id"`
+		ConversationID  uuid.UUID  `json:"conversation_id"`
+		ContactName     string     `json:"contact_name"`
+		ContactPhone    string     `json:"contact_phone"`
+		Direction       string     `json:"direction"`
+		Type            string     `json:"type"`
+		Content         string     `json:"content"`
+		Status          string     `json:"status"`
+		CreatedAt       time.Time  `json:"created_at"`
+		DeliveredAt     *time.Time `json:"delivered_at"`
+		ReadAt          *time.Time `json:"read_at"`
+		FailedAt        *time.Time `json:"failed_at"`
+		ErrorMessage    *string    `json:"error_message"`
+		MessageLength   int        `json:"message_length"`
+		HasMedia        bool       `json:"has_media"`
+		MediaType       *string    `json:"media_type"`
+		IsTemplate      bool       `json:"is_template"`
+		TemplateName    *string    `json:"template_name"`
+		AgentName       *string    `json:"agent_name"`
+	}
+
+	var messages []MessageReportRow
+	query := fmt.Sprintf(`
+		SELECT 
+			m.id,
+			m.conversation_id,
+			COALESCE(ct.name, ct.phone) as contact_name,
+			ct.phone as contact_phone,
+			m.direction,
+			m.type,
+			CASE 
+				WHEN LENGTH(m.content) > 100 THEN LEFT(m.content, 100) || '...'
+				ELSE m.content
+			END as content,
+			m.status,
+			m.created_at,
+			m.delivered_at,
+			m.read_at,
+			m.failed_at,
+			m.error_message,
+			LENGTH(m.content) as message_length,
+			(m.media_url IS NOT NULL) as has_media,
+			m.media_type,
+			(m.template_name IS NOT NULL) as is_template,
+			m.template_name,
+			u.name as agent_name
+		FROM messages m
+		LEFT JOIN conversations c ON c.id = m.conversation_id
+		LEFT JOIN contacts ct ON ct.id = c.contact_id
+		LEFT JOIN users u ON u.id = c.assigned_to
+		WHERE %s
+		ORDER BY m.created_at DESC
+	`, whereClause)
+
+	if err := h.db.Raw(query, args...).Scan(&messages).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to generate message report data: %w", err)
+	}
+
+	return messages, int64(len(messages)), nil
 }
 
-func (h *Handler) generateERPReportData(report *models.Report) (interface{}, error) {
-	// Implementation would generate detailed ERP report data
-	return map[string]interface{}{"type": "erp"}, nil
+func (h *Handler) generateERPReportData(report *models.Report) (interface{}, int64, error) {
+	// Build query filters
+	whereClause := "ec.tenant_id = ?"
+	args := []interface{}{report.TenantID}
+
+	if !report.FromDate.IsZero() {
+		whereClause += " AND ec.created_at >= ?"
+		args = append(args, report.FromDate)
+	}
+	if !report.ToDate.IsZero() {
+		whereClause += " AND ec.created_at <= ?"
+		args = append(args, report.ToDate)
+	}
+
+	// Apply additional filters
+	if report.Filters != nil {
+		if connectionID, exists := report.Filters["connection_id"]; exists && connectionID != nil {
+			if connectionIDStr, ok := connectionID.(string); ok {
+				if cid, err := uuid.Parse(connectionIDStr); err == nil {
+					whereClause += " AND ec.id = ?"
+					args = append(args, cid)
+				}
+			}
+		}
+		if provider, exists := report.Filters["provider"]; exists && provider != nil {
+			whereClause += " AND ec.provider = ?"
+			args = append(args, provider)
+		}
+	}
+
+	// Get ERP connection data with sync statistics
+	type ERPReportRow struct {
+		ConnectionID      uuid.UUID  `json:"connection_id"`
+		ConnectionName    string     `json:"connection_name"`
+		Provider          string     `json:"provider"`
+		Status            string     `json:"status"`
+		CreatedAt         time.Time  `json:"created_at"`
+		LastSyncAt        *time.Time `json:"last_sync_at"`
+		LastTestAt        *time.Time `json:"last_test_at"`
+		TotalSyncs        int64      `json:"total_syncs"`
+		SuccessfulSyncs   int64      `json:"successful_syncs"`
+		FailedSyncs       int64      `json:"failed_syncs"`
+		RecordsSynced     int64      `json:"records_synced"`
+		LastErrorMessage  *string    `json:"last_error_message"`
+		SuccessRate       float64    `json:"success_rate"`
+		AvgSyncDuration   float64    `json:"avg_sync_duration_minutes"`
+		DataFreshness     float64    `json:"data_freshness_hours"`
+		MappingsCount     int64      `json:"mappings_count"`
+		ActiveMappings    int64      `json:"active_mappings"`
+	}
+
+	var erpData []ERPReportRow
+	query := fmt.Sprintf(`
+		SELECT 
+			ec.id as connection_id,
+			ec.name as connection_name,
+			ec.provider,
+			ec.status,
+			ec.created_at,
+			ec.last_sync_at,
+			ec.last_test_at,
+			COUNT(sl.id) as total_syncs,
+			COUNT(CASE WHEN sl.status = 'completed' THEN 1 END) as successful_syncs,
+			COUNT(CASE WHEN sl.status = 'failed' THEN 1 END) as failed_syncs,
+			COALESCE(SUM(sl.records_succeeded), 0) as records_synced,
+			ec.last_error_msg as last_error_message,
+			CASE WHEN COUNT(sl.id) > 0 THEN 
+				(COUNT(CASE WHEN sl.status = 'completed' THEN 1 END) * 100.0 / COUNT(sl.id))
+			ELSE 0 END as success_rate,
+			AVG(CASE 
+				WHEN sl.completed_at IS NOT NULL AND sl.started_at IS NOT NULL 
+				THEN EXTRACT(EPOCH FROM (sl.completed_at - sl.started_at))/60 
+			END) as avg_sync_duration,
+			CASE 
+				WHEN ec.last_sync_at IS NOT NULL 
+				THEN EXTRACT(EPOCH FROM (NOW() - ec.last_sync_at))/3600 
+				ELSE NULL 
+			END as data_freshness,
+			(SELECT COUNT(*) FROM erp_data_mappings WHERE erp_connection_id = ec.id) as mappings_count,
+			(SELECT COUNT(*) FROM erp_data_mappings WHERE erp_connection_id = ec.id AND is_active = true) as active_mappings
+		FROM erp_connections ec
+		LEFT JOIN erp_sync_logs sl ON sl.erp_connection_id = ec.id
+		WHERE %s
+		GROUP BY ec.id, ec.name, ec.provider, ec.status, ec.created_at, ec.last_sync_at, ec.last_test_at, ec.last_error_msg
+		ORDER BY ec.created_at DESC
+	`, whereClause)
+
+	if err := h.db.Raw(query, args...).Scan(&erpData).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to generate ERP report data: %w", err)
+	}
+
+	return erpData, int64(len(erpData)), nil
 }
 
 func (h *Handler) exportReportData(report *models.Report, data interface{}) (string, int64, error) {
-	// Implementation would export data to the requested format
-	// For now, return mock values
-	filePath := fmt.Sprintf("/tmp/reports/%s_%s.%s", report.ID, report.Type, report.Format)
-	size := int64(1024) // Mock size
+	// Create reports directory if it doesn't exist
+	reportsDir := "/tmp/reports"
+	if err := os.MkdirAll(reportsDir, 0755); err != nil {
+		return "", 0, fmt.Errorf("failed to create reports directory: %w", err)
+	}
+
+	// Generate file path
+	timestamp := time.Now().Format("20060102_150405")
+	filename := fmt.Sprintf("%s_%s_%s.%s", report.Type, timestamp, report.ID.String()[:8], report.Format)
+	filePath := filepath.Join(reportsDir, filename)
+
+	var size int64
+	var err error
+
+	switch report.Format {
+	case "json":
+		size, err = h.exportToJSON(filePath, data)
+	case "csv":
+		size, err = h.exportToCSV(filePath, data)
+	case "excel":
+		size, err = h.exportToExcel(filePath, data)
+	case "pdf":
+		size, err = h.exportToPDF(filePath, data, report)
+	default:
+		return "", 0, fmt.Errorf("unsupported export format: %s", report.Format)
+	}
+
+	if err != nil {
+		return "", 0, err
+	}
+
 	return filePath, size, nil
+}
+
+func (h *Handler) exportToJSON(filePath string, data interface{}) (int64, error) {
+	file, err := os.Create(filePath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create JSON file: %w", err)
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	
+	if err := encoder.Encode(data); err != nil {
+		return 0, fmt.Errorf("failed to encode JSON: %w", err)
+	}
+
+	stat, err := file.Stat()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get file stats: %w", err)
+	}
+
+	return stat.Size(), nil
+}
+
+func (h *Handler) exportToCSV(filePath string, data interface{}) (int64, error) {
+	file, err := os.Create(filePath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create CSV file: %w", err)
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Convert data to slice of maps for CSV export
+	dataSlice, ok := data.([]interface{})
+	if !ok {
+		return 0, fmt.Errorf("data format not suitable for CSV export")
+	}
+
+	if len(dataSlice) == 0 {
+		// Write empty CSV with just headers
+		writer.Write([]string{"No data available"})
+		stat, _ := file.Stat()
+		return stat.Size(), nil
+	}
+
+	// Get headers from first record
+	firstRecord := dataSlice[0]
+	headers := h.getCSVHeaders(firstRecord)
+	
+	// Write headers
+	if err := writer.Write(headers); err != nil {
+		return 0, fmt.Errorf("failed to write CSV headers: %w", err)
+	}
+
+	// Write data rows
+	for _, record := range dataSlice {
+		row := h.getCSVRow(record, headers)
+		if err := writer.Write(row); err != nil {
+			return 0, fmt.Errorf("failed to write CSV row: %w", err)
+		}
+	}
+
+	stat, err := file.Stat()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get file stats: %w", err)
+	}
+
+	return stat.Size(), nil
+}
+
+func (h *Handler) exportToExcel(filePath string, data interface{}) (int64, error) {
+	// For now, export as CSV and rename to .xlsx
+	// In a full implementation, you would use a library like excelize
+	csvPath := strings.Replace(filePath, ".excel", ".csv", 1)
+	size, err := h.exportToCSV(csvPath, data)
+	if err != nil {
+		return 0, err
+	}
+
+	// Rename file to .xlsx (this is a simplified approach)
+	if err := os.Rename(csvPath, filePath); err != nil {
+		return 0, fmt.Errorf("failed to rename file: %w", err)
+	}
+
+	return size, nil
+}
+
+func (h *Handler) exportToPDF(filePath string, data interface{}, report *models.Report) (int64, error) {
+	// For now, create a simple text PDF
+	// In a full implementation, you would use a PDF library like gofpdf
+	file, err := os.Create(filePath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create PDF file: %w", err)
+	}
+	defer file.Close()
+
+	// Write simple PDF content (this is a mock implementation)
+	content := fmt.Sprintf("PDF Report: %s\nType: %s\nGenerated: %s\n\nData: %v", 
+		report.Name, report.Type, time.Now().Format("2006-01-02 15:04:05"), data)
+	
+	if _, err := file.WriteString(content); err != nil {
+		return 0, fmt.Errorf("failed to write PDF content: %w", err)
+	}
+
+	stat, err := file.Stat()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get file stats: %w", err)
+	}
+
+	return stat.Size(), nil
+}
+
+func (h *Handler) getCSVHeaders(record interface{}) []string {
+	// Use reflection to get field names
+	v := reflect.ValueOf(record)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	
+	t := v.Type()
+	headers := make([]string, v.NumField())
+	
+	for i := 0; i < v.NumField(); i++ {
+		field := t.Field(i)
+		jsonTag := field.Tag.Get("json")
+		if jsonTag != "" && jsonTag != "-" {
+			tagName := strings.Split(jsonTag, ",")[0]
+			headers[i] = tagName
+		} else {
+			headers[i] = field.Name
+		}
+	}
+	
+	return headers
+}
+
+func (h *Handler) getCSVRow(record interface{}, headers []string) []string {
+	v := reflect.ValueOf(record)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	
+	row := make([]string, len(headers))
+	
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		var value string
+		
+		if field.IsValid() && field.CanInterface() {
+			switch field.Kind() {
+			case reflect.String:
+				value = field.String()
+			case reflect.Int, reflect.Int64:
+				value = fmt.Sprintf("%d", field.Int())
+			case reflect.Float64:
+				value = fmt.Sprintf("%.2f", field.Float())
+			case reflect.Bool:
+				value = fmt.Sprintf("%t", field.Bool())
+			case reflect.Ptr:
+				if !field.IsNil() {
+					value = fmt.Sprintf("%v", field.Elem().Interface())
+				}
+			default:
+				value = fmt.Sprintf("%v", field.Interface())
+			}
+		}
+		
+		if i < len(row) {
+			row[i] = value
+		}
+	}
+	
+	return row
 }
 
 func (h *Handler) sendReportEmail(report *models.Report, emailConfig *EmailConfig, filePath string) {

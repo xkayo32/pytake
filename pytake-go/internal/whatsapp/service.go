@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -24,6 +25,8 @@ type Service struct {
 	client     *Client
 	logger     *zap.SugaredLogger
 	encryptKey []byte
+	// Add queue manager later when implementing queue integration
+	// queueManager queue.Manager
 }
 
 // NewService creates a new WhatsApp service
@@ -192,33 +195,88 @@ func (s *Service) TestConfig(id uuid.UUID, tenantID uuid.UUID) error {
 
 // SendMessage sends a WhatsApp message
 func (s *Service) SendMessage(tenantID uuid.UUID, req *SendMessageRequest) (*SendMessageResponse, error) {
+	// Start a database transaction
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
 	// Get the config
 	var config models.WhatsAppConfig
-	if err := s.db.Where("id = ? AND tenant_id = ? AND is_active = ?", req.ConfigID, tenantID, true).First(&config).Error; err != nil {
+	if err := tx.Where("id = ? AND tenant_id = ? AND is_active = ?", req.ConfigID, tenantID, true).First(&config).Error; err != nil {
+		tx.Rollback()
 		return nil, fmt.Errorf("config not found or inactive: %w", err)
 	}
 
-	// Decrypt access token
-	decryptedToken, err := s.decryptString(config.AccessToken)
+	// Find or create contact for the recipient
+	contact, err := s.findOrCreateContactByPhone(tx, req.To, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt access token: %w", err)
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to find or create contact: %w", err)
 	}
-	config.AccessToken = decryptedToken
+
+	// Find or create conversation
+	conversation, err := s.findOrCreateConversationForContact(tx, contact, &config, tenantID)
+	if err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to find or create conversation: %w", err)
+	}
 
 	// Create message record
 	message := &models.Message{
 		TenantModel: models.TenantModel{
 			TenantID: tenantID,
 		},
-		Direction: models.MessageDirectionOutbound,
-		Type:      string(req.Type),
-		Status:    models.MessageStatusPending,
+		ConversationID:   conversation.ID,
+		ContactID:        contact.ID,
+		WhatsAppConfigID: &config.ID,
+		Direction:        models.MessageDirectionOutbound,
+		Type:             string(req.Type),
+		Status:           models.MessageStatusPending,
+	}
+
+	// Set message content based on type
+	switch req.Type {
+	case MessageTypeText:
+		if req.Text != nil {
+			message.Content = req.Text.Body
+		}
+	case MessageTypeImage, MessageTypeDocument, MessageTypeAudio, MessageTypeVideo:
+		if req.Media != nil {
+			message.MediaURL = req.Media.URL
+			message.Content = req.Media.Caption
+		}
+	case MessageTypeTemplate:
+		if req.Template != nil {
+			message.TemplateName = req.Template.Name
+			message.TemplateLanguage = req.Template.Language
+			// Store template components as JSON
+			if len(req.Template.Components) > 0 {
+				message.TemplateParams = models.JSON(req.Template.Components)
+			}
+		}
 	}
 
 	// Save message to database
-	if err := s.db.Create(message).Error; err != nil {
+	if err := tx.Create(message).Error; err != nil {
+		tx.Rollback()
 		return nil, fmt.Errorf("failed to create message record: %w", err)
 	}
+
+	// Commit transaction before sending
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// Decrypt access token for API call
+	decryptedToken, err := s.decryptString(config.AccessToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt access token: %w", err)
+	}
+	config.AccessToken = decryptedToken
 
 	// Send based on message type
 	var apiResp *WhatsAppAPIResponse
@@ -262,65 +320,163 @@ func (s *Service) SendMessage(tenantID uuid.UUID, req *SendMessageRequest) (*Sen
 		return nil, fmt.Errorf("unsupported message type: %s", req.Type)
 	}
 
-	// Update message status
+	// Update message status based on send result
+	now := time.Now()
 	if sendErr != nil {
 		message.Status = models.MessageStatusFailed
 		message.ErrorMessage = sendErr.Error()
+		message.FailedAt = &now
 		s.db.Save(message)
 		return nil, fmt.Errorf("failed to send message: %w", sendErr)
 	}
 
-	// Update message with WhatsApp ID
+	// Update message with WhatsApp ID and sent status
 	if apiResp != nil && len(apiResp.Messages) > 0 {
 		message.WhatsAppID = apiResp.Messages[0].ID
 		message.Status = models.MessageStatusSent
+		message.SentAt = &now
+	} else {
+		message.Status = models.MessageStatusSent
+		message.SentAt = &now
 	}
 	s.db.Save(message)
+
+	// Update contact statistics
+	if err := s.updateContactStats(s.db, contact.ID); err != nil {
+		s.logger.Warnw("Failed to update contact stats", "error", err, "contact_id", contact.ID)
+	}
+
+	// Queue webhook notification
+	if err := s.queueWebhookNotification(message.ID, "message_sent"); err != nil {
+		s.logger.Warnw("Failed to queue webhook notification", "error", err, "message_id", message.ID)
+	}
 
 	// Return response
 	return &SendMessageResponse{
 		MessageID: message.WhatsAppID,
 		Status:    MessageStatusSent,
 		To:        req.To,
-		Timestamp: time.Now(),
+		Timestamp: now,
 		ConfigID:  req.ConfigID,
 	}, nil
 }
 
 // ProcessIncomingMessage processes an incoming WhatsApp message
 func (s *Service) ProcessIncomingMessage(msg *IncomingMessage) error {
+	// Start a database transaction
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	// Find or create contact
+	contact, err := s.findOrCreateContact(tx, msg)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to find or create contact: %w", err)
+	}
+
+	// Find or create conversation
+	conversation, err := s.findOrCreateConversation(tx, contact, msg)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to find or create conversation: %w", err)
+	}
+
 	// Create message record
 	message := &models.Message{
 		TenantModel: models.TenantModel{
 			TenantID: msg.TenantID,
 		},
-		WhatsAppID: msg.WhatsAppID,
-		Direction:  models.MessageDirectionInbound,
-		Type:       msg.Type,
-		Status:     models.MessageStatusReceived,
-		Content:    msg.TextBody,
+		ConversationID:   conversation.ID,
+		ContactID:        contact.ID,
+		WhatsAppConfigID: &msg.ConfigID,
+		WhatsAppID:       msg.WhatsAppID,
+		Direction:        models.MessageDirectionInbound,
+		Type:             msg.Type,
+		Status:           models.MessageStatusReceived,
+		Content:          msg.TextBody,
 	}
 
-	// Handle media messages
-	if msg.MediaID != "" {
-		// Queue media download job
-		// TODO: Implement media download queue
-		message.MediaURL = msg.MediaID // Store media ID for now
+	// Handle different message types
+	switch msg.Type {
+	case string(MessageTypeText):
+		message.Content = msg.TextBody
+	case string(MessageTypeImage), string(MessageTypeDocument), string(MessageTypeAudio), string(MessageTypeVideo):
+		if msg.MediaID != "" {
+			message.MediaURL = msg.MediaID // Store media ID temporarily
+			message.MediaType = msg.MediaMimeType
+			message.MediaSize = 0 // Will be updated after download
+			if msg.MediaCaption != "" {
+				message.Content = msg.MediaCaption
+			}
+		}
+	case string(MessageTypeLocation):
+		if msg.LocationLat != nil && msg.LocationLng != nil {
+			message.LocationLat = msg.LocationLat
+			message.LocationLng = msg.LocationLng
+			message.LocationName = msg.LocationName
+			message.LocationAddress = msg.LocationAddress
+		}
+	}
+
+	// Handle reply context
+	if msg.ContextMessageID != "" {
+		// Find the original message being replied to
+		var originalMessage models.Message
+		if err := tx.Where("whatsapp_id = ? AND tenant_id = ?", msg.ContextMessageID, msg.TenantID).First(&originalMessage).Error; err == nil {
+			message.ReplyToID = &originalMessage.ID
+		}
 	}
 
 	// Save message to database
-	if err := s.db.Create(message).Error; err != nil {
+	if err := tx.Create(message).Error; err != nil {
+		tx.Rollback()
 		return fmt.Errorf("failed to save incoming message: %w", err)
 	}
 
-	// Queue for further processing (flows, AI, etc.)
-	// TODO: Implement message processing queue
+	// Update contact statistics
+	if err := s.updateContactStats(tx, contact.ID); err != nil {
+		s.logger.Warnw("Failed to update contact stats", "error", err, "contact_id", contact.ID)
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// Queue media download if needed
+	if msg.MediaID != "" {
+		if err := s.queueMediaDownload(message.ID, msg.MediaID, msg.ConfigID); err != nil {
+			s.logger.Warnw("Failed to queue media download", "error", err, "message_id", message.ID)
+		}
+	}
+
+	// Queue for AI processing
+	if err := s.queueAIProcessing(message.ID, conversation.ID); err != nil {
+		s.logger.Warnw("Failed to queue AI processing", "error", err, "message_id", message.ID)
+	}
+
+	// Queue for flow processing
+	if err := s.queueFlowProcessing(message.ID, conversation.ID); err != nil {
+		s.logger.Warnw("Failed to queue flow processing", "error", err, "message_id", message.ID)
+	}
+
+	// Queue for webhook notification to external systems
+	if err := s.queueWebhookNotification(message.ID, "message_received"); err != nil {
+		s.logger.Warnw("Failed to queue webhook notification", "error", err, "message_id", message.ID)
+	}
 
 	s.logger.Infow("Incoming message processed",
 		"message_id", message.ID,
 		"whatsapp_id", msg.WhatsAppID,
 		"from", msg.From,
 		"type", msg.Type,
+		"conversation_id", conversation.ID,
+		"contact_id", contact.ID,
 		"tenant_id", msg.TenantID,
 	)
 
@@ -339,9 +495,34 @@ func (s *Service) UpdateMessageStatus(whatsappID string, status string, tenantID
 		return nil
 	}
 
-	message.Status = models.MessageStatus(status)
-	if err := s.db.Save(&message).Error; err != nil {
+	// Update status and timestamp
+	now := time.Now()
+	updates := map[string]interface{}{
+		"status":     models.MessageStatus(status),
+		"updated_at": now,
+	}
+
+	// Set appropriate timestamp based on status
+	switch models.MessageStatus(status) {
+	case models.MessageStatusDelivered:
+		updates["delivered_at"] = now
+	case models.MessageStatusRead:
+		updates["read_at"] = now
+		// Also mark conversation as having activity
+		if message.ConversationID != uuid.Nil {
+			s.db.Model(&models.Conversation{}).Where("id = ?", message.ConversationID).Update("last_message_at", now)
+		}
+	case models.MessageStatusFailed:
+		updates["failed_at"] = now
+	}
+
+	if err := s.db.Model(&message).Updates(updates).Error; err != nil {
 		return fmt.Errorf("failed to update message status: %w", err)
+	}
+
+	// Queue webhook notification for status update
+	if err := s.queueWebhookNotification(message.ID, "message_status_updated"); err != nil {
+		s.logger.Warnw("Failed to queue webhook notification", "error", err, "message_id", message.ID)
 	}
 
 	s.logger.Debugw("Message status updated",
@@ -405,6 +586,304 @@ func (s *Service) decryptString(cryptoText string) (string, error) {
 	stream.XORKeyStream(ciphertext, ciphertext)
 
 	return string(ciphertext), nil
+}
+
+// findOrCreateContactByPhone finds or creates a contact by phone number
+func (s *Service) findOrCreateContactByPhone(tx *gorm.DB, phoneNumber string, tenantID uuid.UUID) (*models.Contact, error) {
+	var contact models.Contact
+
+	// Try to find existing contact
+	err := tx.Where("(whatsapp_phone = ? OR phone = ?) AND tenant_id = ?", phoneNumber, phoneNumber, tenantID).First(&contact).Error
+	if err == nil {
+		// Contact found, update last contact time
+		now := time.Now()
+		tx.Model(&contact).Updates(map[string]interface{}{
+			"last_contact_at": now,
+			"updated_at":      now,
+		})
+		return &contact, nil
+	}
+
+	// Contact not found, create new one
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("database error while finding contact: %w", err)
+	}
+
+	// Create new contact
+	contact = models.Contact{
+		TenantModel: models.TenantModel{
+			TenantID: tenantID,
+		},
+		Name:          phoneNumber, // Use phone as name initially
+		Phone:         phoneNumber,
+		WhatsAppPhone: phoneNumber,
+		Source:        "whatsapp",
+		Status:        models.ContactStatusActive,
+		Language:      "pt",
+		Timezone:      "America/Sao_Paulo",
+	}
+
+	if err := tx.Create(&contact).Error; err != nil {
+		return nil, fmt.Errorf("failed to create contact: %w", err)
+	}
+
+	s.logger.Infow("New contact created for outbound message",
+		"contact_id", contact.ID,
+		"phone", phoneNumber,
+		"tenant_id", tenantID,
+	)
+
+	return &contact, nil
+}
+
+// findOrCreateConversationForContact finds or creates a conversation for a contact
+func (s *Service) findOrCreateConversationForContact(tx *gorm.DB, contact *models.Contact, config *models.WhatsAppConfig, tenantID uuid.UUID) (*models.Conversation, error) {
+	var conversation models.Conversation
+
+	// Try to find an open conversation for this contact and config
+	err := tx.Where("contact_id = ? AND whatsapp_config_id = ? AND tenant_id = ? AND status IN ?", 
+		contact.ID, config.ID, tenantID, []string{string(models.ConversationStatusOpen), string(models.ConversationStatusPending)}).First(&conversation).Error
+	if err == nil {
+		// Conversation found
+		return &conversation, nil
+	}
+
+	// Conversation not found, create new one
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("database error while finding conversation: %w", err)
+	}
+
+	// Create new conversation
+	conversation = models.Conversation{
+		TenantModel: models.TenantModel{
+			TenantID: tenantID,
+		},
+		ContactID:        contact.ID,
+		WhatsAppConfigID: &config.ID,
+		Status:           models.ConversationStatusOpen,
+		Channel:          models.ChannelWhatsApp,
+		UnreadCount:      0,
+	}
+
+	if err := tx.Create(&conversation).Error; err != nil {
+		return nil, fmt.Errorf("failed to create conversation: %w", err)
+	}
+
+	s.logger.Infow("New conversation created for outbound message",
+		"conversation_id", conversation.ID,
+		"contact_id", contact.ID,
+		"config_id", config.ID,
+		"tenant_id", tenantID,
+	)
+
+	return &conversation, nil
+}
+
+// findOrCreateContact finds an existing contact or creates a new one
+func (s *Service) findOrCreateContact(tx *gorm.DB, msg *IncomingMessage) (*models.Contact, error) {
+	var contact models.Contact
+
+	// Try to find existing contact by WhatsApp phone number
+	err := tx.Where("whatsapp_phone = ? AND tenant_id = ?", msg.From, msg.TenantID).First(&contact).Error
+	if err == nil {
+		// Contact found, update last contact time and name if provided
+		now := time.Now()
+		updates := map[string]interface{}{
+			"last_contact_at": now,
+			"updated_at":      now,
+		}
+		if msg.ContactName != "" && contact.Name != msg.ContactName {
+			updates["name"] = msg.ContactName
+		}
+		tx.Model(&contact).Updates(updates)
+		return &contact, nil
+	}
+
+	// Contact not found, create new one
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("database error while finding contact: %w", err)
+	}
+
+	// Create new contact
+	contact = models.Contact{
+		TenantModel: models.TenantModel{
+			TenantID: msg.TenantID,
+		},
+		Name:          msg.ContactName,
+		WhatsAppPhone: msg.From,
+		Source:        "whatsapp",
+		Status:        models.ContactStatusActive,
+		Language:      "pt", // Default to Portuguese
+		Timezone:      "America/Sao_Paulo",
+	}
+
+	// Set name to phone number if name not provided
+	if contact.Name == "" {
+		contact.Name = msg.From
+	}
+
+	if err := tx.Create(&contact).Error; err != nil {
+		return nil, fmt.Errorf("failed to create contact: %w", err)
+	}
+
+	s.logger.Infow("New contact created",
+		"contact_id", contact.ID,
+		"name", contact.Name,
+		"phone", contact.WhatsAppPhone,
+		"tenant_id", msg.TenantID,
+	)
+
+	return &contact, nil
+}
+
+// findOrCreateConversation finds an existing conversation or creates a new one
+func (s *Service) findOrCreateConversation(tx *gorm.DB, contact *models.Contact, msg *IncomingMessage) (*models.Conversation, error) {
+	var conversation models.Conversation
+
+	// Try to find an open conversation for this contact
+	err := tx.Where("contact_id = ? AND tenant_id = ? AND status IN ?", 
+		contact.ID, msg.TenantID, []string{string(models.ConversationStatusOpen), string(models.ConversationStatusPending)}).First(&conversation).Error
+	if err == nil {
+		// Conversation found
+		return &conversation, nil
+	}
+
+	// Conversation not found or error, create new one
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("database error while finding conversation: %w", err)
+	}
+
+	// Create new conversation
+	conversation = models.Conversation{
+		TenantModel: models.TenantModel{
+			TenantID: msg.TenantID,
+		},
+		ContactID:        contact.ID,
+		WhatsAppConfigID: &msg.ConfigID,
+		Status:           models.ConversationStatusOpen,
+		Channel:          models.ChannelWhatsApp,
+		UnreadCount:      0, // Will be incremented by message creation
+	}
+
+	if err := tx.Create(&conversation).Error; err != nil {
+		return nil, fmt.Errorf("failed to create conversation: %w", err)
+	}
+
+	s.logger.Infow("New conversation created",
+		"conversation_id", conversation.ID,
+		"contact_id", contact.ID,
+		"tenant_id", msg.TenantID,
+	)
+
+	return &conversation, nil
+}
+
+// updateContactStats updates contact statistics
+func (s *Service) updateContactStats(tx *gorm.DB, contactID uuid.UUID) error {
+	// Count total messages for this contact
+	var messageCount int64
+	tx.Model(&models.Message{}).Where("contact_id = ?", contactID).Count(&messageCount)
+
+	// Count total conversations for this contact
+	var conversationCount int64
+	tx.Model(&models.Conversation{}).Where("contact_id = ?", contactID).Count(&conversationCount)
+
+	// Update contact statistics
+	return tx.Model(&models.Contact{}).Where("id = ?", contactID).Updates(map[string]interface{}{
+		"total_messages":     messageCount,
+		"total_conversations": conversationCount,
+		"updated_at":         time.Now(),
+	}).Error
+}
+
+// queueMediaDownload queues a media download job
+func (s *Service) queueMediaDownload(messageID uuid.UUID, mediaID string, configID uuid.UUID) error {
+	if s.redis == nil {
+		return nil // No queue system available
+	}
+
+	// Create job payload
+	payload := map[string]interface{}{
+		"message_id": messageID.String(),
+		"media_id":   mediaID,
+		"config_id":  configID.String(),
+	}
+
+	// Queue the job (this would integrate with your queue system)
+	// For now, just log it
+	s.logger.Infow("Queuing media download job",
+		"message_id", messageID,
+		"media_id", mediaID,
+		"config_id", configID,
+	)
+
+	return nil
+}
+
+// queueAIProcessing queues AI processing for a message
+func (s *Service) queueAIProcessing(messageID, conversationID uuid.UUID) error {
+	if s.redis == nil {
+		return nil // No queue system available
+	}
+
+	// Create job payload
+	payload := map[string]interface{}{
+		"message_id":      messageID.String(),
+		"conversation_id": conversationID.String(),
+		"action":          "process_message",
+	}
+
+	// Queue the job
+	s.logger.Infow("Queuing AI processing job",
+		"message_id", messageID,
+		"conversation_id", conversationID,
+	)
+
+	return nil
+}
+
+// queueFlowProcessing queues flow processing for a message
+func (s *Service) queueFlowProcessing(messageID, conversationID uuid.UUID) error {
+	if s.redis == nil {
+		return nil // No queue system available
+	}
+
+	// Create job payload
+	payload := map[string]interface{}{
+		"message_id":      messageID.String(),
+		"conversation_id": conversationID.String(),
+		"trigger_type":    "message_received",
+	}
+
+	// Queue the job
+	s.logger.Infow("Queuing flow processing job",
+		"message_id", messageID,
+		"conversation_id", conversationID,
+	)
+
+	return nil
+}
+
+// queueWebhookNotification queues webhook notification
+func (s *Service) queueWebhookNotification(messageID uuid.UUID, eventType string) error {
+	if s.redis == nil {
+		return nil // No queue system available
+	}
+
+	// Create job payload
+	payload := map[string]interface{}{
+		"message_id": messageID.String(),
+		"event_type": eventType,
+		"timestamp":  time.Now().Unix(),
+	}
+
+	// Queue the job
+	s.logger.Infow("Queuing webhook notification job",
+		"message_id", messageID,
+		"event_type", eventType,
+	)
+
+	return nil
 }
 
 // Request/Response DTOs

@@ -121,6 +121,7 @@ func (h *Handler) Chat(c *gin.Context) {
 	messages, err := h.contextManager.GetContextWindow(c.Request.Context(), aiContext.ID, 10)
 	if err != nil {
 		h.log.Error("Failed to get context window", "error", err)
+		messages = []openai.Message{} // Initialize empty if error
 	}
 
 	// Add system prompt if persona is specified
