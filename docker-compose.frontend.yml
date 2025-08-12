@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # Frontend Application
+  frontend:
+    build:
+      context: ./pytake-frontend
+      dockerfile: Dockerfile
+    container_name: pytake-frontend-prod
+    restart: unless-stopped
+    ports:
+      - "3010:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: https://api.pytake.net
+      NEXT_PUBLIC_WS_URL: wss://api.pytake.net
+      NEXT_PUBLIC_APP_URL: https://app.pytake.net
+    networks:
+      - pytake-frontend-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx for Frontend
+  nginx-frontend:
+    image: nginx:alpine
+    container_name: pytake-nginx-frontend
+    restart: unless-stopped
+    ports:
+      - "8443:443"
+    volumes:
+      - ./nginx-frontend.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl-temp/app.fullchain.pem:/etc/ssl/certs/app.pytake.net.pem:ro
+      - ./ssl-temp/app.privkey.pem:/etc/ssl/private/app.pytake.net.key:ro
+    depends_on:
+      - frontend
+    networks:
+      - pytake-frontend-network
+
+networks:
+  pytake-frontend-network:
+    driver: bridge

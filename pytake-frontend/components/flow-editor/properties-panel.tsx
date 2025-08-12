@@ -1,0 +1,378 @@
+import { useState, useEffect } from 'react'
+import { 
+  Settings, 
+  Trash2, 
+  Copy, 
+  Eye, 
+  EyeOff,
+  Save,
+  AlertCircle,
+  CheckCircle
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
+import { NODE_TYPES } from '@/lib/types/flow'
+
+interface PropertiesPanelProps {
+  className?: string
+}
+
+export function PropertiesPanel({ className }: PropertiesPanelProps) {
+  const { 
+    selectedNode, 
+    nodes, 
+    updateNodeData, 
+    deleteNode,
+    selectNode
+  } = useFlowEditorStore()
+  
+  const [formData, setFormData] = useState<Record<string, any>>({})
+  const [isValid, setIsValid] = useState(true)
+  const [validationErrors, setValidationErrors] = useState<string[]>([])
+
+  const selectedNodeData = selectedNode 
+    ? nodes.find(node => node.id === selectedNode)
+    : null
+
+  const nodeType = selectedNodeData?.data?.nodeType 
+    ? NODE_TYPES.find(nt => nt.id === selectedNodeData.data.nodeType)
+    : null
+
+  useEffect(() => {
+    if (selectedNodeData) {
+      setFormData(selectedNodeData.data.config || {})
+    } else {
+      setFormData({})
+    }
+  }, [selectedNodeData])
+
+  useEffect(() => {
+    validateForm()
+  }, [formData, nodeType])
+
+  const validateForm = () => {
+    if (!nodeType) return
+
+    const errors: string[] = []
+    
+    Object.entries(nodeType.configSchema).forEach(([key, schema]) => {
+      const value = formData[key]
+      
+      if (schema.required && (!value || value === '')) {
+        errors.push(`${schema.label} é obrigatório`)
+      }
+      
+      if (value && schema.validation) {
+        if (schema.type === 'number') {
+          const numValue = Number(value)
+          if (schema.validation.min && numValue < schema.validation.min) {
+            errors.push(`${schema.label} deve ser maior que ${schema.validation.min}`)
+          }
+          if (schema.validation.max && numValue > schema.validation.max) {
+            errors.push(`${schema.label} deve ser menor que ${schema.validation.max}`)
+          }
+        }
+        
+        if (schema.validation.pattern) {
+          const regex = new RegExp(schema.validation.pattern)
+          if (!regex.test(value)) {
+            errors.push(`${schema.label} tem formato inválido`)
+          }
+        }
+      }
+    })
+    
+    setValidationErrors(errors)
+    setIsValid(errors.length === 0)
+  }
+
+  const handleInputChange = (key: string, value: any) => {
+    const newFormData = { ...formData, [key]: value }
+    setFormData(newFormData)
+  }
+
+  const handleSave = () => {
+    if (!selectedNode || !isValid) return
+    
+    updateNodeData(selectedNode, { config: formData })
+  }
+
+  const handleDelete = () => {
+    if (!selectedNode) return
+    deleteNode(selectedNode)
+    selectNode(null)
+  }
+
+  const renderFormField = (key: string, schema: any) => {
+    const value = formData[key] || ''
+    
+    switch (schema.type) {
+      case 'text':
+        return (
+          <Input
+            type="text"
+            value={value}
+            onChange={(e) => handleInputChange(key, e.target.value)}
+            placeholder={schema.placeholder}
+          />
+        )
+      
+      case 'textarea':
+        return (
+          <Textarea
+            value={value}
+            onChange={(e) => handleInputChange(key, e.target.value)}
+            placeholder={schema.placeholder}
+            rows={3}
+          />
+        )
+      
+      case 'number':
+        return (
+          <Input
+            type="number"
+            value={value}
+            onChange={(e) => handleInputChange(key, e.target.value)}
+            placeholder={schema.placeholder}
+          />
+        )
+      
+      case 'boolean':
+        return (
+          <div className="flex items-center space-x-2">
+            <Switch
+              checked={Boolean(value)}
+              onCheckedChange={(checked) => handleInputChange(key, checked)}
+            />
+            <Label className="text-sm">{value ? 'Ativado' : 'Desativado'}</Label>
+          </div>
+        )
+      
+      case 'select':
+        return (
+          <Select
+            value={value}
+            onValueChange={(newValue) => handleInputChange(key, newValue)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={schema.placeholder} />
+            </SelectTrigger>
+            <SelectContent>
+              {schema.options?.map((option: any) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )
+      
+      case 'json':
+        return (
+          <Textarea
+            value={typeof value === 'object' ? JSON.stringify(value, null, 2) : value}
+            onChange={(e) => {
+              try {
+                const parsed = JSON.parse(e.target.value)
+                handleInputChange(key, parsed)
+              } catch {
+                handleInputChange(key, e.target.value)
+              }
+            }}
+            placeholder={schema.placeholder}
+            rows={4}
+            className="font-mono text-sm"
+          />
+        )
+      
+      default:
+        return (
+          <Input
+            type="text"
+            value={value}
+            onChange={(e) => handleInputChange(key, e.target.value)}
+            placeholder={schema.placeholder}
+          />
+        )
+    }
+  }
+
+  if (!selectedNode || !selectedNodeData) {
+    return (
+      <div className={`w-80 border-l bg-background/50 flex flex-col ${className}`}>
+        <div className="p-4 border-b">
+          <div className="flex items-center gap-2">
+            <Settings className="h-5 w-5 text-muted-foreground" />
+            <h2 className="font-semibold text-muted-foreground">Propriedades</h2>
+          </div>
+        </div>
+        
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="text-center text-muted-foreground">
+            <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>Selecione um componente no canvas para configurá-lo</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={`w-80 border-l bg-background/50 flex flex-col ${className}`}>
+      {/* Header */}
+      <div className="p-4 border-b">
+        <div className="flex items-center gap-2 mb-4">
+          <Settings className="h-5 w-5 text-primary" />
+          <h2 className="font-semibold">Propriedades</h2>
+        </div>
+
+        {/* Node Info */}
+        <div className="flex items-center gap-3 mb-4">
+          <div 
+            className="p-2 rounded-lg"
+            style={{ 
+              backgroundColor: `${selectedNodeData.data.color}20`,
+              color: selectedNodeData.data.color
+            }}
+          >
+            <Settings className="h-4 w-4" />
+          </div>
+          <div>
+            <h3 className="font-medium">{selectedNodeData.data.label}</h3>
+            <p className="text-sm text-muted-foreground">
+              {selectedNodeData.data.description}
+            </p>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSave}
+            disabled={!isValid}
+            className="flex-1"
+          >
+            <Save className="h-4 w-4 mr-1" />
+            Salvar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDelete}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Configuration Form */}
+      <div className="flex-1 overflow-auto p-4">
+        {nodeType && (
+          <div className="space-y-6">
+            {/* Validation Status */}
+            <div className="flex items-center gap-2">
+              {isValid ? (
+                <>
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="text-sm text-green-600">Configuração válida</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <span className="text-sm text-red-600">
+                    {validationErrors.length} erro{validationErrors.length > 1 ? 's' : ''}
+                  </span>
+                </>
+              )}
+            </div>
+
+            {/* Validation Errors */}
+            {validationErrors.length > 0 && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="text-sm text-red-800">
+                  <p className="font-medium mb-2">Erros de validação:</p>
+                  <ul className="space-y-1">
+                    {validationErrors.map((error, index) => (
+                      <li key={index} className="flex items-center gap-1">
+                        <div className="w-1 h-1 bg-red-600 rounded-full" />
+                        {error}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* Form Fields */}
+            {Object.entries(nodeType.configSchema).map(([key, schema]) => (
+              <div key={key} className="space-y-2">
+                <Label htmlFor={key} className="text-sm font-medium">
+                  {schema.label}
+                  {schema.required && <span className="text-red-500 ml-1">*</span>}
+                </Label>
+                {renderFormField(key, schema)}
+                {schema.placeholder && (
+                  <p className="text-xs text-muted-foreground">
+                    {schema.placeholder}
+                  </p>
+                )}
+              </div>
+            ))}
+
+            {/* Advanced Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Configurações Avançadas</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">ID do Node</Label>
+                  <Badge variant="secondary" className="font-mono text-xs">
+                    {selectedNode}
+                  </Badge>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Tipo</Label>
+                  <Badge variant="outline" className="text-xs">
+                    {nodeType.name}
+                  </Badge>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Categoria</Label>
+                  <Badge variant="outline" className="text-xs">
+                    {nodeType.category}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Debug Info */}
+            {process.env.NODE_ENV === 'development' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Debug</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-32">
+                    {JSON.stringify(formData, null, 2)}
+                  </pre>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
