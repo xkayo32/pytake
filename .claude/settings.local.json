@@ -27,7 +27,8 @@
       "Bash(grep:*)",
       "Bash(touch:*)",
       "Bash(docker:*)",
-      "Bash(./tests/validation/deployment_check.sh:*)"
+      "Bash(./tests/validation/deployment_check.sh:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }

@@ -30,6 +30,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/pytake/pytake-go/internal/reports"
 	"github.com/pytake/pytake-go/internal/tenant"
+	"github.com/pytake/pytake-go/internal/settings"
 	"github.com/pytake/pytake-go/internal/websocket"
 	"github.com/pytake/pytake-go/internal/whatsapp"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -151,9 +152,13 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB, rdb *redis.Client, cfg *c
 	syncWorker.RegisterHandler(syncHandler)
 	cleanupWorker.RegisterHandler(cleanupHandler)
 
+	// Create settings service
+	settingsService := settings.NewService(db, rdb, log)
+	
 	// Create handlers
 	authHandler := auth.NewHandler(db, rdb, cfg, log)
 	tenantHandler := tenant.NewHandler(db, cfg, log)
+	settingsHandler := settings.NewHandler(settingsService)
 	whatsappHandler := whatsapp.NewHandler(db, rdb, cfg, log)
 	conversationHandler := conversation.NewHandler(db, rdb, cfg, log)
 	wsHandler := websocket.NewHandler(wsHub, cfg, log)
@@ -413,6 +418,62 @@ func SetupRoutes(router *gin.RouterGroup, db *gorm.DB, rdb *redis.Client, cfg *c
 			queueRoutes.POST("/schedules", queueHandler.CreateSchedule)
 			queueRoutes.GET("/schedules", queueHandler.ListSchedules)
 			queueRoutes.DELETE("/schedules/:name", queueHandler.DeleteSchedule)
+		}
+
+		// Settings routes (require authentication)
+		settingsRoutes := protected.Group("/settings")
+		{
+			// System settings (admin only)
+			systemSettings := settingsRoutes.Group("/system")
+			systemSettings.Use(middleware.RequireRole("admin"))
+			{
+				systemSettings.GET("/", settingsHandler.GetSystemSettings)
+				systemSettings.GET("/:key", settingsHandler.GetSystemSetting)
+				systemSettings.PUT("/:key", settingsHandler.UpdateSystemSetting)
+			}
+			
+			// Tenant settings (require tenant context)
+			tenantSettings := settingsRoutes.Group("/tenant")
+			tenantSettings.Use(middleware.TenantMiddleware(db))
+			{
+				tenantSettings.GET("/", settingsHandler.GetTenantSettings)
+				tenantSettings.GET("/:key", settingsHandler.GetTenantSetting)
+				tenantSettings.PUT("/:key", settingsHandler.UpdateTenantSetting)
+				tenantSettings.DELETE("/:key", settingsHandler.DeleteTenantSetting)
+			}
+			
+			// User settings
+			userSettings := settingsRoutes.Group("/user")
+			{
+				userSettings.GET("/", settingsHandler.GetUserSettings)
+				userSettings.PUT("/:key", settingsHandler.UpdateUserSetting)
+			}
+			
+			// Configuration templates (admin only)
+			templates := settingsRoutes.Group("/templates")
+			templates.Use(middleware.RequireRole("admin"))
+			{
+				templates.GET("/", settingsHandler.GetConfigurationTemplates)
+				templates.POST("/:template_id/apply", middleware.TenantMiddleware(db), settingsHandler.ApplyConfigurationTemplate)
+			}
+			
+			// Feature flags
+			featureFlags := settingsRoutes.Group("/features")
+			{
+				featureFlags.GET("/", settingsHandler.GetFeatureFlags)
+				featureFlags.GET("/:key", settingsHandler.GetFeatureFlag)
+				featureFlags.PUT("/:key", middleware.RequireRole("admin"), settingsHandler.UpdateFeatureFlag)
+			}
+			
+			// Audit logs (admin only)
+			audit := settingsRoutes.Group("/audit")
+			audit.Use(middleware.RequireRole("admin"))
+			{
+				audit.GET("/", settingsHandler.GetSettingAuditLog)
+			}
+			
+			// Effective setting (combines all levels)
+			settingsRoutes.GET("/effective/:key", settingsHandler.GetEffectiveSetting)
 		}
 
 		// Admin routes (require admin role)

@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pytake/pytake-go/internal/database/models"
-	"github.com/pytake/pytake-go/internal/erp"
 	"gorm.io/gorm"
 )
 
@@ -18,12 +17,56 @@ type ManagerImpl struct {
 	engine MappingEngine
 }
 
+// TransformDirection represents the direction of data transformation
+type TransformDirection string
+
+const (
+	TransformToERP      TransformDirection = "to_erp"
+	TransformFromERP    TransformDirection = "from_erp"
+)
+
+// DataMapping represents a data mapping configuration
+type DataMapping struct {
+	ID            uuid.UUID
+	ConnectionID  uuid.UUID
+	EntityType    string
+	FieldMappings map[string]interface{}
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+// DataMappingConfig represents mapping configuration
+type DataMappingConfig struct {
+	EntityType    string
+	FieldMappings map[string]interface{}
+}
+
+// ValidationError represents a mapping validation error
+type ValidationError struct {
+	Field   string
+	Message string
+}
+
+// MappingTestResult represents the result of a mapping test
+type MappingTestResult struct {
+	Success       bool
+	TransformedData map[string]interface{}
+	Errors        []string
+}
+
+// TransformationInfo represents information about a transformation
+type TransformationInfo struct {
+	Name        string
+	Description string
+	Type        string
+}
+
 // MappingEngine interface for field mapping operations
 type MappingEngine interface {
-	TransformData(ctx context.Context, mapping *erp.DataMapping, sourceData map[string]interface{}, direction erp.TransformDirection) (map[string]interface{}, error)
-	ValidateMapping(ctx context.Context, mapping *erp.DataMappingConfig) ([]*erp.ValidationError, error)
-	TestMapping(ctx context.Context, mappingID uuid.UUID, sampleData map[string]interface{}, direction erp.TransformDirection) (*erp.MappingTestResult, error)
-	GetSupportedTransformations(ctx context.Context) ([]*erp.TransformationInfo, error)
+	TransformData(ctx context.Context, mapping *DataMapping, sourceData map[string]interface{}, direction TransformDirection) (map[string]interface{}, error)
+	ValidateMapping(ctx context.Context, mapping *DataMappingConfig) ([]*ValidationError, error)
+	TestMapping(ctx context.Context, mappingID uuid.UUID, sampleData map[string]interface{}, direction TransformDirection) (*MappingTestResult, error)
+	GetSupportedTransformations(ctx context.Context) ([]*TransformationInfo, error)
 }
 
 // NewManager creates a new mapping manager

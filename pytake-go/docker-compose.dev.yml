@@ -1,0 +1,239 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for Development
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: pytake-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-pytake_dev}
+      POSTGRES_USER: ${DB_USER:-pytake}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-pytake123}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./scripts/db-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-pytake} -d ${DB_NAME:-pytake_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pytake-dev-network
+
+  # Redis Cache for Development
+  redis-dev:
+    image: redis:7-alpine
+    container_name: pytake-redis-dev
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-pytake123}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_dev_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-pytake123}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pytake-dev-network
+
+  # MinIO (S3-compatible storage) for Development
+  minio-dev:
+    image: minio/minio:latest
+    container_name: pytake-minio-dev
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-pytake}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-pytake123}
+      MINIO_DEFAULT_BUCKETS: ${MINIO_BUCKET:-pytake-media}
+    command: server /data --console-address ":9001"
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_dev_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - pytake-dev-network
+
+  # Elasticsearch for Development (optional - for advanced search)
+  elasticsearch-dev:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: pytake-elasticsearch-dev
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-pytake123}
+    ports:
+      - "${ELASTIC_PORT:-9200}:9200"
+    volumes:
+      - elasticsearch_dev_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - pytake-dev-network
+    profiles:
+      - elasticsearch
+
+  # RabbitMQ for Development (optional - for message queue)
+  rabbitmq-dev:
+    image: rabbitmq:3-management-alpine
+    container_name: pytake-rabbitmq-dev
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-pytake}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-pytake123}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-pytake}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_dev_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - pytake-dev-network
+    profiles:
+      - rabbitmq
+
+  # MailHog for Development (email testing)
+  mailhog-dev:
+    image: mailhog/mailhog:latest
+    container_name: pytake-mailhog-dev
+    restart: unless-stopped
+    ports:
+      - "${SMTP_PORT:-1025}:1025"
+      - "${MAILHOG_UI_PORT:-8025}:8025"
+    networks:
+      - pytake-dev-network
+
+  # Adminer for Database Management
+  adminer-dev:
+    image: adminer:latest
+    container_name: pytake-adminer-dev
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres-dev
+      ADMINER_DESIGN: pepa-linha
+    ports:
+      - "${ADMINER_PORT:-8081}:8080"
+    networks:
+      - pytake-dev-network
+    depends_on:
+      - postgres-dev
+
+  # Redis Commander for Redis Management
+  redis-commander-dev:
+    image: rediscommander/redis-commander:latest
+    container_name: pytake-redis-commander-dev
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: "local:redis-dev:6379:0:${REDIS_PASSWORD:-pytake123}"
+      HTTP_USER: ${REDIS_COMMANDER_USER:-admin}
+      HTTP_PASSWORD: ${REDIS_COMMANDER_PASSWORD:-admin123}
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8082}:8081"
+    networks:
+      - pytake-dev-network
+    depends_on:
+      - redis-dev
+
+  # Prometheus for Metrics (Development)
+  prometheus-dev:
+    image: prom/prometheus:latest
+    container_name: pytake-prometheus-dev
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus-dev.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_dev_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=24h'
+      - '--web.enable-lifecycle'
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    networks:
+      - pytake-dev-network
+    profiles:
+      - monitoring
+
+  # Grafana for Dashboards (Development)
+  grafana-dev:
+    image: grafana/grafana:latest
+    container_name: pytake-grafana-dev
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_HTTP_PORT: ${GRAFANA_PORT:-3000}
+    volumes:
+      - grafana_dev_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources-dev:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    networks:
+      - pytake-dev-network
+    depends_on:
+      - prometheus-dev
+    profiles:
+      - monitoring
+
+  # Jaeger for Tracing (Development)
+  jaeger-dev:
+    image: jaegertracing/all-in-one:latest
+    container_name: pytake-jaeger-dev
+    restart: unless-stopped
+    environment:
+      COLLECTOR_ZIPKIN_HOST_PORT: ":9411"
+    ports:
+      - "${JAEGER_AGENT_PORT:-6831}:6831/udp"
+      - "${JAEGER_COLLECTOR_PORT:-14268}:14268"
+      - "${JAEGER_UI_PORT:-16686}:16686"
+      - "${ZIPKIN_PORT:-9411}:9411"
+    networks:
+      - pytake-dev-network
+    profiles:
+      - tracing
+
+networks:
+  pytake-dev-network:
+    driver: bridge
+    name: pytake-dev-network
+
+volumes:
+  postgres_dev_data:
+    name: pytake_postgres_dev_data
+  redis_dev_data:
+    name: pytake_redis_dev_data
+  minio_dev_data:
+    name: pytake_minio_dev_data
+  elasticsearch_dev_data:
+    name: pytake_elasticsearch_dev_data
+  rabbitmq_dev_data:
+    name: pytake_rabbitmq_dev_data
+  prometheus_dev_data:
+    name: pytake_prometheus_dev_data
+  grafana_dev_data:
+    name: pytake_grafana_dev_data
