@@ -23,7 +23,8 @@
       "Bash(./test_conversations.sh:*)",
       "Bash(taskkill:*)",
       "Bash(TASKKILL //F //PID 28952)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }
