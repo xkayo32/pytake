@@ -1,0 +1,760 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "PyTake - WhatsApp Business API Platform",
+    "description": "API completa para automação e gerenciamento de conversas WhatsApp Business com recursos de IA, flows, campanhas e integrações ERP.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "PyTake Team",
+      "email": "contato@pytake.net",
+      "url": "https://api.pytake.net"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.pytake.net",
+      "description": "Servidor de Produção"
+    },
+    {
+      "url": "http://localhost:8080",
+      "description": "Servidor de Desenvolvimento"
+    }
+  ],
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string", "format": "uuid"},
+          "email": {"type": "string", "format": "email"},
+          "name": {"type": "string"},
+          "role": {"type": "string", "enum": ["admin", "manager", "agent", "user", "viewer"]},
+          "tenant_id": {"type": "string", "format": "uuid"},
+          "is_active": {"type": "boolean"},
+          "created_at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {"type": "string", "format": "email"},
+          "password": {"type": "string", "minLength": 6}
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "token": {"type": "string"},
+          "refresh_token": {"type": "string"},
+          "user": {"$ref": "#/components/schemas/User"}
+        }
+      },
+      "WhatsAppConfig": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string", "format": "uuid"},
+          "name": {"type": "string"},
+          "phone_number": {"type": "string"},
+          "phone_number_id": {"type": "string"},
+          "access_token": {"type": "string"},
+          "webhook_verify_token": {"type": "string"},
+          "api_type": {"type": "string", "enum": ["official", "evolution"]},
+          "is_active": {"type": "boolean"}
+        }
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string", "format": "uuid"},
+          "conversation_id": {"type": "string", "format": "uuid"},
+          "direction": {"type": "string", "enum": ["inbound", "outbound"]},
+          "type": {"type": "string", "enum": ["text", "image", "document", "audio", "video"]},
+          "content": {"type": "string"},
+          "media_url": {"type": "string"},
+          "status": {"type": "string", "enum": ["sent", "delivered", "read", "failed"]},
+          "created_at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "Conversation": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string", "format": "uuid"},
+          "contact_phone": {"type": "string"},
+          "contact_name": {"type": "string"},
+          "status": {"type": "string", "enum": ["active", "closed", "paused"]},
+          "assigned_to": {"type": "string", "format": "uuid"},
+          "tags": {"type": "array", "items": {"type": "string"}},
+          "last_message_at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "Flow": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string", "format": "uuid"},
+          "name": {"type": "string"},
+          "description": {"type": "string"},
+          "trigger_type": {"type": "string", "enum": ["keyword", "welcome", "no_agent", "schedule"]},
+          "trigger_value": {"type": "string"},
+          "is_active": {"type": "boolean"},
+          "nodes": {"type": "array"},
+          "edges": {"type": "array"}
+        }
+      },
+      "Campaign": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string", "format": "uuid"},
+          "name": {"type": "string"},
+          "type": {"type": "string", "enum": ["broadcast", "drip", "welcome", "remarketing"]},
+          "status": {"type": "string", "enum": ["draft", "scheduled", "running", "paused", "completed"]},
+          "targeting": {"type": "object"},
+          "message": {"type": "object"},
+          "metrics": {"type": "object"}
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Sistema"],
+        "summary": "Health Check",
+        "description": "Verifica se a API está funcionando",
+        "responses": {
+          "200": {
+            "description": "API está funcionando",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {"type": "string", "example": "healthy"},
+                    "timestamp": {"type": "string", "format": "date-time"},
+                    "services": {
+                      "type": "object",
+                      "properties": {
+                        "database": {"type": "string", "example": "connected"},
+                        "redis": {"type": "string", "example": "connected"},
+                        "whatsapp": {"type": "string", "example": "ready"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/status": {
+      "get": {
+        "tags": ["Sistema"],
+        "summary": "Status da API",
+        "description": "Informações detalhadas sobre o status da API",
+        "responses": {
+          "200": {
+            "description": "Status da API",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {"type": "string"},
+                    "environment": {"type": "string"},
+                    "uptime": {"type": "number"},
+                    "memory": {"type": "object"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["Autenticação"],
+        "summary": "Login do usuário",
+        "description": "Autentica usuário e retorna token JWT",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/LoginRequest"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login realizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/LoginResponse"}
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais inválidas"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": ["Autenticação"],
+        "summary": "Registro de usuário",
+        "description": "Registra novo usuário no sistema",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password", "name"],
+                "properties": {
+                  "email": {"type": "string", "format": "email"},
+                  "password": {"type": "string", "minLength": 6},
+                  "name": {"type": "string"},
+                  "tenant_name": {"type": "string"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Usuário criado com sucesso"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": ["Autenticação"],
+        "summary": "Renovar token",
+        "description": "Renova token JWT usando refresh token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["refresh_token"],
+                "properties": {
+                  "refresh_token": {"type": "string"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token renovado com sucesso"
+          },
+          "401": {
+            "description": "Refresh token inválido"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": ["Autenticação"],
+        "summary": "Logout do usuário",
+        "description": "Invalida token JWT atual",
+        "security": [{"BearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "Logout realizado com sucesso"
+          },
+          "401": {
+            "description": "Token inválido"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": ["Autenticação"],
+        "summary": "Perfil do usuário",
+        "description": "Retorna dados do usuário autenticado",
+        "security": [{"BearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "Dados do usuário",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/User"}
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Autenticação"],
+        "summary": "Atualizar perfil",
+        "description": "Atualiza dados do usuário autenticado",
+        "security": [{"BearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"},
+                  "email": {"type": "string", "format": "email"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Perfil atualizado com sucesso"
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp-configs": {
+      "get": {
+        "tags": ["WhatsApp"],
+        "summary": "Listar configurações WhatsApp",
+        "description": "Lista todas as configurações WhatsApp do tenant",
+        "security": [{"BearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "Lista de configurações",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/WhatsAppConfig"}
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["WhatsApp"],
+        "summary": "Criar configuração WhatsApp",
+        "description": "Cria nova configuração WhatsApp",
+        "security": [{"BearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "phone_number", "access_token"],
+                "properties": {
+                  "name": {"type": "string"},
+                  "phone_number": {"type": "string"},
+                  "phone_number_id": {"type": "string"},
+                  "access_token": {"type": "string"},
+                  "webhook_verify_token": {"type": "string"},
+                  "api_type": {"type": "string", "enum": ["official", "evolution"]}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Configuração criada com sucesso"
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp-configs/{id}": {
+      "get": {
+        "tags": ["WhatsApp"],
+        "summary": "Obter configuração WhatsApp",
+        "description": "Retorna configuração específica",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "string", "format": "uuid"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configuração encontrada",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/WhatsAppConfig"}
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["WhatsApp"],
+        "summary": "Atualizar configuração WhatsApp",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "string", "format": "uuid"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configuração atualizada"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["WhatsApp"],
+        "summary": "Excluir configuração WhatsApp",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "string", "format": "uuid"}
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Configuração excluída"
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp/send": {
+      "post": {
+        "tags": ["WhatsApp"],
+        "summary": "Enviar mensagem WhatsApp",
+        "description": "Envia mensagem via WhatsApp Business API",
+        "security": [{"BearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["to", "type", "content"],
+                "properties": {
+                  "whatsapp_config_id": {"type": "string", "format": "uuid"},
+                  "to": {"type": "string"},
+                  "type": {"type": "string", "enum": ["text", "image", "document", "audio", "video", "template"]},
+                  "content": {"type": "string"},
+                  "media_url": {"type": "string"},
+                  "template": {"type": "object"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mensagem enviada com sucesso"
+          }
+        }
+      }
+    },
+    "/api/v1/conversations": {
+      "get": {
+        "tags": ["Conversas"],
+        "summary": "Listar conversas",
+        "description": "Lista conversas com filtros e paginação",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {"type": "integer", "default": 1}
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {"type": "integer", "default": 20, "maximum": 100}
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {"type": "string", "enum": ["active", "closed", "paused"]}
+          },
+          {
+            "name": "assigned_to",
+            "in": "query",
+            "schema": {"type": "string", "format": "uuid"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de conversas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {"$ref": "#/components/schemas/Conversation"}
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {"type": "integer"},
+                        "limit": {"type": "integer"},
+                        "total": {"type": "integer"},
+                        "pages": {"type": "integer"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{id}/messages": {
+      "get": {
+        "tags": ["Conversas"],
+        "summary": "Listar mensagens da conversa",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "string", "format": "uuid"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de mensagens",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/Message"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/flows": {
+      "get": {
+        "tags": ["Flows"],
+        "summary": "Listar flows",
+        "description": "Lista flows de automação",
+        "security": [{"BearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "Lista de flows",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/Flow"}
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Flows"],
+        "summary": "Criar flow",
+        "description": "Cria novo flow de automação",
+        "security": [{"BearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "trigger_type"],
+                "properties": {
+                  "name": {"type": "string"},
+                  "description": {"type": "string"},
+                  "trigger_type": {"type": "string", "enum": ["keyword", "welcome", "no_agent", "schedule"]},
+                  "trigger_value": {"type": "string"},
+                  "nodes": {"type": "array"},
+                  "edges": {"type": "array"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Flow criado com sucesso"
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns": {
+      "get": {
+        "tags": ["Campanhas"],
+        "summary": "Listar campanhas",
+        "description": "Lista campanhas de marketing",
+        "security": [{"BearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "Lista de campanhas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/Campaign"}
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Campanhas"],
+        "summary": "Criar campanha",
+        "description": "Cria nova campanha de marketing",
+        "security": [{"BearerAuth": []}],
+        "responses": {
+          "201": {
+            "description": "Campanha criada com sucesso"
+          }
+        }
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "tags": ["Usuários"],
+        "summary": "Listar usuários",
+        "description": "Lista usuários do tenant",
+        "security": [{"BearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "Lista de usuários",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/User"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/whatsapp": {
+      "get": {
+        "tags": ["Webhooks"],
+        "summary": "Verificação webhook WhatsApp",
+        "description": "Endpoint para verificação do webhook WhatsApp",
+        "parameters": [
+          {
+            "name": "hub.mode",
+            "in": "query",
+            "required": true,
+            "schema": {"type": "string"}
+          },
+          {
+            "name": "hub.verify_token",
+            "in": "query",
+            "required": true,
+            "schema": {"type": "string"}
+          },
+          {
+            "name": "hub.challenge",
+            "in": "query",
+            "required": true,
+            "schema": {"type": "string"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verificação bem-sucedida"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Webhooks"],
+        "summary": "Receber webhook WhatsApp",
+        "description": "Recebe eventos do WhatsApp Business API",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Evento processado com sucesso"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Sistema",
+      "description": "Endpoints de sistema e monitoramento"
+    },
+    {
+      "name": "Autenticação",
+      "description": "Endpoints de autenticação e autorização"
+    },
+    {
+      "name": "WhatsApp",
+      "description": "Configurações e envio de mensagens WhatsApp"
+    },
+    {
+      "name": "Conversas",
+      "description": "Gerenciamento de conversas e mensagens"
+    },
+    {
+      "name": "Flows",
+      "description": "Automação e fluxos de conversa"
+    },
+    {
+      "name": "Campanhas",
+      "description": "Campanhas de marketing e remarketing"
+    },
+    {
+      "name": "Usuários",
+      "description": "Gerenciamento de usuários"
+    },
+    {
+      "name": "Webhooks",
+      "description": "Endpoints para receber eventos externos"
+    }
+  ]
+}
