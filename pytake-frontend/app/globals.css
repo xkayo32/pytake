@@ -1,57 +1,196 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Tema Light - Cores exatas conforme especificação */
+    --primary: 142 86% 45%;              /* #25D366 - WhatsApp Green */
+    --primary-dark: 175 48% 35%;         /* #128C7E - WhatsApp Teal */
+    --primary-foreground: 0 0% 100%;     /* White */
+    
+    --background: 0 0% 100%;             /* White */
+    --surface: 210 40% 98%;              /* #F8FAFC - Slate 50 */
+    --surface-secondary: 220 14% 96%;    /* #F1F5F9 - Slate 100 */
+    
+    --foreground: 222 84% 5%;            /* #0C0D12 - Almost Black */
+    --foreground-secondary: 215 25% 27%; /* #374151 - Dark Gray */
+    --foreground-tertiary: 215 16% 47%;  /* #6B7280 - Medium Gray */
+    --foreground-disabled: 220 9% 66%;   /* #9CA3AF - Light Gray */
+    
+    --border: 220 13% 91%;               /* #E2E8F0 - Slate 200 */
+    --accent: 221 83% 53%;               /* #3B82F6 - Blue 500 */
+    --success: 142 76% 36%;              /* #16A34A - Green 600 */
+    --warning: 38 92% 50%;               /* #EAB308 - Yellow 500 */
+    --destructive: 0 84% 60%;            /* #EF4444 - Red 500 */
+    
+    /* Compatibilidade com shadcn */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 84% 5%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 142 71% 45%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 164 66% 19%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 142 71% 45%;
+    --popover-foreground: 222 84% 5%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --input: 220 13% 91%;
+    --ring: 142 86% 45%;
     --radius: 0.5rem;
   }
 
-  .dark {
-    --background: 202 31% 11%;
-    --foreground: 207 20% 93%;
-    --card: 202 31% 14%;
-    --card-foreground: 207 20% 93%;
-    --popover: 202 31% 14%;
-    --popover-foreground: 207 20% 93%;
-    --primary: 142 71% 45%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 164 66% 19%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 202 31% 20%;
-    --muted-foreground: 207 19% 63%;
-    --accent: 202 31% 20%;
-    --accent-foreground: 207 20% 93%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 202 31% 20%;
-    --input: 202 31% 20%;
-    --ring: 142 71% 45%;
+[data-theme="dark"] {
+    /* Tema Dark - Cores exatas conforme especificação */
+    --background: 222 84% 5%;            /* #0C0D12 - Almost Black */
+    --surface: 215 28% 13%;              /* #1A202C - Dark Surface */
+    --surface-secondary: 215 25% 17%;    /* #2D3748 - Secondary Dark */
+    
+    --foreground: 210 40% 98%;           /* #F8FAFC - Light Text */
+    --foreground-secondary: 215 20% 65%; /* #94A3B8 - Secondary Light */
+    --foreground-tertiary: 215 16% 47%;  /* #6B7280 - Tertiary Light */
+    --foreground-disabled: 220 9% 46%;   /* #6B7280 - Disabled Dark */
+    
+    --border: 215 28% 17%;               /* #2D3748 - Dark Border */
+    --accent: 213 93% 68%;               /* #60A5FA - Blue 400 */
+    --success: 142 86% 45%;              /* #22C55E - Green 500 */
+    --primary: 142 86% 45%;              /* Maintain WhatsApp green */
+    --primary-dark: 175 48% 35%;
+    
+    /* Compatibilidade com shadcn */
+    --card: 215 28% 13%;
+    --card-foreground: 210 40% 98%;
+    --popover: 215 28% 13%;
+    --popover-foreground: 210 40% 98%;
+    --muted: 215 28% 17%;
+    --muted-foreground: 215 16% 65%;
+    --input: 215 28% 17%;
+    --ring: 142 86% 45%;
   }
 }
 
 @layer base {
+  * {
+    @apply border-border;
+  }
+  
+  html {
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+  
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
     font-feature-settings: "rlig" 1, "calt" 1;
+    font-weight: 400;
+  }
+  
+  /* Tipografia hierárquica */
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-foreground font-semibold;
+    font-weight: 600;
+  }
+  
+  p {
+    @apply text-foreground-secondary;
+    font-weight: 400;
+  }
+  
+  /* Estados de foco acessíveis */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer components {
+  /* Botões com gradientes WhatsApp */
+  .btn-primary {
+    @apply bg-gradient-to-r from-primary to-primary-dark text-primary-foreground px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:scale-105 hover:shadow-xl focus:ring-2 focus:ring-primary focus:ring-offset-2;
+  }
+  
+  /* Cards com hover effects */
+  .card-hover {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-xl;
+  }
+  
+  /* Toggle de tema */
+  .theme-toggle {
+    @apply w-16 h-8 rounded-full border-2 border-border bg-muted relative cursor-pointer transition-all duration-300;
+  }
+  
+  .theme-toggle-thumb {
+    @apply w-6 h-6 rounded-full bg-background border border-border absolute top-0.5 left-0.5 transition-all duration-300 flex items-center justify-center;
+  }
+  
+  [data-theme="dark"] .theme-toggle-thumb {
+    @apply translate-x-8;
+  }
+  
+  /* Inputs com focus ring */
+  .input-focus {
+    @apply border-border bg-background px-4 py-2 rounded-lg transition-all duration-300 focus:border-primary focus:ring-2 focus:ring-primary/20;
+  }
+}
+
+@layer utilities {
+  /* Gradientes da marca */
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-dark)));
+  }
+  
+  .gradient-text-primary {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-dark)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  /* Animações de entrada */
+  .fade-in-up {
+    animation: fadeInUp 0.6s ease-out;
+  }
+  
+  .fade-in {
+    animation: fadeIn 0.5s ease-out;
+  }
+  
+  .bounce-in {
+    animation: bounceIn 0.6s ease-out;
+  }
+  
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes bounceIn {
+    0% {
+      opacity: 0;
+      transform: scale(0.3);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+    70% {
+      transform: scale(0.9);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  /* Container responsivo */
+  .container-responsive {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 }
