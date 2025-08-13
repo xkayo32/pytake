@@ -35,7 +35,16 @@
       "Bash(sudo:*)",
       "Bash(certbot/certbot certonly:*)",
       "WebFetch(domain:api.pytake.net)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(npx create-next-app:*)",
+      "Bash(npx shadcn@latest init:*)",
+      "Bash(npm install:*)",
+      "Bash(./deploy-full.sh)",
+      "Bash(npm run build:*)",
+      "Bash(openssl req:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }
