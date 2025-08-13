@@ -15,7 +15,8 @@ import {
   X,
   LogOut,
   User,
-  Brain
+  Brain,
+  Database
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -68,6 +69,12 @@ const navigation = [
     href: '/ai-assistant',
     icon: Brain,
     description: 'Inteligência Artificial'
+  },
+  {
+    name: 'Integrações',
+    href: '/integrations',
+    icon: Database,
+    description: 'ERPs e Sistemas'
   },
 ]
 
