@@ -250,7 +250,7 @@ export default function RegisterPage() {
               </Button>
 
               {/* Features List */}
-              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4">
+              <div className="bg-slate-50 dark:bg-surface/50 rounded-lg p-4">
                 <p className="text-sm font-medium mb-2">O que está incluído:</p>
                 <ul className="space-y-1 text-sm text-muted-foreground">
                   <li className="flex items-center gap-2">

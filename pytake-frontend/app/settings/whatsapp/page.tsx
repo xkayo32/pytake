@@ -18,7 +18,9 @@ import {
   Info,
   ExternalLink,
   QrCode,
-  Webhook
+  Webhook,
+  MessageSquare,
+  Users
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'

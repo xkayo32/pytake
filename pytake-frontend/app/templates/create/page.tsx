@@ -808,10 +808,10 @@ export default function CreateTemplatePage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="bg-[#E5DDD5] dark:bg-slate-900 rounded-lg p-4 min-h-[400px]">
+                    <div className="bg-[#E5DDD5] dark:bg-background rounded-lg p-4 min-h-[400px]">
                       <div className="max-w-sm mx-auto">
                         {/* WhatsApp Message Bubble */}
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-3 space-y-2">
+                        <div className="bg-white dark:bg-surface rounded-lg shadow-sm p-3 space-y-2">
                           {/* Header */}
                           {hasHeader && headerComponent.text && (
                             <div className="font-semibold text-sm">

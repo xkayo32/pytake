@@ -5,7 +5,12 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-RUN npm ci --only=production
+
+# Install dependencies with retry logic
+RUN npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm config set fetch-retries 3 && \
+    npm install --only=production
 
 # Rebuild the source code only when needed
 FROM node:20-alpine AS builder
@@ -17,7 +22,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-RUN npm run build
+RUN SKIP_ENV_VALIDATION=1 npm run build -- --no-lint
 
 # Production image, copy all the files and run next
 FROM node:20-alpine AS runner

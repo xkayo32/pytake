@@ -398,7 +398,7 @@ function PricingCard({ title, price, period, description, features, popular }: {
 }) {
   return (
     <div className={`bg-background rounded-xl p-8 border-2 card-hover relative ${
-      popular ? 'border-primary shadow-lg scale-105' : 'border-border'
+      popular ? 'border-primary shadow-lg scale-105' : 'border'
     }`}>
       {popular && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">

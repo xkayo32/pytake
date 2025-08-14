@@ -20,6 +20,7 @@ export interface CampaignTarget {
     }
     hasWhatsApp?: boolean
     status?: string[]
+    tags?: string[]
   }
   csvFile?: File
   estimatedReach?: number

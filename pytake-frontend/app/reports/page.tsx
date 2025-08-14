@@ -472,13 +472,13 @@ export default function ReportsPage() {
                             <div className="text-center p-2 bg-muted/50 rounded">
                               <p className="text-xs text-muted-foreground">Tempo</p>
                               <p className="text-sm font-semibold">
-                                {formatDuration(report.generationTime)}
+                                {formatDuration(report.generationTime || 0)}
                               </p>
                             </div>
                             <div className="text-center p-2 bg-muted/50 rounded">
                               <p className="text-xs text-muted-foreground">Tamanho</p>
                               <p className="text-sm font-semibold">
-                                {formatBytes(report.fileSize)}
+                                {formatBytes(report.fileSize || 0)}
                               </p>
                             </div>
                             <div className="text-center p-2 bg-muted/50 rounded">

@@ -247,7 +247,7 @@ export default function ChatPage() {
         </header>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-hidden bg-[#F0F2F5] dark:bg-slate-900">
+        <div className="flex-1 overflow-hidden bg-[#F0F2F5] dark:bg-background">
           <ScrollArea className="h-full p-4">
             <div className="space-y-4 max-w-4xl mx-auto">
               {messages.map((message) => (
@@ -259,7 +259,7 @@ export default function ChatPage() {
                     max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl
                     ${message.sender === 'user' 
                       ? 'bg-primary text-primary-foreground' 
-                      : 'bg-white dark:bg-slate-800'
+                      : 'bg-white dark:bg-surface'
                     }
                   `}>
                     <CardContent className="p-3">
@@ -287,7 +287,7 @@ export default function ChatPage() {
               
               {isTyping && (
                 <div className="flex justify-start">
-                  <Card className="bg-white dark:bg-slate-800 max-w-xs">
+                  <Card className="bg-white dark:bg-surface max-w-xs">
                     <CardContent className="p-3">
                       <div className="flex items-center gap-1">
                         <div className="flex gap-1">

@@ -251,7 +251,7 @@ function FlowEditor() {
               nodeTypes={nodeTypes}
               fitView
               attributionPosition="bottom-left"
-              className="bg-slate-50 dark:bg-slate-900"
+              className="bg-slate-50 dark:bg-background"
             >
               <Background 
                 variant={BackgroundVariant.Dots} 

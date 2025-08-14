@@ -34,14 +34,15 @@ const nextConfig = {
   
   // Image optimization
   images: {
-    domains: ['localhost', 'api.pytake.net'],
+    domains: ['localhost', 'api.pytake.net', 'app.pytake.net'],
     formats: ['image/avif', 'image/webp'],
   },
   
   // Environment variables
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080',
-    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://api.pytake.net',
+    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'wss://api.pytake.net',
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'https://app.pytake.net',
   },
   
   // Experimental features for better DX
