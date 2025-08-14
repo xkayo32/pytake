@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { LogoInline } from "@/components/ui/logo"
 import { MessageSquare, Bot, BarChart3, Shield, Zap, Users, Star, Check, ArrowRight, Play, TrendingUp, Clock, Globe } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -14,12 +15,9 @@ export default function Home() {
         <div className="container-responsive">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-8 w-8 text-primary" />
-              <span className="text-2xl font-bold gradient-text-primary">
-                PyTake
-              </span>
-            </div>
+            <Link href="/" className="flex items-center">
+              <LogoInline className="h-10" />
+            </Link>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6">

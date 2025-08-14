@@ -9,6 +9,7 @@ import { Eye, EyeOff, MessageSquare, Loader2, AlertCircle } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { LogoInline } from '@/components/ui/logo'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -55,11 +56,8 @@ export default function LoginPage() {
       
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <MessageSquare className="h-10 w-10 text-primary" />
-          <span className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-            PyTake
-          </span>
+        <div className="flex items-center justify-center mb-8">
+          <LogoInline className="h-12" />
         </div>
 
         <Card className="shadow-lg">
