@@ -2,17 +2,12 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY mock-api/package*.json ./
-
-# Install dependencies
-RUN npm install express cors body-parser swagger-ui-express yamljs
-
-# Copy application code
+# Copy mock API files
 COPY mock-api/ .
 
-# Expose port
+# Install dependencies from package.json
+RUN npm install
+
 EXPOSE 8080
 
-# Start the application
-CMD ["node", "index.js"]
+CMD ["node", "server.js"]

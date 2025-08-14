@@ -44,7 +44,26 @@
       "Bash(openssl req:*)",
       "Bash(npm run dev:*)",
       "Bash(npm run:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(true)",
+      "Bash(pkill:*)",
+      "Bash(rm:*)",
+      "Bash(kill:*)",
+      "Bash(nslookup:*)",
+      "Bash(./generate-ssl.sh:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(mv:*)",
+      "Bash(tree:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(npx next:*)",
+      "Bash(python3:*)",
+      "Bash(npm create:*)",
+      "Bash(./start-dev.sh:*)",
+      "Bash(pm2 start:*)",
+      "Bash(pm2 logs:*)",
+      "Bash(pm2 stop:*)",
+      "Bash(pm2 delete:*)"
     ],
     "deny": []
   }

@@ -1,348 +1,108 @@
 #!/bin/bash
 
-# PyTake Backend Deployment Script
-# Usage: ./deploy.sh [command]
+# Deploy script for PyTake Full Stack (Backend + Frontend)
 
 set -e
 
+echo "🚀 Starting PyTake Full Stack Deployment..."
+
 # Colors for output
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# Configuration
-PROJECT_NAME="pytake-backend"
-DOMAIN="api.pytake.net"
-DOCKER_COMPOSE="docker-compose.yml"
-ENV_FILE=".env"
-
-# Functions
-print_success() {
-    echo -e "${GREEN}✓ $1${NC}"
+# Function to check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
 }
 
-print_error() {
-    echo -e "${RED}✗ $1${NC}"
-}
+# Check requirements
+if ! command_exists docker; then
+    echo -e "${RED}Docker is not installed. Please install Docker first.${NC}"
+    exit 1
+fi
 
-print_info() {
-    echo -e "${YELLOW}→ $1${NC}"
-}
+if ! command_exists docker-compose; then
+    echo -e "${RED}Docker Compose is not installed. Please install Docker Compose first.${NC}"
+    exit 1
+fi
 
-# Check if .env file exists
-check_env() {
-    if [ ! -f "$ENV_FILE" ]; then
-        print_error "Environment file .env not found!"
-        print_info "Creating .env from .env.example..."
-        cp .env.example .env
-        print_info "Please edit .env with your configuration values"
-        exit 1
-    fi
-}
+# Stop existing containers
+echo -e "${YELLOW}Stopping existing containers...${NC}"
+docker-compose -f docker-compose.production.yml down 2>/dev/null || true
+docker-compose -f docker-compose.full.yml down 2>/dev/null || true
 
-# Build Docker images
-build() {
-    print_info "Building Docker images..."
-    docker-compose -f $DOCKER_COMPOSE build --no-cache
-    print_success "Docker images built successfully"
-}
+# Build frontend
+echo -e "${GREEN}Building frontend application...${NC}"
+cd pytake-frontend
+npm install
+npm run build
+cd ..
 
-# Start services
-up() {
-    print_info "Starting services..."
-    docker-compose -f $DOCKER_COMPOSE up -d
-    print_success "Services started successfully"
-}
+# Create SSL certificates directory if not exists
+mkdir -p certbot/conf/live/app.pytake.net
+mkdir -p certbot/conf/live/api.pytake.net
 
-# Stop services
-down() {
-    print_info "Stopping services..."
-    docker-compose -f $DOCKER_COMPOSE down
-    print_success "Services stopped successfully"
-}
+# Check if SSL certificates exist
+if [ ! -f "certbot/conf/live/api.pytake.net/fullchain.pem" ]; then
+    echo -e "${YELLOW}SSL certificate for api.pytake.net not found.${NC}"
+    echo -e "${YELLOW}Using self-signed certificate for development...${NC}"
+    
+    # Create self-signed certificate for api.pytake.net
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout certbot/conf/live/api.pytake.net/privkey.pem \
+        -out certbot/conf/live/api.pytake.net/fullchain.pem \
+        -subj "/C=BR/ST=SP/L=Sao Paulo/O=PyTake/CN=api.pytake.net"
+fi
 
-# Restart services
-restart() {
-    print_info "Restarting services..."
-    docker-compose -f $DOCKER_COMPOSE restart
-    print_success "Services restarted successfully"
-}
+if [ ! -f "certbot/conf/live/app.pytake.net/fullchain.pem" ]; then
+    echo -e "${YELLOW}SSL certificate for app.pytake.net not found.${NC}"
+    echo -e "${YELLOW}Using self-signed certificate for development...${NC}"
+    
+    # Create self-signed certificate for app.pytake.net
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout certbot/conf/live/app.pytake.net/privkey.pem \
+        -out certbot/conf/live/app.pytake.net/fullchain.pem \
+        -subj "/C=BR/ST=SP/L=Sao Paulo/O=PyTake/CN=app.pytake.net"
+fi
 
-# View logs
-logs() {
-    docker-compose -f $DOCKER_COMPOSE logs -f "$@"
-}
+# Start containers
+echo -e "${GREEN}Starting containers...${NC}"
+docker-compose -f docker-compose.full.yml up -d --build
 
-# Execute command in container
-exec_cmd() {
-    docker-compose -f $DOCKER_COMPOSE exec "$@"
-}
+# Wait for services to be ready
+echo -e "${YELLOW}Waiting for services to be ready...${NC}"
+sleep 10
 
-# Run database migrations
-migrate() {
-    print_info "Running database migrations..."
-    docker-compose -f $DOCKER_COMPOSE exec backend ./main migrate up
-    print_success "Migrations completed successfully"
-}
+# Check health status
+echo -e "${GREEN}Checking service health...${NC}"
 
-# Setup SSL certificates with Let's Encrypt
-setup_ssl() {
-    print_info "Setting up SSL certificates..."
-    
-    # Create required directories
-    mkdir -p certbot/www certbot/conf
-    
-    # Start nginx temporarily for domain verification
-    docker-compose -f $DOCKER_COMPOSE up -d nginx
-    
-    # Request certificate
-    docker run --rm \
-        -v $(pwd)/certbot/www:/var/www/certbot \
-        -v $(pwd)/certbot/conf:/etc/letsencrypt \
-        certbot/certbot certonly \
-        --webroot \
-        --webroot-path=/var/www/certbot \
-        --email admin@pytake.net \
-        --agree-tos \
-        --no-eff-email \
-        -d $DOMAIN \
-        -d www.$DOMAIN
-    
-    print_success "SSL certificates obtained successfully"
-    
-    # Restart nginx with SSL
-    docker-compose -f $DOCKER_COMPOSE restart nginx
-}
+# Check backend
+if curl -f http://localhost:8080/health > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ Backend is healthy${NC}"
+else
+    echo -e "${RED}✗ Backend health check failed${NC}"
+fi
 
-# Renew SSL certificates
-renew_ssl() {
-    print_info "Renewing SSL certificates..."
-    docker run --rm \
-        -v $(pwd)/certbot/www:/var/www/certbot \
-        -v $(pwd)/certbot/conf:/etc/letsencrypt \
-        certbot/certbot renew
-    
-    docker-compose -f $DOCKER_COMPOSE restart nginx
-    print_success "SSL certificates renewed successfully"
-}
+# Check frontend
+if curl -f http://localhost:3000 > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ Frontend is healthy${NC}"
+else
+    echo -e "${RED}✗ Frontend health check failed${NC}"
+fi
 
-# Check service health
-health() {
-    print_info "Checking service health..."
-    
-    # Check if services are running
-    docker-compose -f $DOCKER_COMPOSE ps
-    
-    # Check backend health
-    if curl -f -s http://localhost/health > /dev/null; then
-        print_success "Backend is healthy"
-    else
-        print_error "Backend health check failed"
-    fi
-    
-    # Check database connection
-    docker-compose -f $DOCKER_COMPOSE exec postgres pg_isready -U pytake
-    if [ $? -eq 0 ]; then
-        print_success "Database is healthy"
-    else
-        print_error "Database health check failed"
-    fi
-}
+# Show running containers
+echo -e "${GREEN}Running containers:${NC}"
+docker-compose -f docker-compose.full.yml ps
 
-# Backup database
-backup() {
-    print_info "Creating database backup..."
-    
-    BACKUP_DIR="backups"
-    mkdir -p $BACKUP_DIR
-    
-    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    BACKUP_FILE="$BACKUP_DIR/pytake_backup_$TIMESTAMP.sql"
-    
-    docker-compose -f $DOCKER_COMPOSE exec -T postgres pg_dump -U pytake pytake > $BACKUP_FILE
-    
-    if [ -f $BACKUP_FILE ]; then
-        gzip $BACKUP_FILE
-        print_success "Backup created: ${BACKUP_FILE}.gz"
-    else
-        print_error "Backup failed"
-    fi
-}
-
-# Restore database from backup
-restore() {
-    if [ -z "$1" ]; then
-        print_error "Please provide backup file path"
-        echo "Usage: ./deploy.sh restore backups/pytake_backup_YYYYMMDD_HHMMSS.sql.gz"
-        exit 1
-    fi
-    
-    print_info "Restoring database from $1..."
-    
-    if [ ! -f "$1" ]; then
-        print_error "Backup file not found: $1"
-        exit 1
-    fi
-    
-    # Decompress if gzipped
-    if [[ $1 == *.gz ]]; then
-        gunzip -c $1 | docker-compose -f $DOCKER_COMPOSE exec -T postgres psql -U pytake pytake
-    else
-        docker-compose -f $DOCKER_COMPOSE exec -T postgres psql -U pytake pytake < $1
-    fi
-    
-    print_success "Database restored successfully"
-}
-
-# Update application
-update() {
-    print_info "Updating application..."
-    
-    # Pull latest code
-    git pull origin main
-    
-    # Build new images
-    build
-    
-    # Run migrations
-    migrate
-    
-    # Restart services
-    restart
-    
-    print_success "Application updated successfully"
-}
-
-# Full deployment
-deploy() {
-    print_info "Starting full deployment..."
-    
-    check_env
-    build
-    up
-    
-    # Wait for services to be ready
-    print_info "Waiting for services to be ready..."
-    sleep 10
-    
-    migrate
-    health
-    
-    print_success "Deployment completed successfully!"
-    print_info "Application is running at https://$DOMAIN"
-}
-
-# Development mode
-dev() {
-    print_info "Starting in development mode..."
-    docker-compose -f docker-compose.dev.yml up
-}
-
-# Production deployment with monitoring
-deploy_with_monitoring() {
-    print_info "Deploying with monitoring stack..."
-    docker-compose -f $DOCKER_COMPOSE --profile monitoring up -d
-    print_success "Deployment with monitoring completed"
-    print_info "Grafana is available at https://grafana.pytake.net"
-}
-
-# Clean up Docker resources
-cleanup() {
-    print_info "Cleaning up Docker resources..."
-    docker-compose -f $DOCKER_COMPOSE down -v
-    docker system prune -af
-    print_success "Cleanup completed"
-}
-
-# Show usage
-usage() {
-    echo "PyTake Backend Deployment Script"
-    echo ""
-    echo "Usage: ./deploy.sh [command]"
-    echo ""
-    echo "Commands:"
-    echo "  build                Build Docker images"
-    echo "  up                   Start all services"
-    echo "  down                 Stop all services"
-    echo "  restart              Restart all services"
-    echo "  logs [service]       View logs (optionally for specific service)"
-    echo "  exec [service] [cmd] Execute command in container"
-    echo "  migrate              Run database migrations"
-    echo "  setup-ssl            Setup SSL certificates with Let's Encrypt"
-    echo "  renew-ssl            Renew SSL certificates"
-    echo "  health               Check service health"
-    echo "  backup               Create database backup"
-    echo "  restore [file]       Restore database from backup"
-    echo "  update               Update application (pull, build, migrate, restart)"
-    echo "  deploy               Full deployment (build, up, migrate, health)"
-    echo "  deploy-monitoring    Deploy with monitoring stack"
-    echo "  dev                  Start in development mode"
-    echo "  cleanup              Clean up Docker resources"
-    echo "  help                 Show this help message"
-}
-
-# Main script
-case "$1" in
-    build)
-        build
-        ;;
-    up)
-        up
-        ;;
-    down)
-        down
-        ;;
-    restart)
-        restart
-        ;;
-    logs)
-        shift
-        logs "$@"
-        ;;
-    exec)
-        shift
-        exec_cmd "$@"
-        ;;
-    migrate)
-        migrate
-        ;;
-    setup-ssl)
-        setup_ssl
-        ;;
-    renew-ssl)
-        renew_ssl
-        ;;
-    health)
-        health
-        ;;
-    backup)
-        backup
-        ;;
-    restore)
-        restore "$2"
-        ;;
-    update)
-        update
-        ;;
-    deploy)
-        deploy
-        ;;
-    deploy-monitoring)
-        deploy_with_monitoring
-        ;;
-    dev)
-        dev
-        ;;
-    cleanup)
-        cleanup
-        ;;
-    help|"")
-        usage
-        ;;
-    *)
-        print_error "Unknown command: $1"
-        usage
-        exit 1
-        ;;
-esac
+echo -e "${GREEN}✨ Deployment complete!${NC}"
+echo ""
+echo -e "${GREEN}Access your application:${NC}"
+echo -e "  Frontend: ${GREEN}https://app.pytake.net${NC}"
+echo -e "  Backend API: ${GREEN}https://api.pytake.net${NC}"
+echo -e "  API Docs: ${GREEN}https://api.pytake.net/docs${NC}"
+echo ""
+echo -e "${YELLOW}Note: If using self-signed certificates, you may see security warnings in your browser.${NC}"
+echo -e "${YELLOW}For production, obtain real certificates using:${NC}"
+echo -e "  sudo certbot certonly --standalone -d app.pytake.net -d api.pytake.net"
