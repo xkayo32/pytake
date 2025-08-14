@@ -1,4 +1,35 @@
-# Production Dockerfile for PyTake Frontend
+# Multi-stage Dockerfile for PyTake Frontend
+# Development stage
+FROM node:20-alpine AS development
+WORKDIR /app
+
+# Install dependencies needed for native modules
+RUN apk add --no-cache libc6-compat
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies)
+RUN npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm config set fetch-retries 3 && \
+    npm install
+
+# Copy source code
+COPY . .
+
+# Environment variables for development
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV FORCE_COLOR=1
+
+# Expose port
+EXPOSE 3000
+
+# Start development server
+CMD ["npm", "run", "dev"]
+
+# Production dependencies stage
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
