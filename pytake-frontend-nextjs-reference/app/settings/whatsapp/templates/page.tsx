@@ -282,15 +282,10 @@ export default function TemplatesPage() {
   })
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
+    <div className="p-6 space-y-6">
+      {/* Actions */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Gerenciar Templates</h1>
-          <p className="text-muted-foreground">
-            Crie, edite e gerencie seus templates do WhatsApp Business
-          </p>
-        </div>
+        <h2 className="text-xl font-semibold">Templates do WhatsApp</h2>
         <div className="flex gap-2">
           <Button
             onClick={handleSync}
