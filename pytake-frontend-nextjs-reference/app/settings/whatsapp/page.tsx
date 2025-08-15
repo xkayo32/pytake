@@ -118,9 +118,10 @@ export default function WhatsAppSettingsPage() {
 
   const loadWhatsAppConfig = async () => {
     try {
-      const response = await fetch('/api/v1/whatsapp-configs', {
+      const response = await fetch('https://api.pytake.net/api/v1/whatsapp-configs', {
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0] || ''}`
+          'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0] || ''}`,
+          'Content-Type': 'application/json'
         }
       })
       
@@ -150,9 +151,10 @@ export default function WhatsAppSettingsPage() {
 
   const loadPhoneNumbers = async () => {
     try {
-      const response = await fetch('/api/v1/whatsapp/phone-numbers', {
+      const response = await fetch('https://api.pytake.net/api/v1/whatsapp/phone-numbers', {
         headers: {
-          'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0] || ''}`
+          'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0] || ''}`,
+          'Content-Type': 'application/json'
         }
       })
       
@@ -172,7 +174,7 @@ export default function WhatsAppSettingsPage() {
     addLog('💾 Salvando configuração...')
     
     try {
-      const response = await fetch('/api/v1/whatsapp-configs', {
+      const response = await fetch('https://api.pytake.net/api/v1/whatsapp-configs', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -213,9 +215,10 @@ export default function WhatsAppSettingsPage() {
     addLog('🔄 Iniciando teste de conectividade...')
     
     try {
-      const response = await fetch('/api/v1/whatsapp-configs/1/test', {
+      const response = await fetch('https://api.pytake.net/api/v1/whatsapp-configs/1/test', {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0] || ''}`
         }
       })
@@ -260,7 +263,7 @@ export default function WhatsAppSettingsPage() {
     addLog(`📤 Enviando mensagem de teste para ${data.phone_number}...`)
     
     try {
-      const response = await fetch('/api/v1/whatsapp/send', {
+      const response = await fetch('https://api.pytake.net/api/v1/whatsapp/send', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
