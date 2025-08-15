@@ -460,7 +460,6 @@ export default function TemplatesPage() {
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
 
       {/* Template Editor Modal */}
       <Dialog open={showEditor} onOpenChange={setShowEditor}>
