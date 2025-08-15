@@ -76,7 +76,8 @@
       "Bash(npm --version)",
       "Bash(nginx:alpine)",
       "Bash(echo:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   },

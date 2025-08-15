@@ -275,7 +275,7 @@ export default function TemplatesPage() {
 
   const filteredTemplates = templates.filter(template => {
     const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         template.body_text?.toLowerCase().includes(searchTerm.toLowerCase())
+                       template.body_text?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === 'all' || template.status === statusFilter
     
     return matchesSearch && matchesStatus
@@ -283,157 +283,157 @@ export default function TemplatesPage() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Gerenciar Templates</h1>
-            <p className="text-muted-foreground">
-              Crie, edite e gerencie seus templates do WhatsApp Business
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              onClick={handleSync}
-              disabled={syncing}
-              variant="outline"
-              className="gap-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
-              Sincronizar
-            </Button>
-            <Button onClick={() => openEditor()} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Novo Template
-            </Button>
-          </div>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Gerenciar Templates</h1>
+          <p className="text-muted-foreground">
+            Crie, edite e gerencie seus templates do WhatsApp Business
+          </p>
         </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleSync}
+            disabled={syncing}
+            variant="outline"
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+            Sincronizar
+          </Button>
+          <Button onClick={() => openEditor()} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Template
+          </Button>
+        </div>
+      </div>
 
-        <Tabs defaultValue="templates" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="templates">Templates</TabsTrigger>
-            <TabsTrigger value="metrics">Métricas</TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="templates" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="metrics">Métricas</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="templates" className="space-y-4">
-            {/* Filters */}
-            <div className="flex gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Buscar templates..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="APPROVED">Aprovados</SelectItem>
-                  <SelectItem value="PENDING">Pendentes</SelectItem>
-                  <SelectItem value="REJECTED">Rejeitados</SelectItem>
-                  <SelectItem value="DRAFT">Rascunhos</SelectItem>
-                </SelectContent>
-              </Select>
+        <TabsContent value="templates" className="space-y-4">
+          {/* Filters */}
+          <div className="flex gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Buscar templates..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="APPROVED">Aprovados</SelectItem>
+                <SelectItem value="PENDING">Pendentes</SelectItem>
+                <SelectItem value="REJECTED">Rejeitados</SelectItem>
+                <SelectItem value="DRAFT">Rascunhos</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-            {/* Templates Grid */}
-            {loading ? (
-              <div className="flex justify-center py-12">
-                <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-              </div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredTemplates.map((template) => (
-                  <Card key={template.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">{template.name}</CardTitle>
-                        {getStatusBadge(template.status)}
+          {/* Templates Grid */}
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {filteredTemplates.map((template) => (
+                <Card key={template.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">{template.name}</CardTitle>
+                      {getStatusBadge(template.status)}
+                    </div>
+                    <div className="flex gap-2 text-sm text-muted-foreground">
+                      <span>{template.category}</span>
+                      <span>•</span>
+                      <span>{template.language}</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="text-sm">
+                      <p className="line-clamp-3">{template.body_text}</p>
+                    </div>
+                    
+                    {template.variables && template.variables.length > 0 && (
+                      <div className="flex gap-1 flex-wrap">
+                        {template.variables.map((variable, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {`{{${index + 1}}}`}
+                          </Badge>
+                        ))}
                       </div>
-                      <div className="flex gap-2 text-sm text-muted-foreground">
-                        <span>{template.category}</span>
-                        <span>•</span>
-                        <span>{template.language}</span>
+                    )}
+
+                    {template.usage_count !== undefined && (
+                      <div className="text-xs text-muted-foreground">
+                        {template.usage_count} envios
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="text-sm">
-                        <p className="line-clamp-3">{template.body_text}</p>
-                      </div>
-                      
-                      {template.variables && template.variables.length > 0 && (
-                        <div className="flex gap-1 flex-wrap">
-                          {template.variables.map((variable, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {`{{${index + 1}}}`}
-                            </Badge>
-                          ))}
-                        </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      {template.status === 'DRAFT' && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => handleSubmitForApproval(template.id)}
+                          className="flex-1 gap-2"
+                        >
+                          <Send className="h-3 w-3" />
+                          Enviar
+                        </Button>
                       )}
-
-                      {template.usage_count !== undefined && (
-                        <div className="text-xs text-muted-foreground">
-                          {template.usage_count} envios
-                        </div>
-                      )}
-
-                      <div className="flex gap-2">
-                        {template.status === 'DRAFT' && (
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleSubmitForApproval(template.id)}
-                            className="flex-1 gap-2"
-                          >
-                            <Send className="h-3 w-3" />
-                            Enviar
-                          </Button>
-                        )}
-                        {template.status !== 'DRAFT' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openEditor(template)}
-                            className="flex-1 gap-2"
-                          >
-                            <Edit className="h-3 w-3" />
-                            Editar
-                          </Button>
-                        )}
+                      {template.status !== 'DRAFT' && (
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => {
-                            setTemplateToDelete(template)
-                            setShowDeleteDialog(true)
-                          }}
-                          className="gap-2 text-red-600 hover:text-red-700"
-                          disabled={template.status === 'APPROVED' && !template.is_custom}
+                          onClick={() => openEditor(template)}
+                          className="flex-1 gap-2"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Edit className="h-3 w-3" />
+                          Editar
                         </Button>
-                      </div>
-                    </CardContent>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setTemplateToDelete(template)
+                          setShowDeleteDialog(true)
+                        }}
+                        className="gap-2 text-red-600 hover:text-red-700"
+                        disabled={template.status === 'APPROVED' && !template.is_custom}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </CardContent>
                   </Card>
                 ))}
                 
                 {filteredTemplates.length === 0 && (
                   <div className="col-span-full text-center py-12">
-                    <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-medium mb-2">Nenhum template encontrado</h3>
-                    <p className="text-muted-foreground mb-4">
-                      {searchTerm || statusFilter !== 'all' 
-                        ? 'Tente ajustar seus filtros'
-                        : 'Crie seu primeiro template ou sincronize com o Meta'}
-                    </p>
-                    <Button onClick={() => openEditor()} className="gap-2">
-                      <Plus className="h-4 w-4" />
-                      Criar Template
-                    </Button>
+                  <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Nenhum template encontrado</h3>
+                  <p className="text-muted-foreground mb-4">
+                    {searchTerm || statusFilter !== 'all' 
+                      ? 'Tente ajustar seus filtros'
+                      : 'Crie seu primeiro template ou sincronize com o Meta'}
+                  </p>
+                  <Button onClick={() => openEditor()} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Criar Template
+                  </Button>
                   </div>
                 )}
               </div>
