@@ -133,7 +133,8 @@ const formatDate = (dateString: string) => {
 }
 
 export default function FlowsPage() {
-  const [flows, setFlows] = useState<Flow[]>(mockFlows)
+  const [flows, setFlows] = useState<Flow[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const { isAuthenticated, isLoading } = useAuth()
@@ -144,6 +145,27 @@ export default function FlowsPage() {
       router.push('/login')
     }
   }, [isLoading, isAuthenticated, router])
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadFlows()
+    }
+  }, [isAuthenticated])
+
+  const loadFlows = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/v1/flows')
+      if (response.ok) {
+        const data = await response.json()
+        setFlows(data.flows || [])
+      }
+    } catch (error) {
+      console.error('Error loading flows:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -167,43 +189,72 @@ export default function FlowsPage() {
     return matchesSearch && matchesStatus
   })
 
-  const handleStatusToggle = (flowId: string) => {
-    setFlows(prev => prev.map(flow => 
-      flow.id === flowId 
-        ? { 
-            ...flow, 
-            status: flow.status === 'active' ? 'inactive' : 'active',
-            updatedAt: new Date().toISOString()
-          }
-        : flow
-    ))
+  const handleStatusToggle = async (flowId: string) => {
+    const flow = flows.find(f => f.id === flowId)
+    if (!flow) return
+
+    const newStatus = flow.status === 'active' ? 'inactive' : 'active'
+    
+    try {
+      const response = await fetch(`/api/v1/flows/${flowId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+      
+      if (response.ok) {
+        const updatedFlow = await response.json()
+        setFlows(prev => prev.map(f => 
+          f.id === flowId ? updatedFlow : f
+        ))
+      }
+    } catch (error) {
+      console.error('Error updating flow status:', error)
+    }
   }
 
   const handleEdit = (flowId: string) => {
     router.push(`/flows/${flowId}/edit`)
   }
 
-  const handleDuplicate = (flowId: string) => {
+  const handleDuplicate = async (flowId: string) => {
     const originalFlow = flows.find(f => f.id === flowId)
-    if (originalFlow) {
-      const newFlow: Flow = {
-        ...originalFlow,
-        id: Date.now().toString(),
-        name: `${originalFlow.name} (Cópia)`,
-        status: 'draft',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        stats: {
-          executions: 0,
-          successRate: 0
-        }
+    if (!originalFlow) return
+
+    try {
+      const response = await fetch('/api/v1/flows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...originalFlow,
+          name: `${originalFlow.name} (Cópia)`,
+          status: 'draft'
+        })
+      })
+      
+      if (response.ok) {
+        const newFlow = await response.json()
+        setFlows(prev => [newFlow, ...prev])
       }
-      setFlows(prev => [newFlow, ...prev])
+    } catch (error) {
+      console.error('Error duplicating flow:', error)
     }
   }
 
-  const handleDelete = (flowId: string) => {
-    setFlows(prev => prev.filter(flow => flow.id !== flowId))
+  const handleDelete = async (flowId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este flow?')) return
+    
+    try {
+      const response = await fetch(`/api/v1/flows/${flowId}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        setFlows(prev => prev.filter(flow => flow.id !== flowId))
+      }
+    } catch (error) {
+      console.error('Error deleting flow:', error)
+    }
   }
 
   const totalStats = {

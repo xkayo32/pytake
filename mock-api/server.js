@@ -1234,6 +1234,109 @@ server.get('/api/v1/whatsapp/webhook', async (req, res) => {
   }
 });
 
+// Flow execution engine (simplified)
+async function executeFlow(flow, execution, conversation, contact) {
+  try {
+    console.log(`🚀 Executing flow ${flow.name} for contact ${contact.name || contact.phone}`);
+    
+    // Parse flow data
+    const flowData = typeof flow.flow_data === 'string' 
+      ? JSON.parse(flow.flow_data) 
+      : flow.flow_data;
+    
+    // For now, just send a simple response based on flow name
+    // In a real implementation, this would parse and execute the flow nodes
+    let responseText = `Flow "${flow.name}" ativado!\n\n`;
+    
+    // Check trigger config for keywords
+    const triggerConfig = typeof flow.trigger_config === 'string'
+      ? JSON.parse(flow.trigger_config)
+      : flow.trigger_config;
+    
+    if (triggerConfig.keywords) {
+      responseText += `Palavras-chave detectadas: ${triggerConfig.keywords}\n\n`;
+    }
+    
+    // Add a default response
+    responseText += 'Este é um fluxo automático. Em breve, você poderá configurar respostas personalizadas através do editor visual de fluxos.';
+    
+    // Send response
+    const replyMessage = await db.saveMessage({
+      tenant_id: execution.tenant_id,
+      conversation_id: conversation.id,
+      contact_id: contact.id,
+      whatsapp_message_id: `flow_${execution.id}_${Date.now()}`,
+      content: responseText,
+      type: 'text',
+      is_from_me: true,
+      status: 'sent',
+      timestamp: new Date()
+    });
+    
+    // Update conversation
+    await db.updateConversation(conversation.id, {
+      last_message: responseText,
+      last_message_time: new Date(),
+      unread_count: 0
+    });
+    
+    // Broadcast via WebSocket
+    if (global.wss) {
+      const wsMessage = {
+        type: 'flow_response',
+        data: {
+          id: replyMessage.id,
+          contactId: contact.id,
+          conversationId: conversation.id,
+          content: responseText,
+          timestamp: new Date(),
+          isFromMe: true,
+          status: 'sent',
+          messageType: 'text',
+          flowId: flow.id,
+          flowName: flow.name
+        }
+      };
+      
+      global.wss.clients.forEach(client => {
+        if (client.readyState === 1) {
+          client.send(JSON.stringify(wsMessage));
+        }
+      });
+    }
+    
+    // Update flow execution
+    await db.updateFlowExecution(execution.id, {
+      status: 'completed',
+      execution_data: {
+        response_sent: responseText,
+        completed_at: new Date()
+      }
+    });
+    
+    // Log execution
+    await db.addFlowExecutionLog({
+      execution_id: execution.id,
+      node_id: 'response',
+      node_type: 'send_message',
+      input_data: { trigger: execution.trigger_data },
+      output_data: { message: responseText },
+      status: 'success',
+      duration_ms: 100
+    });
+    
+    console.log(`✅ Flow ${flow.name} executed successfully`);
+  } catch (error) {
+    console.error(`❌ Error executing flow ${flow.name}:`, error);
+    
+    // Update execution as failed
+    await db.updateFlowExecution(execution.id, {
+      status: 'failed',
+      error_message: error.message
+    });
+  }
+}
+
 // WhatsApp Webhook POST (for receiving messages)
 server.post('/api/v1/whatsapp/webhook', async (req, res) => {
   try {
@@ -1332,74 +1435,102 @@ async function processWhatsAppMessages(messageData) {
       
       console.log(`✅ Message saved and broadcast: ${savedMessage.id}`);
       
-      // Simulate auto-reply flow (for demo)
+      // Check for active flows with keyword triggers
       if (text?.body) {
         const msgLower = text.body.toLowerCase();
-        let replyText = null;
         
-        // Simple flow simulation
-        if (msgLower.includes('oi') || msgLower.includes('olá') || msgLower.includes('ola')) {
-          replyText = `Olá ${contactName}! 👋\n\nBem-vindo ao PyTake! Como posso ajudar você hoje?\n\n1️⃣ Suporte técnico\n2️⃣ Informações sobre planos\n3️⃣ Falar com atendente\n\nDigite o número da opção desejada.`;
-        } else if (msgLower === '1') {
-          replyText = 'Você escolheu Suporte Técnico 🔧\n\nPor favor, descreva brevemente seu problema que um de nossos técnicos irá atendê-lo em breve.';
-        } else if (msgLower === '2') {
-          replyText = 'Nossos Planos 📋\n\n✅ Básico: R$ 99/mês\n- 1000 mensagens\n- 1 número WhatsApp\n\n✅ Profissional: R$ 299/mês\n- 5000 mensagens\n- 3 números WhatsApp\n\n✅ Empresarial: R$ 999/mês\n- Mensagens ilimitadas\n- 10 números WhatsApp\n\nPara contratar, acesse: pytake.net';
-        } else if (msgLower === '3') {
-          replyText = 'Transferindo para um atendente... 👨‍💼\n\nAguarde um momento, em breve você será atendido por um de nossos especialistas.';
-        }
+        // Look for active flows
+        const activeFlows = await db.getActiveFlowsByTrigger(tenantId, 'keyword', msgLower);
         
-        if (replyText) {
-          // Simulate typing delay
-          setTimeout(async () => {
-            try {
-              // Save auto-reply message
-              const replyMessage = await db.saveMessage({
-                tenant_id: tenantId,
-                conversation_id: conversation.id,
-                contact_id: contact.id,
-                whatsapp_message_id: `reply_${Date.now()}`,
-                content: replyText,
-                type: 'text',
-                is_from_me: true,
-                status: 'sent',
-                timestamp: new Date()
-              });
-              
-              // Update conversation
-              await db.updateConversation(conversation.id, {
-                last_message: replyText,
-                last_message_time: new Date(),
-                unread_count: 0
-              });
-              
-              // Broadcast reply via WebSocket
-              if (global.wss) {
-                const wsReply = {
-                  type: 'message_sent',
-                  data: {
-                    id: replyMessage.id,
-                    contactId: contact.id,
-                    conversationId: conversation.id,
-                    content: replyText,
-                    timestamp: new Date(),
-                    isFromMe: true,
-                    status: 'sent',
-                    messageType: 'text'
-                  }
-                };
-                
-                global.wss.clients.forEach(client => {
-                  if (client.readyState === 1) {
-                    client.send(JSON.stringify(wsReply));
-                  }
+        if (activeFlows.length > 0) {
+          const flow = activeFlows[0]; // Use first matching flow
+          console.log(`🎯 Triggering flow: ${flow.name}`);
+          
+          // Create flow execution
+          const execution = await db.createFlowExecution({
+            flow_id: flow.id,
+            tenant_id: tenantId,
+            conversation_id: conversation.id,
+            contact_id: contact.id,
+            trigger_data: {
+              type: 'keyword',
+              message: text.body,
+              from: from
+            },
+            status: 'running',
+            current_node_id: 'start'
+          });
+          
+          // Execute flow (simplified for now)
+          await executeFlow(flow, execution, conversation, contact);
+        } else {
+          // Fallback to simple auto-reply if no flow matches
+          let replyText = null;
+          
+          // Simple flow simulation
+          if (msgLower.includes('oi') || msgLower.includes('olá') || msgLower.includes('ola')) {
+            replyText = `Olá ${contactName}! 👋\n\nBem-vindo ao PyTake! Como posso ajudar você hoje?\n\n1️⃣ Suporte técnico\n2️⃣ Informações sobre planos\n3️⃣ Falar com atendente\n\nDigite o número da opção desejada.`;
+          } else if (msgLower === '1') {
+            replyText = 'Você escolheu Suporte Técnico 🔧\n\nPor favor, descreva brevemente seu problema que um de nossos técnicos irá atendê-lo em breve.';
+          } else if (msgLower === '2') {
+            replyText = 'Nossos Planos 📋\n\n✅ Básico: R$ 99/mês\n- 1000 mensagens\n- 1 número WhatsApp\n\n✅ Profissional: R$ 299/mês\n- 5000 mensagens\n- 3 números WhatsApp\n\n✅ Empresarial: R$ 999/mês\n- Mensagens ilimitadas\n- 10 números WhatsApp\n\nPara contratar, acesse: pytake.net';
+          } else if (msgLower === '3') {
+            replyText = 'Transferindo para um atendente... 👨‍💼\n\nAguarde um momento, em breve você será atendido por um de nossos especialistas.';
+          }
+        
+          if (replyText) {
+            // Simulate typing delay
+            setTimeout(async () => {
+              try {
+                // Save auto-reply message
+                const replyMessage = await db.saveMessage({
+                  tenant_id: tenantId,
+                  conversation_id: conversation.id,
+                  contact_id: contact.id,
+                  whatsapp_message_id: `reply_${Date.now()}`,
+                  content: replyText,
+                  type: 'text',
+                  is_from_me: true,
+                  status: 'sent',
+                  timestamp: new Date()
                 });
+                
+                // Update conversation
+                await db.updateConversation(conversation.id, {
+                  last_message: replyText,
+                  last_message_time: new Date(),
+                  unread_count: 0
+                });
+                
+                // Broadcast reply via WebSocket
+                if (global.wss) {
+                  const wsReply = {
+                    type: 'message_sent',
+                    data: {
+                      id: replyMessage.id,
+                      contactId: contact.id,
+                      conversationId: conversation.id,
+                      content: replyText,
+                      timestamp: new Date(),
+                      isFromMe: true,
+                      status: 'sent',
+                      messageType: 'text'
+                    }
+                  };
+                  
+                  global.wss.clients.forEach(client => {
+                    if (client.readyState === 1) {
+                      client.send(JSON.stringify(wsReply));
+                    }
+                  });
+                }
+                
+                console.log(`🤖 Auto-reply sent to ${contactName}`);
+              } catch (error) {
+                console.error('Error sending auto-reply:', error);
               }
-              
-              console.log(`🤖 Auto-reply sent to ${contactName}`);
-            } catch (error) {
-              console.error('Error sending auto-reply:', error);
-            }
-          }, 1500); // 1.5 second delay
+            }, 1500); // 1.5 second delay
+          }
         }
       }
     }
@@ -1610,6 +1741,95 @@ let mockMessages = [
     type: 'text'
   }
 ];
+
+// Flow management routes
+server.get('/api/v1/flows', async (req, res) => {
+  const tenantId = req.headers['x-tenant-id'] || DEFAULT_TENANT_ID;
+  try {
+    const flows = await db.getFlows(tenantId);
+    res.json({ flows });
+  } catch (error) {
+    console.error('Error getting flows:', error);
+    res.status(500).json({ error: 'Failed to get flows' });
+  }
+});
+
+server.get('/api/v1/flows/:id', async (req, res) => {
+  const tenantId = req.headers['x-tenant-id'] || DEFAULT_TENANT_ID;
+  const { id } = req.params;
+  try {
+    const flow = await db.getFlowById(tenantId, id);
+    if (!flow) {
+      return res.status(404).json({ error: 'Flow not found' });
+    }
+    res.json(flow);
+  } catch (error) {
+    console.error('Error getting flow:', error);
+    res.status(500).json({ error: 'Failed to get flow' });
+  }
+});
+
+server.post('/api/v1/flows', async (req, res) => {
+  const tenantId = req.headers['x-tenant-id'] || DEFAULT_TENANT_ID;
+  try {
+    const flow = await db.createFlow(tenantId, req.body);
+    res.status(201).json(flow);
+  } catch (error) {
+    console.error('Error creating flow:', error);
+    res.status(500).json({ error: 'Failed to create flow' });
+  }
+});
+
+server.put('/api/v1/flows/:id', async (req, res) => {
+  const tenantId = req.headers['x-tenant-id'] || DEFAULT_TENANT_ID;
+  const { id } = req.params;
+  try {
+    const flow = await db.updateFlow(tenantId, id, req.body);
+    if (!flow) {
+      return res.status(404).json({ error: 'Flow not found' });
+    }
+    res.json(flow);
+  } catch (error) {
+    console.error('Error updating flow:', error);
+    res.status(500).json({ error: 'Failed to update flow' });
+  }
+});
+
+server.delete('/api/v1/flows/:id', async (req, res) => {
+  const tenantId = req.headers['x-tenant-id'] || DEFAULT_TENANT_ID;
+  const { id } = req.params;
+  try {
+    const flow = await db.deleteFlow(tenantId, id);
+    if (!flow) {
+      return res.status(404).json({ error: 'Flow not found' });
+    }
+    res.json({ message: 'Flow deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting flow:', error);
+    res.status(500).json({ error: 'Failed to delete flow' });
+  }
+});
+
+server.patch('/api/v1/flows/:id/status', async (req, res) => {
+  const tenantId = req.headers['x-tenant-id'] || DEFAULT_TENANT_ID;
+  const { id } = req.params;
+  const { status } = req.body;
+  
+  if (!['active', 'inactive', 'draft'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid status' });
+  }
+  
+  try {
+    const flow = await db.updateFlow(tenantId, id, { status });
+    if (!flow) {
+      return res.status(404).json({ error: 'Flow not found' });
+    }
+    res.json(flow);
+  } catch (error) {
+    console.error('Error updating flow status:', error);
+    res.status(500).json({ error: 'Failed to update flow status' });
+  }
+});
 
 // Contact management routes
 server.get('/api/v1/contacts', async (req, res) => {

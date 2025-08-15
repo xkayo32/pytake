@@ -111,7 +111,7 @@ export default function WhatsAppPage() {
       try {
         const wsUrl = process.env.NODE_ENV === 'production' 
           ? 'wss://api.pytake.net/ws'
-          : 'ws://localhost:8080/ws'
+          : 'ws://localhost:8081/ws'
         
         const ws = new WebSocket(wsUrl)
         wsRef.current = ws
@@ -129,6 +129,7 @@ export default function WhatsAppPage() {
 
             switch (data.type) {
               case 'new_message':
+              case 'message_sent':
                 // Add new message to the current conversation
                 if (selectedContact && data.data.contactId === selectedContact.id) {
                   const newMsg: Message = {
@@ -149,7 +150,7 @@ export default function WhatsAppPage() {
                         ...contact,
                         lastMessage: data.data.content,
                         lastMessageTime: new Date(data.data.timestamp),
-                        unreadCount: selectedContact?.id === contact.id ? 0 : (contact.unreadCount || 0) + 1
+                        unreadCount: selectedContact?.id === contact.id ? 0 : (contact.unreadCount || 0) + (data.data.isFromMe ? 0 : 1)
                       }
                     : contact
                 ))
@@ -215,12 +216,20 @@ export default function WhatsAppPage() {
 
   const loadContacts = async () => {
     try {
-      const response = await fetch('/api/v1/whatsapp/contacts')
+      const response = await fetch('/api/v1/contacts')
       if (response.ok) {
         const data = await response.json()
-        const formattedContacts = data.map((contact: any) => ({
-          ...contact,
-          lastMessageTime: contact.lastMessageTime ? new Date(contact.lastMessageTime) : undefined
+        const formattedContacts = data.contacts.map((contact: any) => ({
+          id: contact.id,
+          name: contact.name || contact.phone,
+          phone: contact.phone,
+          avatar: contact.avatar_url,
+          lastMessage: contact.last_message,
+          lastMessageTime: contact.last_message_time ? new Date(contact.last_message_time) : undefined,
+          unreadCount: contact.unread_count || 0,
+          isOnline: false,
+          isFavorite: contact.is_favorite,
+          isBlocked: contact.is_blocked
         }))
         setContacts(formattedContacts)
       }
@@ -375,7 +384,7 @@ export default function WhatsAppPage() {
       phone = '+' + phone
 
       // Criar/buscar contato
-      const response = await fetch('/api/v1/whatsapp/contacts', {
+      const response = await fetch('/api/v1/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -385,10 +394,26 @@ export default function WhatsAppPage() {
       })
 
       if (response.ok) {
-        const newContact = await response.json()
+        const data = await response.json()
+        const newContact = data.contact
+        
+        // Format contact for frontend
+        const formattedContact = {
+          id: newContact.id,
+          name: newContact.name || newContact.phone,
+          phone: newContact.phone,
+          avatar: newContact.avatar_url,
+          lastMessage: null,
+          lastMessageTime: null,
+          unreadCount: 0,
+          isOnline: false,
+          isFavorite: newContact.is_favorite || false,
+          isBlocked: newContact.is_blocked || false
+        }
+        
         await loadContacts() // Recarregar lista
-        setSelectedContact(newContact)
-        loadMessages(newContact.id)
+        setSelectedContact(formattedContact)
+        loadMessages(formattedContact.id)
         setShowNewChatModal(false)
         setNewContactPhone('')
         setNewContactName('')

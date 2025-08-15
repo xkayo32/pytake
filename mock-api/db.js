@@ -686,6 +686,211 @@ const db = {
     `;
     const result = await pool.query(query, [tenantId, contactId]);
     return result.rows[0];
+  },
+
+  // Flow functions
+  async getFlows(tenantId) {
+    const query = `
+      SELECT * FROM flows 
+      WHERE tenant_id = $1::uuid
+      ORDER BY status DESC, created_at DESC
+    `;
+    const result = await pool.query(query, [tenantId]);
+    return result.rows;
+  },
+
+  async getFlowById(tenantId, flowId) {
+    const query = `
+      SELECT * FROM flows 
+      WHERE tenant_id = $1::uuid AND id = $2::uuid
+    `;
+    const result = await pool.query(query, [tenantId, flowId]);
+    return result.rows[0];
+  },
+
+  async createFlow(tenantId, flowData) {
+    const { name, description, trigger_type, trigger_config, flow_data, tags } = flowData;
+    const query = `
+      INSERT INTO flows (
+        tenant_id, name, description, status, 
+        trigger_type, trigger_config, flow_data, tags
+      ) VALUES (
+        $1::uuid, $2, $3, 'draft', $4, $5, $6, $7
+      ) RETURNING *
+    `;
+    const result = await pool.query(query, [
+      tenantId, name, description, trigger_type,
+      JSON.stringify(trigger_config || {}),
+      JSON.stringify(flow_data || { nodes: [], edges: [] }),
+      tags || []
+    ]);
+    return result.rows[0];
+  },
+
+  async updateFlow(tenantId, flowId, flowData) {
+    const { name, description, trigger_type, trigger_config, flow_data, tags, status } = flowData;
+    const query = `
+      UPDATE flows SET
+        name = COALESCE($3, name),
+        description = COALESCE($4, description),
+        trigger_type = COALESCE($5, trigger_type),
+        trigger_config = COALESCE($6, trigger_config),
+        flow_data = COALESCE($7, flow_data),
+        tags = COALESCE($8, tags),
+        status = COALESCE($9, status),
+        activated_at = CASE WHEN $9 = 'active' AND status != 'active' THEN CURRENT_TIMESTAMP ELSE activated_at END,
+        deactivated_at = CASE WHEN $9 != 'active' AND status = 'active' THEN CURRENT_TIMESTAMP ELSE deactivated_at END
+      WHERE tenant_id = $1::uuid AND id = $2::uuid
+      RETURNING *
+    `;
+    const result = await pool.query(query, [
+      tenantId, flowId, name, description, trigger_type,
+      trigger_config ? JSON.stringify(trigger_config) : null,
+      flow_data ? JSON.stringify(flow_data) : null,
+      tags, status
+    ]);
+    return result.rows[0];
+  },
+
+  async deleteFlow(tenantId, flowId) {
+    const query = `
+      DELETE FROM flows 
+      WHERE tenant_id = $1::uuid AND id = $2::uuid
+      RETURNING *
+    `;
+    const result = await pool.query(query, [tenantId, flowId]);
+    return result.rows[0];
+  },
+
+  async getActiveFlowsByTrigger(tenantId, triggerType, keyword = null) {
+    let query;
+    let params;
+    
+    if (triggerType === 'keyword' && keyword) {
+      query = `
+        SELECT * FROM flows 
+        WHERE tenant_id = $1::uuid 
+          AND status = 'active' 
+          AND trigger_type = 'keyword'
+          AND trigger_config->>'keywords' ILIKE $2
+        ORDER BY created_at ASC
+      `;
+      params = [tenantId, `%${keyword}%`];
+    } else {
+      query = `
+        SELECT * FROM flows 
+        WHERE tenant_id = $1::uuid 
+          AND status = 'active' 
+          AND trigger_type = $2
+        ORDER BY created_at ASC
+      `;
+      params = [tenantId, triggerType];
+    }
+    
+    const result = await pool.query(query, params);
+    return result.rows;
+  },
+
+  async createFlowExecution(data) {
+    const query = `
+      INSERT INTO flow_executions (
+        flow_id, tenant_id, conversation_id, contact_id,
+        trigger_data, status, current_node_id, execution_data
+      ) VALUES (
+        $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, $6, $7, $8
+      ) RETURNING *
+    `;
+    const result = await pool.query(query, [
+      data.flow_id, data.tenant_id, data.conversation_id, data.contact_id,
+      JSON.stringify(data.trigger_data || {}),
+      data.status || 'running',
+      data.current_node_id,
+      JSON.stringify(data.execution_data || {})
+    ]);
+    
+    // Update flow stats
+    await pool.query(`
+      UPDATE flows 
+      SET stats = jsonb_set(
+        stats, 
+        '{executions}', 
+        to_jsonb(COALESCE((stats->>'executions')::int, 0) + 1)
+      )
+      WHERE id = $1::uuid
+    `, [data.flow_id]);
+    
+    return result.rows[0];
+  },
+
+  async updateFlowExecution(executionId, updates) {
+    const query = `
+      UPDATE flow_executions SET
+        status = COALESCE($2, status),
+        current_node_id = COALESCE($3, current_node_id),
+        execution_data = COALESCE($4, execution_data),
+        error_message = COALESCE($5, error_message),
+        completed_at = CASE WHEN $2 IN ('completed', 'failed', 'cancelled') THEN CURRENT_TIMESTAMP ELSE completed_at END,
+        duration_ms = CASE WHEN $2 IN ('completed', 'failed', 'cancelled') 
+          THEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at)) * 1000 
+          ELSE duration_ms END
+      WHERE id = $1::uuid
+      RETURNING *
+    `;
+    const result = await pool.query(query, [
+      executionId,
+      updates.status,
+      updates.current_node_id,
+      updates.execution_data ? JSON.stringify(updates.execution_data) : null,
+      updates.error_message
+    ]);
+    
+    // Update flow success rate if completed
+    if (updates.status === 'completed') {
+      const execution = result.rows[0];
+      await pool.query(`
+        UPDATE flows 
+        SET stats = jsonb_set(
+          stats, 
+          '{successRate}', 
+          to_jsonb(
+            ROUND(
+              (
+                SELECT COUNT(*)::numeric * 100 / NULLIF(COUNT(*), 0)
+                FROM flow_executions
+                WHERE flow_id = $1::uuid AND status = 'completed'
+              ) / 
+              NULLIF((
+                SELECT COUNT(*)::numeric
+                FROM flow_executions
+                WHERE flow_id = $1::uuid
+              ), 0),
+              1
+            )
+          )
+        )
+        WHERE id = $1::uuid
+      `, [execution.flow_id]);
+    }
+    
+    return result.rows[0];
+  },
+
+  async addFlowExecutionLog(log) {
+    const query = `
+      INSERT INTO flow_execution_logs (
+        execution_id, node_id, node_type, input_data,
+        output_data, status, error_message, duration_ms
+      ) VALUES (
+        $1::uuid, $2, $3, $4, $5, $6, $7, $8
+      ) RETURNING *
+    `;
+    const result = await pool.query(query, [
+      log.execution_id, log.node_id, log.node_type,
+      JSON.stringify(log.input_data || {}),
+      JSON.stringify(log.output_data || {}),
+      log.status, log.error_message, log.duration_ms
+    ]);
+    return result.rows[0];
   }
 };
 
