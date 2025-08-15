@@ -43,17 +43,10 @@ const menuItems = [
     ]
   },
   {
-    title: 'Mensagens',
-    items: [
-      { icon: Send, label: 'Enviar com Template', href: '/messages/send' },
-    ]
-  },
-  {
     title: 'Automação',
     items: [
       { icon: Bot, label: 'Fluxos', href: '/flows' },
       { icon: Workflow, label: 'Campanhas', href: '/campaigns' },
-      { icon: FileText, label: 'Templates', href: '/templates' },
       { icon: Megaphone, label: 'Broadcast', href: '/broadcast' },
     ]
   },
@@ -66,10 +59,16 @@ const menuItems = [
     ]
   },
   {
+    title: 'WhatsApp',
+    items: [
+      { icon: Phone, label: 'Configurações', href: '/settings/whatsapp' },
+      { icon: FileText, label: 'Templates', href: '/settings/whatsapp/templates' },
+      { icon: Send, label: 'Enviar Mensagem', href: '/messages/send' },
+    ]
+  },
+  {
     title: 'Configurações',
     items: [
-      { icon: Phone, label: 'WhatsApp Business', href: '/settings/whatsapp' },
-      { icon: FileText, label: 'Templates WhatsApp', href: '/settings/whatsapp/templates' },
       { icon: Building2, label: 'Empresa', href: '/settings/company' },
       { icon: UserCircle, label: 'Perfil', href: '/settings/profile' },
       { icon: Users, label: 'Equipe', href: '/settings/team' },
