@@ -24,7 +24,8 @@ import {
   Bell,
   Shield,
   Webhook,
-  Phone
+  Phone,
+  Send
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { LogoInline } from '@/components/ui/logo'
@@ -39,6 +40,12 @@ const menuItems = [
       { icon: MessageSquare, label: 'Conversas', href: '/whatsapp', badge: '24' },
       { icon: Users, label: 'Contatos', href: '/contacts' },
       { icon: BarChart3, label: 'Analytics', href: '/analytics' },
+    ]
+  },
+  {
+    title: 'Mensagens',
+    items: [
+      { icon: Send, label: 'Enviar com Template', href: '/messages/send' },
     ]
   },
   {

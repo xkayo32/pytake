@@ -594,6 +594,51 @@ const db = {
     `;
     const result = await pool.query(query, [status, templateId, tenantId]);
     return result.rows[0];
+  },
+
+  async recordTemplateSend(data) {
+    const query = `
+      INSERT INTO template_sends (
+        template_id, tenant_id, message_id, to_phone, 
+        contact_name, template_data, status, created_at
+      ) VALUES (
+        $1::uuid, $2::uuid, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP
+      ) RETURNING *
+    `;
+    
+    const result = await pool.query(query, [
+      data.template_id,
+      data.tenant_id,
+      data.message_id,
+      data.to_phone,
+      data.contact_name,
+      JSON.stringify(data.template_data),
+      data.status
+    ]);
+    
+    // Also increment template usage count
+    await pool.query(`
+      UPDATE whatsapp_templates 
+      SET usage_count = usage_count + 1,
+          last_used_at = CURRENT_TIMESTAMP
+      WHERE id = $1::uuid
+    `, [data.template_id]);
+    
+    return result.rows[0];
+  },
+
+  async updateTemplateSendStatus(sendId, status) {
+    const query = `
+      UPDATE template_sends 
+      SET status = $1,
+          delivered_at = CASE WHEN $1 = 'DELIVERED' THEN CURRENT_TIMESTAMP ELSE delivered_at END,
+          read_at = CASE WHEN $1 = 'READ' THEN CURRENT_TIMESTAMP ELSE read_at END,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2::uuid
+      RETURNING *
+    `;
+    const result = await pool.query(query, [status, sendId]);
+    return result.rows[0];
   }
 };
 

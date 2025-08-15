@@ -490,6 +490,90 @@ server.post('/api/v1/whatsapp/templates/manage', async (req, res) => {
   }
 });
 
+// Send message using template
+server.post('/api/v1/whatsapp/send-template', async (req, res) => {
+  try {
+    const { template_id, to_phone, variables } = req.body
+    const tenantId = DEFAULT_TENANT_ID
+    
+    // Get template from database
+    const template = await db.getTemplateById(template_id, tenantId)
+    
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' })
+    }
+    
+    if (template.status !== 'APPROVED') {
+      return res.status(400).json({ 
+        error: 'Only approved templates can be used to send messages',
+        current_status: template.status 
+      })
+    }
+    
+    // Build message text with variables
+    let messageText = template.body_text
+    if (template.header_text) {
+      messageText = template.header_text + '\n\n' + messageText
+    }
+    if (template.footer_text) {
+      messageText = messageText + '\n\n' + template.footer_text
+    }
+    
+    // Replace variables
+    Object.entries(variables || {}).forEach(([num, value]) => {
+      messageText = messageText.replace(new RegExp(`\\{\\{${num}\\}\\}`, 'g'), value)
+    })
+    
+    // In production, this would call WhatsApp API
+    // For now, simulate the send
+    console.log('Sending WhatsApp message:', {
+      to: to_phone,
+      template: template.name,
+      message: messageText
+    })
+    
+    // Record the send in database
+    const sendRecord = await db.recordTemplateSend({
+      template_id,
+      tenant_id: tenantId,
+      to_phone,
+      contact_name: variables['1'] || 'Unknown',
+      template_data: variables,
+      status: 'SENT',
+      message_id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    })
+    
+    // Simulate WhatsApp webhook for delivery (after 2 seconds)
+    setTimeout(async () => {
+      if (sendRecord) {
+        await db.updateTemplateSendStatus(sendRecord.id, 'DELIVERED')
+        console.log(`Message ${sendRecord.message_id} delivered to ${to_phone}`)
+      }
+    }, 2000)
+    
+    // Simulate WhatsApp webhook for read (after 5 seconds)
+    setTimeout(async () => {
+      if (sendRecord) {
+        await db.updateTemplateSendStatus(sendRecord.id, 'READ')
+        console.log(`Message ${sendRecord.message_id} read by ${to_phone}`)
+      }
+    }, 5000)
+    
+    res.json({ 
+      success: true,
+      message_id: sendRecord?.message_id,
+      status: 'SENT',
+      message: 'Template message sent successfully',
+      preview: messageText,
+      delivery_time: '2-5 seconds (demo mode)'
+    })
+    
+  } catch (error) {
+    console.error('Error sending template message:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Submit template for Meta approval
 server.post('/api/v1/whatsapp/templates/submit/:id', async (req, res) => {
   try {
