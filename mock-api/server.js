@@ -1478,6 +1478,89 @@ server.get('/ws', (req, res) => {
 // Use default router for other endpoints
 server.use(router);
 
+// Contact management routes
+server.get('/api/v1/contacts', async (req, res) => {
+  const tenantId = req.headers['x-tenant-id'] || DEFAULT_TENANT_ID;
+  
+  try {
+    const contacts = await db.getContacts(tenantId);
+    res.json({ contacts });
+  } catch (error) {
+    console.error('Error getting contacts:', error);
+    res.status(500).json({ error: 'Failed to get contacts' });
+  }
+});
+
+server.post('/api/v1/contacts', async (req, res) => {
+  const { name, phone, email } = req.body;
+  const tenantId = req.headers['x-tenant-id'] || DEFAULT_TENANT_ID;
+
+  if (!name || !phone) {
+    return res.status(400).json({ error: 'Name and phone are required' });
+  }
+
+  try {
+    const contact = await db.createContact(tenantId, { name, phone, email });
+    res.json({ contact });
+  } catch (error) {
+    console.error('Error creating contact:', error);
+    res.status(500).json({ error: 'Failed to create contact' });
+  }
+});
+
+server.get('/api/v1/contacts/:id', async (req, res) => {
+  const { id } = req.params;
+  const tenantId = req.headers['x-tenant-id'] || DEFAULT_TENANT_ID;
+
+  try {
+    const contact = await db.getContactById(tenantId, id);
+    if (!contact) {
+      return res.status(404).json({ error: 'Contact not found' });
+    }
+    res.json({ contact });
+  } catch (error) {
+    console.error('Error getting contact:', error);
+    res.status(500).json({ error: 'Failed to get contact' });
+  }
+});
+
+server.put('/api/v1/contacts/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, phone, email } = req.body;
+  const tenantId = req.headers['x-tenant-id'] || DEFAULT_TENANT_ID;
+
+  if (!name || !phone) {
+    return res.status(400).json({ error: 'Name and phone are required' });
+  }
+
+  try {
+    const contact = await db.updateContact(tenantId, id, { name, phone, email });
+    if (!contact) {
+      return res.status(404).json({ error: 'Contact not found' });
+    }
+    res.json({ contact });
+  } catch (error) {
+    console.error('Error updating contact:', error);
+    res.status(500).json({ error: 'Failed to update contact' });
+  }
+});
+
+server.delete('/api/v1/contacts/:id', async (req, res) => {
+  const { id } = req.params;
+  const tenantId = req.headers['x-tenant-id'] || DEFAULT_TENANT_ID;
+
+  try {
+    const contact = await db.deleteContact(tenantId, id);
+    if (!contact) {
+      return res.status(404).json({ error: 'Contact not found' });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting contact:', error);
+    res.status(500).json({ error: 'Failed to delete contact' });
+  }
+});
+
 // Start HTTP server
 const PORT = process.env.PORT || 8080;
 const httpServer = server.listen(PORT, '0.0.0.0', () => {

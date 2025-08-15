@@ -639,6 +639,53 @@ const db = {
     `;
     const result = await pool.query(query, [status, sendId]);
     return result.rows[0];
+  },
+
+  async createContact(tenantId, contactData) {
+    const { name, phone, email } = contactData;
+    const query = `
+      INSERT INTO contacts (tenant_id, name, phone, email, created_at, updated_at)
+      VALUES ($1::uuid, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING *
+    `;
+    const result = await pool.query(query, [tenantId, name, phone, email]);
+    return result.rows[0];
+  },
+
+  async getContactById(tenantId, contactId) {
+    const query = `
+      SELECT c.*, 
+             conv.unread_count,
+             conv.last_message,
+             conv.last_message_time
+      FROM contacts c
+      LEFT JOIN conversations conv ON c.id = conv.contact_id
+      WHERE c.tenant_id = $1::uuid AND c.id = $2::uuid
+    `;
+    const result = await pool.query(query, [tenantId, contactId]);
+    return result.rows[0];
+  },
+
+  async updateContact(tenantId, contactId, contactData) {
+    const { name, phone, email } = contactData;
+    const query = `
+      UPDATE contacts 
+      SET name = $3, phone = $4, email = $5, updated_at = CURRENT_TIMESTAMP
+      WHERE tenant_id = $1::uuid AND id = $2::uuid
+      RETURNING *
+    `;
+    const result = await pool.query(query, [tenantId, contactId, name, phone, email]);
+    return result.rows[0];
+  },
+
+  async deleteContact(tenantId, contactId) {
+    const query = `
+      DELETE FROM contacts 
+      WHERE tenant_id = $1::uuid AND id = $2::uuid
+      RETURNING *
+    `;
+    const result = await pool.query(query, [tenantId, contactId]);
+    return result.rows[0];
   }
 };
 

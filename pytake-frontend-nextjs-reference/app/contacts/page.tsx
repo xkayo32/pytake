@@ -1,652 +1,512 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { 
+  Users, 
   Plus, 
   Search, 
-  Filter,
-  Download,
-  Upload,
-  Users,
-  User,
-  Phone,
-  Mail,
-  Tag,
-  Calendar,
-  Building,
-  MapPin,
+  Edit, 
+  Trash2, 
+  Phone, 
   MessageSquare,
-  MoreVertical,
-  Edit,
-  Trash2,
-  UserPlus,
-  UserMinus,
-  CheckCircle,
-  XCircle,
-  Clock,
-  TrendingUp,
-  Globe,
-  Hash
+  Mail,
+  Calendar,
+  Filter
 } from 'lucide-react'
-
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { AppLayout } from '@/components/layout/app-layout'
-import { useAuth } from '@/lib/hooks/useAuth'
-import { MOCK_CONTACTS, MOCK_GROUPS, MOCK_TAGS, Contact, ContactGroup, ContactTag } from '@/lib/types/contact'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { notify } from '@/lib/utils'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Badge } from '@/components/ui/badge'
+
+interface Contact {
+  id: string
+  name: string
+  phone: string
+  email?: string
+  created_at: string
+  updated_at: string
+  unread_count?: number
+  last_message?: string
+  last_message_time?: string
+}
 
 export default function ContactsPage() {
-  const [contacts, setContacts] = useState<Contact[]>(MOCK_CONTACTS)
-  const [groups, setGroups] = useState<ContactGroup[]>(MOCK_GROUPS)
-  const [tags, setTags] = useState<ContactTag[]>(MOCK_TAGS)
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState<string>('all')
-  const [filterGroup, setFilterGroup] = useState<string>('all')
-  const [filterTag, setFilterTag] = useState<string>('all')
-  const [selectedContacts, setSelectedContacts] = useState<string[]>([])
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list')
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editingContact, setEditingContact] = useState<Contact | null>(null)
   
-  const { isAuthenticated, isLoading } = useAuth()
-  const router = useRouter()
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    email: ''
+  })
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/login')
-    }
-  }, [isLoading, isAuthenticated, router])
+    loadContacts()
+  }, [])
 
-  if (isLoading) {
+  const loadContacts = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/v1/contacts')
+      if (response.ok) {
+        const data = await response.json()
+        setContacts(data.contacts || [])
+      } else {
+        throw new Error('Failed to load contacts')
+      }
+    } catch (error) {
+      console.error('Error loading contacts:', error)
+      notify.error('Erro ao carregar contatos')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreateContact = async () => {
+    if (!formData.name.trim() || !formData.phone.trim()) {
+      notify.error('Nome e telefone são obrigatórios')
+      return
+    }
+
+    try {
+      setSaving(true)
+      const response = await fetch('/api/v1/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+
+      if (response.ok) {
+        notify.success('Contato criado com sucesso!')
+        setIsCreateDialogOpen(false)
+        setFormData({ name: '', phone: '', email: '' })
+        loadContacts()
+      } else {
+        throw new Error('Failed to create contact')
+      }
+    } catch (error) {
+      console.error('Error creating contact:', error)
+      notify.error('Erro ao criar contato')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleEditContact = async () => {
+    if (!editingContact || !formData.name.trim() || !formData.phone.trim()) {
+      notify.error('Nome e telefone são obrigatórios')
+      return
+    }
+
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/v1/contacts/${editingContact.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+
+      if (response.ok) {
+        notify.success('Contato atualizado com sucesso!')
+        setIsEditDialogOpen(false)
+        setEditingContact(null)
+        setFormData({ name: '', phone: '', email: '' })
+        loadContacts()
+      } else {
+        throw new Error('Failed to update contact')
+      }
+    } catch (error) {
+      console.error('Error updating contact:', error)
+      notify.error('Erro ao atualizar contato')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteContact = async (contactId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este contato?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/v1/contacts/${contactId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        notify.success('Contato excluído com sucesso!')
+        loadContacts()
+      } else {
+        throw new Error('Failed to delete contact')
+      }
+    } catch (error) {
+      console.error('Error deleting contact:', error)
+      notify.error('Erro ao excluir contato')
+    }
+  }
+
+  const openEditDialog = (contact: Contact) => {
+    setEditingContact(contact)
+    setFormData({
+      name: contact.name,
+      phone: contact.phone,
+      email: contact.email || ''
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const resetForm = () => {
+    setFormData({ name: '', phone: '', email: '' })
+    setEditingContact(null)
+  }
+
+  const filteredContacts = contacts.filter(contact =>
+    contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contact.phone.includes(searchTerm)
+  )
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
+      <AppLayout>
+        <div className="flex justify-center items-center h-96">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+        </div>
+      </AppLayout>
     )
-  }
-
-  if (!isAuthenticated) {
-    return null
-  }
-
-  const filteredContacts = contacts.filter(contact => {
-    const matchesSearch = 
-      contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.phone.includes(searchTerm) ||
-      contact.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.company?.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesStatus = filterStatus === 'all' || contact.status === filterStatus
-    const matchesGroup = filterGroup === 'all' || contact.groups.includes(filterGroup)
-    const matchesTag = filterTag === 'all' || contact.tags.includes(filterTag)
-
-    return matchesSearch && matchesStatus && matchesGroup && matchesTag
-  })
-
-  const handleSelectContact = (contactId: string) => {
-    if (selectedContacts.includes(contactId)) {
-      setSelectedContacts(prev => prev.filter(id => id !== contactId))
-    } else {
-      setSelectedContacts(prev => [...prev, contactId])
-    }
-  }
-
-  const handleSelectAll = () => {
-    if (selectedContacts.length === filteredContacts.length) {
-      setSelectedContacts([])
-    } else {
-      setSelectedContacts(filteredContacts.map(c => c.id))
-    }
-  }
-
-  const handleExport = () => {
-    // TODO: Implement export
-    console.log('Exporting contacts:', selectedContacts.length || filteredContacts.length)
-  }
-
-  const handleImport = () => {
-    router.push('/contacts/import')
-  }
-
-  const handleAddToGroup = () => {
-    // TODO: Implement add to group
-    console.log('Adding to group:', selectedContacts)
-  }
-
-  const handleAddTags = () => {
-    // TODO: Implement add tags
-    console.log('Adding tags to:', selectedContacts)
-  }
-
-  const handleDeleteSelected = () => {
-    if (confirm(`Deseja excluir ${selectedContacts.length} contato(s)?`)) {
-      setContacts(prev => prev.filter(c => !selectedContacts.includes(c.id)))
-      setSelectedContacts([])
-    }
-  }
-
-  const stats = {
-    total: contacts.length,
-    active: contacts.filter(c => c.status === 'active').length,
-    inactive: contacts.filter(c => c.status === 'inactive').length,
-    blocked: contacts.filter(c => c.status === 'blocked').length,
-    withWhatsApp: contacts.filter(c => c.whatsappId).length,
-    totalMessages: contacts.reduce((sum, c) => sum + c.stats.totalMessages, 0)
-  }
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('pt-BR')
-  }
-
-  const formatPhone = (phone: string) => {
-    // Keep original format for display
-    return phone
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800 border-green-200'
-      case 'inactive': return 'bg-gray-100 text-gray-600 border-gray-200'
-      case 'blocked': return 'bg-red-100 text-red-800 border-red-200'
-      default: return 'bg-gray-100 text-gray-600 border-gray-200'
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'active': return <CheckCircle className="h-3 w-3" />
-      case 'inactive': return <Clock className="h-3 w-3" />
-      case 'blocked': return <XCircle className="h-3 w-3" />
-      default: return null
-    }
   }
 
   return (
     <AppLayout>
-      <div className="flex flex-col h-full">
+      <div className="container mx-auto py-6 max-w-6xl">
         {/* Header */}
-        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
-          <div className="container flex h-16 items-center justify-between px-4">
-            <div>
-              <h1 className="text-2xl font-bold">Contatos</h1>
-              <p className="text-sm text-muted-foreground">
-                Gerencie seus contatos e CRM
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {selectedContacts.length > 0 && (
-                <>
-                  <Badge variant="secondary" className="mr-2">
-                    {selectedContacts.length} selecionado(s)
-                  </Badge>
-                  <Button variant="outline" size="sm" onClick={handleAddToGroup}>
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Grupo
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleAddTags}>
-                    <Tag className="h-4 w-4 mr-2" />
-                    Tags
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleDeleteSelected}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Excluir
-                  </Button>
-                </>
-              )}
-              <Button variant="outline" size="sm" onClick={handleImport}>
-                <Upload className="h-4 w-4 mr-2" />
-                Importar
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleExport}>
-                <Download className="h-4 w-4 mr-2" />
-                Exportar
-              </Button>
-              <Button onClick={() => router.push('/contacts/create')}>
-                <Plus className="h-4 w-4 mr-2" />
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Users className="h-8 w-8" />
+              Contatos
+            </h1>
+            <p className="text-muted-foreground">
+              Gerencie seus contatos do WhatsApp
+            </p>
+          </div>
+          
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={resetForm} className="gap-2">
+                <Plus className="h-4 w-4" />
                 Novo Contato
               </Button>
-            </div>
-          </div>
-        </header>
-
-        {/* Content */}
-        <main className="flex-1 overflow-auto p-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.total}</div>
-                <p className="text-xs text-muted-foreground">Contatos</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ativos</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-                <p className="text-xs text-muted-foreground">Conversando</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Inativos</CardTitle>
-                <Clock className="h-4 w-4 text-gray-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-gray-600">{stats.inactive}</div>
-                <p className="text-xs text-muted-foreground">Sem interação</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">WhatsApp</CardTitle>
-                <MessageSquare className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-primary">{stats.withWhatsApp}</div>
-                <p className="text-xs text-muted-foreground">Conectados</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Grupos</CardTitle>
-                <Users className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">{groups.length}</div>
-                <p className="text-xs text-muted-foreground">Segmentos</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Mensagens</CardTitle>
-                <TrendingUp className="h-4 w-4 text-purple-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-purple-600">
-                  {stats.totalMessages.toLocaleString()}
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Criar Novo Contato</DialogTitle>
+                <DialogDescription>
+                  Adicione um novo contato à sua lista
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Nome *</Label>
+                  <Input
+                    id="name"
+                    placeholder="Nome completo"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
                 </div>
-                <p className="text-xs text-muted-foreground">Total enviadas</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nome, telefone, email ou empresa..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos Status</SelectItem>
-                <SelectItem value="active">Ativos</SelectItem>
-                <SelectItem value="inactive">Inativos</SelectItem>
-                <SelectItem value="blocked">Bloqueados</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filterGroup} onValueChange={setFilterGroup}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Grupo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos Grupos</SelectItem>
-                {groups.map(group => (
-                  <SelectItem key={group.id} value={group.name}>
-                    <div className="flex items-center gap-2">
-                      <span>{group.icon}</span>
-                      <span>{group.name}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {group.contactCount}
-                      </Badge>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={filterTag} onValueChange={setFilterTag}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Tag" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas Tags</SelectItem>
-                {tags.map(tag => (
-                  <SelectItem key={tag.id} value={tag.name}>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-2 h-2 rounded-full" 
-                        style={{ backgroundColor: tag.color }}
-                      />
-                      <span>{tag.name}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {tag.count}
-                      </Badge>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <div className="flex gap-2">
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-              >
-                Lista
-              </Button>
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('grid')}
-              >
-                Grade
-              </Button>
-            </div>
-          </div>
-
-          {/* Select All */}
-          {filteredContacts.length > 0 && (
-            <div className="flex items-center gap-4 mb-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedContacts.length === filteredContacts.length}
-                  onChange={handleSelectAll}
-                  className="rounded border-gray-300"
-                />
-                <span className="text-sm text-muted-foreground">
-                  Selecionar todos ({filteredContacts.length})
-                </span>
-              </label>
-            </div>
-          )}
-
-          {/* Contacts List/Grid */}
-          {filteredContacts.length === 0 ? (
-            <Card className="p-12">
-              <div className="text-center text-muted-foreground">
-                <Users className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-medium mb-2">Nenhum contato encontrado</h3>
-                <p className="mb-4">
-                  {searchTerm 
-                    ? 'Tente ajustar os filtros de busca' 
-                    : 'Adicione seu primeiro contato'}
-                </p>
-                {!searchTerm && (
-                  <Button onClick={() => router.push('/contacts/create')}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Primeiro Contato
-                  </Button>
-                )}
+                
+                <div>
+                  <Label htmlFor="phone">Telefone *</Label>
+                  <Input
+                    id="phone"
+                    placeholder="5511999999999"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Formato: código do país + DDD + número
+                  </p>
+                </div>
+                
+                <div>
+                  <Label htmlFor="email">E-mail</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="email@exemplo.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
+                </div>
               </div>
-            </Card>
-          ) : viewMode === 'list' ? (
-            <Card>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="border-b">
-                    <tr className="text-left text-sm text-muted-foreground">
-                      <th className="p-3 w-10"></th>
-                      <th className="p-3">Contato</th>
-                      <th className="p-3">Telefone</th>
-                      <th className="p-3">Email</th>
-                      <th className="p-3">Empresa</th>
-                      <th className="p-3">Tags</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3">Última Interação</th>
-                      <th className="p-3 w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredContacts.map((contact) => (
-                      <tr 
-                        key={contact.id} 
-                        className="border-b hover:bg-accent/50 transition-colors"
-                      >
-                        <td className="p-3">
-                          <input
-                            type="checkbox"
-                            checked={selectedContacts.includes(contact.id)}
-                            onChange={() => handleSelectContact(contact.id)}
-                            className="rounded border-gray-300"
-                          />
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-3">
-                            {contact.profilePicture ? (
-                              <img 
-                                src={contact.profilePicture} 
-                                alt={contact.name}
-                                className="w-8 h-8 rounded-full"
-                              />
-                            ) : (
-                              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                                <User className="h-4 w-4 text-primary" />
-                              </div>
-                            )}
-                            <div>
-                              <button 
-                                onClick={() => router.push(`/contacts/${contact.id}`)}
-                                className="font-medium hover:text-primary transition-colors"
-                              >
-                                {contact.name}
-                              </button>
-                              {contact.about && (
-                                <p className="text-xs text-muted-foreground truncate max-w-xs">
-                                  {contact.about}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-2">
-                            {contact.whatsappId && (
-                              <MessageSquare className="h-3 w-3 text-green-600" />
-                            )}
-                            <span className="text-sm">{formatPhone(contact.phone)}</span>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <span className="text-sm text-muted-foreground">
-                            {contact.email || '-'}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          <span className="text-sm">
-                            {contact.company || '-'}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex flex-wrap gap-1">
-                            {contact.tags.slice(0, 3).map(tag => (
-                              <Badge key={tag} variant="secondary" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                            {contact.tags.length > 3 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{contact.tags.length - 3}
-                              </Badge>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <Badge 
-                            variant="outline" 
-                            className={getStatusColor(contact.status)}
-                          >
-                            {getStatusIcon(contact.status)}
-                            <span className="ml-1">
-                              {contact.status === 'active' ? 'Ativo' :
-                               contact.status === 'inactive' ? 'Inativo' : 'Bloqueado'}
-                            </span>
-                          </Badge>
-                        </td>
-                        <td className="p-3">
-                          <div className="text-sm">
-                            {contact.lastInteraction ? (
-                              <>
-                                <div>{formatDate(contact.lastInteraction)}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {contact.stats.totalMessages} mensagens
-                                </div>
-                              </>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <Button variant="ghost" size="sm">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleCreateContact} disabled={saving}>
+                  {saving ? 'Salvando...' : 'Criar Contato'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Search and Filter */}
+        <div className="flex gap-4 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar contatos por nome ou telefone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Filter className="h-4 w-4" />
+                Filtros
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem>Todos os contatos</DropdownMenuItem>
+              <DropdownMenuItem>Com mensagens não lidas</DropdownMenuItem>
+              <DropdownMenuItem>Adicionados recentemente</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Stats */}
+        <div className="grid md:grid-cols-3 gap-4 mb-6">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-blue-500" />
+                <div>
+                  <p className="text-2xl font-bold">{contacts.length}</p>
+                  <p className="text-muted-foreground text-sm">Total de contatos</p>
+                </div>
               </div>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredContacts.map((contact) => (
-                <Card 
-                  key={contact.id} 
-                  className="hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => router.push(`/contacts/${contact.id}`)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        {contact.profilePicture ? (
-                          <img 
-                            src={contact.profilePicture} 
-                            alt={contact.name}
-                            className="w-12 h-12 rounded-full"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                            <User className="h-6 w-6 text-primary" />
-                          </div>
-                        )}
-                        <div>
-                          <h3 className="font-medium">{contact.name}</h3>
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs ${getStatusColor(contact.status)}`}
-                          >
-                            {getStatusIcon(contact.status)}
-                            <span className="ml-1">
-                              {contact.status === 'active' ? 'Ativo' :
-                               contact.status === 'inactive' ? 'Inativo' : 'Bloqueado'}
-                            </span>
-                          </Badge>
-                        </div>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={selectedContacts.includes(contact.id)}
-                        onChange={(e) => {
-                          e.stopPropagation()
-                          handleSelectContact(contact.id)
-                        }}
-                        className="rounded border-gray-300"
-                      />
-                    </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-green-500" />
+                <div>
+                  <p className="text-2xl font-bold">
+                    {contacts.filter(c => c.unread_count && c.unread_count > 0).length}
+                  </p>
+                  <p className="text-muted-foreground text-sm">Com mensagens não lidas</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-purple-500" />
+                <div>
+                  <p className="text-2xl font-bold">
+                    {contacts.filter(c => {
+                      const created = new Date(c.created_at)
+                      const today = new Date()
+                      const diffTime = today.getTime() - created.getTime()
+                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+                      return diffDays <= 7
+                    }).length}
+                  </p>
+                  <p className="text-muted-foreground text-sm">Novos esta semana</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Phone className="h-3 w-3" />
-                        <span className="truncate">{formatPhone(contact.phone)}</span>
-                        {contact.whatsappId && (
-                          <MessageSquare className="h-3 w-3 text-green-600" />
-                        )}
+        {/* Contacts List */}
+        {filteredContacts.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-12">
+              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">
+                {searchTerm ? 'Nenhum contato encontrado' : 'Nenhum contato cadastrado'}
+              </h3>
+              <p className="text-muted-foreground mb-4">
+                {searchTerm 
+                  ? 'Tente ajustar os termos de busca'
+                  : 'Comece adicionando seu primeiro contato'
+                }
+              </p>
+              {!searchTerm && (
+                <Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Adicionar Contato
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4">
+            {filteredContacts.map((contact) => (
+              <Card key={contact.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Users className="h-6 w-6 text-primary" />
                       </div>
                       
-                      {contact.email && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Mail className="h-3 w-3" />
-                          <span className="truncate">{contact.email}</span>
-                        </div>
-                      )}
-                      
-                      {contact.company && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Building className="h-3 w-3" />
-                          <span className="truncate">{contact.company}</span>
-                        </div>
-                      )}
-                      
-                      {contact.address?.city && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <MapPin className="h-3 w-3" />
-                          <span className="truncate">
-                            {contact.address.city}, {contact.address.state}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="mt-3 pt-3 border-t">
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{contact.stats.totalMessages} mensagens</span>
-                        {contact.lastInteraction && (
-                          <span>{formatDate(contact.lastInteraction)}</span>
-                        )}
-                      </div>
-                      
-                      {contact.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {contact.tags.slice(0, 2).map(tag => (
-                            <Badge key={tag} variant="secondary" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                          {contact.tags.length > 2 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{contact.tags.length - 2}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold">{contact.name}</h3>
+                          {contact.unread_count && contact.unread_count > 0 && (
+                            <Badge variant="destructive" className="text-xs">
+                              {contact.unread_count} não lida{contact.unread_count > 1 ? 's' : ''}
                             </Badge>
                           )}
                         </div>
-                      )}
+                        
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Phone className="h-3 w-3" />
+                            {contact.phone}
+                          </span>
+                          {contact.email && (
+                            <span className="flex items-center gap-1">
+                              <Mail className="h-3 w-3" />
+                              {contact.email}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {contact.last_message && (
+                          <p className="text-xs text-muted-foreground mt-1 truncate">
+                            Última mensagem: {contact.last_message}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => openEditDialog(contact)}
+                      >
+                        <Edit className="h-4 w-4" />
+                        Editar
+                      </Button>
+                      
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-2 text-red-600 hover:text-red-700"
+                        onClick={() => handleDeleteContact(contact.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Excluir
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar Contato</DialogTitle>
+              <DialogDescription>
+                Atualize as informações do contato
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-name">Nome *</Label>
+                <Input
+                  id="edit-name"
+                  placeholder="Nome completo"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="edit-phone">Telefone *</Label>
+                <Input
+                  id="edit-phone"
+                  placeholder="5511999999999"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Formato: código do país + DDD + número
+                </p>
+              </div>
+              
+              <div>
+                <Label htmlFor="edit-email">E-mail</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  placeholder="email@exemplo.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+              </div>
             </div>
-          )}
-        </main>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleEditContact} disabled={saving}>
+                {saving ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   )
