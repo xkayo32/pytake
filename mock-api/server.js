@@ -1352,6 +1352,77 @@ async function processWhatsAppMessages(messageData) {
       }
       
       console.log(`✅ Message saved and broadcast: ${savedMessage.id}`);
+      
+      // Simulate auto-reply flow (for demo)
+      if (text?.body) {
+        const msgLower = text.body.toLowerCase();
+        let replyText = null;
+        
+        // Simple flow simulation
+        if (msgLower.includes('oi') || msgLower.includes('olá') || msgLower.includes('ola')) {
+          replyText = `Olá ${contactName}! 👋\n\nBem-vindo ao PyTake! Como posso ajudar você hoje?\n\n1️⃣ Suporte técnico\n2️⃣ Informações sobre planos\n3️⃣ Falar com atendente\n\nDigite o número da opção desejada.`;
+        } else if (msgLower === '1') {
+          replyText = 'Você escolheu Suporte Técnico 🔧\n\nPor favor, descreva brevemente seu problema que um de nossos técnicos irá atendê-lo em breve.';
+        } else if (msgLower === '2') {
+          replyText = 'Nossos Planos 📋\n\n✅ Básico: R$ 99/mês\n- 1000 mensagens\n- 1 número WhatsApp\n\n✅ Profissional: R$ 299/mês\n- 5000 mensagens\n- 3 números WhatsApp\n\n✅ Empresarial: R$ 999/mês\n- Mensagens ilimitadas\n- 10 números WhatsApp\n\nPara contratar, acesse: pytake.net';
+        } else if (msgLower === '3') {
+          replyText = 'Transferindo para um atendente... 👨‍💼\n\nAguarde um momento, em breve você será atendido por um de nossos especialistas.';
+        }
+        
+        if (replyText) {
+          // Simulate typing delay
+          setTimeout(async () => {
+            try {
+              // Save auto-reply message
+              const replyMessage = await db.saveMessage({
+                tenant_id: tenantId,
+                conversation_id: conversation.id,
+                contact_id: contact.id,
+                whatsapp_message_id: `reply_${Date.now()}`,
+                content: replyText,
+                type: 'text',
+                is_from_me: true,
+                status: 'sent',
+                timestamp: new Date()
+              });
+              
+              // Update conversation
+              await db.updateConversation(conversation.id, {
+                last_message: replyText,
+                last_message_time: new Date(),
+                unread_count: 0
+              });
+              
+              // Broadcast reply via WebSocket
+              if (global.wss) {
+                const wsReply = {
+                  type: 'message_sent',
+                  data: {
+                    id: replyMessage.id,
+                    contactId: contact.id,
+                    conversationId: conversation.id,
+                    content: replyText,
+                    timestamp: new Date(),
+                    isFromMe: true,
+                    status: 'sent',
+                    messageType: 'text'
+                  }
+                };
+                
+                global.wss.clients.forEach(client => {
+                  if (client.readyState === 1) {
+                    client.send(JSON.stringify(wsReply));
+                  }
+                });
+              }
+              
+              console.log(`🤖 Auto-reply sent to ${contactName}`);
+            } catch (error) {
+              console.error('Error sending auto-reply:', error);
+            }
+          }, 1500); // 1.5 second delay
+        }
+      }
     }
   } catch (error) {
     console.error('❌ Error processing message:', error);
