@@ -425,7 +425,7 @@ export default function WhatsAppSettingsPage() {
                 Configuração da API
               </CardTitle>
               <CardDescription>
-                Credenciais da API do WhatsApp Business
+                Credenciais da Meta Business API
                 <a 
                   href="https://developers.facebook.com/docs/whatsapp/business-management-api/get-started"
                   target="_blank"
@@ -515,32 +515,6 @@ export default function WhatsAppSettingsPage() {
                   </div>
                 </div>
 
-                {/* Webhook Verify Token */}
-                <div>
-                  <Label htmlFor="webhook_verify_token">Webhook Verify Token *</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="webhook_verify_token"
-                      type={showTokens ? 'text' : 'password'}
-                      {...configForm.register('webhook_verify_token')}
-                      placeholder="seu_token_seguro_123"
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={generateWebhookToken}
-                    >
-                      Gerar
-                    </Button>
-                  </div>
-                  {configForm.formState.errors.webhook_verify_token && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {configForm.formState.errors.webhook_verify_token.message}
-                    </p>
-                  )}
-                </div>
 
                 {/* Help */}
                 <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-4">
@@ -605,17 +579,17 @@ export default function WhatsAppSettingsPage() {
                 Configuração do Webhook
               </CardTitle>
               <CardDescription>
-                URL para receber mensagens do WhatsApp
+                Configure o webhook para receber mensagens do WhatsApp em tempo real
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label>Webhook URL</Label>
+                <Label>URL do Webhook (copie para o Facebook)</Label>
                 <div className="flex gap-2 mt-1">
                   <Input
-                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/whatsapp/webhook`}
+                    value="https://api.pytake.net/api/v1/whatsapp/webhook"
                     readOnly
-                    className="flex-1"
+                    className="flex-1 font-mono text-sm"
                   />
                   <Button
                     type="button"
@@ -627,19 +601,36 @@ export default function WhatsAppSettingsPage() {
                   </Button>
                 </div>
                 <p className="text-xs text-foreground-tertiary mt-1">
-                  Configure esta URL no seu app do Facebook Developer
+                  Configure esta URL no campo "Callback URL" do Facebook Developer
                 </p>
               </div>
 
               <div>
-                <Label>Verify Token</Label>
-                <Input
-                  value={configForm.watch('webhook_verify_token') || 'Configure o token acima'}
-                  readOnly
-                  className="mt-1"
-                />
+                <Label htmlFor="webhook_verify_token">Token de Verificação do Webhook *</Label>
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    id="webhook_verify_token"
+                    type={showTokens ? 'text' : 'password'}
+                    {...configForm.register('webhook_verify_token')}
+                    placeholder="seu_token_seguro_123"
+                    className="flex-1 font-mono"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={generateWebhookToken}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
+                {configForm.formState.errors.webhook_verify_token && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {configForm.formState.errors.webhook_verify_token.message}
+                  </p>
+                )}
                 <p className="text-xs text-foreground-tertiary mt-1">
-                  Use o mesmo token configurado no campo acima
+                  Use este mesmo token no campo "Verify Token" do Facebook Developer
                 </p>
               </div>
 
