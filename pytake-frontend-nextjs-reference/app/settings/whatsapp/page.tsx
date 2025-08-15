@@ -348,13 +348,18 @@ export default function WhatsAppSettingsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Configurações WhatsApp</h1>
-        <p className="text-foreground-secondary mt-1">
-          Configure sua integração com a API oficial do WhatsApp Business
-        </p>
+    <div className="p-6 space-y-6 max-w-6xl mx-auto">
+      {/* Page Description */}
+      <div className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
+        <div className="flex items-start gap-3">
+          <MessageSquare className="h-5 w-5 text-green-600 mt-0.5" />
+          <div>
+            <h3 className="font-semibold text-green-900 dark:text-green-100">API Oficial do WhatsApp Business</h3>
+            <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+              Configure suas credenciais para conectar com a Meta Business Platform
+            </p>
+          </div>
+        </div>
       </div>
 
         {/* Status Card */}
