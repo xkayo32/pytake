@@ -28,7 +28,6 @@ import {
   Info
 } from 'lucide-react'
 
-import { AppLayout } from '@/components/layout/app-layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -349,15 +348,14 @@ export default function WhatsAppSettingsPage() {
   }
 
   return (
-    <AppLayout>
-      <div className="p-6 space-y-6 max-w-6xl">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold">Configurações WhatsApp</h1>
-          <p className="text-foreground-secondary mt-1">
-            Configure sua integração com a API oficial do WhatsApp Business
-          </p>
-        </div>
+    <div className="p-6 space-y-6 max-w-6xl">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold">Configurações WhatsApp</h1>
+        <p className="text-foreground-secondary mt-1">
+          Configure sua integração com a API oficial do WhatsApp Business
+        </p>
+      </div>
 
         {/* Status Card */}
         <Card>
@@ -838,7 +836,6 @@ export default function WhatsAppSettingsPage() {
             </CardContent>
           </Card>
         )}
-      </div>
-    </AppLayout>
+    </div>
   )
 }
