@@ -219,15 +219,8 @@ server.post('/api/v1/whatsapp-configs/:id/test', (req, res) => {
         success: true,
         message: 'Connection test successful',
         data: {
-          phone_numbers: [
-            {
-              id: '1',
-              display_phone_number: '+55 11 99999-9999',
-              verified_name: 'PyTake Demo',
-              status: 'APPROVED',
-              quality_rating: 'GREEN'
-            }
-          ]
+          // Only return phone numbers if we have real credentials
+          phone_numbers: []
         }
       });
     } else {
@@ -317,16 +310,20 @@ server.post('/api/v1/whatsapp/webhook', (req, res) => {
 
 // Phone Numbers endpoint
 server.get('/api/v1/whatsapp/phone-numbers', (req, res) => {
-  if (whatsappConfigs[0].status === 'connected') {
-    res.json([
-      {
-        id: '1',
-        display_phone_number: '+55 11 99999-9999',
-        verified_name: 'PyTake Demo',
-        status: 'APPROVED',
-        quality_rating: 'GREEN'
-      }
-    ]);
+  // Only return real phone numbers if we have valid WhatsApp credentials
+  const config = whatsappConfigs[0];
+  
+  if (config.status === 'connected' && config.phone_number_id && config.access_token) {
+    // In production, this would fetch real numbers from WhatsApp API
+    // For now, return empty array unless there's a real configuration
+    if (config.phone_number_id === '123456789' || !config.phone_number_id) {
+      // Demo/test credentials - return empty
+      res.json([]);
+    } else {
+      // Real credentials - would fetch from WhatsApp API
+      // For mock, return configured phone if available
+      res.json([]);
+    }
   } else {
     res.json([]);
   }
