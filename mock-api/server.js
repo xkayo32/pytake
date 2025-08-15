@@ -730,12 +730,8 @@ server.get('/api/v1/whatsapp/templates', async (req, res) => {
   try {
     const tenantId = DEFAULT_TENANT_ID;
     
-    // Get approved templates from database
-    const dbTemplates = await db.getAllTemplates(tenantId);
-    const approvedTemplates = dbTemplates.filter(t => t.status === 'APPROVED');
-    
-    // If no approved templates, return mock ones for development
-    if (approvedTemplates.length === 0) {
+    // For development, use mock templates directly
+    // In production this would try the database first
       const templates = [
       {
         id: 'hello_world',
@@ -780,20 +776,6 @@ server.get('/api/v1/whatsapp/templates', async (req, res) => {
     ];
 
     res.json(templates);
-    } else {
-      // Return approved templates from database
-      const formattedTemplates = approvedTemplates.map(template => ({
-        id: template.id,
-        name: template.name,
-        category: template.category,
-        language: template.language,
-        status: template.status,
-        components: typeof template.components === 'string' ? JSON.parse(template.components) : template.components,
-        variables: typeof template.variables === 'string' ? JSON.parse(template.variables) : template.variables
-      }));
-      
-      res.json(formattedTemplates);
-    }
   } catch (error) {
     console.error('Error fetching templates:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -1200,11 +1182,8 @@ server.get('/api/v1/whatsapp/messages/:contactId', async (req, res) => {
     const { contactId } = req.params;
     const tenantId = DEFAULT_TENANT_ID;
     
-    // Get or create conversation
-    const conversation = await db.getOrCreateConversation(tenantId, contactId);
-    
-    // Get messages
-    const messages = await db.getMessages(conversation.id);
+    // Get messages for this contact from mock data
+    const messages = mockMessages.filter(msg => msg.contact_id === contactId);
     
     // Format messages for frontend
     const formattedMessages = messages.map(msg => ({
@@ -1546,15 +1525,98 @@ server.get('/ws', (req, res) => {
   });
 });
 
-// Use default router for other endpoints
-server.use(router);
+// In-memory mock data for development
+let mockContacts = [
+  {
+    id: '1',
+    name: 'João Silva',
+    phone: '+5511999887766',
+    tenant_id: DEFAULT_TENANT_ID,
+    last_message: 'Olá! Como você está?',
+    last_message_time: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+    unread_count: 2,
+    is_favorite: false,
+    is_blocked: false,
+    avatar_url: null,
+    created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // 7 days ago
+  },
+  {
+    id: '2',
+    name: 'Maria Santos',
+    phone: '+5511888776655',
+    tenant_id: DEFAULT_TENANT_ID,
+    last_message: 'Perfeito! Obrigada pelo atendimento.',
+    last_message_time: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
+    unread_count: 0,
+    is_favorite: true,
+    is_blocked: false,
+    avatar_url: null,
+    created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // 3 days ago
+  },
+  {
+    id: '3',
+    name: 'Pedro Costa',
+    phone: '+5511777665544',
+    tenant_id: DEFAULT_TENANT_ID,
+    last_message: 'Quando vocês estarão abertos?',
+    last_message_time: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
+    unread_count: 1,
+    is_favorite: false,
+    is_blocked: false,
+    avatar_url: null,
+    created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) // 1 day ago
+  }
+];
+
+let mockMessages = [
+  {
+    id: '1',
+    contact_id: '1',
+    conversation_id: '1',
+    content: 'Olá! Tudo bem?',
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    is_from_me: false,
+    status: 'read',
+    type: 'text'
+  },
+  {
+    id: '2',
+    contact_id: '1',
+    conversation_id: '1',
+    content: 'Olá! Como você está?',
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000 + 60000),
+    is_from_me: false,
+    status: 'read',
+    type: 'text'
+  },
+  {
+    id: '3',
+    contact_id: '2',
+    conversation_id: '2',
+    content: 'Perfeito! Obrigada pelo atendimento.',
+    timestamp: new Date(Date.now() - 30 * 60 * 1000),
+    is_from_me: false,
+    status: 'read',
+    type: 'text'
+  },
+  {
+    id: '4',
+    contact_id: '3',
+    conversation_id: '3',
+    content: 'Quando vocês estarão abertos?',
+    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
+    is_from_me: false,
+    status: 'read',
+    type: 'text'
+  }
+];
 
 // Contact management routes
 server.get('/api/v1/contacts', async (req, res) => {
   const tenantId = req.headers['x-tenant-id'] || DEFAULT_TENANT_ID;
   
   try {
-    const contacts = await db.getContacts(tenantId);
+    const contacts = mockContacts.filter(c => c.tenant_id === tenantId);
     res.json({ contacts });
   } catch (error) {
     console.error('Error getting contacts:', error);
@@ -1571,8 +1633,30 @@ server.post('/api/v1/contacts', async (req, res) => {
   }
 
   try {
-    const contact = await db.createContact(tenantId, { name, phone, email });
-    res.json({ contact });
+    // Check if contact already exists
+    const existingContact = mockContacts.find(c => c.phone === phone && c.tenant_id === tenantId);
+    if (existingContact) {
+      return res.json({ contact: existingContact });
+    }
+
+    // Create new contact
+    const newContact = {
+      id: (mockContacts.length + 1).toString(),
+      name,
+      phone,
+      email,
+      tenant_id: tenantId,
+      last_message: null,
+      last_message_time: null,
+      unread_count: 0,
+      is_favorite: false,
+      is_blocked: false,
+      avatar_url: null,
+      created_at: new Date()
+    };
+
+    mockContacts.push(newContact);
+    res.json({ contact: newContact });
   } catch (error) {
     console.error('Error creating contact:', error);
     res.status(500).json({ error: 'Failed to create contact' });
@@ -1631,6 +1715,9 @@ server.delete('/api/v1/contacts/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to delete contact' });
   }
 });
+
+// Use default router for other endpoints (after all custom routes)
+server.use(router);
 
 // Start HTTP server
 const PORT = process.env.PORT || 8080;

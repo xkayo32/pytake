@@ -1,23 +1,30 @@
 {
-    "auth": {
-      "login": {
-        "token": "mock-jwt-token",
-        "user": {
-          "id": "123",
-          "email": "admin@pytake.com",
-          "name": "Admin User"
-        }
+  "auth": {
+    "login": {
+      "token": "mock-jwt-token",
+      "user": {
+        "id": "123",
+        "email": "admin@pytake.com",
+        "name": "Admin User"
       }
-    },
-    "health": {
-      "status": "ok",
-      "database": "connected",
-      "redis": "connected"
-    },
-    "whatsapp-configs": [],
-    "conversations": [],
-    "messages": [],
-    "flows": [],
-    "campaigns": [],
-    "contacts": []
-  }
+    }
+  },
+  "health": {
+    "status": "ok",
+    "database": "connected",
+    "redis": "connected"
+  },
+  "whatsapp-configs": [],
+  "conversations": [],
+  "messages": [],
+  "flows": [],
+  "campaigns": [],
+  "contacts": [
+    {
+      "name": "Test Contact",
+      "phone": "+5511999887766",
+      "apiId": "v1",
+      "id": 1
+    }
+  ]
+}
