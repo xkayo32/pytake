@@ -62,7 +62,7 @@ const menuItems = [
     title: 'WhatsApp',
     items: [
       { icon: Phone, label: 'Configurações', href: '/settings/whatsapp' },
-      { icon: FileText, label: 'Templates', href: '/settings/whatsapp/templates' },
+      { icon: FileText, label: 'Templates', href: '/templates' },
       { icon: Send, label: 'Enviar Mensagem', href: '/messages/send' },
     ]
   },
