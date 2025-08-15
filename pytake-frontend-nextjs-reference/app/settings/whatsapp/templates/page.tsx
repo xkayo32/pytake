@@ -21,7 +21,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { AppLayout } from '@/components/layout/app-layout'
 import { notify } from '@/lib/utils'
 import {
   Dialog,
@@ -283,8 +282,7 @@ export default function TemplatesPage() {
   })
 
   return (
-    <AppLayout>
-      <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto py-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -622,6 +620,6 @@ export default function TemplatesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AppLayout>
+    </div>
   )
 }
