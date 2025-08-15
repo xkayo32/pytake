@@ -5,27 +5,30 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { 
-  Check, 
-  X, 
-  Loader2, 
-  AlertCircle, 
-  CheckCircle, 
-  Copy,
-  RefreshCw,
-  Phone,
+  Plus, 
+  Phone, 
+  Settings, 
+  Trash2, 
+  Star,
+  TestTube,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Edit,
+  MoreVertical,
+  MessageSquare,
+  AlertCircle,
   Webhook,
   Key,
-  TestTube,
+  Copy,
+  RefreshCw,
   Eye,
   EyeOff,
   ExternalLink,
-  Settings,
+  Info,
+  Loader2,
   Shield,
-  Zap,
-  MessageSquare,
-  Users,
-  Globe,
-  Info
+  Users
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -35,15 +38,28 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useToast } from '@/components/ui/toast'
 
 // Validação dos formulários
 const whatsappConfigSchema = z.object({
+  name: z.string().min(1, 'Nome é obrigatório'),
   phone_number_id: z.string().min(1, 'Phone Number ID é obrigatório'),
   access_token: z.string().min(1, 'Access Token é obrigatório'),
   business_account_id: z.string().optional(),
-  app_id: z.string().optional(),
-  app_secret: z.string().optional(),
   webhook_verify_token: z.string().min(1, 'Webhook Verify Token é obrigatório'),
 })
 
@@ -55,48 +71,47 @@ const testMessageSchema = z.object({
 type WhatsappConfig = z.infer<typeof whatsappConfigSchema>
 type TestMessage = z.infer<typeof testMessageSchema>
 
-interface ConnectionStatus {
-  status: 'connected' | 'disconnected' | 'error' | 'testing'
-  message: string
-  last_test?: string
-}
-
-interface PhoneNumber {
+interface WhatsAppConfigData {
   id: string
-  display_phone_number: string
-  verified_name: string
-  status: 'APPROVED' | 'PENDING' | 'REJECTED'
-  quality_rating: 'GREEN' | 'YELLOW' | 'RED'
+  name: string
+  phone_number_id: string
+  access_token: string
+  business_account_id: string
+  webhook_verify_token: string
+  status: 'connected' | 'disconnected' | 'error'
+  is_default: boolean
+  created_at: string
+  updated_at: string
 }
 
 export default function WhatsAppSettingsPage() {
   const { user } = useAuth()
-  const [isLoading, setIsLoading] = useState(false)
-  const [isTesting, setIsTesting] = useState(false)
+  const { addToast } = useToast()
+  const [configs, setConfigs] = useState<WhatsAppConfigData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isWebhookDialogOpen, setIsWebhookDialogOpen] = useState(false)
+  const [isTestDialogOpen, setIsTestDialogOpen] = useState(false)
+  const [editingConfig, setEditingConfig] = useState<WhatsAppConfigData | null>(null)
+  const [selectedConfig, setSelectedConfig] = useState<WhatsAppConfigData | null>(null)
   const [showTokens, setShowTokens] = useState(false)
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
-    status: 'disconnected',
-    message: 'Não configurado'
-  })
-  const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([])
+  const [isTesting, setIsTesting] = useState(false)
   const [testLogs, setTestLogs] = useState<string[]>([])
-  const [config, setConfig] = useState({
+  const [features, setFeatures] = useState({
     autoReply: true,
     saveContacts: true,
     syncMessages: true,
-    encryptMessages: false,
-    webhookEnabled: true
+    encryptMessages: false
   })
 
   // Formulário de configuração
   const configForm = useForm<WhatsappConfig>({
     resolver: zodResolver(whatsappConfigSchema),
     defaultValues: {
+      name: '',
       phone_number_id: '',
       access_token: '',
       business_account_id: '',
-      app_id: '',
-      app_secret: '',
       webhook_verify_token: '',
     }
   })
@@ -112,166 +127,174 @@ export default function WhatsAppSettingsPage() {
 
   // Carregar configurações existentes
   useEffect(() => {
-    loadWhatsAppConfig()
-    loadPhoneNumbers()
+    loadConfigs()
   }, [])
 
-  const loadWhatsAppConfig = async () => {
+  const loadConfigs = async () => {
     try {
-      const response = await fetch('https://api.pytake.net/api/v1/whatsapp-configs', {
-        headers: {
-          'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0] || ''}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      setLoading(true)
+      const response = await fetch('/api/v1/whatsapp-configs')
       
       if (response.ok) {
-        const config = await response.json()
-        configForm.reset({
-          phone_number_id: config.phone_number_id || '',
-          access_token: config.access_token || '',
-          business_account_id: config.business_account_id || '',
-          app_id: config.app_id || '',
-          app_secret: config.app_secret || '',
-          webhook_verify_token: config.webhook_verify_token || '',
-        })
-        
-        setConnectionStatus({
-          status: config.status || 'disconnected',
-          message: config.status === 'connected' ? 'Conectado' : 'Não configurado',
-          last_test: config.last_test
-        })
+        const data = await response.json()
+        setConfigs(Array.isArray(data) ? data : [])
       }
-      
     } catch (error) {
-      console.error('Erro ao carregar configurações:', error)
-      addLog('❌ Erro ao carregar configurações')
-    }
-  }
-
-  const loadPhoneNumbers = async () => {
-    try {
-      const response = await fetch('https://api.pytake.net/api/v1/whatsapp/phone-numbers', {
-        headers: {
-          'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0] || ''}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      if (response.ok) {
-        const numbers = await response.json()
-        setPhoneNumbers(numbers)
-      }
-      
-    } catch (error) {
-      console.error('Erro ao carregar números:', error)
-      addLog('❌ Erro ao carregar números')
+      console.error('Error loading configs:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleSaveConfig = async (data: WhatsappConfig) => {
-    setIsLoading(true)
-    addLog('💾 Salvando configuração...')
-    
     try {
-      const response = await fetch('https://api.pytake.net/api/v1/whatsapp-configs', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0] || ''}`
-        },
-        body: JSON.stringify(data)
-      })
-      
-      if (response.ok) {
-        const result = await response.json()
-        
-        setConnectionStatus({
-          status: 'connected',
-          message: 'Configuração salva com sucesso!',
-          last_test: new Date().toISOString()
-        })
-        
-        addLog('✅ Configuração salva com sucesso')
-        await loadPhoneNumbers() // Recarregar números após salvar
-      } else {
-        throw new Error('Erro ao salvar configuração')
+      const payload = {
+        ...data,
+        id: editingConfig?.id,
+        is_default: configs.length === 0 // First config becomes default
       }
-      
-    } catch (error) {
-      setConnectionStatus({
-        status: 'error',
-        message: 'Erro ao salvar configuração'
+
+      const response = await fetch('/api/v1/whatsapp-configs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       })
-      addLog('❌ Erro ao salvar configuração')
-    } finally {
-      setIsLoading(false)
+
+      if (response.ok) {
+        await loadConfigs()
+        setIsDialogOpen(false)
+        setEditingConfig(null)
+        configForm.reset({
+          name: '',
+          phone_number_id: '',
+          access_token: '',
+          business_account_id: '',
+          webhook_verify_token: ''
+        })
+        addToast({
+          type: 'success',
+          title: editingConfig ? 'Configuração atualizada' : 'Configuração adicionada',
+          description: 'As alterações foram salvas com sucesso'
+        })
+      }
+    } catch (error) {
+      console.error('Error saving config:', error)
     }
   }
 
-  const handleTestConnection = async () => {
+  const handleEdit = (config: WhatsAppConfigData) => {
+    setEditingConfig(config)
+    configForm.reset({
+      name: config.name,
+      phone_number_id: config.phone_number_id,
+      access_token: config.access_token,
+      business_account_id: config.business_account_id,
+      webhook_verify_token: config.webhook_verify_token
+    })
+    setIsDialogOpen(true)
+  }
+
+  const handleSetDefault = async (configId: string) => {
+    try {
+      const response = await fetch(`/api/v1/whatsapp-configs/${configId}/default`, {
+        method: 'PUT'
+      })
+
+      if (response.ok) {
+        await loadConfigs()
+        addToast({
+          type: 'info',
+          title: 'Configuração padrão atualizada',
+          description: 'Este número será usado como padrão para envios'
+        })
+      }
+    } catch (error) {
+      console.error('Error setting default:', error)
+    }
+  }
+
+  const handleDelete = async (configId: string) => {
+    // Por enquanto mantemos o confirm, mas podemos trocar por um modal depois
+    if (!confirm('Tem certeza que deseja excluir esta configuração?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/v1/whatsapp-configs/${configId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        await loadConfigs()
+        addToast({
+          type: 'success',
+          title: 'Configuração excluída',
+          description: 'A configuração foi removida com sucesso'
+        })
+      }
+    } catch (error) {
+      console.error('Error deleting config:', error)
+    }
+  }
+
+  const handleTest = async (config: WhatsAppConfigData) => {
     setIsTesting(true)
-    setConnectionStatus({ status: 'testing', message: 'Testando conexão...' })
     addLog('🔄 Iniciando teste de conectividade...')
     
     try {
-      const response = await fetch('https://api.pytake.net/api/v1/whatsapp-configs/1/test', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0] || ''}`
-        }
+      const response = await fetch(`/api/v1/whatsapp-configs/${config.id}/test`, {
+        method: 'POST'
       })
-      
+
       const result = await response.json()
       
-      if (response.ok && result.success) {
-        setConnectionStatus({
-          status: 'connected',
-          message: 'Conexão estabelecida com sucesso!',
-          last_test: new Date().toISOString()
+      if (result.success) {
+        addLog('✅ Teste realizado com sucesso!')
+        addLog(`📱 Número: ${result.data?.phone_numbers?.[0]?.display_phone_number || 'N/A'}`)
+        addToast({
+          type: 'success',
+          title: 'Teste realizado com sucesso!',
+          description: `Conectado ao número ${result.data?.phone_numbers?.[0]?.display_phone_number || 'WhatsApp'}`
         })
-        addLog('✅ Teste de conectividade bem-sucedido')
-        addLog('📞 Números WhatsApp carregados')
-        
-        // Carregar números retornados do teste
-        if (result.data?.phone_numbers) {
-          setPhoneNumbers(result.data.phone_numbers)
-        }
       } else {
-        setConnectionStatus({
-          status: 'error',
-          message: result.message || 'Falha na conexão. Verifique as credenciais.',
+        addLog(`❌ Erro: ${result.error?.message}`)
+        addToast({
+          type: 'error',
+          title: 'Erro no teste de conexão',
+          description: result.error?.message || 'Verifique suas credenciais'
         })
-        addLog('❌ Falha no teste de conectividade')
-        addLog(`🔍 ${result.error?.message || 'Verifique Phone Number ID e Access Token'}`)
       }
       
+      await loadConfigs()
     } catch (error) {
-      setConnectionStatus({
-        status: 'error',
-        message: 'Erro durante o teste de conexão'
+      console.error('Error testing config:', error)
+      addLog('❌ Erro ao testar configuração')
+      addToast({
+        type: 'error',
+        title: 'Erro ao testar configuração',
+        description: 'Verifique sua conexão e tente novamente'
       })
-      addLog('❌ Erro durante o teste')
     } finally {
       setIsTesting(false)
     }
   }
 
   const handleSendTestMessage = async (data: TestMessage) => {
+    if (!selectedConfig) return
+    
     setIsTesting(true)
     addLog(`📤 Enviando mensagem de teste para ${data.phone_number}...`)
     
     try {
-      const response = await fetch('https://api.pytake.net/api/v1/whatsapp/send', {
+      const response = await fetch('/api/v1/whatsapp/send', {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${document.cookie.split('auth-token=')[1]?.split(';')[0] || ''}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           to: data.phone_number,
-          message: { text: { body: data.message } }
+          message: { text: { body: data.message } },
+          config_id: selectedConfig.id
         })
       })
       
@@ -281,13 +304,25 @@ export default function WhatsAppSettingsPage() {
         addLog(`✅ Mensagem enviada! ID: ${result.message_id}`)
         addLog('📱 Verifique o WhatsApp do destinatário')
         
+        addToast({
+          type: 'success',
+          title: 'Mensagem enviada!',
+          description: 'Verifique o WhatsApp do destinatário'
+        })
+        
         // Reset form
         testForm.reset({
           phone_number: '',
           message: 'Olá! Esta é uma mensagem de teste do PyTake. 🤖',
         })
+        setIsTestDialogOpen(false)
       } else {
         addLog(`❌ Erro ao enviar: ${result.error?.message || 'Erro desconhecido'}`)
+        addToast({
+          type: 'error',
+          title: 'Erro ao enviar mensagem',
+          description: result.error?.message || 'Erro desconhecido'
+        })
       }
       
     } catch (error) {
@@ -303,9 +338,14 @@ export default function WhatsAppSettingsPage() {
   }
 
   const copyWebhookUrl = () => {
-    const webhookUrl = `${window.location.origin}/api/v1/whatsapp/webhook`
+    const webhookUrl = `https://api.pytake.net/api/v1/whatsapp/webhook`
     navigator.clipboard.writeText(webhookUrl)
     addLog('📋 URL do Webhook copiada para clipboard')
+    addToast({
+      type: 'success',
+      title: 'URL copiada',
+      description: 'URL do webhook copiada para a área de transferência'
+    })
   }
 
   const generateWebhookToken = () => {
@@ -313,165 +353,88 @@ export default function WhatsAppSettingsPage() {
                   Math.random().toString(36).substring(2, 15)
     configForm.setValue('webhook_verify_token', token)
     addLog('🔑 Token de verificação gerado')
+    addToast({
+      type: 'info',
+      title: 'Token gerado',
+      description: 'Um novo token de verificação foi criado'
+    })
   }
 
-  const getStatusBadge = (status: ConnectionStatus['status']) => {
-    const configs = {
-      connected: { color: 'bg-green-500', text: 'Conectado', icon: CheckCircle },
-      disconnected: { color: 'bg-gray-500', text: 'Desconectado', icon: X },
-      error: { color: 'bg-red-500', text: 'Erro', icon: AlertCircle },
-      testing: { color: 'bg-blue-500', text: 'Testando', icon: Loader2 },
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'connected': return 'bg-green-100 text-green-800 border-green-200'
+      case 'disconnected': return 'bg-gray-100 text-gray-600 border-gray-200'
+      case 'error': return 'bg-red-100 text-red-800 border-red-200'
+      default: return 'bg-gray-100 text-gray-600 border-gray-200'
     }
-    
-    const config = configs[status]
-    const Icon = config.icon
-    
-    return (
-      <Badge variant="secondary" className={`${config.color} text-white`}>
-        <Icon className={`h-3 w-3 mr-1 ${status === 'testing' ? 'animate-spin' : ''}`} />
-        {config.text}
-      </Badge>
-    )
   }
 
-  const getQualityBadge = (quality: PhoneNumber['quality_rating']) => {
-    const configs = {
-      GREEN: { color: 'bg-green-500', text: 'Ótima' },
-      YELLOW: { color: 'bg-yellow-500', text: 'Boa' },
-      RED: { color: 'bg-red-500', text: 'Baixa' },
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'connected': return <CheckCircle className="h-4 w-4" />
+      case 'disconnected': return <Clock className="h-4 w-4" />
+      case 'error': return <XCircle className="h-4 w-4" />
+      default: return null
     }
-    
-    const config = configs[quality]
-    
-    return (
-      <Badge variant="secondary" className={`${config.color} text-white text-xs`}>
-        {config.text}
-      </Badge>
-    )
   }
 
   return (
     <div className="p-6 space-y-6 max-w-6xl mx-auto">
-      {/* Page Description */}
+      {/* Header */}
       <div className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
         <div className="flex items-start gap-3">
           <MessageSquare className="h-5 w-5 text-green-600 mt-0.5" />
-          <div>
-            <h3 className="font-semibold text-green-900 dark:text-green-100">API Oficial do WhatsApp Business</h3>
+          <div className="flex-1">
+            <h3 className="font-semibold text-green-900 dark:text-green-100">Configurações do WhatsApp Business</h3>
             <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-              Configure suas credenciais para conectar com a Meta Business Platform
+              Gerencie múltiplos números WhatsApp Business conectados ao sistema
             </p>
           </div>
-        </div>
-      </div>
-
-        {/* Status Card */}
-        {connectionStatus.status === 'disconnected' && !configForm.watch('phone_number_id') && (
-          <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
-            <CardContent className="p-6">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
-                <div>
-                  <h3 className="font-semibold text-amber-900 dark:text-amber-100">Configuração Inicial Necessária</h3>
-                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                    Para começar a usar o WhatsApp Business, você precisa:
-                  </p>
-                  <ol className="text-sm text-amber-700 dark:text-amber-300 mt-2 ml-4 list-decimal space-y-1">
-                    <li>Criar uma conta no Facebook Developer</li>
-                    <li>Configurar um app WhatsApp Business</li>
-                    <li>Obter as credenciais da API</li>
-                    <li>Preencher os campos abaixo</li>
-                  </ol>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  Status da Conexão
-                </CardTitle>
-                <CardDescription>
-                  Estado atual da integração com WhatsApp
-                </CardDescription>
-              </div>
-              {getStatusBadge(connectionStatus.status)}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-3 gap-4 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Phone className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-foreground-secondary">Status</p>
-                  <p className="font-medium">{connectionStatus.message}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Globe className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-foreground-secondary">Último Teste</p>
-                  <p className="font-medium">
-                    {connectionStatus.last_test 
-                      ? new Date(connectionStatus.last_test).toLocaleString('pt-BR')
-                      : 'Nunca'
-                    }
-                  </p>
-                </div>
-              </div>
-              {phoneNumbers.length > 0 && (
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <Zap className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-foreground-secondary">Números</p>
-                    <p className="font-medium">{phoneNumbers.length} configurado{phoneNumbers.length > 1 ? 's' : ''}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Configuração da API */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Key className="h-5 w-5" />
-                Configuração da API
-              </CardTitle>
-              <CardDescription>
-                Credenciais da Meta Business API
-                <a 
-                  href="https://developers.facebook.com/docs/whatsapp/business-management-api/get-started"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 ml-2 text-primary hover:underline"
-                >
-                  Ver documentação <ExternalLink className="h-3 w-3" />
-                </a>
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => {
+                  setEditingConfig(null)
+                  configForm.reset({
+                    name: '',
+                    phone_number_id: '',
+                    access_token: '',
+                    business_account_id: '',
+                    webhook_verify_token: ''
+                  })
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Número
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingConfig ? 'Editar Configuração' : 'Nova Configuração WhatsApp'}
+                </DialogTitle>
+              </DialogHeader>
               <form onSubmit={configForm.handleSubmit(handleSaveConfig)} className="space-y-4">
-                {/* Phone Number ID */}
+                <div>
+                  <Label htmlFor="name">Nome da Configuração *</Label>
+                  <Input
+                    id="name"
+                    {...configForm.register('name')}
+                    placeholder="Ex: WhatsApp Vendas"
+                  />
+                  {configForm.formState.errors.name && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {configForm.formState.errors.name.message}
+                    </p>
+                  )}
+                </div>
                 <div>
                   <Label htmlFor="phone_number_id">Phone Number ID *</Label>
                   <Input
                     id="phone_number_id"
                     {...configForm.register('phone_number_id')}
-                    placeholder="123456789012345"
+                    placeholder="574293335763643"
                   />
                   {configForm.formState.errors.phone_number_id && (
                     <p className="text-sm text-red-500 mt-1">
@@ -479,8 +442,6 @@ export default function WhatsAppSettingsPage() {
                     </p>
                   )}
                 </div>
-
-                {/* Access Token */}
                 <div>
                   <Label htmlFor="access_token">Access Token *</Label>
                   <div className="relative">
@@ -488,7 +449,7 @@ export default function WhatsAppSettingsPage() {
                       id="access_token"
                       type={showTokens ? 'text' : 'password'}
                       {...configForm.register('access_token')}
-                      placeholder="EAAxxxxxxxxxxxx"
+                      placeholder="EAAUZBn..."
                       className="pr-10"
                     />
                     <Button
@@ -507,319 +468,402 @@ export default function WhatsAppSettingsPage() {
                     </p>
                   )}
                 </div>
-
-                {/* Business Account ID */}
                 <div>
                   <Label htmlFor="business_account_id">Business Account ID</Label>
                   <Input
                     id="business_account_id"
                     {...configForm.register('business_account_id')}
-                    placeholder="123456789012345"
+                    placeholder="574293335763643"
                   />
                 </div>
-
-                {/* App ID */}
                 <div>
-                  <Label htmlFor="app_id">App ID</Label>
-                  <Input
-                    id="app_id"
-                    {...configForm.register('app_id')}
-                    placeholder="1234567890123456"
-                  />
-                </div>
-
-                {/* App Secret */}
-                <div>
-                  <Label htmlFor="app_secret">App Secret</Label>
-                  <div className="relative">
+                  <Label htmlFor="webhook_verify_token">Webhook Verify Token *</Label>
+                  <div className="flex gap-2">
                     <Input
-                      id="app_secret"
+                      id="webhook_verify_token"
                       type={showTokens ? 'text' : 'password'}
-                      {...configForm.register('app_secret')}
-                      placeholder="abcdefghijk123456"
-                      className="pr-10"
+                      {...configForm.register('webhook_verify_token')}
+                      placeholder="verify_token_123"
+                      className="flex-1"
                     />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={generateWebhookToken}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
                   </div>
+                  {configForm.formState.errors.webhook_verify_token && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {configForm.formState.errors.webhook_verify_token.message}
+                    </p>
+                  )}
                 </div>
-
-
-                {/* Help */}
-                <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <Info className="h-5 w-5 text-blue-600 mt-0.5" />
-                    <div className="flex-1 text-sm">
-                      <p className="font-medium text-blue-800 dark:text-blue-200 mb-1">
-                        Como obter as credenciais:
-                      </p>
-                      <ol className="text-blue-700 dark:text-blue-300 space-y-1 ml-4">
-                        <li>1. Acesse Facebook Developer Console</li>
-                        <li>2. Crie um app WhatsApp Business</li>
-                        <li>3. Configure o produto WhatsApp</li>
-                        <li>4. Obtenha Phone Number ID e Access Token</li>
-                      </ol>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Buttons */}
-                <div className="flex gap-2 pt-2">
-                  <Button 
-                    type="submit" 
-                    disabled={isLoading}
-                    className="flex-1"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Salvando...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="mr-2 h-4 w-4" />
-                        Salvar Configuração
-                      </>
-                    )}
+                <div className="flex gap-2 justify-end">
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    Cancelar
                   </Button>
-                  
-                  <Button 
-                    type="button"
-                    variant="outline" 
-                    onClick={handleTestConnection}
-                    disabled={isTesting}
-                  >
-                    {isTesting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <TestTube className="h-4 w-4" />
-                    )}
+                  <Button type="submit">
+                    {editingConfig ? 'Atualizar' : 'Salvar'}
                   </Button>
                 </div>
               </form>
-            </CardContent>
-          </Card>
-
-          {/* Webhook Configuration */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Webhook className="h-5 w-5" />
-                Configuração do Webhook
-              </CardTitle>
-              <CardDescription>
-                Configure o webhook para receber mensagens do WhatsApp em tempo real
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>URL do Webhook (copie para o Facebook)</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input
-                    value="https://api.pytake.net/api/v1/whatsapp/webhook"
-                    readOnly
-                    className="flex-1 font-mono text-sm"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={copyWebhookUrl}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-                <p className="text-xs text-foreground-tertiary mt-1">
-                  Configure esta URL no campo "Callback URL" do Facebook Developer
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="webhook_verify_token">Token de Verificação do Webhook *</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input
-                    id="webhook_verify_token"
-                    type={showTokens ? 'text' : 'password'}
-                    {...configForm.register('webhook_verify_token')}
-                    placeholder="seu_token_seguro_123"
-                    className="flex-1 font-mono"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={generateWebhookToken}
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                </div>
-                {configForm.formState.errors.webhook_verify_token && (
-                  <p className="text-sm text-red-500 mt-1">
-                    {configForm.formState.errors.webhook_verify_token.message}
-                  </p>
-                )}
-                <p className="text-xs text-foreground-tertiary mt-1">
-                  Use este mesmo token no campo "Verify Token" do Facebook Developer
-                </p>
-              </div>
-
-              <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-4">
-                <h4 className="font-medium text-sm mb-2">📋 Campos do Webhook:</h4>
-                <p className="text-xs text-foreground-secondary">
-                  • <strong>messages</strong> - Receber mensagens<br/>
-                  • <strong>message_deliveries</strong> - Status de entrega<br/>
-                  • <strong>message_reads</strong> - Confirmação de leitura
-                </p>
-              </div>
-
-              {/* Features */}
-              <div className="space-y-3 border-t pt-4">
-                <h4 className="font-medium text-sm">Recursos</h4>
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                      <Label htmlFor="autoReply" className="text-sm">Resposta Automática</Label>
-                    </div>
-                    <Switch
-                      id="autoReply"
-                      checked={config.autoReply}
-                      onCheckedChange={(checked) => setConfig(prev => ({ 
-                        ...prev, 
-                        autoReply: checked 
-                      }))}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <Label htmlFor="saveContacts" className="text-sm">Salvar Contatos</Label>
-                    </div>
-                    <Switch
-                      id="saveContacts"
-                      checked={config.saveContacts}
-                      onCheckedChange={(checked) => setConfig(prev => ({ 
-                        ...prev, 
-                        saveContacts: checked 
-                      }))}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <RefreshCw className="h-4 w-4 text-muted-foreground" />
-                      <Label htmlFor="syncMessages" className="text-sm">Sincronizar Mensagens</Label>
-                    </div>
-                    <Switch
-                      id="syncMessages"
-                      checked={config.syncMessages}
-                      onCheckedChange={(checked) => setConfig(prev => ({ 
-                        ...prev, 
-                        syncMessages: checked 
-                      }))}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-muted-foreground" />
-                      <Label htmlFor="encryptMessages" className="text-sm">Criptografar Mensagens</Label>
-                    </div>
-                    <Switch
-                      id="encryptMessages"
-                      checked={config.encryptMessages}
-                      onCheckedChange={(checked) => setConfig(prev => ({ 
-                        ...prev, 
-                        encryptMessages: checked 
-                      }))}
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            </DialogContent>
+          </Dialog>
         </div>
+      </div>
 
-        {/* Phone Numbers */}
-        {phoneNumbers.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Phone className="h-5 w-5" />
-                Números WhatsApp
-              </CardTitle>
-              <CardDescription>
-                Números configurados na sua conta Business
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {phoneNumbers.map((phone) => (
-                  <div key={phone.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">{phone.display_phone_number}</p>
-                      <p className="text-sm text-foreground-secondary">{phone.verified_name}</p>
+      {/* Lista de Configurações */}
+      {loading ? (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">Carregando configurações...</p>
+        </div>
+      ) : configs.length === 0 ? (
+        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-amber-900 dark:text-amber-100">Nenhuma configuração encontrada</h3>
+                <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                  Para começar a usar o WhatsApp Business, você precisa adicionar pelo menos uma configuração.
+                </p>
+                <Button 
+                  className="mt-4"
+                  onClick={() => setIsDialogOpen(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar Primeira Configuração
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {configs.map((config) => (
+            <Card key={config.id} className="hover:shadow-lg transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
+                      <Phone className="h-5 w-5 text-green-600" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      {getQualityBadge(phone.quality_rating)}
-                      <Badge 
-                        variant={phone.status === 'APPROVED' ? 'default' : 'secondary'}
-                        className={phone.status === 'APPROVED' ? 'bg-green-500' : ''}
-                      >
-                        {phone.status}
-                      </Badge>
+                    <div>
+                      <h3 className="font-semibold flex items-center gap-2">
+                        {config.name}
+                        {config.is_default && (
+                          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                            <Star className="h-3 w-3 mr-1" />
+                            Padrão
+                          </Badge>
+                        )}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        ID: {config.phone_number_id.substring(0, 15)}...
+                      </p>
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleEdit(config)}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleTest(config)}>
+                        <TestTube className="h-4 w-4 mr-2" />
+                        Testar Conexão
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        setSelectedConfig(config)
+                        setIsWebhookDialogOpen(true)
+                      }}>
+                        <Webhook className="h-4 w-4 mr-2" />
+                        Configurar Webhook
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        setSelectedConfig(config)
+                        setIsTestDialogOpen(true)
+                      }}>
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Enviar Teste
+                      </DropdownMenuItem>
+                      {!config.is_default && (
+                        <DropdownMenuItem onClick={() => handleSetDefault(config.id)}>
+                          <Star className="h-4 w-4 mr-2" />
+                          Definir como Padrão
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem 
+                        onClick={() => handleDelete(config.id)}
+                        className="text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {/* Status */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Status:</span>
+                  <Badge 
+                    variant="outline" 
+                    className={getStatusColor(config.status)}
+                  >
+                    {getStatusIcon(config.status)}
+                    <span className="ml-1">
+                      {config.status === 'connected' ? 'Conectado' :
+                       config.status === 'disconnected' ? 'Desconectado' : 'Erro'}
+                    </span>
+                  </Badge>
+                </div>
 
-        {/* Test Message - Only show when connected */}
-        {connectionStatus.status === 'connected' && (
-          <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+                {/* Business ID */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Business ID:</span>
+                  <span className="text-sm font-mono">
+                    {config.business_account_id ? 
+                      `${config.business_account_id.substring(0, 10)}...` : 
+                      'Não configurado'}
+                  </span>
+                </div>
+
+                {/* Webhook */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Webhook:</span>
+                  <span className="text-sm">
+                    {config.webhook_verify_token ? '✓ Configurado' : '✗ Não configurado'}
+                  </span>
+                </div>
+
+                {/* Datas */}
+                <div className="pt-2 border-t text-xs text-muted-foreground">
+                  <div className="flex justify-between">
+                    <span>Criado: {new Date(config.created_at).toLocaleDateString()}</span>
+                    <span>Atualizado: {new Date(config.updated_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+
+                {/* Ações */}
+                <div className="flex gap-2 pt-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => handleTest(config)}
+                  >
+                    <TestTube className="h-4 w-4 mr-1" />
+                    Testar
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleEdit(config)}
+                  >
+                    <Settings className="h-4 w-4 mr-1" />
+                    Configurar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+      {/* Webhook Dialog */}
+      <Dialog open={isWebhookDialogOpen} onOpenChange={setIsWebhookDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Webhook className="h-5 w-5" />
+              Configuração do Webhook
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+                <div className="flex-1 text-sm">
+                  <p className="font-medium text-blue-800 dark:text-blue-200 mb-1">
+                    Configure o webhook no Facebook Developer:
+                  </p>
+                  <p className="text-blue-700 dark:text-blue-300">
+                    Use a URL e o token abaixo para receber mensagens em tempo real.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <Label>URL do Webhook</Label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  value="https://api.pytake.net/api/v1/whatsapp/webhook"
+                  readOnly
+                  className="flex-1 font-mono text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={copyWebhookUrl}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Configure esta URL no campo "Callback URL" do Facebook Developer
+              </p>
+            </div>
+
+            <div>
+              <Label>Token de Verificação</Label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  value={selectedConfig?.webhook_verify_token || ''}
+                  readOnly
+                  className="flex-1 font-mono text-sm"
+                  type={showTokens ? 'text' : 'password'}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowTokens(!showTokens)}
+                >
+                  {showTokens ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Use este token no campo "Verify Token" do Facebook Developer
+              </p>
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <h4 className="font-medium text-sm">Recursos do Webhook</h4>
+              <div className="grid grid-cols-1 gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                    <Label className="text-sm">Resposta Automática</Label>
+                  </div>
+                  <Switch
+                    checked={features.autoReply}
+                    onCheckedChange={(checked) => setFeatures(prev => ({ 
+                      ...prev, 
+                      autoReply: checked 
+                    }))}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <Label className="text-sm">Salvar Contatos</Label>
+                  </div>
+                  <Switch
+                    checked={features.saveContacts}
+                    onCheckedChange={(checked) => setFeatures(prev => ({ 
+                      ...prev, 
+                      saveContacts: checked 
+                    }))}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                    <Label className="text-sm">Sincronizar Mensagens</Label>
+                  </div>
+                  <Switch
+                    checked={features.syncMessages}
+                    onCheckedChange={(checked) => setFeatures(prev => ({ 
+                      ...prev, 
+                      syncMessages: checked 
+                    }))}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    <Label className="text-sm">Criptografar Mensagens</Label>
+                  </div>
+                  <Switch
+                    checked={features.encryptMessages}
+                    onCheckedChange={(checked) => setFeatures(prev => ({ 
+                      ...prev, 
+                      encryptMessages: checked 
+                    }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button onClick={() => setIsWebhookDialogOpen(false)}>
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Test Message Dialog */}
+      <Dialog open={isTestDialogOpen} onOpenChange={setIsTestDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
               <TestTube className="h-5 w-5" />
               Teste de Mensagem
-            </CardTitle>
-            <CardDescription>
-              Envie uma mensagem de teste para verificar a integração
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={testForm.handleSubmit(handleSendTestMessage)} className="space-y-4">
-              <div>
-                <Label htmlFor="phone_number">Número de Telefone</Label>
-                <Input
-                  id="phone_number"
-                  {...testForm.register('phone_number')}
-                  placeholder="+5511999999999"
-                />
-                {testForm.formState.errors.phone_number && (
-                  <p className="text-sm text-red-500 mt-1">
-                    {testForm.formState.errors.phone_number.message}
-                  </p>
-                )}
-              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={testForm.handleSubmit(handleSendTestMessage)} className="space-y-4">
+            <div>
+              <Label htmlFor="phone_number">Número de Telefone</Label>
+              <Input
+                id="phone_number"
+                {...testForm.register('phone_number')}
+                placeholder="+5511999999999"
+              />
+              {testForm.formState.errors.phone_number && (
+                <p className="text-sm text-red-500 mt-1">
+                  {testForm.formState.errors.phone_number.message}
+                </p>
+              )}
+            </div>
 
-              <div>
-                <Label htmlFor="message">Mensagem</Label>
-                <Textarea
-                  id="message"
-                  {...testForm.register('message')}
-                  rows={3}
-                />
-                {testForm.formState.errors.message && (
-                  <p className="text-sm text-red-500 mt-1">
-                    {testForm.formState.errors.message.message}
-                  </p>
-                )}
-              </div>
+            <div>
+              <Label htmlFor="message">Mensagem</Label>
+              <Textarea
+                id="message"
+                {...testForm.register('message')}
+                rows={3}
+              />
+              {testForm.formState.errors.message && (
+                <p className="text-sm text-red-500 mt-1">
+                  {testForm.formState.errors.message.message}
+                </p>
+              )}
+            </div>
 
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="outline" onClick={() => setIsTestDialogOpen(false)}>
+                Cancelar
+              </Button>
               <Button 
                 type="submit" 
-                disabled={isTesting || connectionStatus.status !== 'connected'}
+                disabled={isTesting}
               >
                 {isTesting ? (
                   <>
@@ -830,37 +874,63 @@ export default function WhatsAppSettingsPage() {
                   'Enviar Teste'
                 )}
               </Button>
-            </form>
-          </CardContent>
-          </Card>
-        )}
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-        {/* Logs */}
-        {testLogs.length > 0 && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Logs de Teste</CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setTestLogs([])}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-slate-950 text-green-400 p-4 rounded-lg font-mono text-sm max-h-60 overflow-y-auto">
-                {testLogs.map((log, index) => (
-                  <div key={index} className="mb-1">
-                    {log}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+      {/* Informações de Ajuda */}
+      {configs.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-lg">Informações Importantes</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <div className="flex items-start gap-2">
+              <span className="font-semibold">•</span>
+              <span>Você pode adicionar múltiplos números WhatsApp para diferentes finalidades (vendas, suporte, etc.)</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-semibold">•</span>
+              <span>O número marcado como "Padrão" será usado para envios quando não especificado.</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-semibold">•</span>
+              <span>Use o botão "Testar" para verificar se as credenciais estão funcionando corretamente.</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-semibold">•</span>
+              <span>Webhook URL: https://api.pytake.net/api/v1/whatsapp/webhook</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {/* Logs */}
+      {testLogs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Logs de Teste</CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setTestLogs([])}
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-slate-950 text-green-400 p-4 rounded-lg font-mono text-sm max-h-60 overflow-y-auto">
+              {testLogs.map((log, index) => (
+                <div key={index} className="mb-1">
+                  {log}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

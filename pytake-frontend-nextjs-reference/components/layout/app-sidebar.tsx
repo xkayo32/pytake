@@ -23,7 +23,8 @@ import {
   LogOut,
   Bell,
   Shield,
-  Webhook
+  Webhook,
+  Phone
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { LogoInline } from '@/components/ui/logo'
@@ -35,7 +36,7 @@ const menuItems = [
     title: 'Principal',
     items: [
       { icon: Home, label: 'Dashboard', href: '/dashboard' },
-      { icon: MessageSquare, label: 'Conversas', href: '/conversations', badge: '24' },
+      { icon: MessageSquare, label: 'Conversas', href: '/whatsapp', badge: '24' },
       { icon: Users, label: 'Contatos', href: '/contacts' },
       { icon: BarChart3, label: 'Analytics', href: '/analytics' },
     ]
@@ -60,7 +61,7 @@ const menuItems = [
   {
     title: 'Configurações',
     items: [
-      { icon: MessageSquare, label: 'WhatsApp', href: '/settings/whatsapp' },
+      { icon: Phone, label: 'WhatsApp Business', href: '/settings/whatsapp' },
       { icon: Building2, label: 'Empresa', href: '/settings/company' },
       { icon: UserCircle, label: 'Perfil', href: '/settings/profile' },
       { icon: Users, label: 'Equipe', href: '/settings/team' },
