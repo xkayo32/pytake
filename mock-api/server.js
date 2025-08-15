@@ -156,6 +156,182 @@ server.post('/api/v1/auth/refresh', (req, res) => {
   }
 });
 
+// Mock WhatsApp Configs database
+let whatsappConfigs = [
+  {
+    id: '1',
+    tenant_id: '223e4567-e89b-12d3-a456-426614174003',
+    phone_number_id: '',
+    access_token: '',
+    business_account_id: '',
+    app_id: '',
+    app_secret: '',
+    webhook_verify_token: '',
+    webhook_url: 'https://api.pytake.net/api/v1/whatsapp/webhook',
+    status: 'disconnected',
+    last_test: null,
+    created_at: new Date().toISOString()
+  }
+];
+
+// WhatsApp Configuration Routes
+server.get('/api/v1/whatsapp-configs', (req, res) => {
+  // TODO: Filter by tenant_id from JWT token
+  const config = whatsappConfigs[0];
+  res.json(config);
+});
+
+server.post('/api/v1/whatsapp-configs', (req, res) => {
+  const { phone_number_id, access_token, business_account_id, app_id, app_secret, webhook_verify_token } = req.body;
+  
+  // Update existing config
+  whatsappConfigs[0] = {
+    ...whatsappConfigs[0],
+    phone_number_id,
+    access_token,
+    business_account_id,
+    app_id,
+    app_secret,
+    webhook_verify_token,
+    status: 'connected',
+    updated_at: new Date().toISOString()
+  };
+  
+  res.json({
+    message: 'Configuration saved successfully',
+    config: whatsappConfigs[0]
+  });
+});
+
+server.post('/api/v1/whatsapp-configs/:id/test', (req, res) => {
+  const { id } = req.params;
+  
+  // Simulate test delay
+  setTimeout(() => {
+    // 80% chance of success
+    const success = Math.random() > 0.2;
+    
+    if (success) {
+      whatsappConfigs[0].status = 'connected';
+      whatsappConfigs[0].last_test = new Date().toISOString();
+      
+      res.json({
+        success: true,
+        message: 'Connection test successful',
+        data: {
+          phone_numbers: [
+            {
+              id: '1',
+              display_phone_number: '+55 11 99999-9999',
+              verified_name: 'PyTake Demo',
+              status: 'APPROVED',
+              quality_rating: 'GREEN'
+            }
+          ]
+        }
+      });
+    } else {
+      whatsappConfigs[0].status = 'error';
+      whatsappConfigs[0].last_test = new Date().toISOString();
+      
+      res.status(400).json({
+        success: false,
+        message: 'Connection test failed',
+        error: {
+          code: 'INVALID_CREDENTIALS',
+          message: 'Invalid Phone Number ID or Access Token'
+        }
+      });
+    }
+  }, 2000);
+});
+
+// WhatsApp Send Message
+server.post('/api/v1/whatsapp/send', (req, res) => {
+  const { to, message } = req.body;
+  
+  // Validate WhatsApp config exists and is connected
+  if (whatsappConfigs[0].status !== 'connected') {
+    return res.status(400).json({
+      error: {
+        code: 'NOT_CONFIGURED',
+        message: 'WhatsApp not configured or not connected'
+      }
+    });
+  }
+  
+  // Simulate sending delay
+  setTimeout(() => {
+    const success = Math.random() > 0.1; // 90% success rate
+    
+    if (success) {
+      res.json({
+        message_id: `msg_${Date.now()}`,
+        status: 'sent',
+        to,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(400).json({
+        error: {
+          code: 'SEND_FAILED',
+          message: 'Failed to send message'
+        }
+      });
+    }
+  }, 1500);
+});
+
+// WhatsApp Webhook (for receiving messages)
+server.get('/api/v1/whatsapp/webhook', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  
+  // Check if webhook is being verified
+  if (mode === 'subscribe') {
+    const expectedToken = whatsappConfigs[0].webhook_verify_token;
+    
+    if (token === expectedToken) {
+      console.log('Webhook verified successfully');
+      res.status(200).send(challenge);
+    } else {
+      console.log('Webhook verification failed');
+      res.status(403).send('Forbidden');
+    }
+  } else {
+    res.status(400).send('Bad Request');
+  }
+});
+
+server.post('/api/v1/whatsapp/webhook', (req, res) => {
+  const body = req.body;
+  
+  console.log('Webhook received:', JSON.stringify(body, null, 2));
+  
+  // Process webhook data here
+  // This would typically save messages to database, trigger flows, etc.
+  
+  res.status(200).send('EVENT_RECEIVED');
+});
+
+// Phone Numbers endpoint
+server.get('/api/v1/whatsapp/phone-numbers', (req, res) => {
+  if (whatsappConfigs[0].status === 'connected') {
+    res.json([
+      {
+        id: '1',
+        display_phone_number: '+55 11 99999-9999',
+        verified_name: 'PyTake Demo',
+        status: 'APPROVED',
+        quality_rating: 'GREEN'
+      }
+    ]);
+  } else {
+    res.json([]);
+  }
+});
+
 server.get('/health', (req, res) => {
   res.json({
     status: 'healthy',

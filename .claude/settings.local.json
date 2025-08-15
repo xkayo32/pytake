@@ -63,7 +63,18 @@
       "Bash(pm2 start:*)",
       "Bash(pm2 logs:*)",
       "Bash(pm2 stop:*)",
-      "Bash(pm2 delete:*)"
+      "Bash(pm2 delete:*)",
+      "Bash(npm start)",
+      "Bash(PORT=3001 node server.js)",
+      "Bash(time curl:*)",
+      "Bash(npx tailwindcss init:*)",
+      "Bash(cp:*)",
+      "Bash(node:*)",
+      "Bash(npx tsc:*)",
+      "Bash(PORT=3002 npm run dev)",
+      "Bash(screen:*)",
+      "Bash(npm --version)",
+      "Bash(nginx:alpine)"
     ],
     "deny": []
   }
