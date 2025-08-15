@@ -203,48 +203,89 @@ server.post('/api/v1/whatsapp-configs', (req, res) => {
   });
 });
 
-server.post('/api/v1/whatsapp-configs/:id/test', (req, res) => {
+server.post('/api/v1/whatsapp-configs/:id/test', async (req, res) => {
   const { id } = req.params;
+  const config = whatsappConfigs[0];
   
-  // Simulate test delay
-  setTimeout(() => {
-    // 80% chance of success
-    const success = Math.random() > 0.2;
+  if (!config.phone_number_id || !config.access_token) {
+    return res.status(400).json({
+      success: false,
+      message: 'Missing configuration',
+      error: {
+        code: 'MISSING_CONFIG',
+        message: 'Phone Number ID and Access Token are required'
+      }
+    });
+  }
+  
+  try {
+    // Test connection to Meta Graph API
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${config.phone_number_id}?fields=display_phone_number,verified_name,code_verification_status,quality_rating&access_token=${config.access_token}`
+    );
     
-    if (success) {
-      whatsappConfigs[0].status = 'connected';
-      whatsappConfigs[0].last_test = new Date().toISOString();
-      
-      res.json({
-        success: true,
-        message: 'Connection test successful',
-        data: {
-          // Only return phone numbers if we have real credentials
-          phone_numbers: []
-        }
-      });
-    } else {
+    if (!response.ok) {
+      const error = await response.json();
       whatsappConfigs[0].status = 'error';
       whatsappConfigs[0].last_test = new Date().toISOString();
       
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: 'Connection test failed',
         error: {
-          code: 'INVALID_CREDENTIALS',
-          message: 'Invalid Phone Number ID or Access Token'
+          code: error.error?.code || 'INVALID_CREDENTIALS',
+          message: error.error?.message || 'Invalid Phone Number ID or Access Token'
         }
       });
     }
-  }, 2000);
+    
+    const phoneData = await response.json();
+    
+    // Update status
+    whatsappConfigs[0].status = 'connected';
+    whatsappConfigs[0].last_test = new Date().toISOString();
+    
+    res.json({
+      success: true,
+      message: 'Connection test successful',
+      data: {
+        phone_numbers: [{
+          id: phoneData.id,
+          display_phone_number: phoneData.display_phone_number,
+          verified_name: phoneData.verified_name,
+          status: phoneData.code_verification_status || 'VERIFIED',
+          quality_rating: phoneData.quality_rating || 'GREEN'
+        }],
+        business_info: {
+          name: phoneData.verified_name,
+          verified: true,
+          timezone: 'America/Sao_Paulo'
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Test connection error:', error);
+    whatsappConfigs[0].status = 'error';
+    whatsappConfigs[0].last_test = new Date().toISOString();
+    
+    res.status(500).json({
+      success: false,
+      message: 'Connection test failed',
+      error: {
+        code: 'CONNECTION_ERROR',
+        message: error.message || 'Failed to connect to WhatsApp API'
+      }
+    });
+  }
 });
 
-// WhatsApp Send Message
-server.post('/api/v1/whatsapp/send', (req, res) => {
+// WhatsApp Send Message - Real Meta API Integration
+server.post('/api/v1/whatsapp/send', async (req, res) => {
   const { to, message } = req.body;
+  const config = whatsappConfigs[0];
   
   // Validate WhatsApp config exists and is connected
-  if (whatsappConfigs[0].status !== 'connected') {
+  if (!config.phone_number_id || !config.access_token) {
     return res.status(400).json({
       error: {
         code: 'NOT_CONFIGURED',
@@ -253,26 +294,58 @@ server.post('/api/v1/whatsapp/send', (req, res) => {
     });
   }
   
-  // Simulate sending delay
-  setTimeout(() => {
-    const success = Math.random() > 0.1; // 90% success rate
+  try {
+    // Format phone number (remove any non-digits and ensure it has country code)
+    let phoneNumber = to.replace(/\D/g, '');
+    if (!phoneNumber.startsWith('55')) {
+      phoneNumber = '55' + phoneNumber;
+    }
     
-    if (success) {
-      res.json({
-        message_id: `msg_${Date.now()}`,
-        status: 'sent',
-        to,
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      res.status(400).json({
+    // Send message via Meta Graph API
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${config.phone_number_id}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: phoneNumber,
+          type: 'text',
+          text: {
+            preview_url: false,
+            body: message.text?.body || message
+          }
+        })
+      }
+    );
+    
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('Meta API Send Error:', error);
+      return res.status(400).json({
         error: {
-          code: 'SEND_FAILED',
-          message: 'Failed to send message'
+          code: error.error?.code || 'SEND_FAILED',
+          message: error.error?.message || 'Failed to send message'
         }
       });
     }
-  }, 1500);
+    
+    const result = await response.json();
+    res.json(result);
+    
+  } catch (error) {
+    console.error('Error sending WhatsApp message:', error);
+    res.status(500).json({
+      error: {
+        code: 'SEND_ERROR',
+        message: error.message || 'Failed to send message'
+      }
+    });
+  }
 });
 
 // WhatsApp Webhook (for receiving messages)
@@ -308,23 +381,39 @@ server.post('/api/v1/whatsapp/webhook', (req, res) => {
   res.status(200).send('EVENT_RECEIVED');
 });
 
-// Phone Numbers endpoint
-server.get('/api/v1/whatsapp/phone-numbers', (req, res) => {
-  // Only return real phone numbers if we have valid WhatsApp credentials
+// Phone Numbers endpoint - Real Meta API Integration
+server.get('/api/v1/whatsapp/phone-numbers', async (req, res) => {
   const config = whatsappConfigs[0];
   
-  if (config.status === 'connected' && config.phone_number_id && config.access_token) {
-    // In production, this would fetch real numbers from WhatsApp API
-    // For now, return empty array unless there's a real configuration
-    if (config.phone_number_id === '123456789' || !config.phone_number_id) {
-      // Demo/test credentials - return empty
-      res.json([]);
-    } else {
-      // Real credentials - would fetch from WhatsApp API
-      // For mock, return configured phone if available
-      res.json([]);
+  if (!config.phone_number_id || !config.access_token) {
+    return res.json([]);
+  }
+  
+  try {
+    // Call Meta Graph API to get phone number details
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${config.phone_number_id}?fields=display_phone_number,verified_name,code_verification_status,quality_rating,platform_type,throughput,last_onboarded_time&access_token=${config.access_token}`
+    );
+    
+    if (!response.ok) {
+      console.error('Meta API Error:', await response.text());
+      return res.json([]);
     }
-  } else {
+    
+    const phoneData = await response.json();
+    
+    // Format the response
+    res.json([{
+      id: phoneData.id || config.phone_number_id,
+      display_phone_number: phoneData.display_phone_number || 'Unknown',
+      verified_name: phoneData.verified_name || 'Not Verified',
+      status: phoneData.code_verification_status || 'PENDING',
+      quality_rating: phoneData.quality_rating || 'UNKNOWN',
+      platform_type: phoneData.platform_type || 'CLOUD_API',
+      throughput: phoneData.throughput || {}
+    }]);
+  } catch (error) {
+    console.error('Error fetching phone numbers from Meta:', error);
     res.json([]);
   }
 });
