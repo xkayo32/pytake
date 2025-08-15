@@ -377,6 +377,223 @@ const db = {
     
     const result = await pool.query(query, [status, whatsappMessageId]);
     return result.rows[0];
+  },
+
+  // Template functions
+  async getAllTemplates(tenantId) {
+    const query = `
+      SELECT wt.*, wc.name as config_name
+      FROM whatsapp_templates wt
+      LEFT JOIN whatsapp_configs wc ON wt.whatsapp_config_id = wc.id
+      WHERE wt.tenant_id = $1
+      ORDER BY wt.status, wt.created_at DESC`;
+    
+    const result = await pool.query(query, [tenantId]);
+    return result.rows;
+  },
+
+  async getTemplate(tenantId, templateId) {
+    const query = `
+      SELECT wt.*, wc.name as config_name
+      FROM whatsapp_templates wt
+      LEFT JOIN whatsapp_configs wc ON wt.whatsapp_config_id = wc.id
+      WHERE wt.tenant_id = $1 AND wt.id = $2`;
+    
+    const result = await pool.query(query, [tenantId, templateId]);
+    return result.rows[0];
+  },
+
+  async saveTemplate(template) {
+    const {
+      id,
+      tenant_id,
+      whatsapp_config_id,
+      meta_template_id,
+      name,
+      status = 'DRAFT',
+      category = 'UTILITY',
+      language = 'pt_BR',
+      header_type,
+      header_text,
+      header_media_url,
+      body_text,
+      footer_text,
+      buttons = [],
+      variables = [],
+      components = [],
+      is_custom = true,
+      tags = [],
+      description
+    } = template;
+
+    if (id) {
+      // Update existing template
+      const query = `
+        UPDATE whatsapp_templates 
+        SET 
+          meta_template_id = $3,
+          name = $4,
+          status = $5,
+          category = $6,
+          language = $7,
+          header_type = $8,
+          header_text = $9,
+          header_media_url = $10,
+          body_text = $11,
+          footer_text = $12,
+          buttons = $13,
+          variables = $14,
+          components = $15,
+          tags = $16,
+          description = $17,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE tenant_id = $1 AND id = $2
+        RETURNING *`;
+      
+      const result = await pool.query(query, [
+        tenant_id, id, meta_template_id, name, status, category, language,
+        header_type, header_text, header_media_url, body_text, footer_text,
+        JSON.stringify(buttons), JSON.stringify(variables), JSON.stringify(components),
+        tags, description
+      ]);
+      return result.rows[0];
+    } else {
+      // Create new template
+      const query = `
+        INSERT INTO whatsapp_templates (
+          tenant_id, whatsapp_config_id, meta_template_id, name, status, category, language,
+          header_type, header_text, header_media_url, body_text, footer_text,
+          buttons, variables, components, is_custom, tags, description
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        RETURNING *`;
+      
+      const result = await pool.query(query, [
+        tenant_id, whatsapp_config_id, meta_template_id, name, status, category, language,
+        header_type, header_text, header_media_url, body_text, footer_text,
+        JSON.stringify(buttons), JSON.stringify(variables), JSON.stringify(components),
+        is_custom, tags, description
+      ]);
+      return result.rows[0];
+    }
+  },
+
+  async deleteTemplate(tenantId, templateId) {
+    const query = `
+      DELETE FROM whatsapp_templates 
+      WHERE tenant_id = $1 AND id = $2
+      RETURNING *`;
+    
+    const result = await pool.query(query, [tenantId, templateId]);
+    return result.rows[0];
+  },
+
+  async syncMetaTemplates(tenantId, metaTemplates) {
+    // Atualizar templates existentes com dados do Meta
+    for (const metaTemplate of metaTemplates) {
+      const query = `
+        INSERT INTO whatsapp_templates (
+          tenant_id, meta_template_id, name, status, category, language,
+          body_text, components, is_custom
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, FALSE)
+        ON CONFLICT (tenant_id, name) 
+        DO UPDATE SET 
+          meta_template_id = EXCLUDED.meta_template_id,
+          status = EXCLUDED.status,
+          category = EXCLUDED.category,
+          language = EXCLUDED.language,
+          components = EXCLUDED.components,
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING *`;
+      
+      const bodyComponent = metaTemplate.components?.find(c => c.type === 'BODY');
+      const bodyText = bodyComponent?.text || metaTemplate.name;
+      
+      await pool.query(query, [
+        tenantId,
+        metaTemplate.id,
+        metaTemplate.name,
+        metaTemplate.status,
+        metaTemplate.category,
+        metaTemplate.language,
+        bodyText,
+        JSON.stringify(metaTemplate.components || [])
+      ]);
+    }
+  },
+
+  async recordTemplateSend(templateSend) {
+    const query = `
+      INSERT INTO template_sends (
+        tenant_id, template_id, contact_id, conversation_id, message_id,
+        whatsapp_message_id, template_name, language, variables_used, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *`;
+    
+    const result = await pool.query(query, [
+      templateSend.tenant_id,
+      templateSend.template_id,
+      templateSend.contact_id,
+      templateSend.conversation_id,
+      templateSend.message_id,
+      templateSend.whatsapp_message_id,
+      templateSend.template_name,
+      templateSend.language,
+      JSON.stringify(templateSend.variables_used || {}),
+      templateSend.status || 'SENT'
+    ]);
+    
+    // Atualizar contador de uso do template
+    await pool.query(`
+      UPDATE whatsapp_templates 
+      SET usage_count = usage_count + 1, last_used_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `, [templateSend.template_id]);
+    
+    return result.rows[0];
+  },
+
+  async getTemplateMetrics(tenantId, templateId = null, days = 30) {
+    let query = `
+      SELECT 
+        wt.name,
+        wt.status,
+        COUNT(ts.id) as total_sends,
+        COUNT(CASE WHEN ts.status = 'DELIVERED' THEN 1 END) as delivered,
+        COUNT(CASE WHEN ts.status = 'READ' THEN 1 END) as read,
+        ROUND(AVG(CASE WHEN ts.cost_usd IS NOT NULL THEN ts.cost_usd END), 6) as avg_cost,
+        DATE_TRUNC('day', ts.sent_at) as date
+      FROM whatsapp_templates wt
+      LEFT JOIN template_sends ts ON wt.id = ts.template_id
+      WHERE wt.tenant_id = $1
+        AND ($2::uuid IS NULL OR wt.id = $2)
+        AND ts.sent_at >= CURRENT_DATE - INTERVAL '30 days'
+      GROUP BY wt.id, wt.name, wt.status, DATE_TRUNC('day', ts.sent_at)
+      ORDER BY date DESC`;
+    
+    const result = await pool.query(query, [tenantId, templateId]);
+    return result.rows;
+  },
+
+  async getTemplateById(templateId, tenantId) {
+    const query = `
+      SELECT * FROM whatsapp_templates 
+      WHERE id = $1::uuid AND tenant_id = $2::uuid
+    `;
+    const result = await pool.query(query, [templateId, tenantId]);
+    return result.rows[0];
+  },
+
+  async updateTemplateStatus(templateId, tenantId, status) {
+    const query = `
+      UPDATE whatsapp_templates 
+      SET status = $1::varchar, 
+          updated_at = CURRENT_TIMESTAMP,
+          approved_at = CASE WHEN $1::varchar = 'APPROVED' THEN CURRENT_TIMESTAMP ELSE approved_at END
+      WHERE id = $2::uuid AND tenant_id = $3::uuid
+      RETURNING *
+    `;
+    const result = await pool.query(query, [status, templateId, tenantId]);
+    return result.rows[0];
   }
 };
 

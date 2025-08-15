@@ -443,11 +443,216 @@ server.post('/api/v1/whatsapp-configs/:id/test', async (req, res) => {
   }
 });
 
-// WhatsApp Templates - List available templates
+// WhatsApp Template Management - Get all templates
+server.get('/api/v1/whatsapp/templates/manage', async (req, res) => {
+  try {
+    const tenantId = DEFAULT_TENANT_ID;
+    const templates = await db.getAllTemplates(tenantId);
+    
+    // Format templates for management interface
+    const formattedTemplates = templates.map(template => ({
+      ...template,
+      buttons: typeof template.buttons === 'string' ? JSON.parse(template.buttons) : template.buttons,
+      variables: typeof template.variables === 'string' ? JSON.parse(template.variables) : template.variables,
+      components: typeof template.components === 'string' ? JSON.parse(template.components) : template.components
+    }));
+    
+    res.json(formattedTemplates);
+  } catch (error) {
+    console.error('Error fetching templates:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Save/Create template
+server.post('/api/v1/whatsapp/templates/manage', async (req, res) => {
+  try {
+    const tenantId = DEFAULT_TENANT_ID;
+    const template = {
+      ...req.body,
+      tenant_id: tenantId
+    };
+    
+    const savedTemplate = await db.saveTemplate(template);
+    
+    res.json({
+      message: 'Template saved successfully',
+      template: {
+        ...savedTemplate,
+        buttons: typeof savedTemplate.buttons === 'string' ? JSON.parse(savedTemplate.buttons) : savedTemplate.buttons,
+        variables: typeof savedTemplate.variables === 'string' ? JSON.parse(savedTemplate.variables) : savedTemplate.variables,
+        components: typeof savedTemplate.components === 'string' ? JSON.parse(savedTemplate.components) : savedTemplate.components
+      }
+    });
+  } catch (error) {
+    console.error('Error saving template:', error);
+    res.status(500).json({ error: 'Failed to save template' });
+  }
+});
+
+// Submit template for Meta approval
+server.post('/api/v1/whatsapp/templates/submit/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const tenantId = DEFAULT_TENANT_ID
+    
+    // Get template from database
+    const template = await db.getTemplateById(id, tenantId)
+    
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' })
+    }
+    
+    if (template.status !== 'DRAFT') {
+      return res.status(400).json({ 
+        error: 'Only draft templates can be submitted for approval',
+        current_status: template.status 
+      })
+    }
+    
+    // Validate template has required fields
+    if (!template.body_text || !template.name) {
+      return res.status(400).json({ 
+        error: 'Template must have name and body text' 
+      })
+    }
+    
+    // In production, this would call Meta API
+    // For now, simulate the submission
+    console.log('Submitting template to Meta:', {
+      name: template.name,
+      category: template.category,
+      language: template.language,
+      components: []
+    })
+    
+    // Update template status to PENDING
+    await db.updateTemplateStatus(id, tenantId, 'PENDING')
+    
+    // In production, Meta would send webhook when approved/rejected
+    // For demo, auto-approve after 5 seconds
+    setTimeout(async () => {
+      await db.updateTemplateStatus(id, tenantId, 'APPROVED')
+      console.log(`Template ${template.name} auto-approved (demo mode)`)
+    }, 5000)
+    
+    res.json({ 
+      message: 'Template submitted for Meta approval',
+      status: 'PENDING',
+      template_id: id,
+      estimated_review_time: '1-24 hours',
+      demo_note: 'In demo mode, template will be auto-approved in 5 seconds'
+    })
+    
+  } catch (error) {
+    console.error('Error submitting template:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Delete template
+server.delete('/api/v1/whatsapp/templates/manage/:templateId', async (req, res) => {
+  try {
+    const { templateId } = req.params;
+    const tenantId = DEFAULT_TENANT_ID;
+    
+    const deletedTemplate = await db.deleteTemplate(tenantId, templateId);
+    
+    if (!deletedTemplate) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    
+    res.json({
+      message: 'Template deleted successfully',
+      template: deletedTemplate
+    });
+  } catch (error) {
+    console.error('Error deleting template:', error);
+    res.status(500).json({ error: 'Failed to delete template' });
+  }
+});
+
+// Sync templates with Meta API
+server.post('/api/v1/whatsapp/templates/sync', async (req, res) => {
+  try {
+    const tenantId = DEFAULT_TENANT_ID;
+    const config = await db.getWhatsAppConfig(tenantId);
+    
+    if (!config || !config.access_token) {
+      return res.status(400).json({ error: 'WhatsApp not configured' });
+    }
+    
+    // Try to get templates from Meta - this endpoint may not be available with current permissions
+    // For now, we'll just ensure hello_world is in our database
+    const metaTemplates = [
+      {
+        id: 'hello_world',
+        name: 'hello_world',
+        status: 'APPROVED',
+        category: 'UTILITY',
+        language: 'en_US',
+        components: [
+          {
+            type: 'BODY',
+            text: 'Hello World'
+          }
+        ]
+      }
+    ];
+    
+    await db.syncMetaTemplates(tenantId, metaTemplates);
+    
+    const allTemplates = await db.getAllTemplates(tenantId);
+    
+    res.json({
+      message: 'Templates synchronized successfully',
+      synced_count: metaTemplates.length,
+      total_templates: allTemplates.length,
+      templates: allTemplates.map(t => ({
+        ...t,
+        buttons: typeof t.buttons === 'string' ? JSON.parse(t.buttons) : t.buttons,
+        variables: typeof t.variables === 'string' ? JSON.parse(t.variables) : t.variables,
+        components: typeof t.components === 'string' ? JSON.parse(t.components) : t.components
+      }))
+    });
+  } catch (error) {
+    console.error('Error syncing templates:', error);
+    res.status(500).json({ error: 'Failed to sync templates' });
+  }
+});
+
+// Get template metrics
+server.get('/api/v1/whatsapp/templates/metrics/:templateId?', async (req, res) => {
+  try {
+    const { templateId } = req.params;
+    const { days = 30 } = req.query;
+    const tenantId = DEFAULT_TENANT_ID;
+    
+    const metrics = await db.getTemplateMetrics(tenantId, templateId, parseInt(days));
+    
+    res.json({
+      metrics,
+      period_days: parseInt(days),
+      template_id: templateId
+    });
+  } catch (error) {
+    console.error('Error fetching template metrics:', error);
+    res.status(500).json({ error: 'Failed to fetch metrics' });
+  }
+});
+
+// WhatsApp Templates - List available templates (for chat interface)
 server.get('/api/v1/whatsapp/templates', async (req, res) => {
   try {
-    // Mock templates - in real implementation, fetch from Meta API
-    const templates = [
+    const tenantId = DEFAULT_TENANT_ID;
+    
+    // Get approved templates from database
+    const dbTemplates = await db.getAllTemplates(tenantId);
+    const approvedTemplates = dbTemplates.filter(t => t.status === 'APPROVED');
+    
+    // If no approved templates, return mock ones for development
+    if (approvedTemplates.length === 0) {
+      const templates = [
       {
         id: 'hello_world',
         name: 'hello_world',
@@ -491,6 +696,20 @@ server.get('/api/v1/whatsapp/templates', async (req, res) => {
     ];
 
     res.json(templates);
+    } else {
+      // Return approved templates from database
+      const formattedTemplates = approvedTemplates.map(template => ({
+        id: template.id,
+        name: template.name,
+        category: template.category,
+        language: template.language,
+        status: template.status,
+        components: typeof template.components === 'string' ? JSON.parse(template.components) : template.components,
+        variables: typeof template.variables === 'string' ? JSON.parse(template.variables) : template.variables
+      }));
+      
+      res.json(formattedTemplates);
+    }
   } catch (error) {
     console.error('Error fetching templates:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -1188,6 +1407,7 @@ const wss = new WebSocket.Server({
   server: httpServer,
   path: '/ws'
 });
+
 
 // Make WebSocket server globally accessible
 global.wss = wss;

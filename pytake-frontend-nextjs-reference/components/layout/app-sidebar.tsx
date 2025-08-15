@@ -62,6 +62,7 @@ const menuItems = [
     title: 'Configurações',
     items: [
       { icon: Phone, label: 'WhatsApp Business', href: '/settings/whatsapp' },
+      { icon: FileText, label: 'Templates WhatsApp', href: '/settings/whatsapp/templates' },
       { icon: Building2, label: 'Empresa', href: '/settings/company' },
       { icon: UserCircle, label: 'Perfil', href: '/settings/profile' },
       { icon: Users, label: 'Equipe', href: '/settings/team' },
