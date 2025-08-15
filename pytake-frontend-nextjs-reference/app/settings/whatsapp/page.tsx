@@ -366,6 +366,28 @@ export default function WhatsAppSettingsPage() {
       </div>
 
         {/* Status Card */}
+        {connectionStatus.status === 'disconnected' && !configForm.watch('phone_number_id') && (
+          <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-amber-900 dark:text-amber-100">Configuração Inicial Necessária</h3>
+                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                    Para começar a usar o WhatsApp Business, você precisa:
+                  </p>
+                  <ol className="text-sm text-amber-700 dark:text-amber-300 mt-2 ml-4 list-decimal space-y-1">
+                    <li>Criar uma conta no Facebook Developer</li>
+                    <li>Configurar um app WhatsApp Business</li>
+                    <li>Obter as credenciais da API</li>
+                    <li>Preencher os campos abaixo</li>
+                  </ol>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -406,15 +428,17 @@ export default function WhatsAppSettingsPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <Zap className="h-5 w-5 text-green-600" />
+              {phoneNumbers.length > 0 && (
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <Zap className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-foreground-secondary">Números</p>
+                    <p className="font-medium">{phoneNumbers.length} configurado{phoneNumbers.length > 1 ? 's' : ''}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-foreground-secondary">Números</p>
-                  <p className="font-medium">{phoneNumbers.length} configurados</p>
-                </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -751,8 +775,9 @@ export default function WhatsAppSettingsPage() {
           </Card>
         )}
 
-        {/* Test Message */}
-        <Card>
+        {/* Test Message - Only show when connected */}
+        {connectionStatus.status === 'connected' && (
+          <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TestTube className="h-5 w-5" />
@@ -807,7 +832,8 @@ export default function WhatsAppSettingsPage() {
               </Button>
             </form>
           </CardContent>
-        </Card>
+          </Card>
+        )}
 
         {/* Logs */}
         {testLogs.length > 0 && (
