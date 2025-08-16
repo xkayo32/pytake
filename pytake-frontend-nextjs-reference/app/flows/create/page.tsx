@@ -46,8 +46,8 @@ function FlowEditor() {
   const { project } = useReactFlow()
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showPalette, setShowPalette] = useState(true)
-  const [showProperties, setShowProperties] = useState(true)
   const [showTemplates, setShowTemplates] = useState(false)
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
   
   const {
     flow,
@@ -56,6 +56,7 @@ function FlowEditor() {
     selectedNode,
     isLoading,
     isDirty,
+    showProperties,
     setNodes,
     setEdges,
     onNodesChange,
@@ -64,9 +65,13 @@ function FlowEditor() {
     addNode,
     selectNode,
     selectEdge,
+    setShowProperties,
     saveFlow,
     createNewFlow,
-    validateFlow
+    validateFlow,
+    loadFromLocalStorage,
+    saveToLocalStorage,
+    clearLocalStorage
   } = useFlowEditorStore()
 
   const { isAuthenticated, isLoading: authLoading } = useAuth()
@@ -78,8 +83,23 @@ function FlowEditor() {
   }, [authLoading, isAuthenticated, router])
 
   useEffect(() => {
-    createNewFlow()
-  }, [createNewFlow])
+    // Carregar do localStorage se existir
+    const hasDraft = loadFromLocalStorage()
+    if (!hasDraft) {
+      createNewFlow()
+    }
+  }, [])
+
+  // Auto-save para localStorage a cada mudança
+  useEffect(() => {
+    if (isDirty && nodes.length > 0) {
+      const timeoutId = setTimeout(() => {
+        saveToLocalStorage()
+        setLastSaved(new Date())
+      }, 1000) // Salva após 1 segundo de inatividade
+      return () => clearTimeout(timeoutId)
+    }
+  }, [nodes, edges, isDirty, saveToLocalStorage])
 
   const onDragOver = useCallback((event: DragEvent) => {
     event.preventDefault()
@@ -109,7 +129,8 @@ function FlowEditor() {
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
     selectNode(node.id)
-  }, [selectNode])
+    setShowProperties(true)
+  }, [selectNode, setShowProperties])
 
   const onEdgeClick = useCallback((event: React.MouseEvent, edge: any) => {
     selectEdge(edge.id)
@@ -136,7 +157,8 @@ function FlowEditor() {
 
   const handleSave = useCallback(async () => {
     await saveFlow()
-  }, [saveFlow])
+    clearLocalStorage() // Limpar rascunho após salvar com sucesso
+  }, [saveFlow, clearLocalStorage])
 
   const handleTest = useCallback(() => {
     // TODO: Implement flow testing
@@ -215,7 +237,7 @@ function FlowEditor() {
               className="w-32 h-7 text-xs"
             />
             
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               {validation.isValid ? (
                 <CheckCircle className="h-3 w-3 text-green-600" />
               ) : (
@@ -226,6 +248,14 @@ function FlowEditor() {
               )}
               
               {isDirty && <div className="w-1 h-1 bg-orange-500 rounded-full" />}
+              
+              {lastSaved && (
+                <span className="text-[10px] text-muted-foreground">
+                  Rascunho salvo {new Date().getTime() - lastSaved.getTime() < 60000 
+                    ? 'agora' 
+                    : `há ${Math.floor((new Date().getTime() - lastSaved.getTime()) / 60000)}m`}
+                </span>
+              )}
             </div>
           </div>
 
@@ -397,8 +427,8 @@ function FlowEditor() {
         </div>
 
         {/* Collapsible Properties Panel */}
-        {showProperties && selectedNode && (
-          <div className="w-64 border-l bg-background/95 backdrop-blur overflow-y-auto">
+        {showProperties && (
+          <div className="w-80 border-l bg-background/95 backdrop-blur overflow-y-auto">
             <PropertiesPanel />
           </div>
         )}

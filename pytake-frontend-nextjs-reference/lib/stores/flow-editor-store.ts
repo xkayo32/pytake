@@ -44,6 +44,11 @@ interface FlowEditorStore {
   loadFlow: (flowId: string) => Promise<void>
   createNewFlow: () => void
   
+  // Local storage
+  saveToLocalStorage: () => void
+  loadFromLocalStorage: () => boolean
+  clearLocalStorage: () => void
+  
   // Validation
   validateFlow: () => { isValid: boolean; errors: string[] }
 }
@@ -350,6 +355,60 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
       selectedEdge: null,
       isDirty: false
     })
+  },
+  
+  // Local storage
+  saveToLocalStorage: () => {
+    const { flow, nodes, edges } = get()
+    const draftData = {
+      flow,
+      nodes,
+      edges,
+      timestamp: new Date().toISOString()
+    }
+    
+    try {
+      localStorage.setItem('pytake_flow_draft', JSON.stringify(draftData))
+      console.log('Flow salvo como rascunho')
+    } catch (error) {
+      console.error('Erro ao salvar rascunho:', error)
+    }
+  },
+  
+  loadFromLocalStorage: () => {
+    try {
+      const draftData = localStorage.getItem('pytake_flow_draft')
+      if (draftData) {
+        const parsed = JSON.parse(draftData)
+        
+        // Verificar se o rascunho não é muito antigo (24 horas)
+        const timestamp = new Date(parsed.timestamp)
+        const now = new Date()
+        const hoursDiff = (now.getTime() - timestamp.getTime()) / (1000 * 60 * 60)
+        
+        if (hoursDiff < 24) {
+          set({
+            flow: parsed.flow,
+            nodes: parsed.nodes || [],
+            edges: parsed.edges || [],
+            isDirty: false
+          })
+          console.log('Rascunho carregado do localStorage')
+          return true
+        } else {
+          // Rascunho muito antigo, limpar
+          localStorage.removeItem('pytake_flow_draft')
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar rascunho:', error)
+    }
+    return false
+  },
+  
+  clearLocalStorage: () => {
+    localStorage.removeItem('pytake_flow_draft')
+    console.log('Rascunho removido')
   },
   
   // Validation

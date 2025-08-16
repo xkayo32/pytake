@@ -45,7 +45,7 @@ interface CustomNodeData {
   children?: string[]
 }
 
-const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected, id }) => {
+const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected, id, type }) => {
   const Icon = data.icon ? iconMap[data.icon] || Zap : Zap
   const color = data.color || '#6b7280'
   const [showSettings, setShowSettings] = useState(false)
@@ -79,7 +79,20 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected, id }) => {
   }
   
   const handleDuplicate = () => {
-    // TODO: Implement node duplication
+    // Implementar duplicação do nó
+    const nodes = useFlowEditorStore.getState().nodes
+    const currentNode = nodes.find(n => n.id === id)
+    if (currentNode) {
+      const newNode = {
+        ...currentNode,
+        id: `node-${Date.now()}`,
+        position: {
+          x: currentNode.position.x + 50,
+          y: currentNode.position.y + 50
+        }
+      }
+      useFlowEditorStore.getState().setNodes([...nodes, newNode])
+    }
     setShowContextMenu(false)
   }
   
@@ -153,9 +166,9 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected, id }) => {
       {/* Context Menu */}
       {showContextMenu && (
         <div
-          className="fixed z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 min-w-[150px]"
+          className="fixed z-[100] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 min-w-[150px]"
           style={{ left: contextMenuPos.x, top: contextMenuPos.y }}
-          onMouseLeave={() => setShowContextMenu(false)}
+          onMouseLeave={() => setTimeout(() => setShowContextMenu(false), 100)}
         >
           <button
             onClick={handleSettingsClick}

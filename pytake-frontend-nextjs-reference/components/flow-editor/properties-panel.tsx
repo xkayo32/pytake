@@ -102,6 +102,14 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
     if (!selectedNode || !isValid) return
     
     updateNodeData(selectedNode, { config: formData })
+    // Mostrar feedback visual
+    const button = document.querySelector('[data-save-button]')
+    if (button) {
+      button.classList.add('bg-green-500')
+      setTimeout(() => {
+        button.classList.remove('bg-green-500')
+      }, 1000)
+    }
   }
 
   const handleDelete = () => {
@@ -217,7 +225,8 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="text-center text-muted-foreground">
             <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Selecione um componente no canvas para configurá-lo</p>
+            <p className="text-sm">Selecione um componente no canvas</p>
+            <p className="text-xs mt-2 opacity-70">Clique em um nó para editar suas propriedades</p>
           </div>
         </div>
       </div>
@@ -259,7 +268,8 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
             size="sm"
             onClick={handleSave}
             disabled={!isValid}
-            className="flex-1"
+            className="flex-1 transition-colors"
+            data-save-button
           >
             <Save className="h-4 w-4 mr-1" />
             Salvar
