@@ -41,8 +41,165 @@ interface CustomNodeData {
   icon?: string
   color?: string
   description?: string
+  nodeType?: string
+  config?: Record<string, any>
   isGroup?: boolean
-  children?: string[]
+  children?: string[]  
+}
+
+// Função para renderizar preview dos campos principais
+const renderNodePreview = (data: CustomNodeData) => {
+  if (!data.config || !data.nodeType) return null
+  
+  // Renderizar preview baseado no tipo de nó
+  switch(data.nodeType) {
+    case 'trigger_keyword':
+      if (data.config.keywords) {
+        const keywords = data.config.keywords.split('\n').filter((k: string) => k).slice(0, 2)
+        return (
+          <>
+            {keywords.map((keyword: string, i: number) => (
+              <div key={i} className="truncate">
+                🔑 {keyword}
+              </div>
+            ))}
+            {data.config.keywords.split('\n').filter((k: string) => k).length > 2 && (
+              <div className="text-[9px]">+{data.config.keywords.split('\n').filter((k: string) => k).length - 2} mais...</div>
+            )}
+          </>
+        )
+      }
+      break
+      
+    case 'trigger_webhook':
+      if (data.config.webhookUrl) {
+        return (
+          <div className="truncate">
+            🌐 {data.config.method || 'POST'}
+          </div>
+        )
+      }
+      break
+      
+    case 'trigger_schedule':
+      if (data.config.time) {
+        return (
+          <>
+            <div className="truncate">⏰ {data.config.time}</div>
+            <div className="truncate">{data.config.frequency || 'daily'}</div>
+          </>
+        )
+      }
+      break
+      
+    case 'msg_text':
+      if (data.config.message) {
+        const preview = data.config.message.substring(0, 50)
+        return (
+          <div className="truncate">
+            💬 {preview}{data.config.message.length > 50 ? '...' : ''}
+          </div>
+        )
+      }
+      break
+      
+    case 'msg_template':
+      if (data.config.templateName) {
+        return (
+          <>
+            <div className="truncate">📄 {data.config.templateName}</div>
+            {data.config.language && (
+              <div className="truncate">🌐 {data.config.language}</div>
+            )}
+          </>
+        )
+      }
+      break
+      
+    case 'msg_negotiation_template':
+      if (data.config.debtAmount) {
+        return (
+          <>
+            <div className="truncate">💵 R$ {data.config.debtAmount}</div>
+            {data.config.customerName && (
+              <div className="truncate">👤 {data.config.customerName}</div>
+            )}
+          </>
+        )
+      }
+      break
+      
+    case 'msg_image':
+      if (data.config.imageUrl) {
+        return (
+          <>
+            <div className="truncate">🖼️ Imagem</div>
+            {data.config.caption && (
+              <div className="truncate">📝 {data.config.caption.substring(0, 20)}...</div>
+            )}
+          </>
+        )
+      }
+      break
+      
+    case 'ai_chatgpt':
+    case 'ai_claude':
+    case 'ai_gemini':
+      if (data.config.prompt) {
+        return (
+          <div className="truncate">
+            🤖 {data.config.prompt.substring(0, 30)}...
+          </div>
+        )
+      }
+      break
+      
+    case 'api_call':
+    case 'api_webhook':
+      if (data.config.url || data.config.webhookUrl) {
+        const url = data.config.url || data.config.webhookUrl
+        const method = data.config.method || 'GET'
+        return (
+          <>
+            <div className="truncate">🌐 {method}</div>
+            <div className="truncate text-[9px]">{new URL(url).hostname}</div>
+          </>
+        )
+      }
+      break
+      
+    case 'condition_if':
+      if (data.config.variable && data.config.operator) {
+        return (
+          <div className="truncate">
+            ❔ {data.config.variable} {data.config.operator} {data.config.value || '?'}
+          </div>
+        )
+      }
+      break
+      
+    case 'flow_delay':
+      if (data.config.delay) {
+        return (
+          <div className="truncate">
+            ⏱️ {data.config.delay}s
+          </div>
+        )
+      }
+      break
+  }
+  
+  // Fallback genérico
+  const configKeys = Object.keys(data.config).filter(k => k !== 'customName' && data.config[k])
+  if (configKeys.length > 0) {
+    return (
+      <div className="truncate">
+        ⚙️ {configKeys.length} config
+      </div>
+    )
+  }
+  
+  return null
 }
 
 const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected, id, type }) => {
@@ -60,14 +217,12 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected, id, type }) =
   
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
-    console.log('Node double-clicked:', id)
     selectNode(id)
     setShowProperties(true)
   }
   
   const handleSettingsClick = (e: React.MouseEvent) => {
     e.stopPropagation()
-    console.log('Settings clicked for node:', id)
     selectNode(id)
     setShowProperties(true)
   }
@@ -107,7 +262,7 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected, id, type }) =
     <div
       className={`
         px-3 py-2 rounded-lg border-2 shadow-sm
-        min-w-[120px] transition-all cursor-pointer
+        min-w-[150px] transition-all cursor-pointer
         bg-white dark:bg-slate-900 group
         ${selected ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'border-slate-200 dark:border-slate-700'}
         ${data.isGroup ? 'bg-accent/10' : ''}
@@ -139,13 +294,13 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected, id, type }) =
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-xs font-medium truncate text-slate-900 dark:text-slate-100">
-            {data.label}
+            {data.config?.customName || data.label}
           </div>
-          {data.description && (
-            <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-              {data.description}
-            </div>
-          )}
+          <div className="text-[10px] text-slate-500 dark:text-slate-400 space-y-0.5 mt-0.5">
+            {renderNodePreview(data) || (
+              <div className="text-[9px] opacity-60">Não configurado</div>
+            )}
+          </div>
         </div>
         {(showSettings || selected) && (
           <button

@@ -33,6 +33,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
     selectNode
   } = useFlowEditorStore()
   
+  const [customName, setCustomName] = useState('')
   const [formData, setFormData] = useState<Record<string, any>>({})
   const [isValid, setIsValid] = useState(true)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
@@ -47,10 +48,12 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
 
   useEffect(() => {
     if (selectedNodeData) {
-      console.log('PropertiesPanel: Loading node config', selectedNodeData.data)
-      setFormData(selectedNodeData.data.config || {})
+      const config = selectedNodeData.data.config || {}
+      setFormData(config)
+      setCustomName(config.customName || '')
     } else {
       setFormData({})
+      setCustomName('')
     }
   }, [selectedNodeData])
 
@@ -67,7 +70,6 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   }
 
   const handleInputChange = (key: string, value: any) => {
-    console.log('PropertiesPanel: Input change', key, value)
     const newFormData = { ...formData, [key]: value }
     setFormData(newFormData)
   }
@@ -75,8 +77,12 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   const handleSave = () => {
     if (!selectedNode || !isValid) return
     
-    console.log('PropertiesPanel: Saving config', formData)
-    updateNodeData(selectedNode, { config: formData })
+    const fullConfig = {
+      ...formData,
+      customName: customName || selectedNodeData?.data.label
+    }
+    
+    updateNodeData(selectedNode, { config: fullConfig })
     
     // Mostrar feedback visual
     const button = document.querySelector('[data-save-button]')
@@ -232,21 +238,40 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         </div>
 
         {/* Node Info */}
-        <div className="flex items-center gap-3 mb-4">
-          <div 
-            className="p-2 rounded-lg"
-            style={{ 
-              backgroundColor: `${selectedNodeData.data.color}20`,
-              color: selectedNodeData.data.color
-            }}
-          >
-            <Settings className="h-4 w-4" />
-          </div>
-          <div>
-            <h3 className="font-medium">{selectedNodeData.data.label}</h3>
-            <p className="text-sm text-muted-foreground">
-              {selectedNodeData.data.description}
-            </p>
+        <div className="space-y-3 mb-4">
+          <div className="flex items-center gap-3">
+            <div 
+              className="p-2 rounded-lg"
+              style={{ 
+                backgroundColor: `${selectedNodeData.data.color}20`,
+                color: selectedNodeData.data.color
+              }}
+            >
+              <Settings className="h-4 w-4" />
+            </div>
+            <div className="flex-1">
+              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                {selectedNodeData.data.label}
+              </div>
+              <Input
+                type="text"
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                onBlur={() => {
+                  // Salvar automaticamente o nome quando perder o foco
+                  if (selectedNode) {
+                    updateNodeData(selectedNode, { 
+                      config: { 
+                        ...formData, 
+                        customName: customName || selectedNodeData.data.label 
+                      } 
+                    })
+                  }
+                }}
+                placeholder={`Nome do ${selectedNodeData.data.label}`}
+                className="h-8 text-sm font-medium"
+              />
+            </div>
           </div>
         </div>
 
