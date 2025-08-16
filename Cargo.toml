@@ -1,0 +1,64 @@
+[package]
+name = "pytake-flow-engine"
+version = "1.0.0"
+edition = "2021"
+authors = ["PyTake Team"]
+description = "PyTake WhatsApp Flow Engine - Execute automated conversation flows"
+
+[dependencies]
+# Web framework
+actix-web = "4.4"
+actix-web-httpauth = "0.8"
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json"] }
+
+# Database & Cache
+redis = { version = "0.24", features = ["tokio-comp"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# UUID generation
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Date/time
+chrono = { version = "0.4", features = ["serde"] }
+
+# JWT authentication
+jsonwebtoken = "9.2"
+
+# Regular expressions
+regex = "1.10"
+
+# Environment variables
+dotenv = "0.15"
+
+# Logging
+env_logger = "0.11"
+log = "0.4"
+
+# Configuration
+config = "0.14"
+
+[dev-dependencies]
+# Testing
+tokio-test = "0.4"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true
