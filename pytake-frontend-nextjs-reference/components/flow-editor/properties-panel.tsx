@@ -21,6 +21,7 @@ import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
 import { getNodeConfig, validateNodeConfig } from '@/lib/types/node-schemas'
 import { getWhatsAppTemplates, getTemplateButtons } from '@/lib/data/whatsapp-templates'
 import { Checkbox } from '@/components/ui/checkbox'
+import { ButtonSelector } from '@/components/flow-editor/button-selector'
 
 interface PropertiesPanelProps {
   className?: string
@@ -234,123 +235,34 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         }
         
         const buttons = getTemplateButtons(selectedTemplate)
-        const selectedButtons = value || []
         
-        if (buttons.length === 0) {
-          return (
-            <div className="text-xs text-muted-foreground p-2 border rounded">
-              Este template não possui botões
-            </div>
-          )
-        }
-        
-        // Se captureAll é false, mostrar checkboxes
-        if (formData.captureAll === false) {
-          return (
-            <div className="space-y-2">
-              {buttons.map((button) => {
-                const buttonId = button.id || button.text
-                const isSelected = Array.isArray(selectedButtons) && selectedButtons.includes(buttonId)
-                
-                return (
-                  <div key={buttonId} className="flex items-center space-x-2">
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={(checked) => {
-                        console.log('Checkbox clicked:', buttonId, 'checked:', checked)
-                        const currentSelection = Array.isArray(selectedButtons) ? selectedButtons : []
-                        const newSelection = checked
-                          ? [...currentSelection, buttonId]
-                          : currentSelection.filter((id: string) => id !== buttonId)
-                        
-                        console.log('New selection:', newSelection)
-                        
-                        // Atualizar formData local
-                        const updatedFormData = {
-                          ...formData,
-                          selectedButtons: newSelection
-                        }
-                        setFormData(updatedFormData)
-                        
-                        // Forçar atualização imediata no nó
-                        if (selectedNode) {
-                          updateNodeData(selectedNode, { 
-                            config: { 
-                              ...updatedFormData,
-                              customName: customName
-                            } 
-                          })
-                        }
-                      }}
-                    />
-                    <Label className="text-sm flex items-center gap-1 cursor-pointer"
-                      onClick={() => {
-                        const currentSelection = Array.isArray(selectedButtons) ? selectedButtons : []
-                        const newSelection = !isSelected
-                          ? [...currentSelection, buttonId]
-                          : currentSelection.filter((id: string) => id !== buttonId)
-                        
-                        // Atualizar formData local
-                        const updatedFormData = {
-                          ...formData,
-                          selectedButtons: newSelection
-                        }
-                        setFormData(updatedFormData)
-                        
-                        // Forçar atualização imediata no nó
-                        if (selectedNode) {
-                          updateNodeData(selectedNode, { 
-                            config: { 
-                              ...updatedFormData,
-                              customName: customName
-                            } 
-                          })
-                        }
-                      }}
-                    >
-                      {button.type === 'QUICK_REPLY' && '⚡'}
-                      {button.type === 'URL' && '🔗'}
-                      {button.type === 'PHONE_NUMBER' && '📞'}
-                      <span>{button.text}</span>
-                      <span className="text-xs text-muted-foreground">({button.type})</span>
-                    </Label>
-                  </div>
-                )
-              })}
-              <p className="text-xs text-muted-foreground">
-                Selecione os botões que deseja capturar
-              </p>
-            </div>
-          )
-        } else {
-          // Se captureAll é true, mostrar lista desabilitada
-          return (
-            <div className="space-y-2">
-              {buttons.map((button) => {
-                const buttonId = button.id || button.text
-                
-                return (
-                  <div key={buttonId} className="flex items-center space-x-2 opacity-60">
-                    <Checkbox
-                      checked={true}
-                      disabled={true}
-                    />
-                    <Label className="text-sm flex items-center gap-1">
-                      {button.type === 'QUICK_REPLY' && '⚡'}
-                      {button.type === 'URL' && '🔗'}
-                      {button.type === 'PHONE_NUMBER' && '📞'}
-                      <span>{button.text}</span>
-                      <span className="text-xs text-muted-foreground">({button.type})</span>
-                    </Label>
-                  </div>
-                )
-              })}
-              <p className="text-xs text-muted-foreground">
-                Todos os botões estão sendo capturados
-              </p>
-            </div>
-          )
-        }
+        return (
+          <ButtonSelector
+            buttons={buttons}
+            selectedButtons={value || []}
+            captureAll={formData.captureAll !== false}
+            onSelectionChange={(newSelection) => {
+              console.log('ButtonSelector selection changed:', newSelection)
+              
+              // Atualizar formData local
+              const updatedFormData = {
+                ...formData,
+                selectedButtons: newSelection
+              }
+              setFormData(updatedFormData)
+              
+              // Forçar atualização imediata no nó
+              if (selectedNode) {
+                updateNodeData(selectedNode, { 
+                  config: { 
+                    ...updatedFormData,
+                    customName: customName
+                  } 
+                })
+              }
+            }}
+          />
+        )
       
       case 'select':
         return (
