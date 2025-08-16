@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { addEdge, applyNodeChanges, applyEdgeChanges, Connection, Edge, Node, NodeChange, EdgeChange } from 'reactflow'
 import { FlowNode, FlowEdge, Flow, NodeType } from '@/lib/types/flow'
+import { getNodeConfig } from '@/lib/types/node-schemas'
 
 interface FlowEditorStore {
   // Flow data
@@ -103,17 +104,31 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
   // Node management
   addNode: (nodeType, position) => {
     const { nodes } = get()
+    
+    // Buscar configuração completa do nó
+    const nodeConfig = getNodeConfig(nodeType.id)
+    
+    // Criar config inicial com valores padrão
+    const initialConfig: Record<string, any> = {}
+    if (nodeConfig) {
+      Object.entries(nodeConfig.configSchema).forEach(([key, schema]) => {
+        if (schema.defaultValue !== undefined) {
+          initialConfig[key] = schema.defaultValue
+        }
+      })
+    }
+    
     const newNode: Node = {
       id: `node-${Date.now()}`,
       type: nodeType.category,
       position,
       data: {
         label: nodeType.name,
-        description: nodeType.description,
+        description: nodeConfig?.description || nodeType.description,
         icon: nodeType.icon,
         color: nodeType.color,
         nodeType: nodeType.id,
-        config: {}
+        config: initialConfig
       }
     }
     

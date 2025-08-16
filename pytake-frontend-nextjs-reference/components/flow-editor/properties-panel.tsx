@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
-import { NODE_TYPES } from '@/lib/types/flow'
+import { getNodeConfig, validateNodeConfig } from '@/lib/types/node-schemas'
 
 interface PropertiesPanelProps {
   className?: string
@@ -42,11 +42,12 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
     : null
 
   const nodeType = selectedNodeData?.data?.nodeType 
-    ? NODE_TYPES.find(nt => nt.id === selectedNodeData.data.nodeType)
+    ? getNodeConfig(selectedNodeData.data.nodeType)
     : null
 
   useEffect(() => {
     if (selectedNodeData) {
+      console.log('PropertiesPanel: Loading node config', selectedNodeData.data)
       setFormData(selectedNodeData.data.config || {})
     } else {
       setFormData({})
@@ -58,42 +59,15 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   }, [formData, nodeType])
 
   const validateForm = () => {
-    if (!nodeType) return
+    if (!nodeType || !selectedNodeData) return
 
-    const errors: string[] = []
-    
-    Object.entries(nodeType.configSchema).forEach(([key, schema]) => {
-      const value = formData[key]
-      
-      if (schema.required && (!value || value === '')) {
-        errors.push(`${schema.label} é obrigatório`)
-      }
-      
-      if (value && schema.validation) {
-        if (schema.type === 'number') {
-          const numValue = Number(value)
-          if (schema.validation.min && numValue < schema.validation.min) {
-            errors.push(`${schema.label} deve ser maior que ${schema.validation.min}`)
-          }
-          if (schema.validation.max && numValue > schema.validation.max) {
-            errors.push(`${schema.label} deve ser menor que ${schema.validation.max}`)
-          }
-        }
-        
-        if (schema.validation.pattern) {
-          const regex = new RegExp(schema.validation.pattern)
-          if (!regex.test(value)) {
-            errors.push(`${schema.label} tem formato inválido`)
-          }
-        }
-      }
-    })
-    
-    setValidationErrors(errors)
-    setIsValid(errors.length === 0)
+    const validation = validateNodeConfig(selectedNodeData.data.nodeType, formData)
+    setValidationErrors(validation.errors)
+    setIsValid(validation.isValid)
   }
 
   const handleInputChange = (key: string, value: any) => {
+    console.log('PropertiesPanel: Input change', key, value)
     const newFormData = { ...formData, [key]: value }
     setFormData(newFormData)
   }
@@ -101,7 +75,9 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   const handleSave = () => {
     if (!selectedNode || !isValid) return
     
+    console.log('PropertiesPanel: Saving config', formData)
     updateNodeData(selectedNode, { config: formData })
+    
     // Mostrar feedback visual
     const button = document.querySelector('[data-save-button]')
     if (button) {
@@ -160,6 +136,19 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
               onCheckedChange={(checked) => handleInputChange(key, checked)}
             />
             <Label className="text-sm">{value ? 'Ativado' : 'Desativado'}</Label>
+          </div>
+        )
+      
+      case 'array':
+        return (
+          <div className="space-y-2">
+            <Textarea
+              value={Array.isArray(value) ? value.join('\n') : value}
+              onChange={(e) => handleInputChange(key, e.target.value.split('\n').filter(v => v))}
+              placeholder={schema.placeholder}
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground">Separe os valores com Enter</p>
           </div>
         )
       

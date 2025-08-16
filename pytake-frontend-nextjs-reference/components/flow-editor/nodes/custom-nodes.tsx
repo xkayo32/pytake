@@ -60,12 +60,14 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected, id, type }) =
   
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
+    console.log('Node double-clicked:', id)
     selectNode(id)
     setShowProperties(true)
   }
   
   const handleSettingsClick = (e: React.MouseEvent) => {
     e.stopPropagation()
+    console.log('Settings clicked for node:', id)
     selectNode(id)
     setShowProperties(true)
   }
