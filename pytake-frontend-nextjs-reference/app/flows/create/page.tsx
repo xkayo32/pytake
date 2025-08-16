@@ -264,7 +264,7 @@ function FlowEditor() {
       <div className="flex-1 flex overflow-hidden">
         {/* Collapsible Node Palette */}
         {showPalette && (
-          <div className="w-48 border-r bg-background/95 backdrop-blur">
+          <div className="w-64 border-r bg-background/95 backdrop-blur overflow-y-auto">
             <NodePalette onNodeDragStart={handleNodeDragStart} />
           </div>
         )}
@@ -337,7 +337,7 @@ function FlowEditor() {
 
         {/* Collapsible Properties Panel */}
         {showProperties && selectedNode && (
-          <div className="w-64 border-l bg-background/95 backdrop-blur">
+          <div className="w-64 border-l bg-background/95 backdrop-blur overflow-y-auto">
             <PropertiesPanel />
           </div>
         )}

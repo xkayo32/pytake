@@ -86,31 +86,32 @@ export function NodePalette({ onNodeDragStart }: NodePaletteProps) {
   }, {} as Record<string, NodeType[]>)
 
   return (
-    <div className="w-80 border-r bg-background/50 flex flex-col h-full">
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b">
-        <div className="flex items-center gap-2 mb-4">
-          <Zap className="h-5 w-5 text-primary" />
-          <h2 className="font-semibold">Componentes</h2>
+      <div className="p-3 border-b bg-background/50">
+        <div className="flex items-center gap-2 mb-3">
+          <Zap className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold">Componentes</h2>
         </div>
 
         {/* Search */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="relative mb-3">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
           <Input
-            placeholder="Buscar componentes..."
+            placeholder="Buscar..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
+            className="pl-7 h-7 text-xs"
           />
         </div>
 
         {/* Category Filter */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1">
           <Button
             variant={selectedCategory === 'all' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedCategory('all')}
+            className="h-6 px-2 text-xs"
           >
             Todos
           </Button>
@@ -120,6 +121,7 @@ export function NodePalette({ onNodeDragStart }: NodePaletteProps) {
               variant={selectedCategory === key ? 'default' : 'outline'}
               size="sm"
               onClick={() => setSelectedCategory(key)}
+              className="h-6 px-2 text-xs"
             >
               {label}
             </Button>
@@ -128,7 +130,7 @@ export function NodePalette({ onNodeDragStart }: NodePaletteProps) {
       </div>
 
       {/* Node List */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-y-auto p-3">
         {Object.entries(nodesByCategory).map(([category, nodes]) => (
           <div key={category} className="mb-6">
             {/* Category Header */}
