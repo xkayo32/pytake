@@ -55,6 +55,7 @@ function FlowEditor() {
     nodes,
     edges,
     selectedNode,
+    selectedEdge,
     isLoading,
     isDirty,
     showProperties,
