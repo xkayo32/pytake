@@ -32,14 +32,12 @@ export const TemplateButtonNode: FC<NodeProps<TemplateButtonNodeData>> = memo(({
     const buttons = data.config?.templateName 
       ? getTemplateButtons(data.config.templateName)
       : []
-    console.log('Template buttons loaded:', data.config?.templateName, buttons)
     return buttons
   }, [data.config?.templateName])
   
   // Determinar quais botões criar handles para
   const activeButtons = useMemo(() => {
     if (!templateButtons.length) {
-      console.log('No template buttons available')
       return []
     }
     
@@ -47,18 +45,24 @@ export const TemplateButtonNode: FC<NodeProps<TemplateButtonNodeData>> = memo(({
     if (data.config?.captureAll !== false) {
       // Por padrão ou quando true, captura todos
       result = templateButtons
-      console.log('CaptureAll is true, using all buttons:', result.length)
     } else {
       // Quando false, usa seleção manual
-      result = templateButtons.filter(btn => 
-        data.config?.selectedButtons?.includes(btn.id || btn.text)
-      )
-      console.log('CaptureAll is false, selected buttons:', result.length, data.config?.selectedButtons)
+      const selected = data.config?.selectedButtons || []
+      result = templateButtons.filter(btn => {
+        const btnId = btn.id || btn.text
+        return selected.includes(btnId)
+      })
     }
+    
+    console.log('ActiveButtons updated:', {
+      captureAll: data.config?.captureAll,
+      selectedButtons: data.config?.selectedButtons,
+      activeCount: result.length,
+      templateName: data.config?.templateName
+    })
+    
     return result
   }, [templateButtons, data.config?.captureAll, data.config?.selectedButtons])
-  
-  console.log('TemplateButtonNode render - config:', data.config, 'activeButtons:', activeButtons.length)
   
   const handleClick = () => {
     selectNode(id)
@@ -136,7 +140,7 @@ export const TemplateButtonNode: FC<NodeProps<TemplateButtonNodeData>> = memo(({
           const spacing = 100 / (total + 1)
           const topPosition = spacing * (index + 1)
           
-          console.log(`Creating handle ${index + 1}/${total} for button:`, button.text, 'at position:', topPosition)
+          // Handle being created at calculated position
           
           return (
             <Handle

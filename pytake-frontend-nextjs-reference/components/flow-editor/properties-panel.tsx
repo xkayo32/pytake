@@ -155,13 +155,15 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
                 handleInputChange(key, checked)
                 // Forçar atualização imediata para campos importantes
                 if (key === 'captureAll' && selectedNode) {
-                  updateNodeData(selectedNode, { 
-                    config: { 
-                      ...formData,
-                      [key]: checked,
-                      customName: customName
-                    } 
-                  })
+                  // Se desativando captureAll, inicializar selectedButtons vazio
+                  const updatedConfig = { 
+                    ...formData,
+                    [key]: checked,
+                    selectedButtons: checked ? [] : (formData.selectedButtons || []),
+                    customName: customName
+                  }
+                  setFormData(updatedConfig)
+                  updateNodeData(selectedNode, { config: updatedConfig })
                 }
               }}
             />
@@ -243,28 +245,38 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         }
         
         // Se captureAll é false, mostrar checkboxes
-        if (!formData.captureAll) {
+        if (formData.captureAll === false) {
           return (
             <div className="space-y-2">
               {buttons.map((button) => {
                 const buttonId = button.id || button.text
-                const isSelected = selectedButtons.includes(buttonId)
+                const isSelected = Array.isArray(selectedButtons) && selectedButtons.includes(buttonId)
                 
                 return (
                   <div key={buttonId} className="flex items-center space-x-2">
                     <Checkbox
                       checked={isSelected}
                       onCheckedChange={(checked) => {
+                        console.log('Checkbox clicked:', buttonId, 'checked:', checked)
+                        const currentSelection = Array.isArray(selectedButtons) ? selectedButtons : []
                         const newSelection = checked
-                          ? [...selectedButtons, buttonId]
-                          : selectedButtons.filter((id: string) => id !== buttonId)
-                        handleInputChange(key, newSelection)
-                        // Forçar atualização imediata
+                          ? [...currentSelection, buttonId]
+                          : currentSelection.filter((id: string) => id !== buttonId)
+                        
+                        console.log('New selection:', newSelection)
+                        
+                        // Atualizar formData local
+                        const updatedFormData = {
+                          ...formData,
+                          selectedButtons: newSelection
+                        }
+                        setFormData(updatedFormData)
+                        
+                        // Forçar atualização imediata no nó
                         if (selectedNode) {
                           updateNodeData(selectedNode, { 
                             config: { 
-                              ...formData,
-                              [key]: newSelection,
+                              ...updatedFormData,
                               customName: customName
                             } 
                           })
@@ -273,17 +285,23 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
                     />
                     <Label className="text-sm flex items-center gap-1 cursor-pointer"
                       onClick={() => {
-                        const buttonId = button.id || button.text
-                        const isSelected = selectedButtons.includes(buttonId)
+                        const currentSelection = Array.isArray(selectedButtons) ? selectedButtons : []
                         const newSelection = !isSelected
-                          ? [...selectedButtons, buttonId]
-                          : selectedButtons.filter((id: string) => id !== buttonId)
-                        handleInputChange(key, newSelection)
+                          ? [...currentSelection, buttonId]
+                          : currentSelection.filter((id: string) => id !== buttonId)
+                        
+                        // Atualizar formData local
+                        const updatedFormData = {
+                          ...formData,
+                          selectedButtons: newSelection
+                        }
+                        setFormData(updatedFormData)
+                        
+                        // Forçar atualização imediata no nó
                         if (selectedNode) {
                           updateNodeData(selectedNode, { 
                             config: { 
-                              ...formData,
-                              [key]: newSelection,
+                              ...updatedFormData,
                               customName: customName
                             } 
                           })
