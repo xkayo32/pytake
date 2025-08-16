@@ -14,7 +14,9 @@ import {
   Users,
   MessageCircle,
   Clock,
-  Settings
+  Settings,
+  Grid3x3,
+  List
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -137,6 +139,7 @@ export default function FlowsPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards')
   const { isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
 
@@ -144,6 +147,11 @@ export default function FlowsPage() {
     // Only load flows on client side
     if (typeof window !== 'undefined') {
       console.log('Loading flows on client side...')
+      // Load view mode preference from localStorage
+      const savedViewMode = localStorage.getItem('flowsViewMode')
+      if (savedViewMode === 'list' || savedViewMode === 'cards') {
+        setViewMode(savedViewMode)
+      }
       loadFlows()
     }
   }, [])
@@ -405,10 +413,33 @@ export default function FlowsPage() {
               >
                 Rascunhos
               </Button>
+              
+              <div className="border-l mx-2" />
+              
+              <Button
+                variant={viewMode === 'cards' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setViewMode('cards')
+                  localStorage.setItem('flowsViewMode', 'cards')
+                }}
+              >
+                <Grid3x3 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setViewMode('list')
+                  localStorage.setItem('flowsViewMode', 'list')
+                }}
+              >
+                <List className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 
-          {/* Flows Grid */}
+          {/* Flows Grid or List */}
           {filteredFlows.length === 0 ? (
             <Card className="p-12">
               <div className="text-center text-muted-foreground">
@@ -428,7 +459,7 @@ export default function FlowsPage() {
                 )}
               </div>
             </Card>
-          ) : (
+          ) : viewMode === 'cards' ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredFlows.map((flow) => (
                 <Card key={flow.id} className="hover:shadow-lg transition-shadow">
@@ -531,6 +562,97 @@ export default function FlowsPage() {
                 </Card>
               ))}
             </div>
+          ) : (
+            // List View
+            <Card>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b">
+                    <tr className="text-left">
+                      <th className="p-4 font-medium">Nome</th>
+                      <th className="p-4 font-medium">Status</th>
+                      <th className="p-4 font-medium">Gatilho</th>
+                      <th className="p-4 font-medium text-center">Execuções</th>
+                      <th className="p-4 font-medium text-center">Taxa de Sucesso</th>
+                      <th className="p-4 font-medium">Atualizado</th>
+                      <th className="p-4 font-medium text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {filteredFlows.map((flow) => (
+                      <tr key={flow.id} className="hover:bg-muted/50 transition-colors">
+                        <td className="p-4">
+                          <div>
+                            <div className="font-medium">{flow.name}</div>
+                            <div className="text-sm text-muted-foreground line-clamp-1">
+                              {flow.description}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <Badge 
+                            variant="outline" 
+                            className={getStatusColor(flow.status)}
+                          >
+                            {getStatusLabel(flow.status)}
+                          </Badge>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-sm">{flow.trigger}</div>
+                        </td>
+                        <td className="p-4 text-center">
+                          <div className="font-medium">{flow.stats.executions}</div>
+                        </td>
+                        <td className="p-4 text-center">
+                          <div className="font-medium text-green-600">
+                            {flow.stats.successRate}%
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-sm">{formatDate(flow.updatedAt)}</div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex gap-1 justify-end">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(flow.id)}
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleStatusToggle(flow.id)}
+                            >
+                              {flow.status === 'active' ? (
+                                <Pause className="h-4 w-4" />
+                              ) : (
+                                <Play className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDuplicate(flow.id)}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(flow.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           )}
         </main>
       </div>
