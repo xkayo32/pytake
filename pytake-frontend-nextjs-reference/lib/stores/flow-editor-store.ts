@@ -118,9 +118,19 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
       })
     }
     
+    // Determinar o tipo de nó correto
+    let nodeTypeForReactFlow = nodeType.category
+    
+    // Usar tipos customizados para nós especiais
+    if (nodeType.id === 'trigger_template_button') {
+      nodeTypeForReactFlow = 'trigger_template_button'
+    } else if (nodeType.id === 'msg_negotiation_template') {
+      nodeTypeForReactFlow = 'msg_negotiation_template'
+    }
+    
     const newNode: Node = {
       id: `node-${Date.now()}`,
-      type: nodeType.category,
+      type: nodeTypeForReactFlow,
       position,
       data: {
         label: nodeType.name,

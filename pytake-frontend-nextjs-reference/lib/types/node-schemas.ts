@@ -2,7 +2,7 @@
 // Este arquivo centraliza todas as configurações e schemas de propriedades
 
 export interface NodeSchema {
-  type: 'text' | 'textarea' | 'select' | 'number' | 'boolean' | 'json' | 'array'
+  type: 'text' | 'textarea' | 'select' | 'number' | 'boolean' | 'json' | 'array' | 'template_select' | 'button_select'
   label: string
   placeholder?: string
   options?: Array<{ value: string; label: string }>
@@ -13,6 +13,7 @@ export interface NodeSchema {
     max?: number
     pattern?: string
   }
+  dependsOn?: string // Campo que depende de outro campo
 }
 
 export interface NodeConfig {
@@ -164,29 +165,25 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
     color: '#22c55e',
     description: 'Responde a cliques em botões de templates',
     inputs: 0,
-    outputs: 1,
+    outputs: 1, // Será dinâmico baseado nos botões
     configSchema: {
       templateName: {
-        type: 'text',
-        label: 'Nome do Template',
-        placeholder: 'template_negociacao',
+        type: 'template_select',
+        label: 'Template WhatsApp',
+        placeholder: 'Selecione um template',
         required: true
       },
-      buttonId: {
-        type: 'text',
-        label: 'ID do Botão',
-        placeholder: 'btn_negotiate',
-        required: true
+      selectedButtons: {
+        type: 'button_select',
+        label: 'Botões para Capturar',
+        placeholder: 'Selecione os botões',
+        dependsOn: 'templateName',
+        required: false
       },
-      actionType: {
-        type: 'select',
-        label: 'Tipo de Ação',
-        options: [
-          { value: 'quick_reply', label: 'Resposta Rápida' },
-          { value: 'call_to_action', label: 'Call to Action' },
-          { value: 'url', label: 'Abrir URL' }
-        ],
-        required: true
+      captureAll: {
+        type: 'boolean',
+        label: 'Capturar todos os botões',
+        defaultValue: true
       }
     }
   },

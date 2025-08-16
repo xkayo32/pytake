@@ -19,6 +19,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
 import { getNodeConfig, validateNodeConfig } from '@/lib/types/node-schemas'
+import { getWhatsAppTemplates, getTemplateButtons } from '@/lib/data/whatsapp-templates'
+import { Checkbox } from '@/components/ui/checkbox'
 
 interface PropertiesPanelProps {
   className?: string
@@ -155,6 +157,92 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
               rows={3}
             />
             <p className="text-xs text-muted-foreground">Separe os valores com Enter</p>
+          </div>
+        )
+      
+      case 'template_select':
+        const templates = getWhatsAppTemplates()
+        return (
+          <Select
+            value={value}
+            onValueChange={(newValue) => {
+              handleInputChange(key, newValue)
+              // Limpar botões selecionados quando mudar o template
+              handleInputChange('selectedButtons', [])
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={schema.placeholder} />
+            </SelectTrigger>
+            <SelectContent>
+              {templates.map((template) => (
+                <SelectItem key={template.id} value={template.name}>
+                  <div className="flex flex-col">
+                    <span>{template.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {template.components.find(c => c.type === 'BUTTONS')?.buttons?.length || 0} botões
+                    </span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )
+      
+      case 'button_select':
+        const selectedTemplate = formData.templateName
+        if (!selectedTemplate) {
+          return (
+            <div className="text-xs text-muted-foreground p-2 border rounded">
+              Selecione um template primeiro
+            </div>
+          )
+        }
+        
+        const buttons = getTemplateButtons(selectedTemplate)
+        const selectedButtons = value || []
+        
+        if (buttons.length === 0) {
+          return (
+            <div className="text-xs text-muted-foreground p-2 border rounded">
+              Este template não possui botões
+            </div>
+          )
+        }
+        
+        return (
+          <div className="space-y-2">
+            {buttons.map((button) => {
+              const buttonId = button.id || button.text
+              const isSelected = selectedButtons.includes(buttonId)
+              
+              return (
+                <div key={buttonId} className="flex items-center space-x-2">
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={(checked) => {
+                      const newSelection = checked
+                        ? [...selectedButtons, buttonId]
+                        : selectedButtons.filter((id: string) => id !== buttonId)
+                      handleInputChange(key, newSelection)
+                    }}
+                    disabled={formData.captureAll}
+                  />
+                  <Label className="text-sm flex items-center gap-1">
+                    {button.type === 'QUICK_REPLY' && '⚡'}
+                    {button.type === 'URL' && '🔗'}
+                    {button.type === 'PHONE_NUMBER' && '📞'}
+                    <span>{button.text}</span>
+                    <span className="text-xs text-muted-foreground">({button.type})</span>
+                  </Label>
+                </div>
+              )
+            })}
+            {formData.captureAll && (
+              <p className="text-xs text-muted-foreground">
+                Todos os botões estão sendo capturados
+              </p>
+            )}
           </div>
         )
       

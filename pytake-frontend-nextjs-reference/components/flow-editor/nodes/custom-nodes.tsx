@@ -21,6 +21,7 @@ import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
 // Import specialized nodes
 import { NegotiationTemplateNode } from './negotiation-template-node'
 import { NegotiationQueueNode } from './negotiation-queue-node'
+import { TemplateButtonNode } from './template-button-node'
 
 const iconMap: Record<string, any> = {
   MessageCircle,
@@ -87,6 +88,21 @@ const renderNodePreview = (data: CustomNodeData) => {
           <>
             <div className="truncate">⏰ {data.config.time}</div>
             <div className="truncate">{data.config.frequency || 'daily'}</div>
+          </>
+        )
+      }
+      break
+      
+    case 'trigger_template_button':
+      if (data.config.templateName) {
+        const buttonCount = data.config.selectedButtons?.length || 0
+        const captureAll = data.config.captureAll
+        return (
+          <>
+            <div className="truncate">📄 {data.config.templateName}</div>
+            <div className="truncate text-[9px]">
+              {captureAll ? 'Todos botões' : `${buttonCount} botões`}
+            </div>
           </>
         )
       }
@@ -581,6 +597,7 @@ export const nodeTypes = {
   msg_negotiation_template: NegotiationTemplateNode,
   api_negotiation_queue: NegotiationQueueNode,
   api_start_negotiation_flow: BaseNode,
+  trigger_template_button: TemplateButtonNode,
 }
 
 GroupNode.displayName = 'GroupNode'
