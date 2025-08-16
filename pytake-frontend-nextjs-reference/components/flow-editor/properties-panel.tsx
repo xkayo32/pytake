@@ -72,8 +72,19 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   }
 
   const handleInputChange = (key: string, value: any) => {
+    console.log('Input change:', key, '=', value)
     const newFormData = { ...formData, [key]: value }
     setFormData(newFormData)
+    
+    // Atualizar imediatamente para campos críticos
+    if (key === 'templateName' && selectedNode) {
+      updateNodeData(selectedNode, { 
+        config: { 
+          ...newFormData,
+          customName: customName 
+        } 
+      })
+    }
   }
 
   const handleSave = () => {
@@ -164,11 +175,22 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         const templates = getWhatsAppTemplates()
         return (
           <Select
-            value={value}
+            value={value || ''}
             onValueChange={(newValue) => {
+              console.log('Template selecionado:', newValue)
               handleInputChange(key, newValue)
               // Limpar botões selecionados quando mudar o template
               handleInputChange('selectedButtons', [])
+              // Forçar atualização imediata
+              if (selectedNode) {
+                const updatedConfig = {
+                  ...formData,
+                  [key]: newValue,
+                  selectedButtons: [],
+                  captureAll: formData.captureAll !== false
+                }
+                updateNodeData(selectedNode, { config: updatedConfig })
+              }
             }}
           >
             <SelectTrigger>

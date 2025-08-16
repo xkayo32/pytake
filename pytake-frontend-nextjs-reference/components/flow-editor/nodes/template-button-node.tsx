@@ -27,10 +27,14 @@ export const TemplateButtonNode: FC<NodeProps<TemplateButtonNodeData>> = memo(({
   const selectNode = useFlowEditorStore((state) => state.selectNode)
   const setShowProperties = useFlowEditorStore((state) => state.setShowProperties)
   
+  console.log('TemplateButtonNode config:', data.config)
+  
   // Obter botões do template selecionado
   const templateButtons = data.config?.templateName 
     ? getTemplateButtons(data.config.templateName)
     : []
+  
+  console.log('Template buttons:', templateButtons)
   
   // Determinar quais botões criar handles para
   const activeButtons = data.config?.captureAll 
