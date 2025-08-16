@@ -7,6 +7,7 @@ pub mod engine;
 pub mod nodes;
 pub mod session;
 pub mod webhook;
+pub mod examples;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlowSession {

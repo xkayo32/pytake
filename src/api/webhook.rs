@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::flow::{FlowEngine, webhook::FlowWebhookHandler};
 use crate::whatsapp::types::{WebhookPayload, WebhookMessage, MessageType, InteractiveData};
 use crate::error::AppError;
+use crate::auth::Claims;
 
 #[derive(Deserialize)]
 pub struct WebhookVerification {
@@ -177,6 +178,112 @@ pub async fn test_flow_webhook(
     })))
 }
 
+/// Enviar template de negociação
+pub async fn send_negotiation_template(
+    flow_engine: web::Data<Arc<FlowEngine>>,
+    claims: web::ReqData<Claims>,
+    req: web::Json<SendNegotiationTemplateRequest>,
+) -> Result<HttpResponse, AppError> {
+    let webhook_handler = FlowWebhookHandler::new(flow_engine.get_ref().clone());
+
+    webhook_handler.send_negotiation_template(
+        &req.contact_id,
+        &req.customer_name,
+        &req.amount,
+    ).await?;
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "status": "success",
+        "message": "Negotiation template sent successfully",
+        "contact_id": req.contact_id,
+        "amount": req.amount
+    })))
+}
+
+/// Simular cenário completo de negociação
+pub async fn simulate_negotiation_scenario(
+    flow_engine: web::Data<Arc<FlowEngine>>,
+    req: web::Json<SimulateNegotiationRequest>,
+) -> Result<HttpResponse, AppError> {
+    let webhook_handler = FlowWebhookHandler::new(flow_engine.get_ref().clone());
+    
+    let mut responses = Vec::new();
+    
+    // 1. Simular clique no botão "Negociar" do template
+    let template_click = webhook_handler.handle_template_button_click(
+        req.contact_id.clone(),
+        format!("conv_{}", req.contact_id),
+        "start_flow:negotiation_flow".to_string(),
+    ).await;
+    
+    match template_click {
+        Ok(_) => responses.push("Template button clicked - negotiation flow started"),
+        Err(e) => responses.push(&format!("Error starting flow: {}", e)),
+    }
+    
+    // 2. Se especificou uma opção, simular seleção
+    if let Some(option) = &req.selected_option {
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        
+        let option_response = WebhookMessage {
+            id: "sim_nego_1".to_string(),
+            from: req.contact_id.clone(),
+            to: "test_number".to_string(),
+            timestamp: chrono::Utc::now().timestamp().to_string(),
+            message_type: MessageType::Interactive,
+            text: None,
+            interactive: Some(InteractiveData {
+                interactive_type: "list_reply".to_string(),
+                button_reply: None,
+                list_reply: Some(crate::whatsapp::types::ListReply {
+                    id: option.clone(),
+                    title: "Opção selecionada".to_string(),
+                    description: None,
+                }),
+            }),
+            image: None,
+            document: None,
+            audio: None,
+            video: None,
+        };
+        
+        match webhook_handler.handle_incoming_message(option_response).await {
+            Ok(_) => responses.push(&format!("Option '{}' selected successfully", option)),
+            Err(e) => responses.push(&format!("Error processing option: {}", e)),
+        }
+    }
+    
+    // 3. Se for proposta customizada, simular input
+    if let Some(proposal) = &req.custom_proposal {
+        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+        
+        let proposal_message = WebhookMessage {
+            id: "sim_nego_2".to_string(),
+            from: req.contact_id.clone(),
+            to: "test_number".to_string(),
+            timestamp: chrono::Utc::now().timestamp().to_string(),
+            message_type: MessageType::Text,
+            text: Some(proposal.clone()),
+            interactive: None,
+            image: None,
+            document: None,
+            audio: None,
+            video: None,
+        };
+        
+        match webhook_handler.handle_incoming_message(proposal_message).await {
+            Ok(_) => responses.push(&format!("Custom proposal '{}' submitted", proposal)),
+            Err(e) => responses.push(&format!("Error processing proposal: {}", e)),
+        }
+    }
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "status": "success",
+        "message": "Negotiation scenario simulated",
+        "steps": responses
+    })))
+}
+
 #[derive(Deserialize)]
 pub struct TemplateButtonClickRequest {
     pub contact_id: String,
@@ -197,6 +304,21 @@ pub struct TestFlowWebhookRequest {
     pub initial_message: String,
 }
 
+#[derive(Deserialize)]
+pub struct SendNegotiationTemplateRequest {
+    pub contact_id: String,
+    pub customer_name: String,
+    pub amount: String,
+    pub payment_type: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct SimulateNegotiationRequest {
+    pub contact_id: String,
+    pub selected_option: Option<String>, // discount_30, installment_2x, custom_proposal, etc
+    pub custom_proposal: Option<String>, // texto da proposta se for custom
+}
+
 pub fn configure_webhook_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/v1/webhook")
@@ -205,5 +327,7 @@ pub fn configure_webhook_routes(cfg: &mut web::ServiceConfig) {
             .route("/template-button", web::post().to(template_button_click))
             .route("/simulate-interactive", web::post().to(simulate_interactive_response))
             .route("/test-flow", web::post().to(test_flow_webhook))
+            .route("/send-negotiation-template", web::post().to(send_negotiation_template))
+            .route("/simulate-negotiation", web::post().to(simulate_negotiation_scenario))
     );
 }

@@ -4,6 +4,11 @@ use crate::whatsapp::types::{WebhookMessage, MessageType};
 use anyhow::{Result, anyhow};
 use std::sync::Arc;
 
+mod examples {
+    pub mod negotiation_flow;
+}
+use examples::negotiation_flow::{create_negotiation_flow, create_negotiation_template};
+
 pub struct FlowWebhookHandler {
     flow_engine: Arc<FlowEngine>,
 }
@@ -127,6 +132,15 @@ impl FlowWebhookHandler {
         
         match parts.as_slice() {
             ["start_flow", flow_id] => {
+                // Carregar flow se for um dos flows especiais
+                match *flow_id {
+                    "negotiation_flow" => {
+                        let negotiation_flow = create_negotiation_flow();
+                        self.flow_engine.load_flow(negotiation_flow).await;
+                    }
+                    _ => {}
+                }
+
                 // Iniciar flow específico
                 self.flow_engine.start_flow(
                     flow_id.to_string(),
@@ -138,6 +152,10 @@ impl FlowWebhookHandler {
             ["transfer", agent_id] => {
                 // TODO: Implementar transferência para agente
                 println!("Transfer to agent: {}", agent_id);
+            }
+            ["pix_payment"] => {
+                // Processar pagamento PIX direto
+                self.process_pix_payment(&contact_id, &conversation_id).await?;
             }
             _ => {
                 return Err(anyhow!("Invalid button payload: {}", button_payload));
@@ -305,5 +323,81 @@ impl FlowWebhookHandler {
                 fallback_node: Some("show_menu".to_string()),
             },
         }
+    }
+
+    /// Processar pagamento PIX direto
+    async fn process_pix_payment(&self, contact_id: &str, conversation_id: &str) -> Result<()> {
+        // Criar flow simples para pagamento PIX
+        let pix_flow = self.create_pix_payment_flow();
+        self.flow_engine.load_flow(pix_flow.clone()).await;
+        
+        self.flow_engine.start_flow(
+            pix_flow.id,
+            contact_id.to_string(),
+            conversation_id.to_string(),
+            None,
+        ).await?;
+
+        Ok(())
+    }
+
+    /// Criar flow simples para pagamento PIX
+    fn create_pix_payment_flow(&self) -> Flow {
+        Flow {
+            id: "pix_payment_flow".to_string(),
+            name: "Pagamento PIX".to_string(),
+            nodes: vec![
+                FlowNode {
+                    id: "generate_pix".to_string(),
+                    node_type: "api".to_string(),
+                    config: serde_json::to_value(ApiNode {
+                        endpoint: "/api/payments/generate-pix".to_string(),
+                        method: "POST".to_string(),
+                        headers: Some([("Authorization".to_string(), "Bearer {{api_token}}".to_string())].into()),
+                        body: Some(serde_json::json!({
+                            "contact_id": "{{contact_id}}",
+                            "amount": "{{amount}}",
+                            "description": "Pagamento de pendência"
+                        })),
+                        response_variable: Some("pix_data".to_string()),
+                    }).unwrap(),
+                    next: Some("send_pix_code".to_string()),
+                    conditions: None,
+                },
+                FlowNode {
+                    id: "send_pix_code".to_string(),
+                    node_type: "message".to_string(),
+                    config: serde_json::to_value(MessageNode {
+                        content: "💳 PIX gerado com sucesso!\n\n📋 Código PIX:\n```{{pix_code}}```\n\n⏰ Válido por 30 minutos\n💰 Valor: R$ {{amount}}\n\n📱 Copie o código e cole no seu app bancário\n\n✅ O pagamento será confirmado automaticamente".to_string(),
+                        media_type: None,
+                        media_url: None,
+                    }).unwrap(),
+                    next: Some("end".to_string()),
+                    conditions: None,
+                },
+            ],
+            variables: HashMap::new(),
+            settings: FlowSettings {
+                timeout_minutes: Some(30),
+                max_iterations: Some(5),
+                fallback_node: None,
+            },
+        }
+    }
+
+    /// Enviar template de negociação para um contato
+    pub async fn send_negotiation_template(
+        &self,
+        contact_id: &str,
+        customer_name: &str,
+        amount: &str,
+    ) -> Result<()> {
+        let template = create_negotiation_template();
+        
+        // Enviar template via WhatsApp API
+        // TODO: Implementar envio de template real
+        println!("Sending negotiation template to {} for amount {}", contact_id, amount);
+        
+        Ok(())
     }
 }
