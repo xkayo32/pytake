@@ -94,7 +94,8 @@
       "Bash(PORT=3007 npm run dev)",
       "Bash(for container in pytake-postgres-new pytake-redis nextjs-frontend pytake-nginx)",
       "Bash(do docker inspect $container --format=\"{{.Name}}: {{range $net, $v := .NetworkSettings.Networks}}{{$net}} {{end}}\")",
-      "Bash(./setup-letsencrypt.sh:*)"
+      "Bash(./setup-letsencrypt.sh:*)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": []
   },
