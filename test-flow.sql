@@ -9,7 +9,7 @@ INSERT INTO flows (
   flow_data,
   tags
 ) VALUES (
-  '11111111-1111-1111-1111-111111111111'::uuid,
+  '223e4567-e89b-12d3-a456-426614174003'::uuid,
   'Boas-vindas Novo Cliente',
   'Fluxo automático de boas-vindas para novos clientes que escrevem "oi" ou "olá"',
   'active',
@@ -52,7 +52,7 @@ INSERT INTO flows (
   flow_data,
   tags
 ) VALUES (
-  '11111111-1111-1111-1111-111111111111'::uuid,
+  '223e4567-e89b-12d3-a456-426614174003'::uuid,
   'Suporte Técnico',
   'Direciona clientes para suporte técnico e coleta informações do problema',
   'active',
@@ -95,7 +95,7 @@ INSERT INTO flows (
   flow_data,
   tags
 ) VALUES (
-  '11111111-1111-1111-1111-111111111111'::uuid,
+  '223e4567-e89b-12d3-a456-426614174003'::uuid,
   'Agendamento Consulta',
   'Permite agendar consultas através do WhatsApp com integração ao calendário',
   'draft',

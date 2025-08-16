@@ -141,42 +141,73 @@ export default function FlowsPage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/login')
-    }
-  }, [isLoading, isAuthenticated, router])
-
-  useEffect(() => {
-    if (isAuthenticated) {
+    // Only load flows on client side
+    if (typeof window !== 'undefined') {
+      console.log('Loading flows on client side...')
       loadFlows()
     }
-  }, [isAuthenticated])
+  }, [])
+
+  // useEffect(() => {
+  //   if (!isLoading && !isAuthenticated) {
+  //     router.push('/login')
+  //   }
+  // }, [isLoading, isAuthenticated, router])
+
+  // useEffect(() => {
+  //   if (isAuthenticated) {
+  //     loadFlows()
+  //   }
+  // }, [isAuthenticated])
 
   const loadFlows = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/v1/flows')
+      
+      // Check if we're on the client side
+      if (typeof window === 'undefined') {
+        console.log('Skipping fetch on server side')
+        return
+      }
+      
+      // Use Next.js API route proxy to avoid CORS issues
+      console.log('🔄 Loading flows via Next.js proxy...')
+      
+      const response = await fetch('/api/v1/flows', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('✅ Flows loaded via proxy:', data.flows?.length)
         setFlows(data.flows || [])
+        return
+      } else {
+        console.error('❌ Proxy response error:', response.status, response.statusText)
+        throw new Error(`Proxy error: ${response.status}`)
       }
     } catch (error) {
       console.error('Error loading flows:', error)
+      // Fallback to empty array on error
+      setFlows([])
     } finally {
       setLoading(false)
     }
   }
 
-  if (isLoading) {
+  // Simplified loading check for demo
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
+      <AppLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-2">Carregando flows...</span>
+        </div>
+      </AppLayout>
     )
-  }
-
-  if (!isAuthenticated) {
-    return null
   }
 
   const filteredFlows = flows.filter(flow => {

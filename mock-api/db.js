@@ -2,11 +2,11 @@ const { Pool } = require('pg');
 
 // Database connection pool
 const pool = new Pool({
-  user: process.env.POSTGRES_USER || 'pytake_admin',
-  host: 'postgres',
-  database: process.env.POSTGRES_DB || 'pytake_production',
-  password: process.env.POSTGRES_PASSWORD || 'Odc7/ffNnTnG4hkbwV+Sx2ZgK61rXW2r9U2o7Rd25DU=',
-  port: 5432,
+  user: process.env.POSTGRES_USER || 'pytake',
+  host: process.env.POSTGRES_HOST || 'localhost',
+  database: process.env.POSTGRES_DB || 'pytake',
+  password: process.env.POSTGRES_PASSWORD || 'L8RV1fe9DwP',
+  port: process.env.POSTGRES_PORT || 5433,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
