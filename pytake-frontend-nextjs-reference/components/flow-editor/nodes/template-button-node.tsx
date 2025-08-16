@@ -1,4 +1,4 @@
-import { memo, FC, useEffect } from 'react'
+import { memo, FC, useEffect, useMemo } from 'react'
 import { Handle, Position, NodeProps } from 'reactflow'
 import { MousePointer, Settings } from 'lucide-react'
 import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
@@ -27,21 +27,27 @@ export const TemplateButtonNode: FC<NodeProps<TemplateButtonNodeData>> = memo(({
   const selectNode = useFlowEditorStore((state) => state.selectNode)
   const setShowProperties = useFlowEditorStore((state) => state.setShowProperties)
   
-  console.log('TemplateButtonNode config:', data.config)
-  
   // Obter botões do template selecionado
-  const templateButtons = data.config?.templateName 
-    ? getTemplateButtons(data.config.templateName)
-    : []
-  
-  console.log('Template buttons:', templateButtons)
+  const templateButtons = useMemo(() => {
+    return data.config?.templateName 
+      ? getTemplateButtons(data.config.templateName)
+      : []
+  }, [data.config?.templateName])
   
   // Determinar quais botões criar handles para
-  const activeButtons = data.config?.captureAll 
-    ? templateButtons
-    : templateButtons.filter(btn => 
+  const activeButtons = useMemo(() => {
+    if (!templateButtons.length) return []
+    
+    if (data.config?.captureAll !== false) {
+      // Por padrão ou quando true, captura todos
+      return templateButtons
+    } else {
+      // Quando false, usa seleção manual
+      return templateButtons.filter(btn => 
         data.config?.selectedButtons?.includes(btn.id || btn.text)
       )
+    }
+  }, [templateButtons, data.config?.captureAll, data.config?.selectedButtons])
   
   const handleClick = () => {
     selectNode(id)

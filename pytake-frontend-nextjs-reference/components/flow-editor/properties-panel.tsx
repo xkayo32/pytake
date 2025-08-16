@@ -72,12 +72,11 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   }
 
   const handleInputChange = (key: string, value: any) => {
-    console.log('Input change:', key, '=', value)
     const newFormData = { ...formData, [key]: value }
     setFormData(newFormData)
     
     // Atualizar imediatamente para campos críticos
-    if (key === 'templateName' && selectedNode) {
+    if ((key === 'templateName' || key === 'selectedButtons' || key === 'captureAll') && selectedNode) {
       updateNodeData(selectedNode, { 
         config: { 
           ...newFormData,
@@ -152,7 +151,19 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
           <div className="flex items-center space-x-2">
             <Switch
               checked={Boolean(value)}
-              onCheckedChange={(checked) => handleInputChange(key, checked)}
+              onCheckedChange={(checked) => {
+                handleInputChange(key, checked)
+                // Forçar atualização imediata para campos importantes
+                if (key === 'captureAll' && selectedNode) {
+                  updateNodeData(selectedNode, { 
+                    config: { 
+                      ...formData,
+                      [key]: checked,
+                      customName: customName
+                    } 
+                  })
+                }
+              }}
             />
             <Label className="text-sm">{value ? 'Ativado' : 'Desativado'}</Label>
           </div>
@@ -177,7 +188,6 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
           <Select
             value={value || ''}
             onValueChange={(newValue) => {
-              console.log('Template selecionado:', newValue)
               handleInputChange(key, newValue)
               // Limpar botões selecionados quando mudar o template
               handleInputChange('selectedButtons', [])
@@ -232,41 +242,97 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
           )
         }
         
-        return (
-          <div className="space-y-2">
-            {buttons.map((button) => {
-              const buttonId = button.id || button.text
-              const isSelected = selectedButtons.includes(buttonId)
-              
-              return (
-                <div key={buttonId} className="flex items-center space-x-2">
-                  <Checkbox
-                    checked={isSelected}
-                    onCheckedChange={(checked) => {
-                      const newSelection = checked
-                        ? [...selectedButtons, buttonId]
-                        : selectedButtons.filter((id: string) => id !== buttonId)
-                      handleInputChange(key, newSelection)
-                    }}
-                    disabled={formData.captureAll}
-                  />
-                  <Label className="text-sm flex items-center gap-1">
-                    {button.type === 'QUICK_REPLY' && '⚡'}
-                    {button.type === 'URL' && '🔗'}
-                    {button.type === 'PHONE_NUMBER' && '📞'}
-                    <span>{button.text}</span>
-                    <span className="text-xs text-muted-foreground">({button.type})</span>
-                  </Label>
-                </div>
-              )
-            })}
-            {formData.captureAll && (
+        // Se captureAll é false, mostrar checkboxes
+        if (!formData.captureAll) {
+          return (
+            <div className="space-y-2">
+              {buttons.map((button) => {
+                const buttonId = button.id || button.text
+                const isSelected = selectedButtons.includes(buttonId)
+                
+                return (
+                  <div key={buttonId} className="flex items-center space-x-2">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={(checked) => {
+                        const newSelection = checked
+                          ? [...selectedButtons, buttonId]
+                          : selectedButtons.filter((id: string) => id !== buttonId)
+                        handleInputChange(key, newSelection)
+                        // Forçar atualização imediata
+                        if (selectedNode) {
+                          updateNodeData(selectedNode, { 
+                            config: { 
+                              ...formData,
+                              [key]: newSelection,
+                              customName: customName
+                            } 
+                          })
+                        }
+                      }}
+                    />
+                    <Label className="text-sm flex items-center gap-1 cursor-pointer"
+                      onClick={() => {
+                        const buttonId = button.id || button.text
+                        const isSelected = selectedButtons.includes(buttonId)
+                        const newSelection = !isSelected
+                          ? [...selectedButtons, buttonId]
+                          : selectedButtons.filter((id: string) => id !== buttonId)
+                        handleInputChange(key, newSelection)
+                        if (selectedNode) {
+                          updateNodeData(selectedNode, { 
+                            config: { 
+                              ...formData,
+                              [key]: newSelection,
+                              customName: customName
+                            } 
+                          })
+                        }
+                      }}
+                    >
+                      {button.type === 'QUICK_REPLY' && '⚡'}
+                      {button.type === 'URL' && '🔗'}
+                      {button.type === 'PHONE_NUMBER' && '📞'}
+                      <span>{button.text}</span>
+                      <span className="text-xs text-muted-foreground">({button.type})</span>
+                    </Label>
+                  </div>
+                )
+              })}
+              <p className="text-xs text-muted-foreground">
+                Selecione os botões que deseja capturar
+              </p>
+            </div>
+          )
+        } else {
+          // Se captureAll é true, mostrar lista desabilitada
+          return (
+            <div className="space-y-2">
+              {buttons.map((button) => {
+                const buttonId = button.id || button.text
+                
+                return (
+                  <div key={buttonId} className="flex items-center space-x-2 opacity-60">
+                    <Checkbox
+                      checked={true}
+                      disabled={true}
+                    />
+                    <Label className="text-sm flex items-center gap-1">
+                      {button.type === 'QUICK_REPLY' && '⚡'}
+                      {button.type === 'URL' && '🔗'}
+                      {button.type === 'PHONE_NUMBER' && '📞'}
+                      <span>{button.text}</span>
+                      <span className="text-xs text-muted-foreground">({button.type})</span>
+                    </Label>
+                  </div>
+                )
+              })}
               <p className="text-xs text-muted-foreground">
                 Todos os botões estão sendo capturados
               </p>
-            )}
-          </div>
-        )
+            </div>
+          )
+        }
       
       case 'select':
         return (
