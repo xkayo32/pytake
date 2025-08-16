@@ -333,7 +333,7 @@ export default function SendMessagePage() {
                   {Object.entries(variableValues).map(([num, value]) => (
                     <div key={num}>
                       <Label htmlFor={`var-${num}`}>
-                        Variável {{`{{${num}}}`}} *
+                        Variável {`{{${num}}}`} *
                       </Label>
                       <Input
                         id={`var-${num}`}

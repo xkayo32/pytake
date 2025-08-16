@@ -96,7 +96,8 @@
       "Bash(do docker inspect $container --format=\"{{.Name}}: {{range $net, $v := .NetworkSettings.Networks}}{{$net}} {{end}}\")",
       "Bash(./setup-letsencrypt.sh:*)",
       "Bash(npm uninstall:*)",
-      "Bash(NODE_OPTIONS=\"--max-old-space-size=2048\" npx next dev -p 3008)"
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=2048\" npx next dev -p 3008)",
+      "Bash(DEBUG=*)"
     ],
     "deny": []
   },
