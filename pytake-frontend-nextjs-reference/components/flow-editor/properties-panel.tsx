@@ -22,6 +22,7 @@ import { getNodeConfig, validateNodeConfig } from '@/lib/types/node-schemas'
 import { getWhatsAppTemplates, getTemplateButtons } from '@/lib/data/whatsapp-templates'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ButtonSelector } from '@/components/flow-editor/button-selector'
+import { VariableEditor } from '@/components/flow-editor/variable-editor'
 
 interface PropertiesPanelProps {
   className?: string
@@ -116,8 +117,22 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   const renderFormField = (key: string, schema: any) => {
     const value = formData[key] || ''
     
+    // Determinar se o campo suporta variáveis
+    const supportsVariables = schema.supportsVariables !== false && 
+      (schema.type === 'text' || schema.type === 'textarea')
+    
     switch (schema.type) {
       case 'text':
+        if (supportsVariables) {
+          return (
+            <VariableEditor
+              value={value}
+              onChange={(newValue) => handleInputChange(key, newValue)}
+              placeholder={schema.placeholder}
+              multiline={false}
+            />
+          )
+        }
         return (
           <Input
             type="text"
@@ -128,6 +143,16 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         )
       
       case 'textarea':
+        if (supportsVariables) {
+          return (
+            <VariableEditor
+              value={value}
+              onChange={(newValue) => handleInputChange(key, newValue)}
+              placeholder={schema.placeholder}
+              multiline={true}
+            />
+          )
+        }
         return (
           <Textarea
             value={value}

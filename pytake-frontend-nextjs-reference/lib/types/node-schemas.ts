@@ -14,6 +14,7 @@ export interface NodeSchema {
     pattern?: string
   }
   dependsOn?: string // Campo que depende de outro campo
+  supportsVariables?: boolean // Campo suporta inserção de variáveis
 }
 
 export interface NodeConfig {
@@ -231,7 +232,8 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
         type: 'textarea',
         label: 'Mensagem',
         placeholder: 'Digite sua mensagem aqui...\n\nVocê pode usar variáveis:\n{{nome}}\n{{telefone}}\n{{empresa}}',
-        required: true
+        required: true,
+        supportsVariables: true
       },
       typingDelay: {
         type: 'number',
@@ -275,7 +277,8 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
       caption: {
         type: 'textarea',
         label: 'Legenda',
-        placeholder: 'Legenda opcional da imagem'
+        placeholder: 'Legenda opcional da imagem',
+        supportsVariables: true
       },
       uploadFromComputer: {
         type: 'boolean',
@@ -315,7 +318,8 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
       variables: {
         type: 'json',
         label: 'Variáveis do Template',
-        placeholder: '{\n  "1": "{{nome}}",\n  "2": "{{empresa}}"\n}'
+        placeholder: '{\n  "1": "{{nome}}",\n  "2": "{{empresa}}"\n}',
+        supportsVariables: true
       },
       buttons: {
         type: 'json',
