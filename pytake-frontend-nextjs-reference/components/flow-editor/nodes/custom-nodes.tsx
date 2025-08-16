@@ -14,6 +14,10 @@ import {
   Zap
 } from 'lucide-react'
 
+// Import specialized nodes
+import { NegotiationTemplateNode } from './negotiation-template-node'
+import { NegotiationQueueNode } from './negotiation-queue-node'
+
 const iconMap: Record<string, any> = {
   MessageCircle,
   Brain,
@@ -309,7 +313,11 @@ export const nodeTypes = {
   database: BaseNode,
   storage: BaseNode,
   transform: BaseNode,
-  integration: BaseNode
+  integration: BaseNode,
+  // Specialized nodes
+  msg_negotiation_template: NegotiationTemplateNode,
+  api_negotiation_queue: NegotiationQueueNode,
+  api_start_negotiation_flow: BaseNode,
 }
 
 GroupNode.displayName = 'GroupNode'

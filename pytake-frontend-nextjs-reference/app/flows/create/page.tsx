@@ -16,6 +16,7 @@ import 'reactflow/dist/style.css'
 
 import { NodePalette } from '@/components/flow-editor/node-palette-v2'
 import { PropertiesPanel } from '@/components/flow-editor/properties-panel'
+import { TemplateLoader } from '@/components/flow-editor/template-loader'
 import { nodeTypes } from '@/components/flow-editor/nodes/custom-nodes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -46,6 +47,7 @@ function FlowEditor() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showPalette, setShowPalette] = useState(true)
   const [showProperties, setShowProperties] = useState(true)
+  const [showTemplates, setShowTemplates] = useState(false)
   
   const {
     flow,
@@ -141,6 +143,38 @@ function FlowEditor() {
     console.log('Testing flow...')
   }, [])
 
+  const handleLoadTemplate = useCallback((template: any) => {
+    // Carregar template no editor
+    console.log('Loading template:', template)
+    
+    // Converter nodes do template para format do ReactFlow
+    const templateNodes = template.nodes.map((node: any) => ({
+      ...node,
+      data: {
+        ...node.data,
+        // Garantir que todos os nodes tenham os dados necessários
+      }
+    }))
+    
+    const templateEdges = template.edges || []
+    
+    // Atualizar o store com os dados do template
+    setNodes(templateNodes)
+    setEdges(templateEdges)
+    
+    // Fechar painel de templates
+    setShowTemplates(false)
+    
+    // TODO: Atualizar nome do flow no store
+    console.log('Template loaded successfully!')
+  }, [setNodes, setEdges])
+
+  const handlePreviewTemplate = useCallback((template: any) => {
+    // Abrir preview do template
+    console.log('Previewing template:', template)
+    // TODO: Implementar modal de preview
+  }, [])
+
   const validation = validateFlow()
 
   if (authLoading) {
@@ -216,6 +250,16 @@ function FlowEditor() {
               <Settings className="h-3 w-3 rotate-90" />
             </Button>
             
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowTemplates(!showTemplates)}
+              className="h-7 px-2 text-xs"
+              title="Templates"
+            >
+              📋 Templates
+            </Button>
+            
             <div className="w-px h-5 bg-border mx-1" />
             
             <Button
@@ -261,6 +305,29 @@ function FlowEditor() {
         {showPalette && (
           <div className="w-64 border-r bg-background/95 backdrop-blur overflow-y-auto">
             <NodePalette onNodeDragStart={handleNodeDragStart} />
+          </div>
+        )}
+        
+        {/* Templates Panel */}
+        {showTemplates && (
+          <div className="w-96 border-r bg-background/95 backdrop-blur overflow-y-auto">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold">Templates</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowTemplates(false)}
+                  className="h-6 w-6 p-0"
+                >
+                  ✕
+                </Button>
+              </div>
+              <TemplateLoader 
+                onLoadTemplate={handleLoadTemplate}
+                onPreviewTemplate={handlePreviewTemplate}
+              />
+            </div>
           </div>
         )}
 

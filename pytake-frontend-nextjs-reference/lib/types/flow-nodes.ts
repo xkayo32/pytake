@@ -49,6 +49,20 @@ export const FLOW_NODES: NodeType[] = [
     outputs: ['trigger']
   },
   {
+    id: 'trigger_template_button',
+    category: NODE_CATEGORIES.TRIGGER,
+    name: 'Botão Template',
+    icon: 'MousePointer',
+    color: '#22c55e',
+    outputs: ['action'],
+    properties: {
+      template_name: 'string',
+      button_id: 'string',
+      action_type: 'select',
+      target_flow: 'string'
+    }
+  },
+  {
     id: 'trigger_qrcode',
     category: NODE_CATEGORIES.TRIGGER,
     name: 'QR Code Scan',
@@ -93,6 +107,35 @@ export const FLOW_NODES: NodeType[] = [
     color: '#3b82f6',
     inputs: ['trigger'],
     outputs: ['sent']
+  },
+  {
+    id: 'msg_template',
+    category: NODE_CATEGORIES.MESSAGE,
+    name: 'Template',
+    icon: 'FileText',
+    color: '#3b82f6',
+    inputs: ['trigger'],
+    outputs: ['sent', 'button_click'],
+    properties: {
+      template_name: 'string',
+      variables: 'object',
+      buttons: 'array'
+    }
+  },
+  {
+    id: 'msg_negotiation_template',
+    category: NODE_CATEGORIES.MESSAGE,
+    name: 'Template Negociação',
+    icon: 'CreditCard',
+    color: '#f59e0b',
+    inputs: ['customer_data'],
+    outputs: ['negotiate', 'pay_pix', 'talk_agent'],
+    properties: {
+      customer_name: 'string',
+      amount: 'number',
+      due_date: 'date',
+      discount_options: 'array'
+    }
   },
   {
     id: 'msg_document',
@@ -196,6 +239,36 @@ export const FLOW_NODES: NodeType[] = [
     color: '#0ea5e9',
     inputs: ['data'],
     outputs: ['response']
+  },
+  {
+    id: 'api_negotiation_queue',
+    category: NODE_CATEGORIES.API,
+    name: 'Fila Negociação',
+    icon: 'CreditCard',
+    color: '#f59e0b',
+    inputs: ['customer_data'],
+    outputs: ['queued', 'error'],
+    properties: {
+      queue_type: 'select',
+      priority: 'select',
+      department: 'string',
+      auto_assign: 'boolean'
+    }
+  },
+  {
+    id: 'api_start_negotiation_flow',
+    category: NODE_CATEGORIES.API,
+    name: 'Iniciar Negociação',
+    icon: 'PlayCircle',
+    color: '#f59e0b',
+    inputs: ['trigger'],
+    outputs: ['started', 'error'],
+    properties: {
+      flow_id: 'string',
+      customer_id: 'string',
+      amount: 'number',
+      auto_discounts: 'boolean'
+    }
   },
   {
     id: 'api_graphql',
