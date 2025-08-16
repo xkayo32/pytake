@@ -88,7 +88,8 @@
       "Bash(PORT=3004 npm run dev)",
       "Bash(PORT=3005 npm run dev)",
       "Bash(PORT=8080 npm run dev)",
-      "Bash(PORT=8082 npm run dev)"
+      "Bash(PORT=8082 npm run dev)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   },

@@ -134,20 +134,21 @@ export function Sidebar({ className = '' }: SidebarProps) {
                 key={item.name}
                 href={item.href}
                 className={`
-                  flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors overflow-hidden
+                  flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
                   ${active 
                     ? 'bg-primary/10 text-primary' 
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                   }
-                  ${isCollapsed ? 'justify-center' : ''}
                 `}
                 onClick={() => setIsMobileOpen(false)}
               >
                 <Icon className="h-4 w-4 flex-shrink-0" />
                 {!isCollapsed && (
-                  <div className="flex flex-col min-w-0 flex-1">
+                  <div className="flex flex-col min-w-0">
                     <span className="truncate">{item.name}</span>
-                    <span className="text-xs text-muted-foreground truncate">{item.description}</span>
+                    {item.description && (
+                      <span className="text-xs text-muted-foreground truncate">{item.description}</span>
+                    )}
                   </div>
                 )}
               </Link>
@@ -169,20 +170,21 @@ export function Sidebar({ className = '' }: SidebarProps) {
                 key={item.name}
                 href={item.href}
                 className={`
-                  flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors overflow-hidden
+                  flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
                   ${active 
                     ? 'bg-primary/10 text-primary' 
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                   }
-                  ${isCollapsed ? 'justify-center' : ''}
                 `}
                 onClick={() => setIsMobileOpen(false)}
               >
                 <Icon className="h-4 w-4 flex-shrink-0" />
                 {!isCollapsed && (
-                  <div className="flex flex-col min-w-0 flex-1">
+                  <div className="flex flex-col min-w-0">
                     <span className="truncate">{item.name}</span>
-                    <span className="text-xs text-muted-foreground truncate">{item.description}</span>
+                    {item.description && (
+                      <span className="text-xs text-muted-foreground truncate">{item.description}</span>
+                    )}
                   </div>
                 )}
               </Link>
