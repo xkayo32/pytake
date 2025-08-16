@@ -29,25 +29,36 @@ export const TemplateButtonNode: FC<NodeProps<TemplateButtonNodeData>> = memo(({
   
   // Obter botões do template selecionado
   const templateButtons = useMemo(() => {
-    return data.config?.templateName 
+    const buttons = data.config?.templateName 
       ? getTemplateButtons(data.config.templateName)
       : []
+    console.log('Template buttons loaded:', data.config?.templateName, buttons)
+    return buttons
   }, [data.config?.templateName])
   
   // Determinar quais botões criar handles para
   const activeButtons = useMemo(() => {
-    if (!templateButtons.length) return []
+    if (!templateButtons.length) {
+      console.log('No template buttons available')
+      return []
+    }
     
+    let result = []
     if (data.config?.captureAll !== false) {
       // Por padrão ou quando true, captura todos
-      return templateButtons
+      result = templateButtons
+      console.log('CaptureAll is true, using all buttons:', result.length)
     } else {
       // Quando false, usa seleção manual
-      return templateButtons.filter(btn => 
+      result = templateButtons.filter(btn => 
         data.config?.selectedButtons?.includes(btn.id || btn.text)
       )
+      console.log('CaptureAll is false, selected buttons:', result.length, data.config?.selectedButtons)
     }
+    return result
   }, [templateButtons, data.config?.captureAll, data.config?.selectedButtons])
+  
+  console.log('TemplateButtonNode render - config:', data.config, 'activeButtons:', activeButtons.length)
   
   const handleClick = () => {
     selectNode(id)
@@ -125,9 +136,11 @@ export const TemplateButtonNode: FC<NodeProps<TemplateButtonNodeData>> = memo(({
           const spacing = 100 / (total + 1)
           const topPosition = spacing * (index + 1)
           
+          console.log(`Creating handle ${index + 1}/${total} for button:`, button.text, 'at position:', topPosition)
+          
           return (
             <Handle
-              key={button.id || index}
+              key={button.id || button.text || index}
               type="source"
               position={Position.Right}
               id={button.id || button.text}

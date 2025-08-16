@@ -124,6 +124,7 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
     // Usar tipos customizados para nós especiais
     if (nodeType.id === 'trigger_template_button') {
       nodeTypeForReactFlow = 'trigger_template_button'
+      console.log('Creating TemplateButtonNode with type:', nodeTypeForReactFlow)
     } else if (nodeType.id === 'msg_negotiation_template') {
       nodeTypeForReactFlow = 'msg_negotiation_template'
     }
@@ -412,9 +413,22 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
         const hoursDiff = (now.getTime() - timestamp.getTime()) / (1000 * 60 * 60)
         
         if (hoursDiff < 24) {
+          // Verificar e corrigir tipos de nós especiais
+          const nodes = (parsed.nodes || []).map((node: any) => {
+            // Garantir que nós especiais mantenham seu tipo
+            if (node.data?.nodeType === 'trigger_template_button' && node.type !== 'trigger_template_button') {
+              console.log('Fixing node type for trigger_template_button')
+              return { ...node, type: 'trigger_template_button' }
+            }
+            if (node.data?.nodeType === 'msg_negotiation_template' && node.type !== 'msg_negotiation_template') {
+              return { ...node, type: 'msg_negotiation_template' }
+            }
+            return node
+          })
+          
           set({
             flow: parsed.flow,
-            nodes: parsed.nodes || [],
+            nodes,
             edges: parsed.edges || [],
             isDirty: false
           })
