@@ -18,14 +18,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { 
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command'
 import { Plus, Variable, Eye, EyeOff, Search, Hash } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
