@@ -14,7 +14,6 @@ import {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 
-import { AppLayout } from '@/components/layout/app-layout'
 import { NodePalette } from '@/components/flow-editor/node-palette'
 import { PropertiesPanel } from '@/components/flow-editor/properties-panel'
 import { TriggerNode, ActionNode, ConditionNode, DataNode } from '@/components/flow-editor/nodes/base-node'
@@ -32,8 +31,11 @@ import {
   AlertCircle, 
   CheckCircle, 
   Settings,
-  Eye
+  Eye,
+  Maximize2,
+  Minimize2
 } from 'lucide-react'
+import { useState } from 'react'
 
 const nodeTypes = {
   trigger: TriggerNode,
@@ -46,6 +48,9 @@ function FlowEditor() {
   const router = useRouter()
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const { project } = useReactFlow()
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [showPalette, setShowPalette] = useState(true)
+  const [showProperties, setShowProperties] = useState(true)
   
   const {
     flow,
@@ -76,7 +81,6 @@ function FlowEditor() {
   }, [authLoading, isAuthenticated, router])
 
   useEffect(() => {
-    // Create a new flow on component mount
     createNewFlow()
   }, [createNewFlow])
 
@@ -106,11 +110,6 @@ function FlowEditor() {
     [project, addNode]
   )
 
-  const handleNodeDragStart = (nodeType: NodeType) => {
-    // This is handled by the NodePalette component
-    console.log('Node drag started:', nodeType.name)
-  }
-
   const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
     selectNode(node.id)
   }, [selectNode])
@@ -124,30 +123,34 @@ function FlowEditor() {
     selectEdge(null)
   }, [selectNode, selectEdge])
 
-  const handleSave = async () => {
-    await saveFlow()
-  }
+  const handleNodeDragStart = useCallback((nodeType: NodeType) => {
+    // Node drag started from palette
+  }, [])
 
-  const handleTest = () => {
-    // TODO: Implement flow testing
-    console.log('Testing flow...')
-  }
-
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (isDirty) {
-      if (confirm('Você tem alterações não salvas. Deseja continuar?')) {
+      if (confirm('Você tem alterações não salvas. Deseja sair mesmo assim?')) {
         router.push('/flows')
       }
     } else {
       router.push('/flows')
     }
-  }
+  }, [isDirty, router])
+
+  const handleSave = useCallback(async () => {
+    await saveFlow()
+  }, [saveFlow])
+
+  const handleTest = useCallback(() => {
+    // TODO: Implement flow testing
+    console.log('Testing flow...')
+  }, [])
 
   const validation = validateFlow()
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     )
@@ -158,168 +161,188 @@ function FlowEditor() {
   }
 
   return (
-    <AppLayout>
-      <div className="flex flex-col h-full">
-        {/* Header */}
-        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
-          <div className="container flex h-16 items-center justify-between px-4">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={handleBack}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar
-              </Button>
-              
-              <div className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-primary" />
-                <div>
-                  <h1 className="text-lg font-semibold">
-                    {flow?.name || 'Novo Flow'}
-                  </h1>
-                  <div className="flex items-center gap-2">
-                    {validation.isValid ? (
-                      <div className="flex items-center gap-1 text-sm text-green-600">
-                        <CheckCircle className="h-3 w-3" />
-                        <span>Válido</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1 text-sm text-red-600">
-                        <AlertCircle className="h-3 w-3" />
-                        <span>{validation.errors.length} erro{validation.errors.length > 1 ? 's' : ''}</span>
-                      </div>
-                    )}
-                    
-                    {isDirty && (
-                      <Badge variant="secondary" className="text-xs">
-                        Não salvo
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Nome do flow..."
-                value={flow?.name || ''}
-                onChange={(e) => {
-                  // TODO: Update flow name
-                }}
-                className="w-48"
-              />
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleTest}
-                disabled={!validation.isValid}
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Testar
-              </Button>
-              
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={isLoading || !isDirty}
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {isLoading ? 'Salvando...' : 'Salvar'}
-              </Button>
-            </div>
-          </div>
-        </header>
-
-        {/* Editor */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Node Palette */}
-          <NodePalette onNodeDragStart={handleNodeDragStart} />
-
-          {/* Canvas */}
-          <div className="flex-1 relative" ref={reactFlowWrapper}>
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              onDragOver={onDragOver}
-              onDrop={onDrop}
-              onNodeClick={onNodeClick}
-              onEdgeClick={onEdgeClick}
-              onPaneClick={onPaneClick}
-              nodeTypes={nodeTypes}
-              fitView
-              attributionPosition="bottom-left"
-              className="bg-slate-50 dark:bg-background"
+    <div className={`flex flex-col h-screen bg-background ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
+      {/* Ultra Compact Header */}
+      <header className="border-b bg-background flex-shrink-0 h-10 flex items-center px-2">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleBack}
+              className="h-7 w-7 p-0"
             >
-              <Background 
-                variant={BackgroundVariant.Dots} 
-                gap={20} 
-                size={1}
-                className="opacity-50"
-              />
-              <Controls 
-                position="bottom-right"
-                className="bg-background border shadow-lg"
-              />
-              <MiniMap 
-                position="bottom-left"
-                className="bg-background border shadow-lg"
-                nodeColor={(node) => node.data.color || '#94a3b8'}
-                maskColor="rgba(0,0,0,0.1)"
-              />
-
-              {/* Validation Errors Panel */}
-              {!validation.isValid && (
-                <Panel position="top-center">
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 max-w-md">
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertCircle className="h-4 w-4 text-red-600" />
-                      <span className="font-medium text-red-800">
-                        Erros de Validação
-                      </span>
-                    </div>
-                    <ul className="text-sm text-red-700 space-y-1">
-                      {validation.errors.map((error, index) => (
-                        <li key={index} className="flex items-center gap-1">
-                          <div className="w-1 h-1 bg-red-600 rounded-full" />
-                          {error}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </Panel>
+              <ArrowLeft className="h-3 w-3" />
+            </Button>
+            
+            <Zap className="h-3 w-3 text-primary" />
+            
+            <Input
+              placeholder="Flow name..."
+              value={flow?.name || ''}
+              onChange={(e) => {
+                // TODO: Update flow name
+              }}
+              className="w-32 h-7 text-xs"
+            />
+            
+            <div className="flex items-center gap-1">
+              {validation.isValid ? (
+                <CheckCircle className="h-3 w-3 text-green-600" />
+              ) : (
+                <div className="flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3 text-red-600" />
+                  <span className="text-xs text-red-600">{validation.errors.length}</span>
+                </div>
               )}
-
-              {/* Empty State */}
-              {nodes.length === 0 && (
-                <Panel position="top-center">
-                  <div className="bg-background border border-border rounded-lg p-6 shadow-lg max-w-md text-center">
-                    <Zap className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                    <h3 className="font-medium mb-2">Crie seu primeiro flow</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Arraste componentes da barra lateral para o canvas e conecte-os para criar um fluxo de automação.
-                    </p>
-                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                      <div className="flex gap-0.5">
-                        <div className="w-1 h-1 bg-muted-foreground rounded-full opacity-50"></div>
-                        <div className="w-1 h-1 bg-muted-foreground rounded-full opacity-50"></div>
-                        <div className="w-1 h-1 bg-muted-foreground rounded-full opacity-50"></div>
-                      </div>
-                      <span>Comece arrastando um "Gatilho"</span>
-                    </div>
-                  </div>
-                </Panel>
-              )}
-            </ReactFlow>
+              
+              {isDirty && <div className="w-1 h-1 bg-orange-500 rounded-full" />}
+            </div>
           </div>
 
-          {/* Properties Panel */}
-          <PropertiesPanel />
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowPalette(!showPalette)}
+              className="h-7 w-7 p-0"
+              title="Toggle Palette"
+            >
+              <Settings className="h-3 w-3" />
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowProperties(!showProperties)}
+              className="h-7 w-7 p-0"
+              title="Toggle Properties"
+            >
+              <Settings className="h-3 w-3 rotate-90" />
+            </Button>
+            
+            <div className="w-px h-5 bg-border mx-1" />
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleTest}
+              disabled={!validation.isValid}
+              className="h-7 px-2 text-xs"
+            >
+              <Eye className="h-3 w-3 mr-1" />
+              Test
+            </Button>
+            
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={isLoading || !isDirty}
+              className="h-7 px-2 text-xs"
+            >
+              <Save className="h-3 w-3 mr-1" />
+              Save
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="h-7 w-7 p-0"
+            >
+              {isFullscreen ? (
+                <Minimize2 className="h-3 w-3" />
+              ) : (
+                <Maximize2 className="h-3 w-3" />
+              )}
+            </Button>
+          </div>
         </div>
+      </header>
+
+      {/* Editor */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Collapsible Node Palette */}
+        {showPalette && (
+          <div className="w-48 border-r bg-background/95 backdrop-blur">
+            <NodePalette onNodeDragStart={handleNodeDragStart} />
+          </div>
+        )}
+
+        {/* Canvas */}
+        <div className="flex-1 relative" ref={reactFlowWrapper}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
+            onNodeClick={onNodeClick}
+            onEdgeClick={onEdgeClick}
+            onPaneClick={onPaneClick}
+            nodeTypes={nodeTypes}
+            fitView
+            attributionPosition="bottom-left"
+            className="bg-slate-50 dark:bg-background"
+          >
+            <Background 
+              variant={BackgroundVariant.Dots} 
+              gap={20} 
+              size={1}
+              color="#e2e8f0"
+              className="opacity-50"
+            />
+            <Controls 
+              position="bottom-right"
+              className="!bg-background !border !border-border !shadow-sm"
+            />
+            <MiniMap 
+              position="top-right"
+              className="!bg-background !border !border-border !shadow-sm"
+              nodeColor={(node) => {
+                switch (node.type) {
+                  case 'trigger': return '#22c55e'
+                  case 'action': return '#3b82f6'
+                  case 'condition': return '#f59e0b'
+                  case 'data': return '#8b5cf6'
+                  default: return '#94a3b8'
+                }
+              }}
+              pannable
+              zoomable
+            />
+            
+            {/* Validation Panel */}
+            {!validation.isValid && validation.errors.length > 0 && (
+              <Panel position="top-left" className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-2 max-w-xs">
+                <div className="text-xs space-y-1">
+                  {validation.errors.slice(0, 3).map((error, index) => (
+                    <div key={index} className="flex items-start gap-1">
+                      <AlertCircle className="h-3 w-3 text-red-600 mt-0.5 flex-shrink-0" />
+                      <span className="text-red-600">{error}</span>
+                    </div>
+                  ))}
+                  {validation.errors.length > 3 && (
+                    <div className="text-red-600 text-xs">
+                      +{validation.errors.length - 3} more errors
+                    </div>
+                  )}
+                </div>
+              </Panel>
+            )}
+          </ReactFlow>
+        </div>
+
+        {/* Collapsible Properties Panel */}
+        {showProperties && selectedNode && (
+          <div className="w-64 border-l bg-background/95 backdrop-blur">
+            <PropertiesPanel />
+          </div>
+        )}
       </div>
-    </AppLayout>
+    </div>
   )
 }
 
