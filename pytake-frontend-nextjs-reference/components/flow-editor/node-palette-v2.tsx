@@ -214,11 +214,9 @@ export function NodePalette({ onNodeDragStart }: NodePaletteProps) {
                         key={node.id}
                         draggable
                         onDragStart={(e) => onDragStart(e, node)}
-                        className="flex items-center gap-1.5 p-1.5 rounded border bg-card hover:bg-accent hover:border-accent-foreground/20 cursor-move transition-all"
-                        style={{
-                          borderColor: node.color + '30',
-                          backgroundColor: node.color + '10'
-                        }}
+                        className="flex items-center gap-1.5 p-1.5 rounded border hover:scale-105 cursor-move transition-all
+                                 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800
+                                 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
                       >
                         <Icon 
                           className="h-3 w-3 flex-shrink-0" 

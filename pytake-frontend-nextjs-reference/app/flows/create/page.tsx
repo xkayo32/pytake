@@ -280,14 +280,13 @@ function FlowEditor() {
             nodeTypes={nodeTypes}
             fitView
             attributionPosition="bottom-left"
-            className="bg-slate-50 dark:bg-background"
+            className="bg-slate-50 dark:bg-slate-950"
           >
             <Background 
               variant={BackgroundVariant.Dots} 
               gap={20} 
               size={1}
-              color="#e2e8f0"
-              className="opacity-50"
+              className="[&>*]:!stroke-slate-300 dark:[&>*]:!stroke-slate-700"
             />
             <Controls 
               position="bottom-right"

@@ -44,21 +44,21 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected }) => {
   return (
     <div
       className={`
-        px-3 py-2 rounded-lg border-2 bg-background shadow-sm
+        px-3 py-2 rounded-lg border-2 shadow-sm
         min-w-[120px] transition-all
-        ${selected ? 'border-primary shadow-lg' : 'border-border'}
+        bg-white dark:bg-slate-900
+        ${selected ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'border-slate-200 dark:border-slate-700'}
         ${data.isGroup ? 'bg-accent/10' : ''}
       `}
       style={{
-        borderColor: selected ? undefined : color + '40',
-        backgroundColor: data.isGroup ? color + '08' : undefined
+        borderColor: selected ? undefined : color + '30',
       }}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className="!w-2 !h-2 !border-2"
-        style={{ backgroundColor: color, borderColor: 'white' }}
+        className="!w-2 !h-2 !border-2 !border-white dark:!border-slate-900"
+        style={{ backgroundColor: color }}
       />
       
       <div className="flex items-center gap-2">
@@ -72,7 +72,7 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected }) => {
           />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium truncate">
+          <div className="text-xs font-medium truncate text-slate-900 dark:text-slate-100">
             {data.label}
           </div>
         </div>
@@ -81,8 +81,8 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected }) => {
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-2 !h-2 !border-2"
-        style={{ backgroundColor: color, borderColor: 'white' }}
+        className="!w-2 !h-2 !border-2 !border-white dark:!border-slate-900"
+        style={{ backgroundColor: color }}
       />
     </div>
   )
@@ -95,13 +95,13 @@ export const GroupNode: FC<NodeProps<CustomNodeData>> = memo(({ data, selected }
   return (
     <div
       className={`
-        p-4 rounded-xl border-2 bg-accent/5
+        p-4 rounded-xl border-2
         min-w-[200px] min-h-[150px] transition-all
-        ${selected ? 'border-primary shadow-lg' : 'border-dashed border-border'}
+        bg-slate-50/50 dark:bg-slate-900/50
+        ${selected ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'border-dashed border-slate-300 dark:border-slate-700'}
       `}
       style={{
-        borderColor: selected ? undefined : color + '60',
-        backgroundColor: color + '05'
+        borderColor: selected ? undefined : color + '40',
       }}
     >
       <Handle
@@ -121,7 +121,7 @@ export const GroupNode: FC<NodeProps<CustomNodeData>> = memo(({ data, selected }
         </div>
       </div>
       
-      <div className="text-[10px] text-muted-foreground">
+      <div className="text-[10px] text-slate-500 dark:text-slate-400">
         Arraste nodes aqui dentro
       </div>
       
@@ -143,20 +143,20 @@ export const AINode: FC<NodeProps<CustomNodeData>> = memo(({ data, selected }) =
   return (
     <div
       className={`
-        px-3 py-2 rounded-lg border-2 bg-gradient-to-r shadow-sm
+        px-3 py-2 rounded-lg border-2 shadow-sm
         min-w-[140px] transition-all
-        ${selected ? 'border-primary shadow-lg' : 'border-border'}
+        bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800
+        ${selected ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'border-slate-200 dark:border-slate-700'}
       `}
       style={{
-        borderColor: selected ? undefined : color + '40',
-        backgroundImage: `linear-gradient(135deg, ${color}10 0%, ${color}20 100%)`
+        borderColor: selected ? undefined : color + '30',
       }}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className="!w-2 !h-2 !border-2"
-        style={{ backgroundColor: color, borderColor: 'white' }}
+        className="!w-2 !h-2 !border-2 !border-white dark:!border-slate-900"
+        style={{ backgroundColor: color }}
       />
       
       <div className="flex items-center gap-2">
@@ -173,7 +173,7 @@ export const AINode: FC<NodeProps<CustomNodeData>> = memo(({ data, selected }) =
           <div className="text-xs font-semibold truncate">
             {data.label}
           </div>
-          <div className="text-[10px] text-muted-foreground">
+          <div className="text-[10px] text-slate-500 dark:text-slate-400">
             AI Powered
           </div>
         </div>
@@ -182,8 +182,8 @@ export const AINode: FC<NodeProps<CustomNodeData>> = memo(({ data, selected }) =
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-2 !h-2 !border-2"
-        style={{ backgroundColor: color, borderColor: 'white' }}
+        className="!w-2 !h-2 !border-2 !border-white dark:!border-slate-900"
+        style={{ backgroundColor: color }}
       />
     </div>
   )
@@ -199,17 +199,15 @@ export const MessageNode: FC<NodeProps<CustomNodeData>> = memo(({ data, selected
       className={`
         px-3 py-2 rounded-lg border-2 shadow-sm
         min-w-[120px] transition-all
-        ${selected ? 'border-primary shadow-lg' : 'border-[#25d366]/40'}
+        bg-green-50 dark:bg-green-950/20
+        ${selected ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'border-green-300 dark:border-green-800'}
       `}
-      style={{
-        backgroundColor: '#25d36610'
-      }}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className="!w-2 !h-2 !border-2"
-        style={{ backgroundColor: color, borderColor: 'white' }}
+        className="!w-2 !h-2 !border-2 !border-white dark:!border-slate-900"
+        style={{ backgroundColor: color }}
       />
       
       <div className="flex items-center gap-2">
@@ -224,8 +222,8 @@ export const MessageNode: FC<NodeProps<CustomNodeData>> = memo(({ data, selected
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-2 !h-2 !border-2"
-        style={{ backgroundColor: color, borderColor: 'white' }}
+        className="!w-2 !h-2 !border-2 !border-white dark:!border-slate-900"
+        style={{ backgroundColor: color }}
       />
     </div>
   )
@@ -239,19 +237,20 @@ export const LogicNode: FC<NodeProps<CustomNodeData>> = memo(({ data, selected }
   return (
     <div
       className={`
-        px-3 py-2 rounded-lg border-2 bg-background shadow-sm
+        px-3 py-2 rounded-lg border-2 shadow-sm
         min-w-[120px] transition-all
-        ${selected ? 'border-primary shadow-lg' : 'border-border'}
+        bg-white dark:bg-slate-900
+        ${selected ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'border-slate-200 dark:border-slate-700'}
       `}
       style={{
-        borderColor: selected ? undefined : color + '40'
+        borderColor: selected ? undefined : color + '30'
       }}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className="!w-2 !h-2 !border-2"
-        style={{ backgroundColor: color, borderColor: 'white' }}
+        className="!w-2 !h-2 !border-2 !border-white dark:!border-slate-900"
+        style={{ backgroundColor: color }}
       />
       
       <div className="flex items-center gap-2">
