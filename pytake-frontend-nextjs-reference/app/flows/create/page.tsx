@@ -14,9 +14,9 @@ import {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 
-import { NodePalette } from '@/components/flow-editor/node-palette'
+import { NodePalette } from '@/components/flow-editor/node-palette-v2'
 import { PropertiesPanel } from '@/components/flow-editor/properties-panel'
-import { TriggerNode, ActionNode, ConditionNode, DataNode } from '@/components/flow-editor/nodes/base-node'
+import { nodeTypes } from '@/components/flow-editor/nodes/custom-nodes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -37,12 +37,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 
-const nodeTypes = {
-  trigger: TriggerNode,
-  action: ActionNode,
-  condition: ConditionNode,
-  data: DataNode,
-}
+// Node types imported from custom-nodes
 
 function FlowEditor() {
   const router = useRouter()
