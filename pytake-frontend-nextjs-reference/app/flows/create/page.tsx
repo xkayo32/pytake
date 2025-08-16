@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, DragEvent } from 'react'
+import { useCallback, useEffect, useRef, DragEvent, KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   ReactFlow, 
@@ -48,6 +48,7 @@ function FlowEditor() {
   const [showPalette, setShowPalette] = useState(true)
   const [showTemplates, setShowTemplates] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   
   const {
     flow,
@@ -71,7 +72,9 @@ function FlowEditor() {
     validateFlow,
     loadFromLocalStorage,
     saveToLocalStorage,
-    clearLocalStorage
+    clearLocalStorage,
+    deleteNode,
+    deleteEdge
   } = useFlowEditorStore()
 
   const { isAuthenticated, isLoading: authLoading } = useAuth()
@@ -197,6 +200,59 @@ function FlowEditor() {
     // TODO: Implementar modal de preview
   }, [])
 
+  // Adicionar handler para tecla Delete
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    // Verificar se não está digitando em um input
+    const target = event.target as HTMLElement
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+      return
+    }
+
+    // Delete ou Backspace
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+      event.preventDefault()
+      
+      if (selectedNode) {
+        // Confirmar deleção para nós importantes
+        const node = nodes.find(n => n.id === selectedNode)
+        if (node && node.type === 'trigger') {
+          if (confirm(`Deseja realmente excluir o gatilho "${node.data.config?.customName || node.data.label}"?`)) {
+            deleteNode(selectedNode)
+            setShowProperties(false)
+          }
+        } else {
+          const nodeName = node?.data.config?.customName || node?.data.label || 'nó'
+          deleteNode(selectedNode)
+          setShowProperties(false)
+          setNotification({ message: `${nodeName} removido`, type: 'info' })
+          setTimeout(() => setNotification(null), 2000)
+        }
+      } else if (selectedEdge) {
+        deleteEdge(selectedEdge)
+        setNotification({ message: 'Conexão removida', type: 'info' })
+        setTimeout(() => setNotification(null), 2000)
+      }
+    }
+
+    // Atalhos adicionais
+    if (event.ctrlKey || event.metaKey) {
+      switch(event.key) {
+        case 's': // Salvar
+          event.preventDefault()
+          handleSave()
+          break
+        case 'z': // Desfazer (futuro)
+          event.preventDefault()
+          console.log('Undo - não implementado ainda')
+          break
+        case 'y': // Refazer (futuro)
+          event.preventDefault()
+          console.log('Redo - não implementado ainda')
+          break
+      }
+    }
+  }, [selectedNode, selectedEdge, nodes, deleteNode, deleteEdge, setShowProperties, handleSave])
+
   const validation = validateFlow()
 
   if (authLoading) {
@@ -255,6 +311,17 @@ function FlowEditor() {
                     ? 'agora' 
                     : `há ${Math.floor((new Date().getTime() - lastSaved.getTime()) / 60000)}m`}
                 </span>
+              )}
+              
+              {notification && (
+                <div className={`
+                  px-2 py-1 rounded text-[10px] font-medium
+                  ${notification.type === 'success' ? 'bg-green-100 text-green-700' : ''}
+                  ${notification.type === 'error' ? 'bg-red-100 text-red-700' : ''}
+                  ${notification.type === 'info' ? 'bg-blue-100 text-blue-700' : ''}
+                `}>
+                  {notification.message}
+                </div>
               )}
             </div>
           </div>
@@ -362,7 +429,12 @@ function FlowEditor() {
         )}
 
         {/* Canvas */}
-        <div className="flex-1 relative" ref={reactFlowWrapper}>
+        <div 
+          className="flex-1 relative" 
+          ref={reactFlowWrapper}
+          onKeyDown={handleKeyDown}
+          tabIndex={0}
+        >
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -375,6 +447,7 @@ function FlowEditor() {
             onEdgeClick={onEdgeClick}
             onPaneClick={onPaneClick}
             nodeTypes={nodeTypes}
+            deleteKeyCode={null} // Desabilitar delete padrão do ReactFlow
             fitView
             attributionPosition="bottom-left"
             className="bg-slate-50 dark:bg-slate-950"
@@ -423,6 +496,17 @@ function FlowEditor() {
                 </div>
               </Panel>
             )}
+            
+            {/* Atalhos Panel */}
+            <Panel position="bottom-left" className="bg-background/80 backdrop-blur border rounded-lg p-2">
+              <div className="text-[10px] text-muted-foreground space-y-0.5">
+                <div className="font-medium mb-1">Atalhos:</div>
+                <div>🗑 Delete - Remover nó/conexão</div>
+                <div>⌘+S - Salvar flow</div>
+                <div>🔁 Clique - Selecionar</div>
+                <div>⚙️ Duplo clique - Editar</div>
+              </div>
+            </Panel>
           </ReactFlow>
         </div>
 
