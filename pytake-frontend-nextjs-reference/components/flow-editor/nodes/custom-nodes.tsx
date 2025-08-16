@@ -1,4 +1,4 @@
-import { memo, FC } from 'react'
+import { memo, FC, useState } from 'react'
 import { Handle, Position, NodeProps } from 'reactflow'
 import { 
   MessageCircle,
@@ -11,8 +11,12 @@ import {
   Code,
   Plug,
   Clock,
-  Zap
+  Zap,
+  Settings,
+  Copy,
+  Trash2
 } from 'lucide-react'
+import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
 
 // Import specialized nodes
 import { NegotiationTemplateNode } from './negotiation-template-node'
@@ -41,22 +45,65 @@ interface CustomNodeData {
   children?: string[]
 }
 
-const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected }) => {
+const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected, id }) => {
   const Icon = data.icon ? iconMap[data.icon] || Zap : Zap
   const color = data.color || '#6b7280'
+  const [showSettings, setShowSettings] = useState(false)
+  const [showContextMenu, setShowContextMenu] = useState(false)
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 })
+  
+  // Get store functions
+  const selectNode = useFlowEditorStore((state) => state.selectNode)
+  const setShowProperties = useFlowEditorStore((state) => state.setShowProperties)
+  const deleteNode = useFlowEditorStore((state) => state.deleteNode)
+  const updateNodeData = useFlowEditorStore((state) => state.updateNodeData)
+  
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    selectNode(id)
+    setShowProperties(true)
+  }
+  
+  const handleSettingsClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    selectNode(id)
+    setShowProperties(true)
+  }
+  
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenuPos({ x: e.clientX, y: e.clientY })
+    setShowContextMenu(true)
+    selectNode(id)
+  }
+  
+  const handleDuplicate = () => {
+    // TODO: Implement node duplication
+    setShowContextMenu(false)
+  }
+  
+  const handleDelete = () => {
+    deleteNode(id)
+    setShowContextMenu(false)
+  }
   
   return (
     <div
       className={`
         px-3 py-2 rounded-lg border-2 shadow-sm
-        min-w-[120px] transition-all
-        bg-white dark:bg-slate-900
+        min-w-[120px] transition-all cursor-pointer
+        bg-white dark:bg-slate-900 group
         ${selected ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'border-slate-200 dark:border-slate-700'}
         ${data.isGroup ? 'bg-accent/10' : ''}
       `}
       style={{
         borderColor: selected ? undefined : color + '30',
       }}
+      onDoubleClick={handleDoubleClick}
+      onContextMenu={handleContextMenu}
+      onMouseEnter={() => setShowSettings(true)}
+      onMouseLeave={() => setShowSettings(false)}
     >
       <Handle
         type="target"
@@ -65,7 +112,7 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected }) => {
         style={{ backgroundColor: color }}
       />
       
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 relative">
         <div 
           className="p-1 rounded"
           style={{ backgroundColor: color + '20' }}
@@ -79,7 +126,21 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected }) => {
           <div className="text-xs font-medium truncate text-slate-900 dark:text-slate-100">
             {data.label}
           </div>
+          {data.description && (
+            <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+              {data.description}
+            </div>
+          )}
         </div>
+        {(showSettings || selected) && (
+          <button
+            onClick={handleSettingsClick}
+            className="absolute -top-2 -right-2 p-1 bg-primary text-white rounded-full shadow-md hover:bg-primary/90 transition-all"
+            title="Configurações"
+          >
+            <Settings className="h-3 w-3" />
+          </button>
+        )}
       </div>
       
       <Handle
@@ -88,6 +149,38 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected }) => {
         className="!w-2 !h-2 !border-2 !border-white dark:!border-slate-900"
         style={{ backgroundColor: color }}
       />
+      
+      {/* Context Menu */}
+      {showContextMenu && (
+        <div
+          className="fixed z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 min-w-[150px]"
+          style={{ left: contextMenuPos.x, top: contextMenuPos.y }}
+          onMouseLeave={() => setShowContextMenu(false)}
+        >
+          <button
+            onClick={handleSettingsClick}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            Configurações
+          </button>
+          <button
+            onClick={handleDuplicate}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
+          >
+            <Copy className="h-4 w-4" />
+            Duplicar
+          </button>
+          <div className="border-t border-slate-200 dark:border-slate-700 my-1" />
+          <button
+            onClick={handleDelete}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Excluir
+          </button>
+        </div>
+      )}
     </div>
   )
 }

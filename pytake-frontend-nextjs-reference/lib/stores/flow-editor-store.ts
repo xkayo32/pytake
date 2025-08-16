@@ -13,6 +13,7 @@ interface FlowEditorStore {
   selectedEdge: string | null
   isLoading: boolean
   isDirty: boolean
+  showProperties: boolean
   
   // Editor state
   nodeTypes: NodeType[]
@@ -36,6 +37,7 @@ interface FlowEditorStore {
   // Selection
   selectNode: (nodeId: string | null) => void
   selectEdge: (edgeId: string | null) => void
+  setShowProperties: (show: boolean) => void
   
   // Flow management
   saveFlow: () => Promise<void>
@@ -55,6 +57,7 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
   selectedEdge: null,
   isLoading: false,
   isDirty: false,
+  showProperties: false,
   nodeTypes: [],
   
   // Basic setters
@@ -170,6 +173,10 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
       selectedEdge: edgeId,
       selectedNode: null
     })
+  },
+  
+  setShowProperties: (show) => {
+    set({ showProperties: show })
   },
   
   // Flow management
