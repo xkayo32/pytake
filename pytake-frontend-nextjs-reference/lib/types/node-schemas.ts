@@ -230,6 +230,12 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
     inputs: 1,
     outputs: 1,
     configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Mensagem de boas-vindas',
+        required: false
+      },
       message: {
         type: 'textarea',
         label: 'Mensagem',
@@ -270,6 +276,12 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
     inputs: 1,
     outputs: 1,
     configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Foto do produto',
+        required: false
+      },
       imageUrl: {
         type: 'text',
         label: 'URL da Imagem',
@@ -300,6 +312,12 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
     inputs: 1,
     outputs: 2,
     configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Template de boas-vindas',
+        required: false
+      },
       templateName: {
         type: 'text',
         label: 'Nome do Template',
@@ -341,6 +359,12 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
     inputs: 1,
     outputs: 3,
     configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Oferta de negociação',
+        required: false
+      },
       customerName: {
         type: 'text',
         label: 'Nome do Cliente',
