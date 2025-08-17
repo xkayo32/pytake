@@ -109,7 +109,7 @@ const renderNodePreview = (data: CustomNodeData) => {
       break
       
     case 'msg_text':
-      if (data.config.message) {
+      if (data.config?.message) {
         const preview = data.config.message.substring(0, 40)
         const hasVariables = data.config.message.includes('{{')
         return (
@@ -122,11 +122,17 @@ const renderNodePreview = (data: CustomNodeData) => {
             )}
           </>
         )
+      } else {
+        return (
+          <div className="text-[9px] text-muted-foreground">
+            Clique para configurar mensagem
+          </div>
+        )
       }
       break
       
     case 'msg_template':
-      if (data.config.templateName) {
+      if (data.config?.templateName) {
         const variableCount = data.config.variables?.filter((v: string) => v).length || 0
         return (
           <>
@@ -140,6 +146,12 @@ const renderNodePreview = (data: CustomNodeData) => {
               )}
             </div>
           </>
+        )
+      } else {
+        return (
+          <div className="text-[9px] text-muted-foreground">
+            Selecione um template
+          </div>
         )
       }
       break
@@ -158,7 +170,7 @@ const renderNodePreview = (data: CustomNodeData) => {
       break
       
     case 'msg_image':
-      if (data.config.imageUrl || data.config.caption) {
+      if (data.config?.imageUrl || data.config?.caption) {
         const urlPreview = data.config.imageUrl ? 
           (data.config.imageUrl.startsWith('http') ? new URL(data.config.imageUrl).hostname : 'Local') : null
         return (
@@ -168,6 +180,12 @@ const renderNodePreview = (data: CustomNodeData) => {
               <div className="text-[9px] truncate">📝 {data.config.caption.substring(0, 30)}</div>
             )}
           </>
+        )
+      } else {
+        return (
+          <div className="text-[9px] text-muted-foreground">
+            Adicione URL da imagem
+          </div>
         )
       }
       break
@@ -385,16 +403,23 @@ const renderNodePreview = (data: CustomNodeData) => {
   }
   
   // Fallback genérico
-  const configKeys = Object.keys(data.config).filter(k => k !== 'customName' && data.config[k])
-  if (configKeys.length > 0) {
-    return (
-      <div className="truncate">
-        ⚙️ {configKeys.length} config
-      </div>
-    )
+  if (data.config) {
+    const configKeys = Object.keys(data.config).filter(k => k !== 'customName' && data.config[k])
+    if (configKeys.length > 0) {
+      return (
+        <div className="truncate text-[9px]">
+          ⚙️ {configKeys.length} config
+        </div>
+      )
+    }
   }
   
-  return null
+  // Mensagem padrão quando não configurado
+  return (
+    <div className="text-[9px] text-muted-foreground italic">
+      Não configurado
+    </div>
+  )
 }
 
 const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected, id, type }) => {
