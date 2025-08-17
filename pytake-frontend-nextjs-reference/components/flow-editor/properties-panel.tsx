@@ -221,7 +221,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
                 if (key === 'captureAll' && !checked) {
                   handleInputChange('selectedButtons', [])
                 }
-              }
+              }}
             />
             <Label className="text-sm">{value ? 'Ativado' : 'Desativado'}</Label>
           </div>
