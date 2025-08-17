@@ -540,6 +540,14 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
                 {/* Form Fields */}
                 <div className="space-y-4">
                   {Object.entries(nodeType.configSchema).map(([key, schema]) => {
+                    console.log('🟪 Renderizando campo:', {
+                      key,
+                      type: schema.type,
+                      required: schema.required,
+                      showWhen: schema.showWhen,
+                      label: schema.label
+                    })
+                    
                     // Verificar condição showWhen
                     if (schema.showWhen) {
                       const [conditionField, conditionValue] = schema.showWhen.split(':')
@@ -549,6 +557,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
                         : currentValue?.toString() === conditionValue
                       
                       if (!shouldShow) {
+                        console.log('🚫 Campo oculto por showWhen:', key)
                         return null
                       }
                     }
