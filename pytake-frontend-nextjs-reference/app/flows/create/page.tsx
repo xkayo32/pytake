@@ -301,8 +301,11 @@ function FlowEditor() {
               onChange={(e) => {
                 const newName = e.target.value
                 if (flow) {
-                  useFlowEditorStore.getState().setFlow({ ...flow, name: newName })
-                  useFlowEditorStore.getState().setIsDirty(true)
+                  // Usar set diretamente para manter isDirty como true
+                  useFlowEditorStore.setState({ 
+                    flow: { ...flow, name: newName },
+                    isDirty: true 
+                  })
                 }
               }}
               className="w-40 h-7 text-xs font-medium"
