@@ -324,7 +324,7 @@ pub async fn execute_negotiation_flow(
                       </div>
                       <ul className="space-y-2 text-sm">
                         <li><code className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">POST /api/v1/flows/execute</code></li>
-                        <li><code className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">GET /api/v1/flows/session/{id}</code></li>
+                        <li><code className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">GET /api/v1/flows/session/{'id'}</code></li>
                         <li><code className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">POST /api/v1/flows/webhook</code></li>
                         <li><code className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">GET /api/v1/flows/templates</code></li>
                       </ul>

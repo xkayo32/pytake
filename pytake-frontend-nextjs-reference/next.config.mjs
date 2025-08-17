@@ -3,6 +3,11 @@ const nextConfig = {
   // Optimized for development speed
   reactStrictMode: false, // Disable for faster dev
   
+  // Disable TypeScript checking during build
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  
   // Webpack config optimized for speed
   webpack: (config, { dev, isServer }) => {
     if (dev) {

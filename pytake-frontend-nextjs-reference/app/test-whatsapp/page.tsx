@@ -53,7 +53,7 @@ export default function TestWhatsAppPage() {
       }
     } catch (err) {
       console.error('❌ Erro de conexão:', err)
-      setError(`Erro de conexão: ${err.message || err}`)
+      setError(`Erro de conexão: ${(err as Error)?.message || String(err)}`)
     } finally {
       setLoading(false)
     }

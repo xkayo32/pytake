@@ -50,6 +50,8 @@ interface Contact {
   unreadCount?: number
   isOnline?: boolean
   isTyping?: boolean
+  isFavorite?: boolean
+  isBlocked?: boolean
 }
 
 interface Message {
@@ -82,9 +84,9 @@ export default function WhatsAppPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [filterType, setFilterType] = useState<'all' | 'unread' | 'favorite' | 'blocked'>('all')
   const [showTemplateModal, setShowTemplateModal] = useState(false)
-  const [templates, setTemplates] = useState([])
-  const [selectedTemplate, setSelectedTemplate] = useState(null)
-  const [templateVariables, setTemplateVariables] = useState([])
+  const [templates, setTemplates] = useState<any[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null)
+  const [templateVariables, setTemplateVariables] = useState<string[]>([])
   const [requiresTemplate, setRequiresTemplate] = useState(false)
 
   // Detectar mobile
@@ -403,8 +405,8 @@ export default function WhatsAppPage() {
           name: newContact.name || newContact.phone,
           phone: newContact.phone,
           avatar: newContact.avatar_url,
-          lastMessage: null,
-          lastMessageTime: null,
+          lastMessage: undefined,
+          lastMessageTime: undefined,
           unreadCount: 0,
           isOnline: false,
           isFavorite: newContact.is_favorite || false,
