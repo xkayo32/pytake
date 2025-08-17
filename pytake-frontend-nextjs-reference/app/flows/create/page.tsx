@@ -18,6 +18,7 @@ import { NodePalette } from '@/components/flow-editor/node-palette-v2'
 import { PropertiesPanel } from '@/components/flow-editor/properties-panel'
 import { TemplateLoader } from '@/components/flow-editor/template-loader'
 import { FlowExecutorModal } from '@/components/flow-editor/flow-executor-modal'
+import { TemplateSaveModal } from '@/components/flow-editor/template-save-modal'
 import { nodeTypes } from '@/components/flow-editor/nodes/custom-nodes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -35,7 +36,8 @@ import {
   Settings,
   Eye,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Package
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -48,6 +50,7 @@ function FlowEditor() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showPalette, setShowPalette] = useState(true)
   const [showTemplates, setShowTemplates] = useState(false)
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   
@@ -361,6 +364,18 @@ function FlowEditor() {
               📋 Templates
             </Button>
             
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSaveTemplate(true)}
+              className="h-7 px-2 text-xs"
+              title="Salvar como Template"
+              disabled={nodes.length === 0}
+            >
+              <Package className="h-3 w-3 mr-1" />
+              Salvar Template
+            </Button>
+            
             <div className="w-px h-5 bg-border mx-1" />
             
             <Button
@@ -527,6 +542,19 @@ function FlowEditor() {
         open={showExecutor}
         onClose={() => setShowExecutor(false)}
         onLogsUpdate={(logs) => setExecutionLogs(logs)}
+      />
+      
+      {/* Template Save Modal */}
+      <TemplateSaveModal
+        isOpen={showSaveTemplate}
+        onClose={() => setShowSaveTemplate(false)}
+        onSave={(templateData) => {
+          setNotification({ 
+            message: `Template "${templateData.name}" salvo com sucesso!`, 
+            type: 'success' 
+          })
+          setTimeout(() => setNotification(null), 3000)
+        }}
       />
     </div>
   )
