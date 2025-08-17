@@ -37,7 +37,11 @@ import {
   Eye,
   Maximize2,
   Minimize2,
-  Package
+  Package,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -292,12 +296,16 @@ function FlowEditor() {
             <Zap className="h-3 w-3 text-primary" />
             
             <Input
-              placeholder="Flow name..."
+              placeholder="Nome do fluxo..."
               value={flow?.name || ''}
               onChange={(e) => {
-                // TODO: Update flow name
+                const newName = e.target.value
+                if (flow) {
+                  useFlowEditorStore.getState().setFlow({ ...flow, name: newName })
+                  useFlowEditorStore.getState().setIsDirty(true)
+                }
               }}
-              className="w-32 h-7 text-xs"
+              className="w-40 h-7 text-xs font-medium"
             />
             
             <div className="flex items-center gap-2">
@@ -339,9 +347,13 @@ function FlowEditor() {
               size="sm"
               onClick={() => setShowPalette(!showPalette)}
               className="h-7 w-7 p-0"
-              title="Toggle Palette"
+              title={showPalette ? "Ocultar Paleta" : "Mostrar Paleta"}
             >
-              <Settings className="h-3 w-3" />
+              {showPalette ? (
+                <PanelLeftClose className="h-3 w-3" />
+              ) : (
+                <PanelLeftOpen className="h-3 w-3" />
+              )}
             </Button>
             
             <Button
@@ -349,9 +361,13 @@ function FlowEditor() {
               size="sm"
               onClick={() => setShowProperties(!showProperties)}
               className="h-7 w-7 p-0"
-              title="Toggle Properties"
+              title={showProperties ? "Ocultar Propriedades" : "Mostrar Propriedades"}
             >
-              <Settings className="h-3 w-3 rotate-90" />
+              {showProperties ? (
+                <PanelRightClose className="h-3 w-3" />
+              ) : (
+                <PanelRightOpen className="h-3 w-3" />
+              )}
             </Button>
             
             <Button

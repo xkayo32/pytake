@@ -16,7 +16,10 @@ import {
   Clock,
   Settings,
   Grid3x3,
-  List
+  List,
+  TrendingUp,
+  Activity,
+  CheckCircle
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -327,56 +330,78 @@ export default function FlowsPage() {
         {/* Content */}
         <main className="flex-1 overflow-auto p-6">
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <Card className="border-l-4 border-l-blue-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total de Flows</CardTitle>
-                <Zap className="h-4 w-4 text-muted-foreground" />
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <Zap className="h-4 w-4 text-blue-600" />
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{totalStats.total}</div>
-                <p className="text-xs text-muted-foreground">
-                  {totalStats.active} ativos
-                </p>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-green-600 font-medium">{totalStats.active}</span>
+                  <span className="text-muted-foreground">ativos</span>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="text-orange-600 font-medium">{totalStats.total - totalStats.active}</span>
+                  <span className="text-muted-foreground">inativos</span>
+                </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-4 border-l-purple-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Execuções</CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                  <BarChart3 className="h-4 w-4 text-purple-600" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{totalStats.executions.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">
-                  Total de execuções
-                </p>
+                <div className="text-2xl font-bold">{totalStats.executions.toLocaleString('pt-BR')}</div>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <TrendingUp className="h-3 w-3 text-green-500" />
+                  <span>+12% este mês</span>
+                </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-4 border-l-green-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Taxa de Sucesso</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{totalStats.avgSuccessRate.toFixed(1)}%</div>
-                <p className="text-xs text-muted-foreground">
-                  Média de sucesso
-                </p>
+                <div className="flex items-baseline gap-2">
+                  <div className="text-2xl font-bold">{totalStats.avgSuccessRate.toFixed(1)}%</div>
+                  {totalStats.avgSuccessRate >= 90 && (
+                    <Badge variant="success" className="text-xs">Excelente</Badge>
+                  )}
+                </div>
+                <div className="mt-2 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full transition-all"
+                    style={{ width: `${totalStats.avgSuccessRate}%` }}
+                  />
+                </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-4 border-l-orange-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Conversas Ativas</CardTitle>
-                <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                  <Activity className="h-4 w-4 text-orange-600 animate-pulse" />
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">47</div>
-                <p className="text-xs text-muted-foreground">
-                  Em andamento agora
-                </p>
+                <div className="flex items-center gap-1 text-xs">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <span className="text-muted-foreground">Em andamento agora</span>
+                </div>
               </CardContent>
             </Card>
           </div>
