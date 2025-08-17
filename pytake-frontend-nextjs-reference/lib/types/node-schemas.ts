@@ -349,6 +349,115 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
     }
   },
   
+  'msg_audio': {
+    id: 'msg_audio',
+    name: 'Áudio',
+    category: 'action',
+    icon: 'Mic',
+    color: '#3b82f6',
+    description: 'Envia uma mensagem de áudio',
+    inputs: 1,
+    outputs: 1,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Áudio de instruções',
+        required: false
+      },
+      audioUrl: {
+        type: 'text',
+        label: 'URL do Áudio',
+        placeholder: 'https://exemplo.com/audio.mp3',
+        required: true
+      },
+      caption: {
+        type: 'textarea',
+        label: 'Legenda',
+        placeholder: 'Legenda opcional do áudio',
+        supportsVariables: true
+      },
+      uploadFromComputer: {
+        type: 'boolean',
+        label: 'Upload do computador',
+        defaultValue: false
+      }
+    }
+  },
+  
+  'msg_video': {
+    id: 'msg_video',
+    name: 'Vídeo',
+    category: 'action',
+    icon: 'Video',
+    color: '#3b82f6',
+    description: 'Envia um vídeo com legenda opcional',
+    inputs: 1,
+    outputs: 1,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Tutorial em vídeo',
+        required: false
+      },
+      videoUrl: {
+        type: 'text',
+        label: 'URL do Vídeo',
+        placeholder: 'https://exemplo.com/video.mp4',
+        required: true
+      },
+      caption: {
+        type: 'textarea',
+        label: 'Legenda',
+        placeholder: 'Legenda opcional do vídeo',
+        supportsVariables: true
+      },
+      uploadFromComputer: {
+        type: 'boolean',
+        label: 'Upload do computador',
+        defaultValue: false
+      }
+    }
+  },
+  
+  'msg_document': {
+    id: 'msg_document',
+    name: 'Documento',
+    category: 'action',
+    icon: 'FileText',
+    color: '#3b82f6',
+    description: 'Envia um documento (PDF, DOC, etc)',
+    inputs: 1,
+    outputs: 1,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Contrato PDF',
+        required: false
+      },
+      documentUrl: {
+        type: 'text',
+        label: 'URL do Documento',
+        placeholder: 'https://exemplo.com/documento.pdf',
+        required: true
+      },
+      filename: {
+        type: 'text',
+        label: 'Nome do arquivo',
+        placeholder: 'contrato.pdf',
+        required: true
+      },
+      caption: {
+        type: 'textarea',
+        label: 'Legenda',
+        placeholder: 'Descrição opcional do documento',
+        supportsVariables: true
+      }
+    }
+  },
+  
   'msg_negotiation_template': {
     id: 'msg_negotiation_template',
     name: 'Template de Negociação',

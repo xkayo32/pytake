@@ -138,6 +138,74 @@ const renderNodePreview = (data: CustomNodeData) => {
       }
       break
       
+    case 'msg_audio':
+      if (data.config?.audioUrl || data.config?.caption) {
+        const urlPreview = data.config.audioUrl ? 
+          (data.config.audioUrl.startsWith('http') ? new URL(data.config.audioUrl).hostname : 'Local') : null
+        return (
+          <>
+            <div className="truncate text-[10px] max-w-full">
+              🎵 {urlPreview || 'Áudio'}
+            </div>
+            {data.config.caption && (
+              <div className="text-[9px] truncate">📝 {data.config.caption.substring(0, 20)}</div>
+            )}
+          </>
+        )
+      } else {
+        return (
+          <div className="text-[9px] text-muted-foreground italic">
+            🎵 Configurar áudio
+          </div>
+        )
+      }
+      break
+      
+    case 'msg_video':
+      if (data.config?.videoUrl || data.config?.caption) {
+        const urlPreview = data.config.videoUrl ? 
+          (data.config.videoUrl.startsWith('http') ? new URL(data.config.videoUrl).hostname : 'Local') : null
+        return (
+          <>
+            <div className="truncate text-[10px] max-w-full">
+              🎥 {urlPreview || 'Vídeo'}
+            </div>
+            {data.config.caption && (
+              <div className="text-[9px] truncate">📝 {data.config.caption.substring(0, 20)}</div>
+            )}
+          </>
+        )
+      } else {
+        return (
+          <div className="text-[9px] text-muted-foreground italic">
+            🎥 Configurar vídeo
+          </div>
+        )
+      }
+      break
+      
+    case 'msg_document':
+      if (data.config?.documentUrl || data.config?.filename) {
+        const fileName = data.config.filename || 'documento'
+        return (
+          <>
+            <div className="truncate text-[10px] max-w-full">
+              📄 {fileName}
+            </div>
+            {data.config.caption && (
+              <div className="text-[9px] truncate">📝 {data.config.caption.substring(0, 20)}</div>
+            )}
+          </>
+        )
+      } else {
+        return (
+          <div className="text-[9px] text-muted-foreground italic">
+            📄 Configurar documento
+          </div>
+        )
+      }
+      break
+      
     case 'msg_template':
       if (data.config?.templateName) {
         const variableCount = data.config.variables?.filter((v: string) => v).length || 0
@@ -824,6 +892,9 @@ export const nodeTypes = {
   // Specialized nodes
   msg_text: BaseNode,
   msg_image: BaseNode,
+  msg_audio: BaseNode,
+  msg_video: BaseNode,
+  msg_document: BaseNode,
   msg_template: BaseNode,
   msg_negotiation_template: NegotiationTemplateNode,
   api_negotiation_queue: NegotiationQueueNode,

@@ -131,6 +131,12 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
       nodeTypeForReactFlow = 'msg_text'
     } else if (nodeType.id === 'msg_image') {
       nodeTypeForReactFlow = 'msg_image'
+    } else if (nodeType.id === 'msg_audio') {
+      nodeTypeForReactFlow = 'msg_audio'
+    } else if (nodeType.id === 'msg_video') {
+      nodeTypeForReactFlow = 'msg_video'
+    } else if (nodeType.id === 'msg_document') {
+      nodeTypeForReactFlow = 'msg_document'
     } else if (nodeType.id === 'msg_template') {
       nodeTypeForReactFlow = 'msg_template'
     }
