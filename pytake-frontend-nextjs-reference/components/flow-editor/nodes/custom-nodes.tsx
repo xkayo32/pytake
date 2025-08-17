@@ -50,7 +50,19 @@ interface CustomNodeData {
 
 // Função para renderizar preview dos campos principais
 const renderNodePreview = (data: CustomNodeData) => {
-  if (!data.config || !data.nodeType) return null
+  // Se não tem nodeType, retorna mensagem padrão
+  if (!data.nodeType) {
+    return (
+      <div className="text-[9px] text-muted-foreground italic">
+        Tipo não definido
+      </div>
+    )
+  }
+  
+  // Log apenas para msg_text para debug
+  if (data.nodeType === 'msg_text') {
+    console.log('msg_text preview:', { config: data.config, message: data.config?.message })
+  }
   
   // Renderizar preview baseado no tipo de nó
   switch(data.nodeType) {
@@ -109,12 +121,12 @@ const renderNodePreview = (data: CustomNodeData) => {
       break
       
     case 'msg_text':
-      if (data.config?.message) {
+      if (data.config?.message && data.config.message.trim()) {
         const preview = data.config.message.substring(0, 40)
         const hasVariables = data.config.message.includes('{{')
         return (
           <>
-            <div className="truncate">
+            <div className="truncate text-[10px]">
               💬 {preview}{data.config.message.length > 40 ? '...' : ''}
             </div>
             {hasVariables && (
@@ -124,8 +136,8 @@ const renderNodePreview = (data: CustomNodeData) => {
         )
       } else {
         return (
-          <div className="text-[9px] text-muted-foreground">
-            Clique para configurar mensagem
+          <div className="text-[9px] text-muted-foreground italic">
+            📝 Configurar mensagem
           </div>
         )
       }
