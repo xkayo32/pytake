@@ -117,12 +117,12 @@ const renderNodePreview = (data: CustomNodeData) => {
       
     case 'msg_text':
       if (data.config?.message && data.config.message.trim()) {
-        const preview = data.config.message.substring(0, 40)
+        const preview = data.config.message.substring(0, 25)
         const hasVariables = data.config.message.includes('{{')
         return (
           <>
-            <div className="truncate text-[10px]">
-              💬 {preview}{data.config.message.length > 40 ? '...' : ''}
+            <div className="truncate text-[10px] max-w-full">
+              💬 {preview}{data.config.message.length > 25 ? '...' : ''}
             </div>
             {hasVariables && (
               <div className="text-[9px] truncate">📊 Com variáveis</div>
@@ -506,7 +506,7 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected, id, type }) =
     <div
       className={`
         px-3 py-2 rounded-lg border-2 shadow-sm
-        min-w-[150px] transition-all cursor-pointer
+        min-w-[150px] max-w-[200px] transition-all cursor-pointer
         bg-white dark:bg-slate-900 group
         ${selected ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'border-slate-200 dark:border-slate-700'}
         ${data.isGroup ? 'bg-accent/10' : ''}
