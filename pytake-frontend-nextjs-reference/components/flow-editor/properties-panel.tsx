@@ -123,6 +123,12 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   const handleInputChange = (key: string, value: any) => {
     console.log(`handleInputChange: ${key} =`, value)
     const newFormData = { ...formData, [key]: value }
+    
+    // Se estamos desativando captureAll, também limpar selectedButtons no mesmo update
+    if (key === 'captureAll' && !value) {
+      newFormData.selectedButtons = []
+    }
+    
     setFormData(newFormData)
     
     // Sempre atualizar o nó em tempo real para não perder dados
@@ -230,10 +236,6 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
               onCheckedChange={(checked) => {
                 console.log(`Switch ${key} changed:`, { from: value, to: checked })
                 handleInputChange(key, checked)
-                // Se desativando captureAll, pode precisar limpar selectedButtons
-                if (key === 'captureAll' && !checked) {
-                  handleInputChange('selectedButtons', [])
-                }
               }}
             />
             <Label className="text-sm">{Boolean(value) ? 'Ativado' : 'Desativado'}</Label>
