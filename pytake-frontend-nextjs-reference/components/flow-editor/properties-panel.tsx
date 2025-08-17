@@ -285,7 +285,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
           <ButtonSelector
             buttons={buttons}
             selectedButtons={value || []}
-            captureAll={formData.captureAll !== false}
+            captureAll={formData.captureAll === true || formData.captureAll === undefined}
             onSelectionChange={(newSelection) => {
               handleInputChange('selectedButtons', newSelection)
             }}
@@ -494,20 +494,35 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
 
                 {/* Form Fields */}
                 <div className="space-y-4">
-                  {Object.entries(nodeType.configSchema).map(([key, schema]) => (
-                    <div key={key} className="space-y-2">
-                      <Label htmlFor={key} className="text-sm font-medium">
-                        {schema.label}
-                        {schema.required && <span className="text-red-500 ml-1">*</span>}
-                      </Label>
-                      {renderFormField(key, schema)}
-                      {schema.placeholder && (
-                        <p className="text-xs text-muted-foreground">
-                          {schema.placeholder}
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                  {Object.entries(nodeType.configSchema).map(([key, schema]) => {
+                    // Verificar condição showWhen
+                    if (schema.showWhen) {
+                      const [conditionField, conditionValue] = schema.showWhen.split(':')
+                      const currentValue = formData[conditionField]
+                      const shouldShow = conditionValue === 'false' 
+                        ? currentValue === false 
+                        : currentValue?.toString() === conditionValue
+                      
+                      if (!shouldShow) {
+                        return null
+                      }
+                    }
+                    
+                    return (
+                      <div key={key} className="space-y-2">
+                        <Label htmlFor={key} className="text-sm font-medium">
+                          {schema.label}
+                          {schema.required && <span className="text-red-500 ml-1">*</span>}
+                        </Label>
+                        {renderFormField(key, schema)}
+                        {schema.placeholder && (
+                          <p className="text-xs text-muted-foreground">
+                            {schema.placeholder}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </TabsContent>
 

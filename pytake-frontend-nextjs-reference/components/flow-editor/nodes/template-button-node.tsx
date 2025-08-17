@@ -42,8 +42,8 @@ export const TemplateButtonNode: FC<NodeProps<TemplateButtonNodeData>> = memo(({
     }
     
     let result = []
-    if (data.config?.captureAll !== false) {
-      // Por padrão ou quando true, captura todos
+    // Se captureAll é true ou undefined (padrão), captura todos
+    if (data.config?.captureAll === true || data.config?.captureAll === undefined) {
       result = templateButtons
     } else {
       // Quando false, usa seleção manual

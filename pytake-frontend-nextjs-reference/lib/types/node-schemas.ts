@@ -14,6 +14,7 @@ export interface NodeSchema {
     pattern?: string
   }
   dependsOn?: string // Campo que depende de outro campo
+  showWhen?: string // Condição para mostrar o campo (ex: "captureAll:false")
   supportsVariables?: boolean // Campo suporta inserção de variáveis
 }
 
@@ -174,17 +175,18 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
         placeholder: 'Selecione um template',
         required: true
       },
+      captureAll: {
+        type: 'boolean',
+        label: 'Capturar todos os botões',
+        defaultValue: true
+      },
       selectedButtons: {
         type: 'button_select',
         label: 'Botões para Capturar',
         placeholder: 'Selecione os botões',
         dependsOn: 'templateName',
+        showWhen: 'captureAll:false',
         required: false
-      },
-      captureAll: {
-        type: 'boolean',
-        label: 'Capturar todos os botões',
-        defaultValue: true
       }
     }
   },
