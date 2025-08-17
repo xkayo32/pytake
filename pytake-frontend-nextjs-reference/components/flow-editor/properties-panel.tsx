@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   Settings, 
   Trash2, 
@@ -7,7 +7,10 @@ import {
   EyeOff,
   Save,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Variable,
+  Code,
+  Wrench
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,12 +20,15 @@ import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
 import { getNodeConfig, validateNodeConfig } from '@/lib/types/node-schemas'
 import { getWhatsAppTemplates, getTemplateButtons } from '@/lib/data/whatsapp-templates'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ButtonSelector } from '@/components/flow-editor/button-selector'
 import { VariableEditor } from '@/components/flow-editor/variable-editor'
+import { VariablesPanel } from '@/components/flow-editor/variables-panel'
+import { extractVariables } from '@/lib/data/flow-variables'
 
 interface PropertiesPanelProps {
   className?: string
@@ -41,6 +47,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   const [formData, setFormData] = useState<Record<string, any>>({})
   const [isValid, setIsValid] = useState(true)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
+  const [activeTab, setActiveTab] = useState('config')
 
   const selectedNodeData = selectedNode 
     ? nodes.find(node => node.id === selectedNode)
@@ -49,6 +56,24 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   const nodeType = selectedNodeData?.data?.nodeType 
     ? getNodeConfig(selectedNodeData.data.nodeType)
     : null
+
+  // Extrair variáveis usadas nos campos do nó
+  const usedVariables = React.useMemo(() => {
+    if (!nodeType || !formData) return []
+    
+    const variables = new Set<string>()
+    
+    Object.entries(nodeType.configSchema).forEach(([key, schema]) => {
+      if (schema.supportsVariables !== false && (schema.type === 'text' || schema.type === 'textarea')) {
+        const value = formData[key] || ''
+        if (typeof value === 'string') {
+          extractVariables(value).forEach(variable => variables.add(variable))
+        }
+      }
+    })
+    
+    return Array.from(variables)
+  }, [nodeType, formData])
 
   useEffect(() => {
     if (selectedNodeData) {
@@ -429,103 +454,176 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         </div>
       </div>
 
-      {/* Configuration Form */}
-      <div className="flex-1 overflow-auto p-4">
+      {/* Tabs Content */}
+      <div className="flex-1 overflow-hidden">
         {nodeType && (
-          <div className="space-y-6">
-            {/* Validation Status */}
-            <div className="flex items-center gap-2">
-              {isValid ? (
-                <>
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm text-green-600">Configuração válida</span>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-4 w-4 text-red-600" />
-                  <span className="text-sm text-red-600">
-                    {validationErrors.length} erro{validationErrors.length > 1 ? 's' : ''}
-                  </span>
-                </>
-              )}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+            {/* Tabs List */}
+            <div className="px-4 pt-4">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="config" className="text-xs">
+                  <Settings className="h-3 w-3 mr-1" />
+                  Config
+                </TabsTrigger>
+                <TabsTrigger value="variables" className="text-xs">
+                  <Variable className="h-3 w-3 mr-1" />
+                  Variáveis
+                </TabsTrigger>
+                <TabsTrigger value="advanced" className="text-xs">
+                  <Wrench className="h-3 w-3 mr-1" />
+                  Avançado
+                </TabsTrigger>
+              </TabsList>
             </div>
 
-            {/* Validation Errors */}
-            {validationErrors.length > 0 && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <div className="text-sm text-red-800">
-                  <p className="font-medium mb-2">Erros de validação:</p>
-                  <ul className="space-y-1">
-                    {validationErrors.map((error, index) => (
-                      <li key={index} className="flex items-center gap-1">
-                        <div className="w-1 h-1 bg-red-600 rounded-full" />
-                        {error}
-                      </li>
-                    ))}
-                  </ul>
+            {/* Tab Content */}
+            <div className="flex-1 overflow-auto p-4">
+              {/* Aba de Configuração */}
+              <TabsContent value="config" className="space-y-4 mt-0">
+                {/* Validation Status */}
+                <div className="flex items-center gap-2">
+                  {isValid ? (
+                    <>
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span className="text-sm text-green-600">Configuração válida</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="h-4 w-4 text-red-600" />
+                      <span className="text-sm text-red-600">
+                        {validationErrors.length} erro{validationErrors.length > 1 ? 's' : ''}
+                      </span>
+                    </>
+                  )}
                 </div>
-              </div>
-            )}
 
-            {/* Form Fields */}
-            {Object.entries(nodeType.configSchema).map(([key, schema]) => (
-              <div key={key} className="space-y-2">
-                <Label htmlFor={key} className="text-sm font-medium">
-                  {schema.label}
-                  {schema.required && <span className="text-red-500 ml-1">*</span>}
-                </Label>
-                {renderFormField(key, schema)}
-                {schema.placeholder && (
-                  <p className="text-xs text-muted-foreground">
-                    {schema.placeholder}
-                  </p>
+                {/* Validation Errors */}
+                {validationErrors.length > 0 && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="text-sm text-red-800">
+                      <p className="font-medium mb-2">Erros de validação:</p>
+                      <ul className="space-y-1">
+                        {validationErrors.map((error, index) => (
+                          <li key={index} className="flex items-center gap-1">
+                            <div className="w-1 h-1 bg-red-600 rounded-full" />
+                            {error}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
                 )}
-              </div>
-            ))}
 
-            {/* Advanced Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Configurações Avançadas</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">ID do Node</Label>
-                  <Badge variant="secondary" className="font-mono text-xs">
-                    {selectedNode}
-                  </Badge>
+                {/* Form Fields */}
+                <div className="space-y-4">
+                  {Object.entries(nodeType.configSchema).map(([key, schema]) => (
+                    <div key={key} className="space-y-2">
+                      <Label htmlFor={key} className="text-sm font-medium">
+                        {schema.label}
+                        {schema.required && <span className="text-red-500 ml-1">*</span>}
+                      </Label>
+                      {renderFormField(key, schema)}
+                      {schema.placeholder && (
+                        <p className="text-xs text-muted-foreground">
+                          {schema.placeholder}
+                        </p>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">Tipo</Label>
-                  <Badge variant="outline" className="text-xs">
-                    {nodeType.name}
-                  </Badge>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">Categoria</Label>
-                  <Badge variant="outline" className="text-xs">
-                    {nodeType.category}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
+              </TabsContent>
 
-            {/* Debug Info */}
-            {process.env.NODE_ENV === 'development' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Debug</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-32">
-                    {JSON.stringify(formData, null, 2)}
-                  </pre>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+              {/* Aba de Variáveis */}
+              <TabsContent value="variables" className="mt-0">
+                <VariablesPanel 
+                  selectedVariables={usedVariables}
+                  showCopyButtons={true}
+                  onVariableSelect={(variableId) => {
+                    // Opcional: inserir variável no campo ativo
+                    console.log('Variable selected:', variableId)
+                  }}
+                />
+              </TabsContent>
+
+              {/* Aba Avançada */}
+              <TabsContent value="advanced" className="space-y-4 mt-0">
+                {/* Advanced Settings */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Informações do Nó</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">ID do Node</Label>
+                      <Badge variant="secondary" className="font-mono text-xs">
+                        {selectedNode}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Tipo</Label>
+                      <Badge variant="outline" className="text-xs">
+                        {nodeType.name}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Categoria</Label>
+                      <Badge variant="outline" className="text-xs">
+                        {nodeType.category}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Entradas</Label>
+                      <Badge variant="outline" className="text-xs">
+                        {nodeType.inputs}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Saídas</Label>
+                      <Badge variant="outline" className="text-xs">
+                        {nodeType.outputs}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Variáveis em Uso */}
+                {usedVariables.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Variáveis em Uso</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-1">
+                        {usedVariables.map((varId, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs font-mono">
+                            {`{{${varId}}}`}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Debug Info */}
+                {process.env.NODE_ENV === 'development' && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Debug</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-32">
+                        {JSON.stringify(formData, null, 2)}
+                      </pre>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            </div>
+          </Tabs>
         )}
       </div>
     </div>
