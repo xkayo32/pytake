@@ -463,6 +463,18 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected, id, type }) =
   const [showContextMenu, setShowContextMenu] = useState(false)
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 })
   
+  // Debug para componentes de mensagem
+  if (data.nodeType === 'msg_text' || data.label === 'Texto') {
+    console.log('BaseNode msg_text:', {
+      id,
+      type,
+      nodeType: data.nodeType,
+      label: data.label,
+      customName: data.config?.customName,
+      message: data.config?.message?.substring(0, 50)
+    })
+  }
+  
   // Get store functions
   const selectNode = useFlowEditorStore((state) => state.selectNode)
   const setShowProperties = useFlowEditorStore((state) => state.setShowProperties)
@@ -832,6 +844,9 @@ export const nodeTypes = {
   transform: BaseNode,
   integration: BaseNode,
   // Specialized nodes
+  msg_text: BaseNode,
+  msg_image: BaseNode,
+  msg_template: BaseNode,
   msg_negotiation_template: NegotiationTemplateNode,
   api_negotiation_queue: NegotiationQueueNode,
   api_start_negotiation_flow: BaseNode,

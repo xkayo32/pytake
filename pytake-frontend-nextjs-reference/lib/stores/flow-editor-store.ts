@@ -127,6 +127,12 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
       console.log('Creating TemplateButtonNode with type:', nodeTypeForReactFlow)
     } else if (nodeType.id === 'msg_negotiation_template') {
       nodeTypeForReactFlow = 'msg_negotiation_template'
+    } else if (nodeType.id === 'msg_text') {
+      nodeTypeForReactFlow = 'msg_text'
+    } else if (nodeType.id === 'msg_image') {
+      nodeTypeForReactFlow = 'msg_image'
+    } else if (nodeType.id === 'msg_template') {
+      nodeTypeForReactFlow = 'msg_template'
     }
     
     const newNode: Node = {
