@@ -121,19 +121,6 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   }
 
   const handleInputChange = (key: string, value: any) => {
-    console.log(`handleInputChange: ${key} =`, value)
-    
-    // Log específico para campo message
-    if (key === 'message') {
-      console.log('🔵 CAMPO MESSAGE ALTERADO:', {
-        key,
-        value,
-        length: value?.length,
-        selectedNode,
-        currentFormData: formData
-      })
-    }
-    
     const newFormData = { ...formData, [key]: value }
     
     // Se estamos desativando captureAll, também limpar selectedButtons no mesmo update
@@ -141,7 +128,6 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
       newFormData.selectedButtons = []
     }
     
-    console.log('🔶 newFormData após update:', newFormData)
     setFormData(newFormData)
     
     // Sempre atualizar o nó em tempo real para não perder dados
@@ -150,7 +136,6 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         ...newFormData,
         customName: customName 
       }
-      console.log(`🔴 Updating node ${selectedNode} with config:`, updatedConfig)
       updateNodeData(selectedNode, { 
         config: updatedConfig 
       })
@@ -197,10 +182,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
             <VariableEditor
               key={`${selectedNode}-${key}`} // Add key to prevent confusion
               value={value}
-              onChange={(newValue) => {
-                console.log('🟦 VariableEditor onChange TEXT:', key, newValue)
-                handleInputChange(key, newValue)
-              }}
+              onChange={(newValue) => handleInputChange(key, newValue)}
               placeholder={schema.placeholder}
               multiline={false}
             />
@@ -216,21 +198,12 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         )
       
       case 'textarea':
-        console.log('🟠 Renderizando textarea:', {
-          key,
-          value,
-          supportsVariables,
-          placeholder: schema.placeholder
-        })
         if (supportsVariables) {
           return (
             <VariableEditor
               key={`${selectedNode}-${key}`} // Add key to prevent confusion
               value={value}
-              onChange={(newValue) => {
-                console.log('🟦 VariableEditor onChange TEXTAREA:', key, newValue)
-                handleInputChange(key, newValue)
-              }}
+              onChange={(newValue) => handleInputChange(key, newValue)}
               placeholder={schema.placeholder}
               multiline={true}
             />
@@ -239,10 +212,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         return (
           <Textarea
             value={value}
-            onChange={(e) => {
-              console.log('🟫 Textarea onChange:', key, e.target.value)
-              handleInputChange(key, e.target.value)
-            }}
+            onChange={(e) => handleInputChange(key, e.target.value)}
             placeholder={schema.placeholder}
             rows={3}
           />
@@ -540,13 +510,10 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
                 {/* Form Fields */}
                 <div className="space-y-4">
                   {Object.entries(nodeType.configSchema).map(([key, schema]) => {
-                    console.log('🟪 Renderizando campo:', {
-                      key,
-                      type: schema.type,
-                      required: schema.required,
-                      showWhen: schema.showWhen,
-                      label: schema.label
-                    })
+                    // Pular customName porque já é renderizado no cabeçalho
+                    if (key === 'customName') {
+                      return null
+                    }
                     
                     // Verificar condição showWhen
                     if (schema.showWhen) {
@@ -557,7 +524,6 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
                         : currentValue?.toString() === conditionValue
                       
                       if (!shouldShow) {
-                        console.log('🚫 Campo oculto por showWhen:', key)
                         return null
                       }
                     }

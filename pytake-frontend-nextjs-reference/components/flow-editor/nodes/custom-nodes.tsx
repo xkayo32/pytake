@@ -119,7 +119,6 @@ const renderNodePreview = (data: CustomNodeData) => {
       if (data.config?.message && data.config.message.trim()) {
         const preview = data.config.message.substring(0, 40)
         const hasVariables = data.config.message.includes('{{')
-        console.log('🟢 msg_text tem mensagem:', preview)
         return (
           <>
             <div className="truncate text-[10px]">
@@ -131,7 +130,6 @@ const renderNodePreview = (data: CustomNodeData) => {
           </>
         )
       } else {
-        console.log('🔴 msg_text sem mensagem:', data.config)
         return (
           <div className="text-[9px] text-muted-foreground italic">
             📝 Configurar mensagem
@@ -454,16 +452,6 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected, id, type }) =
   const [showContextMenu, setShowContextMenu] = useState(false)
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 })
   
-  // Debug apenas para mudanças na mensagem
-  useEffect(() => {
-    if (data.nodeType === 'msg_text' && data.config?.message) {
-      console.log('🟡 BaseNode msg_text atualizado:', {
-        id,
-        customName: data.config?.customName,
-        messageLength: data.config?.message?.length
-      })
-    }
-  }, [data.config?.message, data.config?.customName, id, data.nodeType])
   
   // Get store functions
   const selectNode = useFlowEditorStore((state) => state.selectNode)
