@@ -85,6 +85,19 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
       setCustomName('')
     }
   }, [selectedNodeData])
+  
+  // Auto-save no localStorage quando houver mudanças
+  useEffect(() => {
+    const saveTimer = setTimeout(() => {
+      if (selectedNode && formData) {
+        const { saveToLocalStorage } = useFlowEditorStore.getState()
+        saveToLocalStorage()
+        console.log('Auto-save: dados salvos no localStorage')
+      }
+    }, 1000) // Salva após 1 segundo de inatividade
+    
+    return () => clearTimeout(saveTimer)
+  }, [formData, customName, selectedNode])
 
   useEffect(() => {
     validateForm()
@@ -102,8 +115,8 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
     const newFormData = { ...formData, [key]: value }
     setFormData(newFormData)
     
-    // Atualizar imediatamente para campos críticos
-    if ((key === 'templateName' || key === 'selectedButtons' || key === 'captureAll') && selectedNode) {
+    // Sempre atualizar o nó em tempo real para não perder dados
+    if (selectedNode) {
       updateNodeData(selectedNode, { 
         config: { 
           ...newFormData,
@@ -204,19 +217,11 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
               checked={Boolean(value)}
               onCheckedChange={(checked) => {
                 handleInputChange(key, checked)
-                // Forçar atualização imediata para campos importantes
-                if (key === 'captureAll' && selectedNode) {
-                  // Se desativando captureAll, inicializar selectedButtons vazio
-                  const updatedConfig = { 
-                    ...formData,
-                    [key]: checked,
-                    selectedButtons: checked ? [] : (formData.selectedButtons || []),
-                    customName: customName
-                  }
-                  setFormData(updatedConfig)
-                  updateNodeData(selectedNode, { config: updatedConfig })
+                // Se desativando captureAll, pode precisar limpar selectedButtons
+                if (key === 'captureAll' && !checked) {
+                  handleInputChange('selectedButtons', [])
                 }
-              }}
+              }
             />
             <Label className="text-sm">{value ? 'Ativado' : 'Desativado'}</Label>
           </div>
@@ -244,16 +249,6 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
               handleInputChange(key, newValue)
               // Limpar botões selecionados quando mudar o template
               handleInputChange('selectedButtons', [])
-              // Forçar atualização imediata
-              if (selectedNode) {
-                const updatedConfig = {
-                  ...formData,
-                  [key]: newValue,
-                  selectedButtons: [],
-                  captureAll: formData.captureAll !== false
-                }
-                updateNodeData(selectedNode, { config: updatedConfig })
-              }
             }}
           >
             <SelectTrigger>
@@ -292,24 +287,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
             selectedButtons={value || []}
             captureAll={formData.captureAll !== false}
             onSelectionChange={(newSelection) => {
-              console.log('ButtonSelector selection changed:', newSelection)
-              
-              // Atualizar formData local
-              const updatedFormData = {
-                ...formData,
-                selectedButtons: newSelection
-              }
-              setFormData(updatedFormData)
-              
-              // Forçar atualização imediata no nó
-              if (selectedNode) {
-                updateNodeData(selectedNode, { 
-                  config: { 
-                    ...updatedFormData,
-                    customName: customName
-                  } 
-                })
-              }
+              handleInputChange('selectedButtons', newSelection)
             }}
           />
         )
@@ -412,14 +390,14 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
               <Input
                 type="text"
                 value={customName}
-                onChange={(e) => setCustomName(e.target.value)}
-                onBlur={() => {
-                  // Salvar automaticamente o nome quando perder o foco
+                onChange={(e) => {
+                  setCustomName(e.target.value)
+                  // Salvar em tempo real
                   if (selectedNode) {
                     updateNodeData(selectedNode, { 
                       config: { 
                         ...formData, 
-                        customName: customName || selectedNodeData.data.label 
+                        customName: e.target.value || selectedNodeData.data.label 
                       } 
                     })
                   }
