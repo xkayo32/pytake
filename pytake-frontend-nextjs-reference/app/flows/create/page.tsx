@@ -412,7 +412,7 @@ function FlowEditor() {
               className="h-7 px-2 text-xs"
             >
               <Save className="h-3 w-3 mr-1" />
-              Save
+              Salvar Flow
             </Button>
             
             <Button

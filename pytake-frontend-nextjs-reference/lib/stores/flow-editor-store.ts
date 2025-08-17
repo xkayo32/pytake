@@ -471,7 +471,11 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
     const errors: string[] = []
     
     // Check if there's at least one trigger
-    const triggerNodes = nodes.filter(node => node.type === 'trigger')
+    const triggerNodes = nodes.filter(node => 
+      node.type === 'trigger' || 
+      node.type === 'trigger_template_button' ||
+      node.data?.nodeType?.startsWith('trigger_')
+    )
     if (triggerNodes.length === 0) {
       errors.push('Flow deve ter pelo menos um gatilho (trigger)')
     }
