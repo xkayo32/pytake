@@ -50,8 +50,17 @@ interface CustomNodeData {
 
 // Função para renderizar preview dos campos principais
 const renderNodePreview = (data: CustomNodeData) => {
+  console.log('renderNodePreview called with:', {
+    nodeType: data.nodeType,
+    label: data.label,
+    hasConfig: !!data.config,
+    customName: data.config?.customName,
+    message: data.config?.message?.substring(0, 30)
+  })
+  
   // Se não tem nodeType, retorna mensagem padrão
   if (!data.nodeType) {
+    console.log('nodeType não definido')
     return (
       <div className="text-[9px] text-muted-foreground italic">
         Tipo não definido
@@ -61,7 +70,7 @@ const renderNodePreview = (data: CustomNodeData) => {
   
   // Log para debug de nós de mensagem
   if (data.nodeType?.includes('msg_') || data.label === 'Texto') {
-    console.log('Message node preview debug:', { 
+    console.log('É um nó de mensagem:', { 
       nodeType: data.nodeType,
       label: data.label,
       config: data.config,
@@ -127,9 +136,15 @@ const renderNodePreview = (data: CustomNodeData) => {
       break
       
     case 'msg_text':
+      console.log('Case msg_text atingido!', {
+        hasMessage: !!data.config?.message,
+        message: data.config?.message,
+        customName: data.config?.customName
+      })
       if (data.config?.message && data.config.message.trim()) {
         const preview = data.config.message.substring(0, 40)
         const hasVariables = data.config.message.includes('{{')
+        console.log('Retornando preview de mensagem:', preview)
         return (
           <>
             <div className="truncate text-[10px]">
@@ -141,6 +156,7 @@ const renderNodePreview = (data: CustomNodeData) => {
           </>
         )
       } else {
+        console.log('Sem mensagem configurada')
         return (
           <div className="text-[9px] text-muted-foreground italic">
             📝 Configurar mensagem
@@ -464,16 +480,20 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected, id, type }) =
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 })
   
   // Debug para componentes de mensagem
-  if (data.nodeType === 'msg_text' || data.label === 'Texto') {
-    console.log('BaseNode msg_text:', {
-      id,
-      type,
-      nodeType: data.nodeType,
-      label: data.label,
-      customName: data.config?.customName,
-      message: data.config?.message?.substring(0, 50)
-    })
-  }
+  React.useEffect(() => {
+    if (data.nodeType === 'msg_text' || data.label === 'Texto' || type === 'msg_text') {
+      console.log('BaseNode render:', {
+        id,
+        type,
+        nodeType: data.nodeType,
+        label: data.label,
+        customName: data.config?.customName,
+        message: data.config?.message?.substring(0, 50),
+        hasConfig: !!data.config,
+        configKeys: data.config ? Object.keys(data.config) : []
+      })
+    }
+  }, [data.config, type, id, data.nodeType, data.label])
   
   // Get store functions
   const selectNode = useFlowEditorStore((state) => state.selectNode)
