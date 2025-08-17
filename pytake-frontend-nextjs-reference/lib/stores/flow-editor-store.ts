@@ -152,6 +152,15 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
   
   updateNodeData: (nodeId, data) => {
     const { nodes } = get()
+    const targetNode = nodes.find(node => node.id === nodeId)
+    if (targetNode) {
+      console.log(`updateNodeData for ${nodeId}:`, {
+        before: targetNode.data,
+        updating: data,
+        after: { ...targetNode.data, ...data }
+      })
+    }
+    
     const updatedNodes = nodes.map(node => 
       node.id === nodeId 
         ? { ...node, data: { ...node.data, ...data } }

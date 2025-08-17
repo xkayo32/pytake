@@ -127,11 +127,13 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
     
     // Sempre atualizar o nó em tempo real para não perder dados
     if (selectedNode) {
+      const updatedConfig = { 
+        ...newFormData,
+        customName: customName 
+      }
+      console.log(`Updating node ${selectedNode} with config:`, updatedConfig)
       updateNodeData(selectedNode, { 
-        config: { 
-          ...newFormData,
-          customName: customName 
-        } 
+        config: updatedConfig 
       })
     }
   }
