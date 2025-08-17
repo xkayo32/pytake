@@ -38,9 +38,9 @@ export function VariableEditor({
   className,
   label
 }: VariableEditorProps) {
-  console.log('🔷 VariableEditor props:', {
+  console.log(`🔷 VariableEditor ${multiline ? 'MULTILINE' : 'SINGLE'} props:`, {
     value,
-    placeholder,
+    placeholder: placeholder?.substring(0, 50),
     multiline,
     hasOnChange: !!onChange
   })
@@ -235,7 +235,7 @@ export function VariableEditor({
             ref={textareaRef}
             value={value}
             onChange={(e) => {
-              console.log('🔹 VariableEditor textarea onChange:', e.target.value)
+              console.log(`🔹 VariableEditor ${multiline ? 'MULTILINE' : 'SINGLE'} onChange:`, e.target.value)
               onChange(e.target.value)
             }}
             placeholder={placeholder}
@@ -260,7 +260,7 @@ export function VariableEditor({
               ref={inputRef}
               value={value}
               onChange={(e) => {
-              console.log('🔹 VariableEditor textarea onChange:', e.target.value)
+              console.log(`🔹 VariableEditor ${multiline ? 'MULTILINE' : 'SINGLE'} onChange:`, e.target.value)
               onChange(e.target.value)
             }}
               placeholder={placeholder}

@@ -195,8 +195,12 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         if (supportsVariables) {
           return (
             <VariableEditor
+              key={`${selectedNode}-${key}`} // Add key to prevent confusion
               value={value}
-              onChange={(newValue) => handleInputChange(key, newValue)}
+              onChange={(newValue) => {
+                console.log('🟦 VariableEditor onChange TEXT:', key, newValue)
+                handleInputChange(key, newValue)
+              }}
               placeholder={schema.placeholder}
               multiline={false}
             />
@@ -221,9 +225,10 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         if (supportsVariables) {
           return (
             <VariableEditor
+              key={`${selectedNode}-${key}`} // Add key to prevent confusion
               value={value}
               onChange={(newValue) => {
-                console.log('🟦 VariableEditor onChange:', key, newValue)
+                console.log('🟦 VariableEditor onChange TEXTAREA:', key, newValue)
                 handleInputChange(key, newValue)
               }}
               placeholder={schema.placeholder}
