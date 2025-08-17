@@ -59,9 +59,15 @@ const renderNodePreview = (data: CustomNodeData) => {
     )
   }
   
-  // Log apenas para msg_text para debug
-  if (data.nodeType === 'msg_text') {
-    console.log('msg_text preview:', { config: data.config, message: data.config?.message })
+  // Log para debug de nós de mensagem
+  if (data.nodeType?.includes('msg_') || data.label === 'Texto') {
+    console.log('Message node preview debug:', { 
+      nodeType: data.nodeType,
+      label: data.label,
+      config: data.config,
+      hasMessage: !!data.config?.message,
+      messageContent: data.config?.message
+    })
   }
   
   // Renderizar preview baseado no tipo de nó
@@ -412,6 +418,22 @@ const renderNodePreview = (data: CustomNodeData) => {
         )
       }
       break
+  }
+  
+  // Fallback para nós de texto que não foram detectados pelo switch
+  if (data.label === 'Texto' && data.config?.message) {
+    const preview = data.config.message.substring(0, 40)
+    const hasVariables = data.config.message.includes('{{')
+    return (
+      <>
+        <div className="truncate text-[10px]">
+          💬 {preview}{data.config.message.length > 40 ? '...' : ''}
+        </div>
+        {hasVariables && (
+          <div className="text-[9px] truncate">📊 Com variáveis</div>
+        )}
+      </>
+    )
   }
   
   // Fallback genérico
