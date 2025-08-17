@@ -1,4 +1,4 @@
-import { memo, FC, useState } from 'react'
+import { memo, FC, useState, useEffect } from 'react'
 import { Handle, Position, NodeProps } from 'reactflow'
 import { 
   MessageCircle,
@@ -480,7 +480,7 @@ const BaseNode: FC<NodeProps<CustomNodeData>> = ({ data, selected, id, type }) =
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 })
   
   // Debug para componentes de mensagem
-  React.useEffect(() => {
+  useEffect(() => {
     if (data.nodeType === 'msg_text' || data.label === 'Texto' || type === 'msg_text') {
       console.log('BaseNode render:', {
         id,
