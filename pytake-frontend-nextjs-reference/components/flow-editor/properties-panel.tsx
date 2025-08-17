@@ -122,6 +122,18 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
 
   const handleInputChange = (key: string, value: any) => {
     console.log(`handleInputChange: ${key} =`, value)
+    
+    // Log específico para campo message
+    if (key === 'message') {
+      console.log('🔵 CAMPO MESSAGE ALTERADO:', {
+        key,
+        value,
+        length: value?.length,
+        selectedNode,
+        currentFormData: formData
+      })
+    }
+    
     const newFormData = { ...formData, [key]: value }
     
     // Se estamos desativando captureAll, também limpar selectedButtons no mesmo update
@@ -129,6 +141,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
       newFormData.selectedButtons = []
     }
     
+    console.log('🔶 newFormData após update:', newFormData)
     setFormData(newFormData)
     
     // Sempre atualizar o nó em tempo real para não perder dados
@@ -137,7 +150,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         ...newFormData,
         customName: customName 
       }
-      console.log(`Updating node ${selectedNode} with config:`, updatedConfig)
+      console.log(`🔴 Updating node ${selectedNode} with config:`, updatedConfig)
       updateNodeData(selectedNode, { 
         config: updatedConfig 
       })
