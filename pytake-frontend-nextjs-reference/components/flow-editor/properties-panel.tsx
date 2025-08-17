@@ -76,15 +76,24 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   }, [nodeType, formData])
 
   useEffect(() => {
-    if (selectedNodeData) {
+    if (selectedNodeData && nodeType) {
       const config = selectedNodeData.data.config || {}
-      setFormData(config)
-      setCustomName(config.customName || '')
+      
+      // Aplicar valores padrão do schema quando não existirem
+      const configWithDefaults = { ...config }
+      Object.entries(nodeType.configSchema).forEach(([key, schema]) => {
+        if (schema.defaultValue !== undefined && configWithDefaults[key] === undefined) {
+          configWithDefaults[key] = schema.defaultValue
+        }
+      })
+      
+      setFormData(configWithDefaults)
+      setCustomName(configWithDefaults.customName || '')
     } else {
       setFormData({})
       setCustomName('')
     }
-  }, [selectedNodeData])
+  }, [selectedNodeData, nodeType])
   
   // Auto-save no localStorage quando houver mudanças
   useEffect(() => {
@@ -112,6 +121,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   }
 
   const handleInputChange = (key: string, value: any) => {
+    console.log(`handleInputChange: ${key} =`, value)
     const newFormData = { ...formData, [key]: value }
     setFormData(newFormData)
     
@@ -216,6 +226,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
             <Switch
               checked={Boolean(value)}
               onCheckedChange={(checked) => {
+                console.log(`Switch ${key} changed:`, { from: value, to: checked })
                 handleInputChange(key, checked)
                 // Se desativando captureAll, pode precisar limpar selectedButtons
                 if (key === 'captureAll' && !checked) {
@@ -223,7 +234,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
                 }
               }}
             />
-            <Label className="text-sm">{value ? 'Ativado' : 'Desativado'}</Label>
+            <Label className="text-sm">{Boolean(value) ? 'Ativado' : 'Desativado'}</Label>
           </div>
         )
       
