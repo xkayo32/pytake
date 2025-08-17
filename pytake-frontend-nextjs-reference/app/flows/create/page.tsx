@@ -17,6 +17,7 @@ import 'reactflow/dist/style.css'
 import { NodePalette } from '@/components/flow-editor/node-palette-v2'
 import { PropertiesPanel } from '@/components/flow-editor/properties-panel'
 import { TemplateLoader } from '@/components/flow-editor/template-loader'
+import { FlowExecutorModal } from '@/components/flow-editor/flow-executor-modal'
 import { nodeTypes } from '@/components/flow-editor/nodes/custom-nodes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -164,9 +165,11 @@ function FlowEditor() {
     clearLocalStorage() // Limpar rascunho após salvar com sucesso
   }, [saveFlow, clearLocalStorage])
 
+  const [showExecutor, setShowExecutor] = useState(false)
+  const [executionLogs, setExecutionLogs] = useState<any[]>([])
+  
   const handleTest = useCallback(() => {
-    // TODO: Implement flow testing
-    console.log('Testing flow...')
+    setShowExecutor(true)
   }, [])
 
   const handleLoadTemplate = useCallback((template: any) => {
@@ -518,6 +521,13 @@ function FlowEditor() {
           </div>
         )}
       </div>
+      
+      {/* Flow Executor Modal */}
+      <FlowExecutorModal
+        open={showExecutor}
+        onClose={() => setShowExecutor(false)}
+        onLogsUpdate={(logs) => setExecutionLogs(logs)}
+      />
     </div>
   )
 }
