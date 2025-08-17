@@ -38,6 +38,12 @@ export function VariableEditor({
   className,
   label
 }: VariableEditorProps) {
+  console.log('🔷 VariableEditor props:', {
+    value,
+    placeholder,
+    multiline,
+    hasOnChange: !!onChange
+  })
   const [showPreview, setShowPreview] = useState(false)
   const [showVariables, setShowVariables] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -228,7 +234,10 @@ export function VariableEditor({
           <Textarea
             ref={textareaRef}
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => {
+              console.log('🔹 VariableEditor textarea onChange:', e.target.value)
+              onChange(e.target.value)
+            }}
             placeholder={placeholder}
             className={cn(
               "font-mono text-sm",
@@ -250,7 +259,10 @@ export function VariableEditor({
             <Input
               ref={inputRef}
               value={value}
-              onChange={(e) => onChange(e.target.value)}
+              onChange={(e) => {
+              console.log('🔹 VariableEditor textarea onChange:', e.target.value)
+              onChange(e.target.value)
+            }}
               placeholder={placeholder}
               className={cn(
                 "pr-20 font-mono text-sm",

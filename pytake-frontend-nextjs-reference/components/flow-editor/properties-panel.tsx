@@ -212,11 +212,20 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         )
       
       case 'textarea':
+        console.log('🟠 Renderizando textarea:', {
+          key,
+          value,
+          supportsVariables,
+          placeholder: schema.placeholder
+        })
         if (supportsVariables) {
           return (
             <VariableEditor
               value={value}
-              onChange={(newValue) => handleInputChange(key, newValue)}
+              onChange={(newValue) => {
+                console.log('🟦 VariableEditor onChange:', key, newValue)
+                handleInputChange(key, newValue)
+              }}
               placeholder={schema.placeholder}
               multiline={true}
             />
@@ -225,7 +234,10 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         return (
           <Textarea
             value={value}
-            onChange={(e) => handleInputChange(key, e.target.value)}
+            onChange={(e) => {
+              console.log('🟫 Textarea onChange:', key, e.target.value)
+              handleInputChange(key, e.target.value)
+            }}
             placeholder={schema.placeholder}
             rows={3}
           />
