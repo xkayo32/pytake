@@ -99,7 +99,9 @@
       "Bash(NODE_OPTIONS=\"--max-old-space-size=2048\" npx next dev -p 3008)",
       "Bash(DEBUG=*)",
       "Bash(./start-server.sh:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(ping:*)",
+      "Bash(pm2 list:*)"
     ],
     "deny": [],
     "additionalDirectories": [
