@@ -97,9 +97,14 @@
       "Bash(./setup-letsencrypt.sh:*)",
       "Bash(npm uninstall:*)",
       "Bash(NODE_OPTIONS=\"--max-old-space-size=2048\" npx next dev -p 3008)",
-      "Bash(DEBUG=*)"
+      "Bash(DEBUG=*)",
+      "Bash(./start-server.sh:*)",
+      "Bash(npm ls:*)"
     ],
-    "deny": []
+    "deny": [],
+    "additionalDirectories": [
+      "/tmp"
+    ]
   },
   "hooks": {
     "PostToolUse": [
