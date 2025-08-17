@@ -1,5 +1,5 @@
 'use client'
-
+// Force cache refresh - v3 - Fixed setIsDirty issue
 import { useCallback, useEffect, useRef, DragEvent, KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
@@ -95,10 +95,55 @@ function FlowEditor() {
   }, [authLoading, isAuthenticated, router])
 
   useEffect(() => {
-    // Carregar do localStorage se existir
-    const hasDraft = loadFromLocalStorage()
-    if (!hasDraft) {
-      createNewFlow()
+    // Verificar se há um template para carregar
+    const templateToLoad = sessionStorage.getItem('load_template')
+    if (templateToLoad) {
+      try {
+        const template = JSON.parse(templateToLoad)
+        console.log('Loading template from session:', template)
+        
+        // Carregar nodes e edges do template
+        setNodes(template.flow.nodes || [])
+        setEdges(template.flow.edges || [])
+        
+        // Criar novo flow com base no template
+        const newFlow = {
+          id: `flow-${Date.now()}`,
+          name: `${template.name} (Cópia)`,
+          description: template.description,
+          status: 'draft' as const,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          version: 1,
+          trigger: {
+            type: 'keyword',
+            config: {}
+          },
+          nodes: template.flow.nodes || [],
+          edges: template.flow.edges || []
+        }
+        
+        useFlowEditorStore.setState({ 
+          flow: newFlow,
+          isDirty: true 
+        })
+        
+        // Limpar template do sessionStorage
+        sessionStorage.removeItem('load_template')
+      } catch (error) {
+        console.error('Error loading template:', error)
+        // Se falhar, carregar normalmente
+        const hasDraft = loadFromLocalStorage()
+        if (!hasDraft) {
+          createNewFlow()
+        }
+      }
+    } else {
+      // Carregar do localStorage se existir
+      const hasDraft = loadFromLocalStorage()
+      if (!hasDraft) {
+        createNewFlow()
+      }
     }
   }, [])
 
@@ -300,8 +345,10 @@ function FlowEditor() {
               value={flow?.name || ''}
               onChange={(e) => {
                 const newName = e.target.value
+                console.log('Updating flow name to:', newName) // Debug
                 if (flow) {
-                  // Usar set diretamente para manter isDirty como true
+                  // Usar setState diretamente para manter isDirty como true
+                  // Não usar setIsDirty que não existe!
                   useFlowEditorStore.setState({ 
                     flow: { ...flow, name: newName },
                     isDirty: true 

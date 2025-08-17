@@ -43,6 +43,10 @@ interface Flow {
     lastExecution?: string
   }
   tags: string[]
+  isTemplate?: boolean
+  isDraft?: boolean
+  templateData?: any
+  draftData?: any
 }
 
 // Mock data
@@ -156,8 +160,67 @@ export default function FlowsPage() {
         setViewMode(savedViewMode)
       }
       loadFlows()
+      loadLocalData()
     }
   }, [])
+  
+  // Carregar templates e rascunhos do localStorage
+  const loadLocalData = () => {
+    try {
+      // Carregar templates salvos
+      const templates = JSON.parse(localStorage.getItem('flow_templates') || '[]')
+      const templateFlows = templates.map((template: any, index: number) => ({
+        id: `template-${index}`,
+        name: template.name,
+        description: template.description,
+        status: 'draft' as const,
+        trigger: `Template - ${template.category}`,
+        createdAt: template.metadata.createdAt,
+        updatedAt: template.metadata.updatedAt,
+        stats: {
+          executions: 0,
+          successRate: 0
+        },
+        tags: ['template', ...template.tags],
+        isTemplate: true,
+        templateData: template
+      }))
+      
+      // Carregar rascunho atual se existir
+      const draftData = localStorage.getItem('pytake_flow_draft')
+      const draftFlows = []
+      if (draftData) {
+        const draft = JSON.parse(draftData)
+        if (draft.flow && draft.nodes && draft.nodes.length > 0) {
+          draftFlows.push({
+            id: 'draft-current',
+            name: draft.flow?.name || 'Rascunho sem título',
+            description: 'Rascunho salvo automaticamente',
+            status: 'draft' as const,
+            trigger: 'Rascunho em edição',
+            createdAt: draft.timestamp,
+            updatedAt: draft.timestamp,
+            stats: {
+              executions: 0,
+              successRate: 0
+            },
+            tags: ['rascunho', 'auto-save'],
+            isDraft: true,
+            draftData: draft
+          })
+        }
+      }
+      
+      // Combinar com flows existentes
+      setFlows(prev => {
+        // Remover templates e rascunhos anteriores
+        const filtered = prev.filter(f => !f.id.startsWith('template-') && !f.id.startsWith('draft-'))
+        return [...filtered, ...templateFlows, ...draftFlows]
+      })
+    } catch (error) {
+      console.error('Error loading local data:', error)
+    }
+  }
 
   // useEffect(() => {
   //   if (!isLoading && !isAuthenticated) {
@@ -256,7 +319,24 @@ export default function FlowsPage() {
   }
 
   const handleEdit = (flowId: string) => {
-    router.push(`/flows/${flowId}/edit`)
+    const flow = flows.find(f => f.id === flowId)
+    if (!flow) return
+    
+    // Se for um template, carregar no editor
+    if (flow.isTemplate && flow.templateData) {
+      // Salvar template no sessionStorage para carregar no editor
+      sessionStorage.setItem('load_template', JSON.stringify(flow.templateData))
+      router.push('/flows/create')
+    } 
+    // Se for um rascunho, continuar editando
+    else if (flow.isDraft) {
+      // O rascunho já está no localStorage, apenas redirecionar
+      router.push('/flows/create')
+    }
+    // Flow normal
+    else {
+      router.push(`/flows/${flowId}/edit`)
+    }
   }
 
   const handleDuplicate = async (flowId: string) => {
@@ -492,7 +572,19 @@ export default function FlowsPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Zap className="h-5 w-5 text-primary" />
-                        <CardTitle className="text-lg">{flow.name}</CardTitle>
+                        <CardTitle className="text-lg">
+                          {flow.name}
+                          {flow.isTemplate && (
+                            <Badge variant="secondary" className="ml-2 text-xs">
+                              📋 Template
+                            </Badge>
+                          )}
+                          {flow.isDraft && (
+                            <Badge variant="outline" className="ml-2 text-xs bg-orange-50 text-orange-700 border-orange-300">
+                              ✏️ Rascunho
+                            </Badge>
+                          )}
+                        </CardTitle>
                       </div>
                       <Badge 
                         variant="outline" 
@@ -608,7 +700,19 @@ export default function FlowsPage() {
                       <tr key={flow.id} className="hover:bg-muted/50 transition-colors">
                         <td className="p-4">
                           <div>
-                            <div className="font-medium">{flow.name}</div>
+                            <div className="font-medium flex items-center gap-2">
+                              {flow.name}
+                              {flow.isTemplate && (
+                                <Badge variant="secondary" className="text-xs">
+                                  📋 Template
+                                </Badge>
+                              )}
+                              {flow.isDraft && (
+                                <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-300">
+                                  ✏️ Rascunho
+                                </Badge>
+                              )}
+                            </div>
                             <div className="text-sm text-muted-foreground line-clamp-1">
                               {flow.description}
                             </div>
