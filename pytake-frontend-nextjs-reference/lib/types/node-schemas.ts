@@ -505,6 +505,639 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
         required: true
       }
     }
+  },
+
+  // ========== AI NODES ==========
+  'ai_chatgpt': {
+    id: 'ai_chatgpt',
+    name: 'ChatGPT',
+    category: 'ai',
+    icon: 'Brain',
+    color: '#10b981',
+    description: 'Processa texto usando ChatGPT da OpenAI',
+    inputs: 1,
+    outputs: 1,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Assistente de atendimento',
+        required: false
+      },
+      prompt: {
+        type: 'textarea',
+        label: 'Prompt do sistema',
+        placeholder: 'Você é um assistente de atendimento ao cliente...\n\nVocê pode usar variáveis:\n{{nome}}\n{{mensagem}}\n{{contexto}}',
+        required: true,
+        supportsVariables: true
+      },
+      model: {
+        type: 'select',
+        label: 'Modelo',
+        options: [
+          { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+          { value: 'gpt-4', label: 'GPT-4' },
+          { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' }
+        ],
+        defaultValue: 'gpt-3.5-turbo',
+        required: true
+      },
+      maxTokens: {
+        type: 'number',
+        label: 'Máximo de tokens',
+        placeholder: '150',
+        defaultValue: 150,
+        validation: {
+          min: 1,
+          max: 4000
+        }
+      },
+      temperature: {
+        type: 'number',
+        label: 'Criatividade (0-1)',
+        placeholder: '0.7',
+        defaultValue: 0.7,
+        validation: {
+          min: 0,
+          max: 1,
+          step: 0.1
+        }
+      }
+    }
+  },
+
+  'ai_claude': {
+    id: 'ai_claude',
+    name: 'Claude',
+    category: 'ai',
+    icon: 'Sparkles',
+    color: '#8b5cf6',
+    description: 'Processa texto usando Claude da Anthropic',
+    inputs: 1,
+    outputs: 1,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Analisador de sentimentos',
+        required: false
+      },
+      prompt: {
+        type: 'textarea',
+        label: 'Prompt do sistema',
+        placeholder: 'Analise o sentimento da mensagem do cliente...\n\nVocê pode usar variáveis:\n{{nome}}\n{{mensagem}}\n{{contexto}}',
+        required: true,
+        supportsVariables: true
+      },
+      model: {
+        type: 'select',
+        label: 'Modelo',
+        options: [
+          { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
+          { value: 'claude-3-sonnet', label: 'Claude 3 Sonnet' },
+          { value: 'claude-3-opus', label: 'Claude 3 Opus' }
+        ],
+        defaultValue: 'claude-3-haiku',
+        required: true
+      },
+      maxTokens: {
+        type: 'number',
+        label: 'Máximo de tokens',
+        placeholder: '150',
+        defaultValue: 150,
+        validation: {
+          min: 1,
+          max: 4000
+        }
+      }
+    }
+  },
+
+  'ai_gemini': {
+    id: 'ai_gemini',
+    name: 'Gemini',
+    category: 'ai',
+    icon: 'Stars',
+    color: '#06b6d4',
+    description: 'Processa texto usando Gemini do Google',
+    inputs: 1,
+    outputs: 1,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Gerador de respostas',
+        required: false
+      },
+      prompt: {
+        type: 'textarea',
+        label: 'Prompt do sistema',
+        placeholder: 'Gere uma resposta apropriada para o cliente...\n\nVocê pode usar variáveis:\n{{nome}}\n{{mensagem}}\n{{contexto}}',
+        required: true,
+        supportsVariables: true
+      },
+      model: {
+        type: 'select',
+        label: 'Modelo',
+        options: [
+          { value: 'gemini-pro', label: 'Gemini Pro' },
+          { value: 'gemini-pro-vision', label: 'Gemini Pro Vision' }
+        ],
+        defaultValue: 'gemini-pro',
+        required: true
+      },
+      maxTokens: {
+        type: 'number',
+        label: 'Máximo de tokens',
+        placeholder: '150',
+        defaultValue: 150,
+        validation: {
+          min: 1,
+          max: 2000
+        }
+      }
+    }
+  },
+
+  // ========== API NODES ==========
+  'api_rest': {
+    id: 'api_rest',
+    name: 'REST API',
+    category: 'api',
+    icon: 'Globe',
+    color: '#0ea5e9',
+    description: 'Faz requisições HTTP para APIs REST',
+    inputs: 1,
+    outputs: 2,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Consultar CEP',
+        required: false
+      },
+      url: {
+        type: 'text',
+        label: 'URL da API',
+        placeholder: 'https://api.exemplo.com/endpoint',
+        required: true,
+        supportsVariables: true
+      },
+      method: {
+        type: 'select',
+        label: 'Método HTTP',
+        options: [
+          { value: 'GET', label: 'GET' },
+          { value: 'POST', label: 'POST' },
+          { value: 'PUT', label: 'PUT' },
+          { value: 'DELETE', label: 'DELETE' },
+          { value: 'PATCH', label: 'PATCH' }
+        ],
+        defaultValue: 'GET',
+        required: true
+      },
+      headers: {
+        type: 'json',
+        label: 'Headers',
+        placeholder: '{\n  "Authorization": "Bearer {{token}}",\n  "Content-Type": "application/json"\n}',
+        supportsVariables: true
+      },
+      body: {
+        type: 'json',
+        label: 'Corpo da requisição',
+        placeholder: '{\n  "nome": "{{nome}}",\n  "email": "{{email}}"\n}',
+        supportsVariables: true,
+        showWhen: 'method:POST,PUT,PATCH'
+      },
+      timeout: {
+        type: 'number',
+        label: 'Timeout (segundos)',
+        placeholder: '30',
+        defaultValue: 30,
+        validation: {
+          min: 1,
+          max: 300
+        }
+      }
+    }
+  },
+
+  // ========== LOGIC NODES ==========
+  'condition_if': {
+    id: 'condition_if',
+    name: 'Condição Se',
+    category: 'logic',
+    icon: 'GitBranch',
+    color: '#a855f7',
+    description: 'Executa ações baseadas em condições',
+    inputs: 1,
+    outputs: 2,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Verificar idade',
+        required: false
+      },
+      variable: {
+        type: 'text',
+        label: 'Variável',
+        placeholder: '{{idade}}',
+        required: true,
+        supportsVariables: true
+      },
+      operator: {
+        type: 'select',
+        label: 'Operador',
+        options: [
+          { value: '==', label: 'Igual a (=)' },
+          { value: '!=', label: 'Diferente de (≠)' },
+          { value: '>', label: 'Maior que (>)' },
+          { value: '<', label: 'Menor que (<)' },
+          { value: '>=', label: 'Maior ou igual (≥)' },
+          { value: '<=', label: 'Menor ou igual (≤)' },
+          { value: 'contains', label: 'Contém' },
+          { value: 'not_contains', label: 'Não contém' }
+        ],
+        required: true,
+        defaultValue: '=='
+      },
+      value: {
+        type: 'text',
+        label: 'Valor de comparação',
+        placeholder: '18',
+        required: true,
+        supportsVariables: true
+      }
+    }
+  },
+
+  'condition_switch': {
+    id: 'condition_switch',
+    name: 'Switch Múltiplo',
+    category: 'logic',
+    icon: 'ToggleLeft',
+    color: '#a855f7',
+    description: 'Avalia múltiplos casos de uma variável',
+    inputs: 1,
+    outputs: 4,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Tipo de cliente',
+        required: false
+      },
+      variable: {
+        type: 'text',
+        label: 'Variável',
+        placeholder: '{{tipo_cliente}}',
+        required: true,
+        supportsVariables: true
+      },
+      cases: {
+        type: 'json',
+        label: 'Casos',
+        placeholder: '[\n  {"value": "premium", "label": "Cliente Premium"},\n  {"value": "gold", "label": "Cliente Gold"},\n  {"value": "basic", "label": "Cliente Básico"}\n]',
+        required: true
+      },
+      hasDefault: {
+        type: 'boolean',
+        label: 'Incluir caso padrão',
+        defaultValue: true
+      }
+    }
+  },
+
+  // ========== FLOW CONTROL NODES ==========
+  'flow_delay': {
+    id: 'flow_delay',
+    name: 'Aguardar',
+    category: 'flow',
+    icon: 'Clock',
+    color: '#64748b',
+    description: 'Adiciona uma pausa no fluxo',
+    inputs: 1,
+    outputs: 1,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Aguardar resposta',
+        required: false
+      },
+      delay: {
+        type: 'number',
+        label: 'Tempo de espera (segundos)',
+        placeholder: '5',
+        required: true,
+        defaultValue: 5,
+        validation: {
+          min: 1,
+          max: 3600
+        }
+      },
+      randomize: {
+        type: 'boolean',
+        label: 'Adicionar aleatoriedade',
+        defaultValue: false
+      },
+      randomRange: {
+        type: 'number',
+        label: 'Variação aleatória (±segundos)',
+        placeholder: '2',
+        defaultValue: 2,
+        showWhen: 'randomize:true',
+        validation: {
+          min: 1,
+          max: 60
+        }
+      }
+    }
+  },
+
+  'flow_goto': {
+    id: 'flow_goto',
+    name: 'Ir Para Flow',
+    category: 'flow',
+    icon: 'Navigation',
+    color: '#64748b',
+    description: 'Redireciona para outro fluxo',
+    inputs: 1,
+    outputs: 0,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Ir para suporte',
+        required: false
+      },
+      targetFlow: {
+        type: 'text',
+        label: 'Flow de destino',
+        placeholder: 'nome-do-flow',
+        required: true
+      },
+      returnBack: {
+        type: 'boolean',
+        label: 'Retornar após execução',
+        defaultValue: false
+      },
+      passVariables: {
+        type: 'boolean',
+        label: 'Passar variáveis atuais',
+        defaultValue: true
+      }
+    }
+  },
+
+  'flow_end': {
+    id: 'flow_end',
+    name: 'Finalizar',
+    category: 'flow',
+    icon: 'StopCircle',
+    color: '#ef4444',
+    description: 'Finaliza a execução do fluxo',
+    inputs: 1,
+    outputs: 0,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Conversa finalizada',
+        required: false
+      },
+      reason: {
+        type: 'text',
+        label: 'Motivo da finalização',
+        placeholder: 'Ex: Problema resolvido',
+        required: false
+      },
+      saveConversation: {
+        type: 'boolean',
+        label: 'Salvar conversa',
+        defaultValue: true
+      }
+    }
+  },
+
+  // ========== DATA NODES ==========
+  'data_set': {
+    id: 'data_set',
+    name: 'Definir Variável',
+    category: 'data',
+    icon: 'Database',
+    color: '#059669',
+    description: 'Define o valor de uma variável',
+    inputs: 1,
+    outputs: 1,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Salvar nome cliente',
+        required: false
+      },
+      variable: {
+        type: 'text',
+        label: 'Nome da variável',
+        placeholder: 'nome_cliente',
+        required: true
+      },
+      value: {
+        type: 'text',
+        label: 'Valor',
+        placeholder: '{{contact.name}}',
+        required: true,
+        supportsVariables: true
+      },
+      dataType: {
+        type: 'select',
+        label: 'Tipo de dado',
+        options: [
+          { value: 'string', label: 'Texto' },
+          { value: 'number', label: 'Número' },
+          { value: 'boolean', label: 'Verdadeiro/Falso' },
+          { value: 'json', label: 'JSON' }
+        ],
+        defaultValue: 'string'
+      }
+    }
+  },
+
+  'data_get': {
+    id: 'data_get',
+    name: 'Obter Variável',
+    category: 'data',
+    icon: 'Download',
+    color: '#059669',
+    description: 'Obtém o valor de uma variável',
+    inputs: 1,
+    outputs: 1,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Carregar dados cliente',
+        required: false
+      },
+      variable: {
+        type: 'text',
+        label: 'Nome da variável',
+        placeholder: 'nome_cliente',
+        required: true
+      },
+      defaultValue: {
+        type: 'text',
+        label: 'Valor padrão',
+        placeholder: 'Valor se variável não existir',
+        required: false
+      }
+    }
+  },
+
+  // ========== DATABASE NODES ==========
+  'db_query': {
+    id: 'db_query',
+    name: 'Consulta SQL',
+    category: 'database',
+    icon: 'Database',
+    color: '#059669',
+    description: 'Executa uma consulta SQL no banco de dados',
+    inputs: 1,
+    outputs: 2,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Buscar cliente por CPF',
+        required: false
+      },
+      query: {
+        type: 'textarea',
+        label: 'Query SQL',
+        placeholder: 'SELECT * FROM clientes WHERE cpf = {{cpf}}',
+        required: true,
+        supportsVariables: true
+      },
+      database: {
+        type: 'select',
+        label: 'Banco de dados',
+        options: [
+          { value: 'main', label: 'Principal' },
+          { value: 'analytics', label: 'Analytics' },
+          { value: 'logs', label: 'Logs' }
+        ],
+        defaultValue: 'main',
+        required: true
+      },
+      timeout: {
+        type: 'number',
+        label: 'Timeout (segundos)',
+        placeholder: '30',
+        defaultValue: 30,
+        validation: {
+          min: 1,
+          max: 300
+        }
+      }
+    }
+  },
+
+  'db_insert': {
+    id: 'db_insert',
+    name: 'Inserir Dados',
+    category: 'database',
+    icon: 'Plus',
+    color: '#059669',
+    description: 'Insere novos registros no banco de dados',
+    inputs: 1,
+    outputs: 2,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Salvar novo cliente',
+        required: false
+      },
+      table: {
+        type: 'text',
+        label: 'Tabela',
+        placeholder: 'clientes',
+        required: true
+      },
+      data: {
+        type: 'json',
+        label: 'Dados para inserir',
+        placeholder: '{\n  "nome": "{{nome}}",\n  "email": "{{email}}",\n  "telefone": "{{telefone}}"\n}',
+        required: true,
+        supportsVariables: true
+      },
+      database: {
+        type: 'select',
+        label: 'Banco de dados',
+        options: [
+          { value: 'main', label: 'Principal' },
+          { value: 'analytics', label: 'Analytics' },
+          { value: 'logs', label: 'Logs' }
+        ],
+        defaultValue: 'main',
+        required: true
+      }
+    }
+  },
+
+  // ========== INTEGRATION NODES ==========
+  'int_email': {
+    id: 'int_email',
+    name: 'Enviar Email',
+    category: 'integration',
+    icon: 'Mail',
+    color: '#ea4335',
+    description: 'Envia email via SMTP ou provedor',
+    inputs: 1,
+    outputs: 2,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Notificar por email',
+        required: false
+      },
+      to: {
+        type: 'text',
+        label: 'Destinatário',
+        placeholder: '{{email}}',
+        required: true,
+        supportsVariables: true
+      },
+      subject: {
+        type: 'text',
+        label: 'Assunto',
+        placeholder: 'Nova mensagem de {{nome}}',
+        required: true,
+        supportsVariables: true
+      },
+      body: {
+        type: 'textarea',
+        label: 'Corpo do email',
+        placeholder: 'Olá,\n\nRecebemos uma nova mensagem:\n{{mensagem}}\n\nAtenciosamente,\nEquipe',
+        required: true,
+        supportsVariables: true
+      },
+      provider: {
+        type: 'select',
+        label: 'Provedor',
+        options: [
+          { value: 'smtp', label: 'SMTP' },
+          { value: 'sendgrid', label: 'SendGrid' },
+          { value: 'mailgun', label: 'Mailgun' },
+          { value: 'ses', label: 'Amazon SES' }
+        ],
+        defaultValue: 'smtp',
+        required: true
+      }
+    }
   }
 }
 

@@ -357,6 +357,101 @@ const renderNodePreview = (data: CustomNodeData) => {
       }
       break
       
+    // ========== AI NODES ==========
+    case 'ai_chatgpt':
+      if (data.config?.prompt) {
+        const promptPreview = data.config.prompt.substring(0, 30)
+        const model = data.config.model || 'gpt-3.5-turbo'
+        return (
+          <>
+            <div className="truncate text-[10px] max-w-full">
+              🧠 {model.replace('gpt-', 'GPT-')}
+            </div>
+            <div className="text-[9px] truncate">
+              💭 {promptPreview}...
+            </div>
+          </>
+        )
+      } else {
+        return (
+          <div className="text-[9px] text-muted-foreground italic">
+            🧠 Configurar ChatGPT
+          </div>
+        )
+      }
+      break
+      
+    case 'ai_claude':
+      if (data.config?.prompt) {
+        const promptPreview = data.config.prompt.substring(0, 30)
+        const model = data.config.model || 'claude-3-haiku'
+        return (
+          <>
+            <div className="truncate text-[10px] max-w-full">
+              ✨ {model.replace('claude-3-', 'C3 ')}
+            </div>
+            <div className="text-[9px] truncate">
+              💭 {promptPreview}...
+            </div>
+          </>
+        )
+      } else {
+        return (
+          <div className="text-[9px] text-muted-foreground italic">
+            ✨ Configurar Claude
+          </div>
+        )
+      }
+      break
+      
+    case 'ai_gemini':
+      if (data.config?.prompt) {
+        const promptPreview = data.config.prompt.substring(0, 30)
+        const model = data.config.model || 'gemini-pro'
+        return (
+          <>
+            <div className="truncate text-[10px] max-w-full">
+              ⭐ {model.replace('gemini-', 'G-')}
+            </div>
+            <div className="text-[9px] truncate">
+              💭 {promptPreview}...
+            </div>
+          </>
+        )
+      } else {
+        return (
+          <div className="text-[9px] text-muted-foreground italic">
+            ⭐ Configurar Gemini
+          </div>
+        )
+      }
+      break
+      
+    // ========== API NODES ==========
+    case 'api_rest':
+      if (data.config?.url) {
+        const method = data.config.method || 'GET'
+        const urlPreview = data.config.url.startsWith('http') ? 
+          new URL(data.config.url).hostname : data.config.url.substring(0, 20)
+        return (
+          <>
+            <div className="truncate text-[10px] max-w-full">
+              🌐 {method} {urlPreview}
+            </div>
+            {data.config.headers && (
+              <div className="text-[9px] truncate">🔑 Com headers</div>
+            )}
+          </>
+        )
+      } else {
+        return (
+          <div className="text-[9px] text-muted-foreground italic">
+            🌐 Configurar API
+          </div>
+        )
+      }
+      break
+      
     case 'condition_if':
       if (data.config.variable && data.config.operator) {
         const operators = {
@@ -472,6 +567,86 @@ const renderNodePreview = (data: CustomNodeData) => {
               <div className="text-[9px] truncate">⚡ Padrão: {data.config.defaultValue}</div>
             )}
           </>
+        )
+      }
+      break
+      
+    // ========== DATABASE NODES ==========
+    case 'db_query':
+      if (data.config?.query) {
+        const queryPreview = data.config.query.replace(/\s+/g, ' ').substring(0, 25)
+        const database = data.config.database || 'main'
+        return (
+          <>
+            <div className="truncate text-[10px] max-w-full">
+              🗄️ {queryPreview}...
+            </div>
+            <div className="text-[9px] truncate">
+              📊 DB: {database}
+            </div>
+          </>
+        )
+      } else {
+        return (
+          <div className="text-[9px] text-muted-foreground italic">
+            🗄️ Configurar query SQL
+          </div>
+        )
+      }
+      break
+      
+    case 'db_insert':
+      if (data.config?.table) {
+        const table = data.config.table
+        let fieldsCount = 0
+        try {
+          if (data.config.data) {
+            fieldsCount = Object.keys(JSON.parse(data.config.data)).length
+          }
+        } catch {
+          // Ignore JSON parse errors
+        }
+        return (
+          <>
+            <div className="truncate text-[10px] max-w-full">
+              💾 Inserir em {table}
+            </div>
+            {fieldsCount > 0 && (
+              <div className="text-[9px] truncate">
+                📊 {fieldsCount} campos
+              </div>
+            )}
+          </>
+        )
+      } else {
+        return (
+          <div className="text-[9px] text-muted-foreground italic">
+            💾 Configurar inserção
+          </div>
+        )
+      }
+      break
+      
+    // ========== INTEGRATION NODES ==========
+    case 'int_email':
+      if (data.config?.to && data.config?.subject) {
+        const to = data.config.to.substring(0, 20)
+        const subject = data.config.subject.substring(0, 25)
+        return (
+          <>
+            <div className="truncate text-[10px] max-w-full">
+              📧 Para: {to}
+            </div>
+            <div className="text-[9px] truncate">
+              📝 {subject}...
+            </div>
+          </>
+        )
+      } else {
+        return (
+          <div className="text-[9px] text-muted-foreground italic">
+            📧 Configurar email
+          </div>
         )
       }
       break
@@ -897,9 +1072,30 @@ export const nodeTypes = {
   msg_document: BaseNode,
   msg_template: BaseNode,
   msg_negotiation_template: NegotiationTemplateNode,
+  // AI nodes
+  ai_chatgpt: BaseNode,
+  ai_claude: BaseNode,
+  ai_gemini: BaseNode,
+  // API nodes
+  api_rest: BaseNode,
   api_negotiation_queue: NegotiationQueueNode,
   api_start_negotiation_flow: BaseNode,
   trigger_template_button: TemplateButtonNode,
+  // Logic nodes
+  condition_if: BaseNode,
+  condition_switch: BaseNode,
+  // Flow control nodes
+  flow_delay: BaseNode,
+  flow_goto: BaseNode,
+  flow_end: BaseNode,
+  // Data nodes
+  data_set: BaseNode,
+  data_get: BaseNode,
+  // Database nodes
+  db_query: BaseNode,
+  db_insert: BaseNode,
+  // Integration nodes
+  int_email: BaseNode,
 }
 
 GroupNode.displayName = 'GroupNode'

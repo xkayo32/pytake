@@ -139,6 +139,34 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
       nodeTypeForReactFlow = 'msg_document'
     } else if (nodeType.id === 'msg_template') {
       nodeTypeForReactFlow = 'msg_template'
+    } else if (nodeType.id === 'ai_chatgpt') {
+      nodeTypeForReactFlow = 'ai_chatgpt'
+    } else if (nodeType.id === 'ai_claude') {
+      nodeTypeForReactFlow = 'ai_claude'
+    } else if (nodeType.id === 'ai_gemini') {
+      nodeTypeForReactFlow = 'ai_gemini'
+    } else if (nodeType.id === 'api_rest') {
+      nodeTypeForReactFlow = 'api_rest'
+    } else if (nodeType.id === 'condition_if') {
+      nodeTypeForReactFlow = 'condition_if'
+    } else if (nodeType.id === 'condition_switch') {
+      nodeTypeForReactFlow = 'condition_switch'
+    } else if (nodeType.id === 'flow_delay') {
+      nodeTypeForReactFlow = 'flow_delay'
+    } else if (nodeType.id === 'flow_goto') {
+      nodeTypeForReactFlow = 'flow_goto'
+    } else if (nodeType.id === 'flow_end') {
+      nodeTypeForReactFlow = 'flow_end'
+    } else if (nodeType.id === 'data_set') {
+      nodeTypeForReactFlow = 'data_set'
+    } else if (nodeType.id === 'data_get') {
+      nodeTypeForReactFlow = 'data_get'
+    } else if (nodeType.id === 'db_query') {
+      nodeTypeForReactFlow = 'db_query'
+    } else if (nodeType.id === 'db_insert') {
+      nodeTypeForReactFlow = 'db_insert'
+    } else if (nodeType.id === 'int_email') {
+      nodeTypeForReactFlow = 'int_email'
     }
     
     const newNode: Node = {
