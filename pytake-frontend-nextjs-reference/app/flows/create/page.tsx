@@ -19,6 +19,7 @@ import { PropertiesPanel } from '@/components/flow-editor/properties-panel'
 import { TemplateLoader } from '@/components/flow-editor/template-loader'
 import { FlowExecutorModal } from '@/components/flow-editor/flow-executor-modal'
 import { TemplateSaveModal } from '@/components/flow-editor/template-save-modal'
+import { WhatsAppTemplateManager } from '@/components/flow-editor/whatsapp-template-manager'
 import { nodeTypes } from '@/components/flow-editor/nodes/custom-nodes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,7 +42,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
-  PanelRightOpen
+  PanelRightOpen,
+  MessageSquare
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -55,6 +57,7 @@ function FlowEditor() {
   const [showPalette, setShowPalette] = useState(true)
   const [showTemplates, setShowTemplates] = useState(false)
   const [showSaveTemplate, setShowSaveTemplate] = useState(false)
+  const [showWhatsAppTemplates, setShowWhatsAppTemplates] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   
@@ -459,6 +462,17 @@ function FlowEditor() {
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => setShowWhatsAppTemplates(true)}
+              className="h-7 px-2 text-xs"
+              title="Templates do WhatsApp"
+            >
+              <MessageSquare className="h-3 w-3 mr-1" />
+              WhatsApp
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setShowSaveTemplate(true)}
               className="h-7 px-2 text-xs"
               title="Salvar como Template"
@@ -647,6 +661,11 @@ function FlowEditor() {
           })
           setTimeout(() => setNotification(null), 3000)
         }}
+      />
+      
+      <WhatsAppTemplateManager
+        isOpen={showWhatsAppTemplates}
+        onClose={() => setShowWhatsAppTemplates(false)}
       />
     </div>
   )

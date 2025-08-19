@@ -10,7 +10,8 @@ import {
   CheckCircle,
   Variable,
   Code,
-  Wrench
+  Wrench,
+  MessageSquare
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,6 +30,7 @@ import { ButtonSelector } from '@/components/flow-editor/button-selector'
 import { VariableEditor } from '@/components/flow-editor/variable-editor'
 import { VariablesPanel } from '@/components/flow-editor/variables-panel'
 import { extractVariables } from '@/lib/data/flow-variables'
+import { WhatsAppTemplateManager } from '@/components/flow-editor/whatsapp-template-manager'
 
 interface PropertiesPanelProps {
   className?: string
@@ -48,6 +50,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   const [isValid, setIsValid] = useState(true)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState('config')
+  const [showTemplateManager, setShowTemplateManager] = useState(false)
 
   const selectedNodeData = selectedNode 
     ? nodes.find(node => node.id === selectedNode)
@@ -258,30 +261,48 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
       case 'template_select':
         const templates = getWhatsAppTemplatesSync()
         return (
-          <Select
-            value={value || ''}
-            onValueChange={(newValue) => {
-              handleInputChange(key, newValue)
-              // Limpar botões selecionados quando mudar o template
-              handleInputChange('selectedButtons', [])
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={schema.placeholder} />
-            </SelectTrigger>
-            <SelectContent>
-              {templates.map((template) => (
-                <SelectItem key={template.id} value={template.name}>
-                  <div className="flex flex-col">
-                    <span>{template.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {template.components.find(c => c.type === 'BUTTONS')?.buttons?.length || 0} botões
-                    </span>
+          <div className="space-y-2">
+            <Select
+              value={value || ''}
+              onValueChange={(newValue) => {
+                handleInputChange(key, newValue)
+                // Limpar botões selecionados quando mudar o template
+                handleInputChange('selectedButtons', [])
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={schema.placeholder} />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.length === 0 ? (
+                  <div className="p-3 text-center text-sm text-muted-foreground">
+                    Nenhum template disponível
                   </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                ) : (
+                  templates.map((template) => (
+                    <SelectItem key={template.id} value={template.name}>
+                      <div className="flex flex-col">
+                        <span>{template.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {template.components.find(c => c.type === 'BUTTONS')?.buttons?.length || 0} botões
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTemplateManager(true)}
+              className="w-full"
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Gerenciar Templates
+            </Button>
+          </div>
         )
       
       case 'button_select':
@@ -378,7 +399,24 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   }
 
   return (
-    <div className={`w-80 border-l bg-background/50 flex flex-col ${className}`}>
+    <>
+      <WhatsAppTemplateManager 
+        isOpen={showTemplateManager} 
+        onClose={() => {
+          setShowTemplateManager(false)
+          // Recarregar templates após fechar o gerenciador
+          // Forçar re-render do campo de seleção
+          const currentTemplate = formData.templateName
+          if (currentTemplate) {
+            handleInputChange('templateName', '')
+            setTimeout(() => {
+              handleInputChange('templateName', currentTemplate)
+            }, 50)
+          }
+        }}
+      />
+      
+      <div className={`w-80 border-l bg-background/50 flex flex-col ${className}`}>
       {/* Header */}
       <div className="p-4 border-b">
         <div className="flex items-center gap-2 mb-4">
@@ -639,6 +677,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
           </Tabs>
         )}
       </div>
-    </div>
+      </div>
+    </>
   )
 }
