@@ -45,8 +45,10 @@ interface Flow {
   tags: string[]
   isTemplate?: boolean
   isDraft?: boolean
+  isLocal?: boolean
   templateData?: any
   draftData?: any
+  flowData?: any
 }
 
 // Mock data
@@ -167,6 +169,25 @@ export default function FlowsPage() {
   // Carregar templates e rascunhos do localStorage
   const loadLocalData = () => {
     try {
+      // Carregar flows salvos localmente
+      const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
+      const localFlows = savedFlows.map((flow: any) => ({
+        id: flow.id,
+        name: flow.name || 'Flow sem nome',
+        description: flow.description || 'Flow criado no editor',
+        status: flow.status || 'draft',
+        trigger: flow.trigger?.type || 'Configurar gatilho',
+        createdAt: flow.createdAt,
+        updatedAt: flow.updatedAt,
+        stats: {
+          executions: 0,
+          successRate: 0
+        },
+        tags: ['local', 'salvo'],
+        isLocal: true,
+        flowData: flow
+      }))
+      
       // Carregar templates salvos
       const templates = JSON.parse(localStorage.getItem('flow_templates') || '[]')
       const templateFlows = templates.map((template: any, index: number) => ({
@@ -213,9 +234,13 @@ export default function FlowsPage() {
       
       // Combinar com flows existentes
       setFlows(prev => {
-        // Remover templates e rascunhos anteriores
-        const filtered = prev.filter(f => !f.id.startsWith('template-') && !f.id.startsWith('draft-'))
-        return [...filtered, ...templateFlows, ...draftFlows]
+        // Remover templates, rascunhos e flows locais anteriores
+        const filtered = prev.filter(f => 
+          !f.id.startsWith('template-') && 
+          !f.id.startsWith('draft-') &&
+          !localFlows.some((lf: any) => lf.id === f.id)
+        )
+        return [...filtered, ...localFlows, ...templateFlows, ...draftFlows]
       })
     } catch (error) {
       console.error('Error loading local data:', error)
@@ -333,7 +358,13 @@ export default function FlowsPage() {
       // O rascunho já está no localStorage, apenas redirecionar
       router.push('/flows/create')
     }
-    // Flow normal
+    // Se for um flow local salvo
+    else if (flow.isLocal && flow.flowData) {
+      // Salvar flow no sessionStorage para carregar no editor
+      sessionStorage.setItem('load_flow', JSON.stringify(flow.flowData))
+      router.push('/flows/create')
+    }
+    // Flow normal do backend
     else {
       router.push(`/flows/${flowId}/edit`)
     }
@@ -584,6 +615,11 @@ export default function FlowsPage() {
                               ✏️ Rascunho
                             </Badge>
                           )}
+                          {flow.isLocal && (
+                            <Badge variant="default" className="ml-2 text-xs bg-green-50 text-green-700 border-green-300">
+                              💾 Salvo
+                            </Badge>
+                          )}
                         </CardTitle>
                       </div>
                       <Badge 
@@ -710,6 +746,11 @@ export default function FlowsPage() {
                               {flow.isDraft && (
                                 <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-300">
                                   ✏️ Rascunho
+                                </Badge>
+                              )}
+                              {flow.isLocal && (
+                                <Badge variant="default" className="text-xs bg-green-50 text-green-700 border-green-300">
+                                  💾 Salvo
                                 </Badge>
                               )}
                             </div>

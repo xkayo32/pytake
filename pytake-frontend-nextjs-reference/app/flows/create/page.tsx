@@ -95,6 +95,32 @@ function FlowEditor() {
   }, [authLoading, isAuthenticated, router])
 
   useEffect(() => {
+    // Verificar se há um flow salvo para carregar
+    const flowToLoad = sessionStorage.getItem('load_flow')
+    if (flowToLoad) {
+      try {
+        const flow = JSON.parse(flowToLoad)
+        console.log('Loading saved flow from session:', flow)
+        
+        // Carregar nodes e edges do flow
+        setNodes(flow.nodes || [])
+        setEdges(flow.edges || [])
+        
+        // Carregar o flow no store
+        useFlowEditorStore.setState({ 
+          flow: flow,
+          isDirty: false 
+        })
+        
+        // Limpar flow do sessionStorage
+        sessionStorage.removeItem('load_flow')
+      } catch (error) {
+        console.error('Error loading flow:', error)
+        sessionStorage.removeItem('load_flow')
+      }
+      return // Não carregar mais nada se já carregou um flow
+    }
+    
     // Verificar se há um template para carregar
     const templateToLoad = sessionStorage.getItem('load_template')
     if (templateToLoad) {

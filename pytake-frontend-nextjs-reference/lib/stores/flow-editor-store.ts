@@ -299,17 +299,62 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
         version: flow.version + 1
       }
       
-      // Here would be the API call to save
+      // Salvar no backend via API
       console.log('Saving flow:', updatedFlow)
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      set({ 
-        flow: updatedFlow,
-        isDirty: false,
-        isLoading: false
-      })
+      try {
+        const response = await fetch('/api/v1/flows', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updatedFlow)
+        })
+        
+        if (!response.ok) {
+          throw new Error('Erro ao salvar flow no backend')
+        }
+        
+        const savedFlow = await response.json()
+        
+        // Também salvar no localStorage como backup
+        const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
+        const existingIndex = savedFlows.findIndex((f: any) => f.id === savedFlow.id)
+        
+        if (existingIndex >= 0) {
+          savedFlows[existingIndex] = savedFlow
+        } else {
+          savedFlows.push(savedFlow)
+        }
+        
+        localStorage.setItem('saved_flows', JSON.stringify(savedFlows))
+        
+        set({ 
+          flow: savedFlow,
+          isDirty: false,
+          isLoading: false
+        })
+      } catch (apiError) {
+        console.error('Erro ao salvar no backend, salvando apenas localmente:', apiError)
+        
+        // Se falhar no backend, salvar apenas no localStorage
+        const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
+        const existingIndex = savedFlows.findIndex((f: any) => f.id === updatedFlow.id)
+        
+        if (existingIndex >= 0) {
+          savedFlows[existingIndex] = updatedFlow
+        } else {
+          savedFlows.push(updatedFlow)
+        }
+        
+        localStorage.setItem('saved_flows', JSON.stringify(savedFlows))
+        
+        set({ 
+          flow: updatedFlow,
+          isDirty: false,
+          isLoading: false
+        })
+      }
     } catch (error) {
       console.error('Error saving flow:', error)
       set({ isLoading: false })
