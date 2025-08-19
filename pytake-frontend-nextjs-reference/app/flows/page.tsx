@@ -132,8 +132,19 @@ const getStatusLabel = (status: string) => {
   }
 }
 
-const formatDate = (dateString: string) => {
+const formatDate = (dateString: string | undefined) => {
+  if (!dateString) {
+    return 'Data não disponível'
+  }
+  
   const date = new Date(dateString)
+  
+  // Verificar se a data é válida
+  if (isNaN(date.getTime())) {
+    console.warn('Invalid date string:', dateString)
+    return 'Data inválida'
+  }
+  
   return date.toLocaleDateString('pt-BR', {
     day: '2-digit',
     month: '2-digit',
@@ -180,8 +191,8 @@ export default function FlowsPage() {
         description: flow.description || 'Flow criado no editor',
         status: flow.status || 'draft',
         trigger: flow.trigger?.type || 'Configurar gatilho',
-        createdAt: flow.createdAt,
-        updatedAt: flow.updatedAt,
+        createdAt: flow.createdAt || flow.metadata?.createdAt || new Date().toISOString(),
+        updatedAt: flow.updatedAt || flow.metadata?.updatedAt || new Date().toISOString(),
         stats: {
           executions: 0,
           successRate: 0
@@ -200,13 +211,13 @@ export default function FlowsPage() {
         description: template.description,
         status: 'draft' as const,
         trigger: `Legacy - ${template.category}`,
-        createdAt: template.metadata.createdAt,
-        updatedAt: template.metadata.updatedAt,
+        createdAt: template.metadata?.createdAt || new Date().toISOString(),
+        updatedAt: template.metadata?.updatedAt || new Date().toISOString(),
         stats: {
           executions: 0,
           successRate: 0
         },
-        tags: ['legacy', ...template.tags],
+        tags: ['legacy', ...(template.tags || [])],
         isLegacy: true,
         templateData: template
       }))
@@ -229,8 +240,8 @@ export default function FlowsPage() {
               description: 'Rascunho salvo automaticamente',
               status: 'draft' as const,
               trigger: 'Rascunho em edição',
-              createdAt: draft.timestamp,
-              updatedAt: draft.timestamp,
+              createdAt: draft.timestamp || new Date().toISOString(),
+              updatedAt: draft.timestamp || new Date().toISOString(),
               stats: {
                 executions: 0,
                 successRate: 0
