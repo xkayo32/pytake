@@ -475,11 +475,11 @@ function FlowEditor() {
               size="sm"
               onClick={() => setShowSaveTemplate(true)}
               className="h-7 px-2 text-xs"
-              title="Salvar como Template"
+              title="Salvar como Flow Template"
               disabled={nodes.length === 0}
             >
               <Package className="h-3 w-3 mr-1" />
-              Salvar Template
+              Salvar Flow
             </Button>
             
             <div className="w-px h-5 bg-border mx-1" />
@@ -657,7 +657,7 @@ function FlowEditor() {
         onClose={() => setShowSaveTemplate(false)}
         onSave={(templateData) => {
           setNotification({ 
-            message: `Template "${templateData.name}" salvo com sucesso!`, 
+            message: `Flow "${templateData.name}" salvo com sucesso!`, 
             type: 'success' 
           })
           setTimeout(() => setNotification(null), 3000)
