@@ -279,18 +279,24 @@ export default function FlowsPage() {
         }
       })
       
+      let apiFlows: Flow[] = []
+      
       if (response.ok) {
         const data = await response.json()
-        console.log('✅ Flows loaded via proxy:', data.flows?.length)
-        setFlows(data.flows || [])
-        return
+        apiFlows = data.flows || []
+        console.log('✅ Flows loaded via proxy:', apiFlows.length)
       } else {
         console.error('❌ Proxy response error:', response.status, response.statusText)
-        throw new Error(`Proxy error: ${response.status}`)
+        // Don't throw error, just continue with empty API flows
+        console.log('Continuing without API flows')
       }
+      
+      // Set API flows first, loadLocalData will merge with these
+      setFlows(apiFlows)
+      
     } catch (error) {
       console.error('Error loading flows:', error)
-      // Fallback to empty array on error
+      // Don't set empty array, let loadLocalData handle local flows
       setFlows([])
     } finally {
       setLoading(false)
