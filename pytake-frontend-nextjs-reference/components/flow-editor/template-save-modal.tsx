@@ -182,11 +182,11 @@ export function TemplateSaveModal({ isOpen, onClose, onSave }: TemplateSaveModal
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Save className="h-5 w-5" />
-            Salvar Flow
+            <Package className="h-5 w-5" />
+            Salvar como Template
           </DialogTitle>
           <DialogDescription>
-            Salve seu flow para reutilização e compartilhamento
+            Transforme seu flow em um template reutilizável para criar novos flows
           </DialogDescription>
         </DialogHeader>
         
@@ -384,8 +384,8 @@ export function TemplateSaveModal({ isOpen, onClose, onSave }: TemplateSaveModal
               </>
             ) : (
               <>
-                <Save className="h-4 w-4 mr-2" />
-                Salvar Flow
+                <Package className="h-4 w-4 mr-2" />
+                Salvar Template
               </>
             )}
           </Button>
