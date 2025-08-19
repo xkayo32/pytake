@@ -161,8 +161,10 @@ export default function FlowsPage() {
       if (savedViewMode === 'list' || savedViewMode === 'cards') {
         setViewMode(savedViewMode)
       }
-      loadFlows()
-      loadLocalData()
+      // Load flows sequentially to avoid race conditions
+      loadFlows().then(() => {
+        loadLocalData()
+      })
     }
   }, [])
   
@@ -171,6 +173,7 @@ export default function FlowsPage() {
     try {
       // Carregar flows salvos localmente
       const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
+      console.log('🔄 loadLocalData - Flows salvos encontrados:', savedFlows.length)
       const localFlows = savedFlows.map((flow: any) => ({
         id: flow.id,
         name: flow.name || 'Flow sem nome',
@@ -190,6 +193,7 @@ export default function FlowsPage() {
       
       // Carregar templates salvos
       const templates = JSON.parse(localStorage.getItem('flow_templates') || '[]')
+      console.log('🔄 loadLocalData - Templates encontrados:', templates.length)
       const templateFlows = templates.map((template: any, index: number) => ({
         id: `template-${index}`,
         name: template.name,
@@ -240,7 +244,15 @@ export default function FlowsPage() {
           !f.id.startsWith('draft-') &&
           !localFlows.some((lf: any) => lf.id === f.id)
         )
-        return [...filtered, ...localFlows, ...templateFlows, ...draftFlows]
+        const finalFlows = [...filtered, ...localFlows, ...templateFlows, ...draftFlows]
+        console.log('🔄 loadLocalData - Total flows após merge:', finalFlows.length)
+        console.log('🔄 loadLocalData - Tipos:', {
+          api: filtered.length,
+          local: localFlows.length,
+          templates: templateFlows.length,
+          drafts: draftFlows.length
+        })
+        return finalFlows
       })
     } catch (error) {
       console.error('Error loading local data:', error)
