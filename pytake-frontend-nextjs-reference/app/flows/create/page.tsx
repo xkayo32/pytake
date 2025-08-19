@@ -135,8 +135,80 @@ function FlowEditor() {
         const template = JSON.parse(templateToLoad)
         console.log('Loading template from session:', template)
         
-        // Carregar nodes e edges do template
-        setNodes(template.flow.nodes || [])
+        // Carregar nodes e edges do template com correção de tipos
+        const templateNodes = (template.flow.nodes || []).map((node: any) => {
+          // Garantir que nós especiais mantenham seu tipo correto
+          if (node.data?.nodeType === 'trigger_template_button' && node.type !== 'trigger_template_button') {
+            console.log('Fixing node type for trigger_template_button')
+            return { ...node, type: 'trigger_template_button' }
+          }
+          if (node.data?.nodeType === 'msg_negotiation_template' && node.type !== 'msg_negotiation_template') {
+            return { ...node, type: 'msg_negotiation_template' }
+          }
+          if (node.data?.nodeType === 'msg_text' && node.type !== 'msg_text') {
+            return { ...node, type: 'msg_text' }
+          }
+          if (node.data?.nodeType === 'msg_image' && node.type !== 'msg_image') {
+            return { ...node, type: 'msg_image' }
+          }
+          if (node.data?.nodeType === 'msg_audio' && node.type !== 'msg_audio') {
+            return { ...node, type: 'msg_audio' }
+          }
+          if (node.data?.nodeType === 'msg_video' && node.type !== 'msg_video') {
+            return { ...node, type: 'msg_video' }
+          }
+          if (node.data?.nodeType === 'msg_document' && node.type !== 'msg_document') {
+            return { ...node, type: 'msg_document' }
+          }
+          if (node.data?.nodeType === 'msg_template' && node.type !== 'msg_template') {
+            return { ...node, type: 'msg_template' }
+          }
+          if (node.data?.nodeType === 'ai_chatgpt' && node.type !== 'ai_chatgpt') {
+            return { ...node, type: 'ai_chatgpt' }
+          }
+          if (node.data?.nodeType === 'ai_claude' && node.type !== 'ai_claude') {
+            return { ...node, type: 'ai_claude' }
+          }
+          if (node.data?.nodeType === 'ai_gemini' && node.type !== 'ai_gemini') {
+            return { ...node, type: 'ai_gemini' }
+          }
+          if (node.data?.nodeType === 'api_rest' && node.type !== 'api_rest') {
+            return { ...node, type: 'api_rest' }
+          }
+          if (node.data?.nodeType === 'condition_if' && node.type !== 'condition_if') {
+            return { ...node, type: 'condition_if' }
+          }
+          if (node.data?.nodeType === 'condition_switch' && node.type !== 'condition_switch') {
+            return { ...node, type: 'condition_switch' }
+          }
+          if (node.data?.nodeType === 'flow_delay' && node.type !== 'flow_delay') {
+            return { ...node, type: 'flow_delay' }
+          }
+          if (node.data?.nodeType === 'flow_goto' && node.type !== 'flow_goto') {
+            return { ...node, type: 'flow_goto' }
+          }
+          if (node.data?.nodeType === 'flow_end' && node.type !== 'flow_end') {
+            return { ...node, type: 'flow_end' }
+          }
+          if (node.data?.nodeType === 'data_set' && node.type !== 'data_set') {
+            return { ...node, type: 'data_set' }
+          }
+          if (node.data?.nodeType === 'data_get' && node.type !== 'data_get') {
+            return { ...node, type: 'data_get' }
+          }
+          if (node.data?.nodeType === 'db_query' && node.type !== 'db_query') {
+            return { ...node, type: 'db_query' }
+          }
+          if (node.data?.nodeType === 'db_insert' && node.type !== 'db_insert') {
+            return { ...node, type: 'db_insert' }
+          }
+          if (node.data?.nodeType === 'int_email' && node.type !== 'int_email') {
+            return { ...node, type: 'int_email' }
+          }
+          return node
+        })
+        
+        setNodes(templateNodes)
         setEdges(template.flow.edges || [])
         
         // Criar novo flow com base no template
@@ -272,14 +344,24 @@ function FlowEditor() {
     
     console.log('Flow structure:', { nodes: nodes.length, edges: edges.length })
     
-    // Converter nodes do flow para formato do ReactFlow
-    const flowNodes = nodes.map((node: any) => ({
-      ...node,
-      data: {
-        ...node.data,
-        // Garantir que todos os nodes tenham os dados necessários
+    // Converter nodes do flow para formato do ReactFlow com correção de tipos
+    const flowNodes = nodes.map((node: any) => {
+      // Garantir que nós especiais mantenham seu tipo correto
+      let correctedNode = { ...node }
+      
+      if (node.data?.nodeType && node.type !== node.data.nodeType) {
+        console.log(`Fixing node type from ${node.type} to ${node.data.nodeType}`)
+        correctedNode.type = node.data.nodeType
       }
-    }))
+      
+      return {
+        ...correctedNode,
+        data: {
+          ...correctedNode.data,
+          // Garantir que todos os nodes tenham os dados necessários
+        }
+      }
+    })
     
     const flowEdges = edges
     
