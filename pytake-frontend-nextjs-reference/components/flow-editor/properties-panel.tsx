@@ -102,16 +102,13 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   // Carregar templates da API quando o componente montar
   useEffect(() => {
     if (!templatesLoaded) {
-      getWhatsAppTemplates().then(() => {
+      getWhatsAppTemplates().then((loadedTemplates) => {
         setTemplatesLoaded(true)
-        // Forçar re-render se houver um template selecionado
-        if (formData.templateName) {
-          const currentTemplate = formData.templateName
-          handleInputChange('templateName', '')
-          setTimeout(() => {
-            handleInputChange('templateName', currentTemplate)
-          }, 50)
-        }
+        // Forçar re-render para atualizar o Select com os novos templates
+        setFormData(prev => ({ ...prev }))
+      }).catch(error => {
+        console.error('Error loading templates:', error)
+        setTemplatesLoaded(true) // Mark as loaded even on error to avoid infinite loop
       })
     }
   }, [templatesLoaded])
@@ -278,18 +275,26 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
       
       case 'template_select':
         const templates = getWhatsAppTemplatesSync()
+        // Garantir que o valor seja uma string válida
+        const currentValue = value ? String(value) : ''
+        
         return (
           <div className="space-y-2">
             <Select
-              value={value || ''}
+              key={`template-select-${selectedNode}`} // Forçar re-render quando mudar de nó
+              value={currentValue}
               onValueChange={(newValue) => {
                 handleInputChange(key, newValue)
                 // Limpar botões selecionados quando mudar o template
-                handleInputChange('selectedButtons', [])
+                if (formData.selectedButtons) {
+                  handleInputChange('selectedButtons', [])
+                }
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder={schema.placeholder} />
+                <SelectValue placeholder={schema.placeholder || 'Selecione um template'}>
+                  {currentValue && templates.find(t => t.name === currentValue)?.name}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {templates.length === 0 ? (
@@ -298,7 +303,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
                   </div>
                 ) : (
                   templates.map((template) => (
-                    <SelectItem key={template.id} value={template.name}>
+                    <SelectItem key={`${template.id}-${template.name}`} value={template.name}>
                       <div className="flex flex-col">
                         <span>{template.name}</span>
                         <span className="text-xs text-muted-foreground">
