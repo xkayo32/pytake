@@ -358,17 +358,43 @@ export default function FlowsPage() {
     const newStatus = flow.status === 'active' ? 'inactive' : 'active'
     
     try {
-      const response = await fetch(`/api/v1/flows/${flowId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      })
-      
-      if (response.ok) {
-        const updatedFlow = await response.json()
+      // Se for flow local, atualizar no localStorage
+      if (flow.isLocal) {
+        console.log('🔄 Alterando status do flow local:', flowId, 'para', newStatus)
+        
+        const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
+        const updatedFlows = savedFlows.map((f: any) => 
+          f.id === flow.flowData?.id ? { ...f, status: newStatus } : f
+        )
+        localStorage.setItem('saved_flows', JSON.stringify(updatedFlows))
+        
+        // Atualizar na lista local
         setFlows(prev => prev.map(f => 
-          f.id === flowId ? updatedFlow : f
+          f.id === flowId ? { ...f, status: newStatus } : f
         ))
+        console.log('✅ Status do flow local alterado')
+        
+      } else if (flow.isLegacy || flow.isDraft) {
+        // Flows legacy e drafts não podem ter status alterado via toggle
+        console.log('⚠️ Status de flows legacy/draft não pode ser alterado')
+        return
+        
+      } else {
+        // Flow do backend - alterar via API
+        console.log('🔄 Alterando status do flow do backend:', flowId, 'para', newStatus)
+        const response = await fetch(`/api/v1/flows/${flowId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus })
+        })
+        
+        if (response.ok) {
+          const updatedFlow = await response.json()
+          setFlows(prev => prev.map(f => 
+            f.id === flowId ? updatedFlow : f
+          ))
+          console.log('✅ Status do flow do backend alterado')
+        }
       }
     } catch (error) {
       console.error('Error updating flow status:', error)
@@ -407,19 +433,63 @@ export default function FlowsPage() {
     if (!originalFlow) return
 
     try {
-      const response = await fetch('/api/v1/flows', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...originalFlow,
+      // Se for flow local, duplicar no localStorage
+      if (originalFlow.isLocal || originalFlow.isDraft || originalFlow.isLegacy) {
+        console.log('📋 Duplicando flow local:', flowId)
+        
+        let flowToDuplicate = originalFlow.flowData
+        
+        // Se for legacy, usar templateData
+        if (originalFlow.isLegacy) {
+          flowToDuplicate = {
+            id: `flow-${Date.now()}`,
+            name: originalFlow.name,
+            description: originalFlow.description,
+            status: 'draft',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            nodes: originalFlow.templateData?.flow?.nodes || [],
+            edges: originalFlow.templateData?.flow?.edges || []
+          }
+        }
+        
+        // Criar cópia do flow
+        const duplicatedFlow = {
+          ...flowToDuplicate,
+          id: `flow-${Date.now()}`,
           name: `${originalFlow.name} (Cópia)`,
-          status: 'draft'
+          status: 'draft',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+        
+        // Salvar no localStorage
+        const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
+        savedFlows.push(duplicatedFlow)
+        localStorage.setItem('saved_flows', JSON.stringify(savedFlows))
+        
+        // Recarregar dados locais para mostrar a cópia
+        loadLocalData()
+        console.log('✅ Flow local duplicado')
+        
+      } else {
+        // Flow do backend - duplicar via API
+        console.log('📋 Duplicando flow do backend:', flowId)
+        const response = await fetch('/api/v1/flows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...originalFlow,
+            name: `${originalFlow.name} (Cópia)`,
+            status: 'draft'
+          })
         })
-      })
-      
-      if (response.ok) {
-        const newFlow = await response.json()
-        setFlows(prev => [newFlow, ...prev])
+        
+        if (response.ok) {
+          const newFlow = await response.json()
+          setFlows(prev => [newFlow, ...prev])
+          console.log('✅ Flow do backend duplicado')
+        }
       }
     } catch (error) {
       console.error('Error duplicating flow:', error)
@@ -429,13 +499,53 @@ export default function FlowsPage() {
   const handleDelete = async (flowId: string) => {
     if (!confirm('Tem certeza que deseja excluir este flow?')) return
     
+    const flow = flows.find(f => f.id === flowId)
+    if (!flow) return
+    
     try {
-      const response = await fetch(`/api/v1/flows/${flowId}`, {
-        method: 'DELETE'
-      })
-      
-      if (response.ok) {
-        setFlows(prev => prev.filter(flow => flow.id !== flowId))
+      // Se for flow local, deletar do localStorage
+      if (flow.isLocal || flow.isDraft || flow.isLegacy) {
+        console.log('🗑️ Deletando flow local:', flowId)
+        
+        // Deletar flow local
+        if (flow.isLocal) {
+          const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
+          const filteredFlows = savedFlows.filter((f: any) => f.id !== flow.flowData?.id)
+          localStorage.setItem('saved_flows', JSON.stringify(filteredFlows))
+        }
+        
+        // Deletar flow legacy (template antigo)
+        if (flow.isLegacy) {
+          const templates = JSON.parse(localStorage.getItem('flow_templates') || '[]')
+          const flowIndex = parseInt(flowId.replace('legacy-', ''))
+          if (flowIndex >= 0 && flowIndex < templates.length) {
+            templates.splice(flowIndex, 1)
+            localStorage.setItem('flow_templates', JSON.stringify(templates))
+          }
+        }
+        
+        // Deletar rascunho
+        if (flow.isDraft) {
+          localStorage.removeItem('pytake_flow_draft')
+        }
+        
+        // Remover da lista local
+        setFlows(prev => prev.filter(f => f.id !== flowId))
+        console.log('✅ Flow local deletado')
+        
+      } else {
+        // Flow do backend - deletar via API
+        console.log('🗑️ Deletando flow do backend:', flowId)
+        const response = await fetch(`/api/v1/flows/${flowId}`, {
+          method: 'DELETE'
+        })
+        
+        if (response.ok) {
+          setFlows(prev => prev.filter(flow => flow.id !== flowId))
+          console.log('✅ Flow do backend deletado')
+        } else {
+          console.error('❌ Erro ao deletar flow do backend:', response.status)
+        }
       }
     } catch (error) {
       console.error('Error deleting flow:', error)
