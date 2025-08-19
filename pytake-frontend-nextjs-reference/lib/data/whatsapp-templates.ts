@@ -24,144 +24,102 @@ export interface WhatsAppTemplate {
   variables?: string[]
 }
 
-// Templates de exemplo
-export const WHATSAPP_TEMPLATES: WhatsAppTemplate[] = [
-  {
-    id: 'welcome_message',
-    name: 'welcome_message',
-    language: 'pt_BR',
-    category: 'MARKETING',
-    status: 'APPROVED',
-    components: [
-      {
-        type: 'HEADER',
-        format: 'TEXT',
-        text: 'Bem-vindo à {{1}}!'
-      },
-      {
-        type: 'BODY',
-        text: 'Olá {{2}}! Obrigado por entrar em contato conosco. Como podemos ajudar você hoje?'
-      },
-      {
-        type: 'BUTTONS',
-        buttons: [
-          { type: 'QUICK_REPLY', text: 'Ver Produtos', id: 'view_products' },
-          { type: 'QUICK_REPLY', text: 'Falar com Vendedor', id: 'talk_sales' },
-          { type: 'QUICK_REPLY', text: 'Suporte Técnico', id: 'tech_support' }
-        ]
-      }
-    ],
-    variables: ['company_name', 'customer_name']
-  },
-  {
-    id: 'payment_reminder',
-    name: 'payment_reminder',
-    language: 'pt_BR',
-    category: 'UTILITY',
-    status: 'APPROVED',
-    components: [
-      {
-        type: 'BODY',
-        text: 'Olá {{1}}, sua fatura no valor de R$ {{2}} vence em {{3}}. Gostaria de negociar?'
-      },
-      {
-        type: 'BUTTONS',
-        buttons: [
-          { type: 'QUICK_REPLY', text: 'Ver Fatura', id: 'view_invoice' },
-          { type: 'QUICK_REPLY', text: 'Negociar', id: 'negotiate' },
-          { type: 'QUICK_REPLY', text: 'Pagar com PIX', id: 'pay_pix' }
-        ]
-      }
-    ],
-    variables: ['customer_name', 'amount', 'due_date']
-  },
-  {
-    id: 'order_confirmation',
-    name: 'order_confirmation', 
-    language: 'pt_BR',
-    category: 'MARKETING',
-    status: 'APPROVED',
-    components: [
-      {
-        type: 'HEADER',
-        format: 'IMAGE'
-      },
-      {
-        type: 'BODY',
-        text: 'Pedido #{{1}} confirmado! Valor total: R$ {{2}}. Previsão de entrega: {{3}}'
-      },
-      {
-        type: 'BUTTONS',
-        buttons: [
-          { type: 'QUICK_REPLY', text: 'Rastrear Pedido', id: 'track_order' },
-          { type: 'URL', text: 'Ver no Site', url: 'https://example.com/order/{{1}}' }
-        ]
-      }
-    ],
-    variables: ['order_id', 'total_amount', 'delivery_date']
-  },
-  {
-    id: 'satisfaction_survey',
-    name: 'satisfaction_survey',
-    language: 'pt_BR',
-    category: 'MARKETING',
-    status: 'APPROVED',
-    components: [
-      {
-        type: 'BODY',
-        text: 'Olá {{1}}, como foi sua experiência com nosso atendimento?'
-      },
-      {
-        type: 'BUTTONS',
-        buttons: [
-          { type: 'QUICK_REPLY', text: '😃 Ótimo', id: 'rating_great' },
-          { type: 'QUICK_REPLY', text: '😐 Regular', id: 'rating_regular' },
-          { type: 'QUICK_REPLY', text: '😞 Ruim', id: 'rating_bad' }
-        ]
-      }
-    ],
-    variables: ['customer_name']
-  },
-  {
-    id: 'appointment_reminder',
-    name: 'appointment_reminder',
-    language: 'pt_BR',
-    category: 'UTILITY',
-    status: 'APPROVED',
-    components: [
-      {
-        type: 'BODY',
-        text: 'Lembrete: Você tem um agendamento em {{1}} às {{2}} com {{3}}.'
-      },
-      {
-        type: 'BUTTONS',
-        buttons: [
-          { type: 'QUICK_REPLY', text: 'Confirmar', id: 'confirm_appointment' },
-          { type: 'QUICK_REPLY', text: 'Reagendar', id: 'reschedule' },
-          { type: 'QUICK_REPLY', text: 'Cancelar', id: 'cancel_appointment' },
-          { type: 'PHONE_NUMBER', text: 'Ligar', phone_number: '+5511999999999' }
-        ]
-      }
-    ],
-    variables: ['date', 'time', 'professional_name']
-  }
+// Templates de exemplo (DESABILITADOS - usar apenas templates reais da API)
+/* 
+const WHATSAPP_TEMPLATES_MOCK: WhatsAppTemplate[] = [
+  // Templates mockados foram removidos - usar apenas dados reais da API
 ]
+*/
 
 // Função para buscar templates
-export function getWhatsAppTemplates(): WhatsAppTemplate[] {
-  return WHATSAPP_TEMPLATES.filter(t => t.status === 'APPROVED')
+// Carregar templates reais do WhatsApp Business API
+export async function getWhatsAppTemplates(): Promise<WhatsAppTemplate[]> {
+  try {
+    // Primeiro tentar carregar do localStorage (cache)
+    const cachedTemplates = localStorage.getItem('whatsapp_templates_cache')
+    if (cachedTemplates) {
+      const parsed = JSON.parse(cachedTemplates)
+      // Verificar se cache não está muito antigo (1h)
+      if (Date.now() - parsed.timestamp < 60 * 60 * 1000) {
+        return parsed.templates.filter((t: WhatsAppTemplate) => t.status === 'APPROVED')
+      }
+    }
+    
+    // Cache expirado ou não existe, buscar da API
+    const response = await fetch('/api/v1/whatsapp/templates')
+    if (response.ok) {
+      const data = await response.json()
+      const templates = data.data || []
+      
+      // Salvar no cache
+      cacheWhatsAppTemplates(templates)
+      
+      return templates.filter((t: WhatsAppTemplate) => t.status === 'APPROVED')
+    }
+  } catch (error) {
+    console.error('Erro ao carregar templates:', error)
+    
+    // Em caso de erro, tentar usar cache mesmo que expirado
+    try {
+      const cachedTemplates = localStorage.getItem('whatsapp_templates_cache')
+      if (cachedTemplates) {
+        const parsed = JSON.parse(cachedTemplates)
+        return parsed.templates.filter((t: WhatsAppTemplate) => t.status === 'APPROVED')
+      }
+    } catch (cacheError) {
+      console.error('Erro ao carregar cache de fallback:', cacheError)
+    }
+  }
+  
+  // Se tudo falhar, retornar array vazio
+  return []
+}
+
+// Versão síncrona para compatibilidade (usar apenas cache)
+export function getWhatsAppTemplatesSync(): WhatsAppTemplate[] {
+  try {
+    const cachedTemplates = localStorage.getItem('whatsapp_templates_cache')
+    if (cachedTemplates) {
+      const parsed = JSON.parse(cachedTemplates)
+      return parsed.templates.filter((t: WhatsAppTemplate) => t.status === 'APPROVED')
+    }
+  } catch (error) {
+    console.error('Erro ao carregar templates do cache:', error)
+  }
+  
+  return []
 }
 
 // Função para buscar template por nome
 export function getTemplateByName(name: string): WhatsAppTemplate | undefined {
-  return WHATSAPP_TEMPLATES.find(t => t.name === name)
+  const templates = getWhatsAppTemplatesSync()
+  return templates.find(t => t.name === name)
 }
 
 // Função para obter botões de um template
 export function getTemplateButtons(templateName: string): WhatsAppButton[] {
   const template = getTemplateByName(templateName)
-  if (!template) return []
+  if (!template) {
+    // Se não encontrar template, retornar botões padrão genéricos
+    return [
+      { type: 'QUICK_REPLY', text: 'Sim', id: 'yes' },
+      { type: 'QUICK_REPLY', text: 'Não', id: 'no' },
+      { type: 'QUICK_REPLY', text: 'Mais informações', id: 'more_info' }
+    ]
+  }
   
   const buttonsComponent = template.components.find(c => c.type === 'BUTTONS')
   return buttonsComponent?.buttons || []
+}
+
+// Função para salvar templates no cache (para uso quando receber da API)
+export function cacheWhatsAppTemplates(templates: WhatsAppTemplate[]): void {
+  try {
+    localStorage.setItem('whatsapp_templates_cache', JSON.stringify({
+      templates,
+      timestamp: Date.now()
+    }))
+  } catch (error) {
+    console.error('Erro ao salvar templates no cache:', error)
+  }
 }
