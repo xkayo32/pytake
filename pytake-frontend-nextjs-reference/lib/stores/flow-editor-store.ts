@@ -261,12 +261,18 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
   
   // Flow management
   saveFlow: async () => {
+    console.log('🔄 [DEBUG] saveFlow iniciado')
     const { flow, nodes, edges } = get()
-    if (!flow) return
+    console.log('📊 [DEBUG] Estado atual:', { flow: flow?.id, nodes: nodes.length, edges: edges.length })
+    if (!flow) {
+      console.log('❌ [DEBUG] Flow é null, retornando')
+      return
+    }
     
     set({ isLoading: true })
     
     try {
+      console.log('🔄 [DEBUG] Iniciando conversão de nós e edges')
       // Convert React Flow nodes/edges to our format
       const flowNodes: FlowNode[] = nodes.map(node => ({
         id: node.id,
@@ -307,6 +313,7 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
       console.log('Saving flow:', updatedFlow)
       
       try {
+        console.log('🔄 [DEBUG] Tentando salvar no backend')
         console.log('🔄 Enviando flow para API:', updatedFlow)
         
         const response = await fetch('/api/v1/flows', {
@@ -366,8 +373,10 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
         })
       }
     } catch (error) {
-      console.error('Error saving flow:', error)
+      console.error('❌ [DEBUG] Erro geral ao salvar flow:', error)
+      console.error('❌ [DEBUG] Stack trace:', error instanceof Error ? error.stack : 'No stack')
       set({ isLoading: false })
+      throw error // Re-throw para mostrar ao usuário
     }
   },
   
