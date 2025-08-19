@@ -555,10 +555,11 @@ function FlowEditor() {
 
         {/* Canvas */}
         <div 
-          className="flex-1 relative" 
+          className="flex-1 relative w-full h-full" 
           ref={reactFlowWrapper}
           onKeyDown={handleKeyDown}
           tabIndex={0}
+          style={{ minHeight: '400px' }}
         >
           <ReactFlow
             nodes={nodes}
