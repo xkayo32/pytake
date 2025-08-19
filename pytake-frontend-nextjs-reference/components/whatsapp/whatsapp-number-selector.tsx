@@ -22,7 +22,8 @@ import {
   Wifi,
   WifiOff,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Settings
 } from 'lucide-react'
 
 export interface WhatsAppNumber {
@@ -122,45 +123,9 @@ export function WhatsAppNumberSelector({
   }
 
   const loadMockNumbers = () => {
-    // Tentar carregar do localStorage primeiro
-    const savedNumbers = localStorage.getItem('whatsapp_numbers')
-    if (savedNumbers) {
-      setNumbers(JSON.parse(savedNumbers))
-      return
-    }
-
-    // Números de exemplo se não houver salvos
-    const mockNumbers: WhatsAppNumber[] = [
-      {
-        id: 'num-1',
-        phone: '+5511999999999',
-        name: 'Principal',
-        status: 'connected',
-        isVerified: true,
-        businessName: 'Minha Empresa',
-        lastSeen: new Date().toISOString()
-      },
-      {
-        id: 'num-2', 
-        phone: '+5511888888888',
-        name: 'Suporte',
-        status: 'connected',
-        isVerified: true,
-        businessName: 'Suporte Técnico',
-        lastSeen: new Date().toISOString()
-      },
-      {
-        id: 'num-3',
-        phone: '+5511777777777', 
-        name: 'Vendas',
-        status: 'disconnected',
-        isVerified: false,
-        businessName: 'Equipe Vendas'
-      }
-    ]
-    
-    setNumbers(mockNumbers)
-    localStorage.setItem('whatsapp_numbers', JSON.stringify(mockNumbers))
+    // Se não conseguir buscar do banco, não mostra nada fake
+    console.log('⚠️ Nenhum número WhatsApp encontrado no sistema')
+    setNumbers([])
   }
 
   const handleNumberToggle = (numberId: string, checked: boolean) => {
@@ -179,22 +144,9 @@ export function WhatsAppNumberSelector({
   }
 
   const handleAddNumber = () => {
-    if (!newNumber.trim()) return
-
-    const formattedNumber = newNumber.startsWith('+') ? newNumber : `+${newNumber}`
-    const newWhatsAppNumber: WhatsAppNumber = {
-      id: `num-${Date.now()}`,
-      phone: formattedNumber,
-      name: `Número ${numbers.length + 1}`,
-      status: 'pending',
-      isVerified: false
-    }
-
-    const updatedNumbers = [...numbers, newWhatsAppNumber]
-    setNumbers(updatedNumbers)
-    localStorage.setItem('whatsapp_numbers', JSON.stringify(updatedNumbers))
-    
-    setNewNumber('')
+    // Remover funcionalidade de adicionar número fake
+    // Números devem ser adicionados apenas pelo sistema de configuração
+    console.log('⚠️ Números devem ser adicionados em Configurações > WhatsApp')
     setShowAddDialog(false)
   }
 
@@ -263,16 +215,14 @@ export function WhatsAppNumberSelector({
       {numbers.length === 0 ? (
         <Card className="p-6 text-center">
           <Phone className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h4 className="font-medium mb-2">Nenhum número configurado</h4>
+          <h4 className="font-medium mb-2">Nenhum número WhatsApp encontrado</h4>
           <p className="text-sm text-muted-foreground mb-4">
-            Adicione números WhatsApp para ativar seus flows
+            Configure números WhatsApp em Configurações &gt; WhatsApp para ativar flows
           </p>
-          {showAddNumber && (
-            <Button onClick={() => setShowAddDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Primeiro Número
-            </Button>
-          )}
+          <Button variant="outline" onClick={() => window.open('/settings/whatsapp', '_blank')}>
+            <Settings className="h-4 w-4 mr-2" />
+            Configurar WhatsApp
+          </Button>
         </Card>
       ) : (
         <div className="space-y-3">

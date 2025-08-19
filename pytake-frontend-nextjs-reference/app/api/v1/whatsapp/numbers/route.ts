@@ -114,54 +114,10 @@ export async function GET(request: NextRequest) {
       console.log('⚠️ Erro ao buscar whatsapp-configs:', configError)
     }
 
-    // Se não conseguir do backend, retornar números reais de exemplo
-    // SUBSTITUA ESTES NÚMEROS PELOS SEUS NÚMEROS REAIS
-    const realNumbers = [
-      {
-        id: 'whatsapp-1',
-        phone: '+5511999999999', // SUBSTITUA PELO SEU NÚMERO REAL
-        number: '+5511999999999',
-        name: 'Principal',
-        label: 'Número Principal',
-        status: 'CONNECTED',
-        verified: true,
-        isVerified: true,
-        businessName: 'PyTake Principal',
-        business_name: 'PyTake Principal',
-        lastSeen: new Date().toISOString(),
-        last_seen: new Date().toISOString()
-      },
-      {
-        id: 'whatsapp-2',
-        phone: '+5511888888888', // SUBSTITUA PELO SEU NÚMERO REAL
-        number: '+5511888888888',
-        name: 'Suporte',
-        label: 'Suporte Técnico',
-        status: 'CONNECTED',
-        verified: true,
-        isVerified: true,
-        businessName: 'PyTake Suporte',
-        business_name: 'PyTake Suporte',
-        lastSeen: new Date().toISOString(),
-        last_seen: new Date().toISOString()
-      },
-      {
-        id: 'whatsapp-3',
-        phone: '+5511777777777', // SUBSTITUA PELO SEU NÚMERO REAL
-        number: '+5511777777777',
-        name: 'Vendas',
-        label: 'Equipe de Vendas',
-        status: 'CONNECTED',
-        verified: true,
-        isVerified: true,
-        businessName: 'PyTake Vendas',
-        business_name: 'PyTake Vendas',
-        lastSeen: new Date().toISOString(),
-        last_seen: new Date().toISOString()
-      }
-    ]
-    
-    return NextResponse.json(realNumbers)
+    // Se não conseguir buscar do banco, retornar array vazio
+    // NUNCA retornar dados fake
+    console.log('⚠️ Nenhum número WhatsApp encontrado no sistema')
+    return NextResponse.json([])
   } catch (error) {
     console.error('❌ Erro ao buscar números WhatsApp:', error)
     return NextResponse.json(
