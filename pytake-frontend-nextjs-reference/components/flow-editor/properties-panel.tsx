@@ -83,12 +83,6 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
     if (selectedNodeData && nodeType) {
       const config = selectedNodeData.data.config || {}
       
-      console.log('[Loading Node Config]', {
-        nodeId: selectedNode,
-        config,
-        templateName: config.templateName
-      })
-      
       // Aplicar valores padrão do schema quando não existirem
       const configWithDefaults = { ...config }
       Object.entries(nodeType.configSchema).forEach(([key, schema]) => {
@@ -145,8 +139,6 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   }
 
   const handleInputChange = (key: string, value: any) => {
-    console.log('[handleInputChange]', { key, value, oldFormData: formData })
-    
     const newFormData = { ...formData, [key]: value }
     
     // Se estamos desativando captureAll, também limpar selectedButtons no mesmo update
@@ -162,7 +154,6 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         ...newFormData,
         customName: customName 
       }
-      console.log('[Updating Node]', { nodeId: selectedNode, updatedConfig })
       updateNodeData(selectedNode, { 
         config: updatedConfig 
       })
@@ -287,28 +278,12 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         // Use o valor diretamente do formData ao invés da variável value
         const currentValue = formData[key] ? String(formData[key]) : ''
         
-        // Debug logs temporários
-        console.log('[Template Select Render]', {
-          key,
-          value,
-          formDataValue: formData[key],
-          currentValue,
-          nodeId: selectedNode,
-          availableTemplates: templates.length,
-          templateNames: templates.map(t => t.name)
-        })
         
         return (
           <div className="space-y-2">
             <Select
               value={currentValue}
               onValueChange={(newValue) => {
-                console.log('[Template Select Change]', {
-                  key,
-                  oldValue: currentValue,
-                  newValue,
-                  nodeId: selectedNode
-                })
                 // Atualizar diretamente no formData E no nó
                 setFormData(prev => ({ ...prev, [key]: newValue }))
                 if (selectedNode) {
