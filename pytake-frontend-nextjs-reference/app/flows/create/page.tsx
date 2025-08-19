@@ -719,6 +719,13 @@ function FlowEditor() {
             type: 'success' 
           })
           setTimeout(() => setNotification(null), 3000)
+          
+          // Se o flow foi publicado, redirecionar para a lista de flows
+          if (flowData.status === 'published') {
+            setTimeout(() => {
+              router.push('/flows')
+            }, 2500)
+          }
         }}
       />
       

@@ -191,10 +191,14 @@ export function FlowSaveModal({ isOpen, onClose, onSave }: FlowSaveModalProps) {
         localStorage.setItem(`flow_history_${flowId}`, JSON.stringify(flowHistory))
       }
       
-      // Limpar rascunho se flow foi salvo
+      // Limpar rascunho se flow foi salvo como não-draft
       if (formData.status !== 'draft') {
+        console.log('🧹 Limpando rascunho - flow salvo como', formData.status)
         clearLocalStorage()
-        console.log('🧹 Rascunho limpo - flow salvo como', formData.status)
+        
+        // Também forçar limpeza adicional para garantir
+        localStorage.removeItem('pytake_flow_draft')
+        console.log('🧹 Rascunho limpo completamente')
       }
       
       // Callback externo

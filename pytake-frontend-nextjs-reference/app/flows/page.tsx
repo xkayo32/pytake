@@ -211,28 +211,42 @@ export default function FlowsPage() {
         templateData: template
       }))
       
-      // Carregar rascunho atual se existir
+      // Carregar rascunho atual se existir E não conflitar com flows salvos
       const draftData = localStorage.getItem('pytake_flow_draft')
       const draftFlows = []
       if (draftData) {
         const draft = JSON.parse(draftData)
         if (draft.flow && draft.nodes && draft.nodes.length > 0) {
-          draftFlows.push({
-            id: 'draft-current',
-            name: draft.flow?.name || 'Rascunho sem título',
-            description: 'Rascunho salvo automaticamente',
-            status: 'draft' as const,
-            trigger: 'Rascunho em edição',
-            createdAt: draft.timestamp,
-            updatedAt: draft.timestamp,
-            stats: {
-              executions: 0,
-              successRate: 0
-            },
-            tags: ['rascunho', 'auto-save'],
-            isDraft: true,
-            draftData: draft
-          })
+          // Verificar se já existe um flow salvo com o mesmo nome
+          const draftName = draft.flow?.name || 'Rascunho sem título'
+          const conflictingFlow = localFlows.find(f => f.name === draftName)
+          
+          // Só adicionar o rascunho se não houver conflito ou se o flow não foi publicado
+          if (!conflictingFlow || conflictingFlow.status === 'draft') {
+            draftFlows.push({
+              id: 'draft-current',
+              name: draftName,
+              description: 'Rascunho salvo automaticamente',
+              status: 'draft' as const,
+              trigger: 'Rascunho em edição',
+              createdAt: draft.timestamp,
+              updatedAt: draft.timestamp,
+              stats: {
+                executions: 0,
+                successRate: 0
+              },
+              tags: ['rascunho', 'auto-save'],
+              isDraft: true,
+              draftData: draft
+            })
+          } else {
+            console.log('🚫 Rascunho ignorado - conflita com flow publicado:', draftName)
+            // Remover rascunho órfão se há um flow publicado com o mesmo nome
+            if (conflictingFlow.status === 'published') {
+              localStorage.removeItem('pytake_flow_draft')
+              console.log('🧹 Rascunho órfão removido automaticamente')
+            }
+          }
         }
       }
       
