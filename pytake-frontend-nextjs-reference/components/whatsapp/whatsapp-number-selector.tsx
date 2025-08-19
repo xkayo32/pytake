@@ -69,8 +69,46 @@ export function WhatsAppNumberSelector({
       // Tentar carregar da API primeiro
       const response = await fetch('/api/v1/whatsapp/numbers')
       if (response.ok) {
-        const apiNumbers = await response.json()
-        setNumbers(apiNumbers)
+        const data = await response.json()
+        console.log('Números WhatsApp da API:', data)
+        
+        // Verificar se tem dados válidos
+        if (data && Array.isArray(data) && data.length > 0) {
+          // Formatar números da API para o formato esperado
+          const formattedNumbers = data.map((num: any) => ({
+            id: num.id || num.phone || `num-${Date.now()}`,
+            phone: num.phone || num.number,
+            name: num.name || num.label || 'Número WhatsApp',
+            status: num.status === 'CONNECTED' ? 'connected' : 
+                   num.status === 'DISCONNECTED' ? 'disconnected' : 'pending',
+            isVerified: num.verified || num.isVerified || false,
+            businessName: num.businessName || num.business_name,
+            lastSeen: num.lastSeen || num.last_seen
+          }))
+          setNumbers(formattedNumbers)
+        } else if (data && typeof data === 'object' && !Array.isArray(data)) {
+          // Se retornar um objeto, tentar extrair números
+          const numbers = data.numbers || data.data || []
+          if (numbers.length > 0) {
+            const formattedNumbers = numbers.map((num: any) => ({
+              id: num.id || num.phone || `num-${Date.now()}`,
+              phone: num.phone || num.number,
+              name: num.name || num.label || 'Número WhatsApp',
+              status: num.status === 'CONNECTED' ? 'connected' : 
+                     num.status === 'DISCONNECTED' ? 'disconnected' : 'pending',
+              isVerified: num.verified || num.isVerified || false,
+              businessName: num.businessName || num.business_name,
+              lastSeen: num.lastSeen || num.last_seen
+            }))
+            setNumbers(formattedNumbers)
+          } else {
+            // Se não houver números, usar mock
+            loadMockNumbers()
+          }
+        } else {
+          // Fallback para números mock/localStorage
+          loadMockNumbers()
+        }
       } else {
         // Fallback para números mock/localStorage
         loadMockNumbers()

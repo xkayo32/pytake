@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -102,6 +102,48 @@ export function FlowSaveModal({ isOpen, onClose, onSave }: FlowSaveModalProps) {
   })
   
   const [selectedWhatsAppNumbers, setSelectedWhatsAppNumbers] = useState<string[]>([])
+  
+  // Carregar dados do flow existente quando o modal abrir
+  useEffect(() => {
+    if (isOpen && flow) {
+      // Tentar carregar flow salvo para obter números WhatsApp
+      const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
+      const existingFlow = savedFlows.find((f: any) => f.id === flow.id)
+      
+      if (existingFlow) {
+        console.log('Carregando flow existente:', existingFlow)
+        
+        // Atualizar formulário com dados do flow existente
+        setFormData({
+          name: existingFlow.name || flow.name || '',
+          description: existingFlow.description || flow.description || '',
+          category: existingFlow.category || 'vendas',
+          tags: Array.isArray(existingFlow.tags) ? existingFlow.tags.join(', ') : '',
+          version: existingFlow.version || '1.0.0',
+          status: existingFlow.status || 'draft',
+          isPublic: existingFlow.isPublic || false
+        })
+        
+        // Carregar números WhatsApp selecionados anteriormente
+        if (existingFlow.whatsappNumbers && Array.isArray(existingFlow.whatsappNumbers)) {
+          console.log('Números WhatsApp salvos:', existingFlow.whatsappNumbers)
+          setSelectedWhatsAppNumbers(existingFlow.whatsappNumbers)
+        }
+      } else {
+        // Se não encontrar flow salvo, usar dados do flow atual
+        setFormData({
+          name: flow.name || '',
+          description: flow.description || '',
+          category: 'vendas',
+          tags: '',
+          version: '1.0.0',
+          status: flow.status || 'draft',
+          isPublic: false
+        })
+        setSelectedWhatsAppNumbers([])
+      }
+    }
+  }, [isOpen, flow])
   
   const [errors, setErrors] = useState<Record<string, string>>({})
   
