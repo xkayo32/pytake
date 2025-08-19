@@ -6,26 +6,79 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔄 Buscando números WhatsApp...')
     
-    // Tentar buscar do backend real
+    // Primeiro tentar buscar do endpoint phone-numbers
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/whatsapp/numbers`, {
+      const phoneNumbersResponse = await fetch(`${API_BASE_URL}/api/v1/whatsapp/phone-numbers`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         }
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        console.log('✅ Números WhatsApp do backend:', data)
+      if (phoneNumbersResponse.ok) {
+        const phoneNumbers = await phoneNumbersResponse.json()
+        console.log('✅ Números WhatsApp do banco:', phoneNumbers)
         
-        // Se o backend retornar dados válidos
-        if (data && (Array.isArray(data) || (data.numbers && Array.isArray(data.numbers)))) {
-          return NextResponse.json(data)
+        // Formatar números do banco para o formato esperado
+        if (phoneNumbers && Array.isArray(phoneNumbers) && phoneNumbers.length > 0) {
+          const formattedNumbers = phoneNumbers.map((num: any, index: number) => ({
+            id: num.id || `whatsapp-${index + 1}`,
+            phone: num.display_phone_number || num.phone,
+            number: num.display_phone_number || num.phone,
+            name: num.verified_name || `WhatsApp ${index + 1}`,
+            label: num.verified_name || num.display_phone_number,
+            status: num.status === 'EXPIRED' || num.status === 'DISCONNECTED' ? 'DISCONNECTED' : 'CONNECTED',
+            verified: num.status !== 'EXPIRED',
+            isVerified: num.status !== 'EXPIRED',
+            businessName: num.verified_name || 'PyTake',
+            business_name: num.verified_name || 'PyTake',
+            quality_rating: num.quality_rating,
+            platform_type: num.platform_type,
+            lastSeen: new Date().toISOString(),
+            last_seen: new Date().toISOString()
+          }))
+          
+          return NextResponse.json(formattedNumbers)
         }
       }
-    } catch (backendError) {
-      console.log('⚠️ Backend não disponível, usando dados reais de exemplo')
+    } catch (phoneError) {
+      console.log('⚠️ Erro ao buscar phone-numbers:', phoneError)
+    }
+    
+    // Tentar buscar do endpoint whatsapp-configs
+    try {
+      const configsResponse = await fetch(`${API_BASE_URL}/api/v1/whatsapp-configs`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+
+      if (configsResponse.ok) {
+        const configs = await configsResponse.json()
+        console.log('📱 WhatsApp configs:', configs)
+        
+        if (configs && Array.isArray(configs) && configs.length > 0) {
+          const formattedNumbers = configs.map((config: any, index: number) => ({
+            id: config.id || `whatsapp-${index + 1}`,
+            phone: config.phone_number || config.phone,
+            number: config.phone_number || config.phone,
+            name: config.name || `WhatsApp ${index + 1}`,
+            label: config.label || config.name,
+            status: config.is_default ? 'CONNECTED' : 'DISCONNECTED',
+            verified: config.is_verified || false,
+            isVerified: config.is_verified || false,
+            businessName: config.business_name || 'PyTake',
+            business_name: config.business_name || 'PyTake',
+            lastSeen: config.updated_at || new Date().toISOString(),
+            last_seen: config.updated_at || new Date().toISOString()
+          }))
+          
+          return NextResponse.json(formattedNumbers)
+        }
+      }
+    } catch (configError) {
+      console.log('⚠️ Erro ao buscar whatsapp-configs:', configError)
     }
 
     // Se não conseguir do backend, retornar números reais de exemplo
