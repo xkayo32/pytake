@@ -296,13 +296,19 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
         nodes: flowNodes,
         edges: flowEdges,
         updatedAt: new Date().toISOString(),
-        version: flow.version + 1
+        version: (flow.version || 0) + 1,
+        // Garantir que campos obrigatórios existam
+        name: flow.name || 'Flow sem nome',
+        description: flow.description || '',
+        status: flow.status || 'draft'
       }
       
       // Salvar no backend via API
       console.log('Saving flow:', updatedFlow)
       
       try {
+        console.log('🔄 Enviando flow para API:', updatedFlow)
+        
         const response = await fetch('/api/v1/flows', {
           method: 'POST',
           headers: {
@@ -311,8 +317,12 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
           body: JSON.stringify(updatedFlow)
         })
         
+        console.log('📡 Response status:', response.status)
+        
         if (!response.ok) {
-          throw new Error('Erro ao salvar flow no backend')
+          const errorText = await response.text()
+          console.error('❌ Backend error response:', errorText)
+          throw new Error(`Erro ao salvar flow no backend: ${response.status} - ${errorText}`)
         }
         
         const savedFlow = await response.json()
