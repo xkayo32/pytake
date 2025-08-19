@@ -307,19 +307,30 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
     
     try {
       console.log('🔄 [DEBUG] Iniciando conversão de nós e edges')
+      // Validar dados dos nós antes da conversão
+      console.log('📋 [DEBUG] Nodes para conversão:', nodes)
+      
       // Convert React Flow nodes/edges to our format
-      const flowNodes: FlowNode[] = nodes.map(node => ({
-        id: node.id,
-        type: node.data.nodeType,
-        position: node.position,
-        data: {
-          label: node.data.label,
-          description: node.data.description,
-          config: node.data.config,
-          icon: node.data.icon,
-          color: node.data.color
+      const flowNodes: FlowNode[] = nodes.map(node => {
+        // Validar estrutura do nó
+        if (!node.data || !node.data.nodeType) {
+          console.error('❌ [DEBUG] Nó com dados inválidos:', node)
+          throw new Error(`Nó ${node.id} possui dados inválidos`)
         }
-      }))
+        
+        return {
+          id: node.id,
+          type: node.data.nodeType,
+          position: node.position,
+          data: {
+            label: node.data.label || 'Sem nome',
+            description: node.data.description || '',
+            config: node.data.config || {},
+            icon: node.data.icon || 'Box',
+            color: node.data.color || '#gray'
+          }
+        }
+      })
       
       const flowEdges: FlowEdge[] = edges.map(edge => ({
         id: edge.id,
@@ -331,16 +342,23 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
         data: edge.data
       }))
       
+      // Validar flow antes da criação
+      console.log('🔍 [DEBUG] Flow atual:', flow)
+      
       const updatedFlow: Flow = {
-        ...flow,
-        nodes: flowNodes,
-        edges: flowEdges,
-        updatedAt: new Date().toISOString(),
-        version: (flow.version || 0) + 1,
-        // Garantir que campos obrigatórios existam
+        id: flow.id || `flow-${Date.now()}`,
         name: flow.name || 'Flow sem nome',
         description: flow.description || '',
         status: flow.status || 'draft',
+        createdAt: flow.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        version: (flow.version || 0) + 1,
+        nodes: flowNodes,
+        edges: flowEdges,
+        trigger: flow.trigger || {
+          type: 'keyword',
+          config: {}
+        },
         apiId: 'v1' // Required by backend
       }
       
@@ -364,6 +382,7 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
         if (!response.ok) {
           const errorText = await response.text()
           console.error('❌ Backend error response:', errorText)
+          console.error('📤 Request data:', JSON.stringify(updatedFlow, null, 2))
           throw new Error(`Erro ao salvar flow no backend: ${response.status} - ${errorText}`)
         }
         

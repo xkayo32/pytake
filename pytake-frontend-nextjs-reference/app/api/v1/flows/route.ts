@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const errorText = await response.text()
       console.error('❌ Backend error:', response.status, errorText)
+      console.error('❌ Request body was:', JSON.stringify(body, null, 2))
       return NextResponse.json(
         { error: 'Failed to create flow' },
         { status: response.status }
