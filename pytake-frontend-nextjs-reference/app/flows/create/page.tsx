@@ -16,9 +16,9 @@ import 'reactflow/dist/style.css'
 
 import { NodePalette } from '@/components/flow-editor/node-palette-v2'
 import { PropertiesPanel } from '@/components/flow-editor/properties-panel'
-import { TemplateLoader } from '@/components/flow-editor/template-loader'
+import { FlowLoader } from '@/components/flow-editor/flow-loader'
 import { FlowExecutorModal } from '@/components/flow-editor/flow-executor-modal'
-import { TemplateSaveModal } from '@/components/flow-editor/template-save-modal'
+import { FlowSaveModal } from '@/components/flow-editor/flow-save-modal'
 import { WhatsAppTemplateManager } from '@/components/flow-editor/whatsapp-template-manager'
 import { nodeTypes } from '@/components/flow-editor/nodes/custom-nodes'
 import { Button } from '@/components/ui/button'
@@ -55,8 +55,8 @@ function FlowEditor() {
   const { project } = useReactFlow()
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showPalette, setShowPalette] = useState(true)
-  const [showTemplates, setShowTemplates] = useState(false)
-  const [showSaveTemplate, setShowSaveTemplate] = useState(false)
+  const [showFlows, setShowFlows] = useState(false)
+  const [showSaveFlow, setShowSaveFlow] = useState(false)
   const [showWhatsAppTemplates, setShowWhatsAppTemplates] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
@@ -86,7 +86,11 @@ function FlowEditor() {
     saveToLocalStorage,
     clearLocalStorage,
     deleteNode,
-    deleteEdge
+    deleteEdge,
+    undo,
+    redo,
+    canUndo,
+    canRedo
   } = useFlowEditorStore()
 
   const { isAuthenticated, isLoading: authLoading } = useAuth()
@@ -253,23 +257,23 @@ function FlowEditor() {
     setShowExecutor(true)
   }, [])
 
-  const handleLoadTemplate = useCallback((template: any) => {
-    // Carregar template no editor
-    console.log('Loading template:', template)
+  const handleLoadFlow = useCallback((savedFlow: any) => {
+    // Carregar flow salvo no editor
+    console.log('Loading saved flow:', savedFlow)
     
-    if (!template) {
-      console.error('Template is null or undefined')
+    if (!savedFlow) {
+      console.error('Flow is null or undefined')
       return
     }
     
-    // Validar estrutura do template
-    const nodes = template.nodes || template.flow?.nodes || []
-    const edges = template.edges || template.flow?.edges || []
+    // Validar estrutura do flow
+    const nodes = savedFlow.flow?.nodes || []
+    const edges = savedFlow.flow?.edges || []
     
-    console.log('Template structure:', { nodes: nodes.length, edges: edges.length })
+    console.log('Flow structure:', { nodes: nodes.length, edges: edges.length })
     
-    // Converter nodes do template para format do ReactFlow
-    const templateNodes = nodes.map((node: any) => ({
+    // Converter nodes do flow para formato do ReactFlow
+    const flowNodes = nodes.map((node: any) => ({
       ...node,
       data: {
         ...node.data,
@@ -277,29 +281,45 @@ function FlowEditor() {
       }
     }))
     
-    const templateEdges = edges
+    const flowEdges = edges
     
-    // Atualizar o store com os dados do template
-    setNodes(templateNodes)
-    setEdges(templateEdges)
+    // Atualizar o store com os dados do flow
+    setNodes(flowNodes)
+    setEdges(flowEdges)
     
-    // Fechar painel de templates
-    setShowTemplates(false)
+    // Fechar painel de flows
+    setShowFlows(false)
     
-    // Atualizar nome do flow se disponível
-    if (template.name && flow) {
+    // Criar novo flow baseado no flow salvo
+    if (savedFlow.name && savedFlow) {
+      const newFlow = {
+        id: `flow-${Date.now()}`,
+        name: `${savedFlow.name} (Cópia)`,
+        description: savedFlow.description || '',
+        status: 'draft' as const,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        version: 1,
+        trigger: savedFlow.trigger || {
+          type: 'keyword',
+          config: {}
+        },
+        nodes: flowNodes,
+        edges: flowEdges
+      }
+      
       useFlowEditorStore.setState({ 
-        flow: { ...flow, name: template.name },
+        flow: newFlow,
         isDirty: true 
       })
     }
     
-    console.log('Template loaded successfully!')
-  }, [setNodes, setEdges, flow])
+    console.log('Flow loaded successfully!')
+  }, [setNodes, setEdges])
 
-  const handlePreviewTemplate = useCallback((template: any) => {
-    // Abrir preview do template
-    console.log('Previewing template:', template)
+  const handlePreviewFlow = useCallback((flow: any) => {
+    // Abrir preview do flow
+    console.log('Previewing flow:', flow)
     // TODO: Implementar modal de preview
   }, [])
 
@@ -344,17 +364,35 @@ function FlowEditor() {
           event.preventDefault()
           handleSave()
           break
-        case 'z': // Desfazer (futuro)
+        case 'z': // Desfazer
           event.preventDefault()
-          console.log('Undo - não implementado ainda')
+          if (event.shiftKey) {
+            // Ctrl+Shift+Z = Redo
+            if (canRedo()) {
+              redo()
+              setNotification({ message: 'Ação refeita', type: 'info' })
+              setTimeout(() => setNotification(null), 2000)
+            }
+          } else {
+            // Ctrl+Z = Undo
+            if (canUndo()) {
+              undo()
+              setNotification({ message: 'Ação desfeita', type: 'info' })
+              setTimeout(() => setNotification(null), 2000)
+            }
+          }
           break
-        case 'y': // Refazer (futuro)
+        case 'y': // Refazer (Ctrl+Y)
           event.preventDefault()
-          console.log('Redo - não implementado ainda')
+          if (canRedo()) {
+            redo()
+            setNotification({ message: 'Ação refeita', type: 'info' })
+            setTimeout(() => setNotification(null), 2000)
+          }
           break
       }
     }
-  }, [selectedNode, selectedEdge, nodes, deleteNode, deleteEdge, setShowProperties, handleSave])
+  }, [selectedNode, selectedEdge, nodes, deleteNode, deleteEdge, setShowProperties, handleSave, undo, redo, canUndo, canRedo])
 
   const validation = validateFlow()
 
@@ -470,11 +508,11 @@ function FlowEditor() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setShowTemplates(!showTemplates)}
+              onClick={() => setShowFlows(!showFlows)}
               className="h-7 px-2 text-xs"
-              title="Templates"
+              title="Meus Flows"
             >
-              📋 Templates
+              📋 Flows
             </Button>
             
             <Button
@@ -491,13 +529,13 @@ function FlowEditor() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setShowSaveTemplate(true)}
+              onClick={() => setShowSaveFlow(true)}
               className="h-7 px-2 text-xs"
-              title="Salvar como Template para reutilizar"
+              title="Salvar Flow para reutilizar"
               disabled={nodes.length === 0}
             >
               <Package className="h-3 w-3 mr-1" />
-              Como Template
+              Salvar Flow
             </Button>
             
             <div className="w-px h-5 bg-border mx-1" />
@@ -549,24 +587,24 @@ function FlowEditor() {
           </div>
         )}
         
-        {/* Templates Panel */}
-        {showTemplates && (
+        {/* Flows Panel */}
+        {showFlows && (
           <div className="w-96 border-r bg-background/95 backdrop-blur overflow-y-auto">
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">Templates</h3>
+                <h3 className="font-semibold">Meus Flows</h3>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowTemplates(false)}
+                  onClick={() => setShowFlows(false)}
                   className="h-6 w-6 p-0"
                 >
                   ✕
                 </Button>
               </div>
-              <TemplateLoader 
-                onLoadTemplate={handleLoadTemplate}
-                onPreviewTemplate={handlePreviewTemplate}
+              <FlowLoader 
+                onLoadFlow={handleLoadFlow}
+                onPreviewFlow={handlePreviewFlow}
               />
             </div>
           </div>
@@ -648,8 +686,9 @@ function FlowEditor() {
                 <div className="font-medium mb-1">Atalhos:</div>
                 <div>🗑 Delete - Remover nó/conexão</div>
                 <div>⌘+S - Salvar flow</div>
+                <div className={canUndo() ? 'text-blue-600' : 'opacity-50'}>⌘+Z - Desfazer</div>
+                <div className={canRedo() ? 'text-blue-600' : 'opacity-50'}>⌘+Y - Refazer</div>
                 <div>🔁 Clique - Selecionar</div>
-                <div>⚙️ Duplo clique - Editar</div>
               </div>
             </Panel>
           </ReactFlow>
@@ -670,13 +709,13 @@ function FlowEditor() {
         onLogsUpdate={(logs) => setExecutionLogs(logs)}
       />
       
-      {/* Template Save Modal */}
-      <TemplateSaveModal
-        isOpen={showSaveTemplate}
-        onClose={() => setShowSaveTemplate(false)}
-        onSave={(templateData) => {
+      {/* Flow Save Modal */}
+      <FlowSaveModal
+        isOpen={showSaveFlow}
+        onClose={() => setShowSaveFlow(false)}
+        onSave={(flowData) => {
           setNotification({ 
-            message: `Template "${templateData.name}" salvo com sucesso!`, 
+            message: `Flow "${flowData.name}" salvo com sucesso!`, 
             type: 'success' 
           })
           setTimeout(() => setNotification(null), 3000)

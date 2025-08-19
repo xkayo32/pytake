@@ -191,23 +191,23 @@ export default function FlowsPage() {
         flowData: flow
       }))
       
-      // Carregar templates salvos
-      const templates = JSON.parse(localStorage.getItem('flow_templates') || '[]')
-      console.log('🔄 loadLocalData - Templates encontrados:', templates.length)
-      const templateFlows = templates.map((template: any, index: number) => ({
-        id: `template-${index}`,
-        name: template.name,
+      // Carregar flows salvos como template (legado - compatibilidade)
+      const legacyTemplates = JSON.parse(localStorage.getItem('flow_templates') || '[]')
+      console.log('🔄 loadLocalData - Templates legado encontrados:', legacyTemplates.length)
+      const legacyFlows = legacyTemplates.map((template: any, index: number) => ({
+        id: `legacy-${index}`,
+        name: `${template.name} (Template Legacy)`,
         description: template.description,
         status: 'draft' as const,
-        trigger: `Template - ${template.category}`,
+        trigger: `Legacy - ${template.category}`,
         createdAt: template.metadata.createdAt,
         updatedAt: template.metadata.updatedAt,
         stats: {
           executions: 0,
           successRate: 0
         },
-        tags: ['template', ...template.tags],
-        isTemplate: true,
+        tags: ['legacy', ...template.tags],
+        isLegacy: true,
         templateData: template
       }))
       
@@ -238,18 +238,18 @@ export default function FlowsPage() {
       
       // Combinar com flows existentes
       setFlows(prev => {
-        // Remover templates, rascunhos e flows locais anteriores
+        // Remover flows anteriores para evitar duplicatas
         const filtered = prev.filter(f => 
-          !f.id.startsWith('template-') && 
+          !f.id.startsWith('legacy-') && 
           !f.id.startsWith('draft-') &&
           !localFlows.some((lf: any) => lf.id === f.id)
         )
-        const finalFlows = [...filtered, ...localFlows, ...templateFlows, ...draftFlows]
+        const finalFlows = [...filtered, ...localFlows, ...legacyFlows, ...draftFlows]
         console.log('🔄 loadLocalData - Total flows após merge:', finalFlows.length)
         console.log('🔄 loadLocalData - Tipos:', {
           api: filtered.length,
           local: localFlows.length,
-          templates: templateFlows.length,
+          legacy: legacyFlows.length,
           drafts: draftFlows.length
         })
         return finalFlows
@@ -365,9 +365,9 @@ export default function FlowsPage() {
     const flow = flows.find(f => f.id === flowId)
     if (!flow) return
     
-    // Se for um template, carregar no editor
-    if (flow.isTemplate && flow.templateData) {
-      // Salvar template no sessionStorage para carregar no editor
+    // Se for um flow legado (antigos templates), carregar no editor
+    if (flow.isLegacy && flow.templateData) {
+      // Salvar template legado no sessionStorage para carregar no editor
       sessionStorage.setItem('load_template', JSON.stringify(flow.templateData))
       router.push('/flows/create')
     } 
@@ -623,9 +623,9 @@ export default function FlowsPage() {
                         <Zap className="h-5 w-5 text-primary" />
                         <CardTitle className="text-lg">
                           {flow.name}
-                          {flow.isTemplate && (
-                            <Badge variant="secondary" className="ml-2 text-xs">
-                              📋 Template
+                          {flow.isLegacy && (
+                            <Badge variant="outline" className="ml-2 text-xs bg-gray-50 text-gray-700 border-gray-300">
+                              📋 Legacy
                             </Badge>
                           )}
                           {flow.isDraft && (
@@ -636,6 +636,11 @@ export default function FlowsPage() {
                           {flow.isLocal && (
                             <Badge variant="default" className="ml-2 text-xs bg-green-50 text-green-700 border-green-300">
                               💾 Salvo
+                            </Badge>
+                          )}
+                          {flow.status === 'published' && (
+                            <Badge variant="default" className="ml-2 text-xs bg-blue-50 text-blue-700 border-blue-300">
+                              🚀 Publicado
                             </Badge>
                           )}
                         </CardTitle>
@@ -756,9 +761,9 @@ export default function FlowsPage() {
                           <div>
                             <div className="font-medium flex items-center gap-2">
                               {flow.name}
-                              {flow.isTemplate && (
-                                <Badge variant="secondary" className="text-xs">
-                                  📋 Template
+                              {flow.isLegacy && (
+                                <Badge variant="outline" className="text-xs bg-gray-50 text-gray-700 border-gray-300">
+                                  📋 Legacy
                                 </Badge>
                               )}
                               {flow.isDraft && (
@@ -769,6 +774,11 @@ export default function FlowsPage() {
                               {flow.isLocal && (
                                 <Badge variant="default" className="text-xs bg-green-50 text-green-700 border-green-300">
                                   💾 Salvo
+                                </Badge>
+                              )}
+                              {flow.status === 'published' && (
+                                <Badge variant="default" className="text-xs bg-blue-50 text-blue-700 border-blue-300">
+                                  🚀 Publicado
                                 </Badge>
                               )}
                             </div>

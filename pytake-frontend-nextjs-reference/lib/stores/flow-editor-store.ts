@@ -3,11 +3,22 @@ import { addEdge, applyNodeChanges, applyEdgeChanges, Connection, Edge, Node, No
 import { FlowNode, FlowEdge, Flow, NodeType } from '@/lib/types/flow'
 import { getNodeConfig } from '@/lib/types/node-schemas'
 
+interface HistoryState {
+  nodes: Node[]
+  edges: Edge[]
+  timestamp: number
+}
+
 interface FlowEditorStore {
   // Flow data
   flow: Flow | null
   nodes: Node[]
   edges: Edge[]
+  
+  // Undo/Redo state
+  history: HistoryState[]
+  currentHistoryIndex: number
+  maxHistorySize: number
   
   // UI state
   selectedNode: string | null
@@ -52,6 +63,13 @@ interface FlowEditorStore {
   
   // Validation
   validateFlow: () => { isValid: boolean; errors: string[] }
+  
+  // Undo/Redo
+  undo: () => void
+  redo: () => void
+  canUndo: () => boolean
+  canRedo: () => boolean
+  saveToHistory: () => void
 }
 
 export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
@@ -59,6 +77,12 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
   flow: null,
   nodes: [],
   edges: [],
+  
+  // Undo/Redo initial state
+  history: [],
+  currentHistoryIndex: -1,
+  maxHistorySize: 50,
+  
   selectedNode: null,
   selectedEdge: null,
   isLoading: false,
@@ -66,10 +90,20 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
   showProperties: false,
   nodeTypes: [],
   
-  // Basic setters
+  // Basic setters (with history)
   setFlow: (flow) => set({ flow, isDirty: false }),
-  setNodes: (nodes) => set({ nodes, isDirty: true }),
-  setEdges: (edges) => set({ edges, isDirty: true }),
+  setNodes: (nodes) => {
+    const state = get()
+    set({ nodes, isDirty: true })
+    // Save to history after setting nodes
+    setTimeout(() => get().saveToHistory(), 0)
+  },
+  setEdges: (edges) => {
+    const state = get()
+    set({ edges, isDirty: true })
+    // Save to history after setting edges
+    setTimeout(() => get().saveToHistory(), 0)
+  },
   
   // React Flow handlers
   onNodesChange: (changes) => {
@@ -605,6 +639,72 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
       isValid: errors.length === 0,
       errors
     }
+  },
+  
+  // Undo/Redo implementation
+  saveToHistory: () => {
+    const { nodes, edges, history, currentHistoryIndex, maxHistorySize } = get()
+    
+    // Create new history state
+    const newState: HistoryState = {
+      nodes: JSON.parse(JSON.stringify(nodes)),
+      edges: JSON.parse(JSON.stringify(edges)),
+      timestamp: Date.now()
+    }
+    
+    // Remove any future history if we're not at the end
+    const newHistory = history.slice(0, currentHistoryIndex + 1)
+    
+    // Add new state
+    newHistory.push(newState)
+    
+    // Limit history size
+    if (newHistory.length > maxHistorySize) {
+      newHistory.shift()
+    }
+    
+    set({
+      history: newHistory,
+      currentHistoryIndex: newHistory.length - 1
+    })
+  },
+  
+  undo: () => {
+    const { history, currentHistoryIndex } = get()
+    
+    if (currentHistoryIndex > 0) {
+      const prevState = history[currentHistoryIndex - 1]
+      set({
+        nodes: JSON.parse(JSON.stringify(prevState.nodes)),
+        edges: JSON.parse(JSON.stringify(prevState.edges)),
+        currentHistoryIndex: currentHistoryIndex - 1,
+        isDirty: true
+      })
+    }
+  },
+  
+  redo: () => {
+    const { history, currentHistoryIndex } = get()
+    
+    if (currentHistoryIndex < history.length - 1) {
+      const nextState = history[currentHistoryIndex + 1]
+      set({
+        nodes: JSON.parse(JSON.stringify(nextState.nodes)),
+        edges: JSON.parse(JSON.stringify(nextState.edges)),
+        currentHistoryIndex: currentHistoryIndex + 1,
+        isDirty: true
+      })
+    }
+  },
+  
+  canUndo: () => {
+    const { currentHistoryIndex } = get()
+    return currentHistoryIndex > 0
+  },
+  
+  canRedo: () => {
+    const { history, currentHistoryIndex } = get()
+    return currentHistoryIndex < history.length - 1
   }
 }))
 

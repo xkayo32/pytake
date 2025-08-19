@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import {
   Dialog,
   DialogContent,
@@ -13,32 +14,39 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { 
   Save, 
-  Package, 
-  Tag, 
-  FileText,
-  Globe,
-  Users,
   Zap,
   AlertCircle,
-  Check
+  Check,
+  Globe,
+  Lock,
+  Archive,
+  History
 } from 'lucide-react'
 import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
 
-interface TemplateSaveModalProps {
+interface FlowSaveModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave?: (templateData: TemplateData) => void
+  onSave?: (flowData: SavedFlowData) => void
 }
 
-interface TemplateData {
+interface SavedFlowData {
+  id: string
   name: string
   description: string
   category: string
   tags: string[]
   version: string
-  author: string
+  status: 'draft' | 'published' | 'archived'
   isPublic: boolean
   flow: {
     nodes: any[]
@@ -51,10 +59,12 @@ interface TemplateData {
     edgeCount: number
     triggers: string[]
     actions: string[]
+    version: number
+    parentVersion?: string
   }
 }
 
-const TEMPLATE_CATEGORIES = [
+const FLOW_CATEGORIES = [
   { value: 'vendas', label: 'Vendas', icon: '💰' },
   { value: 'suporte', label: 'Suporte', icon: '🎧' },
   { value: 'marketing', label: 'Marketing', icon: '📢' },
@@ -67,18 +77,24 @@ const TEMPLATE_CATEGORIES = [
   { value: 'outro', label: 'Outro', icon: '📦' }
 ]
 
-export function TemplateSaveModal({ isOpen, onClose, onSave }: TemplateSaveModalProps) {
-  const { nodes, edges } = useFlowEditorStore()
+const FLOW_STATUSES = [
+  { value: 'draft', label: 'Rascunho', icon: '✏️', description: 'Flow em desenvolvimento' },
+  { value: 'published', label: 'Publicado', icon: '🚀', description: 'Flow ativo e funcional' },
+  { value: 'archived', label: 'Arquivado', icon: '📦', description: 'Flow inativo, mantido para histórico' }
+]
+
+export function FlowSaveModal({ isOpen, onClose, onSave }: FlowSaveModalProps) {
+  const { nodes, edges, flow, clearLocalStorage } = useFlowEditorStore()
   const [isSaving, setIsSaving] = useState(false)
   const [savedSuccess, setSavedSuccess] = useState(false)
   
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
+    name: flow?.name || '',
+    description: flow?.description || '',
     category: 'vendas',
     tags: '',
     version: '1.0.0',
-    author: 'PyTake User',
+    status: 'draft' as 'draft' | 'published' | 'archived',
     isPublic: false
   })
   
@@ -99,32 +115,45 @@ export function TemplateSaveModal({ isOpen, onClose, onSave }: TemplateSaveModal
     const newErrors: Record<string, string> = {}
     
     if (!formData.name.trim()) {
-      newErrors.name = 'Nome do template é obrigatório'
+      newErrors.name = 'Nome do flow é obrigatório'
     }
     
     if (!formData.description.trim()) {
       newErrors.description = 'Descrição é obrigatória'
     }
     
-    if (formData.description.length < 20) {
-      newErrors.description = 'Descrição deve ter pelo menos 20 caracteres'
+    if (formData.description.length < 10) {
+      newErrors.description = 'Descrição deve ter pelo menos 10 caracteres'
     }
     
     if (nodes.length === 0) {
       newErrors.flow = 'O flow deve ter pelo menos um nó'
     }
     
+    if (formData.status === 'published' && flowAnalysis.triggers.length === 0) {
+      newErrors.flow = 'Flow publicado deve ter pelo menos um gatilho (trigger)'
+    }
+    
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
   
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!validateForm()) return
     
     setIsSaving(true)
     
     try {
-      const templateData: TemplateData = {
+      // Gerar ID único se não existir
+      const flowId = flow?.id || `flow-${Date.now()}`
+      
+      // Buscar versão anterior se existir
+      const existingFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
+      const existingFlow = existingFlows.find((f: any) => f.id === flowId)
+      const currentVersion = existingFlow ? (existingFlow.metadata?.version || 1) + 1 : 1
+      
+      const flowData: SavedFlowData = {
+        id: flowId,
         ...formData,
         tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
         flow: {
@@ -135,22 +164,41 @@ export function TemplateSaveModal({ isOpen, onClose, onSave }: TemplateSaveModal
           edges
         },
         metadata: {
-          createdAt: new Date().toISOString(),
+          createdAt: existingFlow?.metadata?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           nodeCount: flowAnalysis.nodeCount,
           edgeCount: flowAnalysis.edgeCount,
           triggers: flowAnalysis.triggers,
-          actions: flowAnalysis.actions
+          actions: flowAnalysis.actions,
+          version: currentVersion,
+          parentVersion: existingFlow ? `v${existingFlow.metadata?.version || 1}` : undefined
         }
       }
       
-      // Salvar no localStorage
-      const savedTemplates = JSON.parse(localStorage.getItem('flow_templates') || '[]')
-      savedTemplates.push(templateData)
-      localStorage.setItem('flow_templates', JSON.stringify(savedTemplates))
+      // Salvar flow principal
+      const savedFlows = existingFlows.filter((f: any) => f.id !== flowId)
+      savedFlows.push(flowData)
+      localStorage.setItem('saved_flows', JSON.stringify(savedFlows))
+      
+      // Salvar histórico de versões
+      const flowHistory = JSON.parse(localStorage.getItem(`flow_history_${flowId}`) || '[]')
+      if (existingFlow) {
+        flowHistory.push({
+          ...existingFlow,
+          versionLabel: `v${existingFlow.metadata?.version || 1}`,
+          archivedAt: new Date().toISOString()
+        })
+        localStorage.setItem(`flow_history_${flowId}`, JSON.stringify(flowHistory))
+      }
+      
+      // Limpar rascunho se flow foi salvo
+      if (formData.status !== 'draft') {
+        clearLocalStorage()
+        console.log('🧹 Rascunho limpo - flow salvo como', formData.status)
+      }
       
       // Callback externo
-      onSave?.(templateData)
+      onSave?.(flowData)
       
       setSavedSuccess(true)
       
@@ -164,29 +212,31 @@ export function TemplateSaveModal({ isOpen, onClose, onSave }: TemplateSaveModal
           category: 'vendas',
           tags: '',
           version: '1.0.0',
-          author: 'PyTake User',
+          status: 'draft',
           isPublic: false
         })
       }, 2000)
       
     } catch (error) {
-      console.error('Erro ao salvar template:', error)
-      setErrors({ save: 'Erro ao salvar template' })
+      console.error('Erro ao salvar flow:', error)
+      setErrors({ save: 'Erro ao salvar flow' })
     } finally {
       setIsSaving(false)
     }
-  }
+  }, [formData, nodes, edges, flow, onSave, onClose, clearLocalStorage, validateForm, flowAnalysis])
+  
+  const selectedStatus = FLOW_STATUSES.find(s => s.value === formData.status)
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Salvar como Template
+            <Save className="h-5 w-5" />
+            Salvar Flow
           </DialogTitle>
           <DialogDescription>
-            Transforme seu flow em um template reutilizável para criar novos flows
+            Salve seu flow para reutilizar, publicar ou manter como rascunho
           </DialogDescription>
         </DialogHeader>
         
@@ -214,7 +264,7 @@ export function TemplateSaveModal({ isOpen, onClose, onSave }: TemplateSaveModal
             
             <div className="flex flex-wrap gap-2 mt-4">
               {flowAnalysis.hasAI && (
-                <Badge variant="secondary">🤖 Inteligência Artificial</Badge>
+                <Badge variant="secondary">🤖 IA</Badge>
               )}
               {flowAnalysis.hasConditions && (
                 <Badge variant="secondary">🔀 Condições</Badge>
@@ -229,13 +279,13 @@ export function TemplateSaveModal({ isOpen, onClose, onSave }: TemplateSaveModal
           <div className="space-y-4">
             <div>
               <Label htmlFor="name">
-                Nome do Template *
+                Nome do Flow *
               </Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Ex: Flow de Vendas com WhatsApp"
+                placeholder="Ex: Atendimento Automático WhatsApp"
                 className={errors.name ? 'border-red-500' : ''}
               />
               {errors.name && (
@@ -254,7 +304,7 @@ export function TemplateSaveModal({ isOpen, onClose, onSave }: TemplateSaveModal
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Descreva o que este template faz e quando deve ser usado..."
+                placeholder="Descreva o que este flow faz e quando deve ser usado..."
                 rows={3}
                 className={errors.description ? 'border-red-500' : ''}
               />
@@ -266,28 +316,55 @@ export function TemplateSaveModal({ isOpen, onClose, onSave }: TemplateSaveModal
               )}
             </div>
             
-            <div>
-              <Label htmlFor="category">
-                Categoria
-              </Label>
-              <div className="grid grid-cols-3 gap-2 mt-2">
-                {TEMPLATE_CATEGORIES.map(cat => (
-                  <button
-                    key={cat.value}
-                    onClick={() => setFormData({ ...formData, category: cat.value })}
-                    className={`
-                      p-2 rounded-lg border text-sm flex items-center gap-2
-                      transition-all hover:shadow-sm
-                      ${formData.category === cat.value 
-                        ? 'border-primary bg-primary/10 text-primary' 
-                        : 'border-border hover:border-primary/50'
-                      }
-                    `}
-                  >
-                    <span>{cat.icon}</span>
-                    <span>{cat.label}</span>
-                  </button>
-                ))}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="status">
+                  Status do Flow
+                </Label>
+                <Select value={formData.status} onValueChange={(value: any) => setFormData({ ...formData, status: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FLOW_STATUSES.map(status => (
+                      <SelectItem key={status.value} value={status.value}>
+                        <div className="flex items-center gap-2">
+                          <span>{status.icon}</span>
+                          <div>
+                            <div className="font-medium">{status.label}</div>
+                            <div className="text-xs text-muted-foreground">{status.description}</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedStatus && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {selectedStatus.description}
+                  </p>
+                )}
+              </div>
+              
+              <div>
+                <Label htmlFor="category">
+                  Categoria
+                </Label>
+                <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FLOW_CATEGORIES.map(cat => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        <div className="flex items-center gap-2">
+                          <span>{cat.icon}</span>
+                          <span>{cat.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             
@@ -299,56 +376,30 @@ export function TemplateSaveModal({ isOpen, onClose, onSave }: TemplateSaveModal
                 id="tags"
                 value={formData.tags}
                 onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                placeholder="vendas, whatsapp, automação"
+                placeholder="atendimento, automação, vendas"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Tags ajudam outros usuários a encontrar seu template
+                Tags ajudam na organização e busca de flows
               </p>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="version">
-                  Versão
-                </Label>
-                <Input
-                  id="version"
-                  value={formData.version}
-                  onChange={(e) => setFormData({ ...formData, version: e.target.value })}
-                  placeholder="1.0.0"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="author">
-                  Autor
-                </Label>
-                <Input
-                  id="author"
-                  value={formData.author}
-                  onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-                  placeholder="Seu nome"
-                />
-              </div>
-            </div>
-            
             <div className="flex items-center gap-3 p-3 rounded-lg border">
-              <input
-                type="checkbox"
+              <div className="flex items-center gap-2">
+                {formData.isPublic ? <Globe className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+              </div>
+              <div className="flex-1">
+                <Label htmlFor="isPublic" className="cursor-pointer">
+                  <div className="font-medium">Flow Público</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Flows públicos podem ser utilizados por outros usuários
+                  </p>
+                </Label>
+              </div>
+              <Switch
                 id="isPublic"
                 checked={formData.isPublic}
-                onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
-                className="h-4 w-4"
+                onCheckedChange={(checked) => setFormData({ ...formData, isPublic: checked })}
               />
-              <Label htmlFor="isPublic" className="flex-1 cursor-pointer">
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4" />
-                  <span>Tornar template público</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Templates públicos podem ser usados por outros usuários da plataforma
-                </p>
-              </Label>
             </div>
           </div>
           
@@ -359,10 +410,17 @@ export function TemplateSaveModal({ isOpen, onClose, onSave }: TemplateSaveModal
             </div>
           )}
           
+          {errors.flow && (
+            <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg text-red-600 dark:text-red-400 text-sm flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              {errors.flow}
+            </div>
+          )}
+          
           {savedSuccess && (
             <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg text-green-600 dark:text-green-400 text-sm flex items-center gap-2">
               <Check className="h-4 w-4" />
-              Template salvo com sucesso!
+              Flow salvo com sucesso!
             </div>
           )}
         </div>
@@ -384,8 +442,8 @@ export function TemplateSaveModal({ isOpen, onClose, onSave }: TemplateSaveModal
               </>
             ) : (
               <>
-                <Package className="h-4 w-4 mr-2" />
-                Salvar Template
+                <Save className="h-4 w-4 mr-2" />
+                Salvar Flow
               </>
             )}
           </Button>
