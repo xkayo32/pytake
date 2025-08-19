@@ -23,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
 import { getNodeConfig, validateNodeConfig } from '@/lib/types/node-schemas'
-import { getWhatsAppTemplates, getTemplateButtons } from '@/lib/data/whatsapp-templates'
+import { getWhatsAppTemplatesSync, getTemplateButtons } from '@/lib/data/whatsapp-templates'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ButtonSelector } from '@/components/flow-editor/button-selector'
 import { VariableEditor } from '@/components/flow-editor/variable-editor'
@@ -256,7 +256,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         )
       
       case 'template_select':
-        const templates = getWhatsAppTemplates()
+        const templates = getWhatsAppTemplatesSync()
         return (
           <Select
             value={value || ''}
