@@ -39,14 +39,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log('📤 Frontend proxy recebeu flow:', JSON.stringify(body, null, 2))
     
+    const backendUrl = `${API_BASE_URL}/api/v1/flows`
+    console.log('🔗 Backend URL:', backendUrl)
     
-    const response = await fetch(`${API_BASE_URL}/api/v1/flows`, {
+    const response = await fetch(backendUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body)
     })
+    
+    console.log('📡 Backend response status:', response.status)
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -59,6 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json()
+    console.log('✅ Flow criado com sucesso:', data.id)
     return NextResponse.json(data)
   } catch (error) {
     console.error('❌ Create flow proxy error:', error)

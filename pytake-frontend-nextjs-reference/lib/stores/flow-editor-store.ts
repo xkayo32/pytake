@@ -345,8 +345,10 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
       // Validar flow antes da criação
       console.log('🔍 [DEBUG] Flow atual:', flow)
       
+      // Always use a new ID to avoid conflicts
+      const timestamp = Date.now()
       const updatedFlow: Flow = {
-        id: flow.id || `flow-${Date.now()}`,
+        id: `flow-${timestamp}`,
         name: flow.name || 'Flow sem nome',
         description: flow.description || '',
         status: flow.status || 'draft',
