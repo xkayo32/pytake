@@ -83,6 +83,12 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
     if (selectedNodeData && nodeType) {
       const config = selectedNodeData.data.config || {}
       
+      console.log('[Loading Node Config]', {
+        nodeId: selectedNode,
+        config,
+        templateName: config.templateName
+      })
+      
       // Aplicar valores padrão do schema quando não existirem
       const configWithDefaults = { ...config }
       Object.entries(nodeType.configSchema).forEach(([key, schema]) => {
@@ -139,6 +145,8 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   }
 
   const handleInputChange = (key: string, value: any) => {
+    console.log('[handleInputChange]', { key, value, oldFormData: formData })
+    
     const newFormData = { ...formData, [key]: value }
     
     // Se estamos desativando captureAll, também limpar selectedButtons no mesmo update
@@ -154,6 +162,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         ...newFormData,
         customName: customName 
       }
+      console.log('[Updating Node]', { nodeId: selectedNode, updatedConfig })
       updateNodeData(selectedNode, { 
         config: updatedConfig 
       })
@@ -275,26 +284,51 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
       
       case 'template_select':
         const templates = getWhatsAppTemplatesSync()
-        // Garantir que o valor seja uma string válida
-        const currentValue = value ? String(value) : ''
+        // Use o valor diretamente do formData ao invés da variável value
+        const currentValue = formData[key] ? String(formData[key]) : ''
+        
+        // Debug logs temporários
+        console.log('[Template Select Render]', {
+          key,
+          value,
+          formDataValue: formData[key],
+          currentValue,
+          nodeId: selectedNode,
+          availableTemplates: templates.length,
+          templateNames: templates.map(t => t.name)
+        })
         
         return (
           <div className="space-y-2">
             <Select
-              key={`template-select-${selectedNode}`} // Forçar re-render quando mudar de nó
               value={currentValue}
               onValueChange={(newValue) => {
-                handleInputChange(key, newValue)
+                console.log('[Template Select Change]', {
+                  key,
+                  oldValue: currentValue,
+                  newValue,
+                  nodeId: selectedNode
+                })
+                // Atualizar diretamente no formData E no nó
+                setFormData(prev => ({ ...prev, [key]: newValue }))
+                if (selectedNode) {
+                  const updatedConfig = { 
+                    ...formData,
+                    [key]: newValue,
+                    customName: customName 
+                  }
+                  updateNodeData(selectedNode, { 
+                    config: updatedConfig 
+                  })
+                }
                 // Limpar botões selecionados quando mudar o template
                 if (formData.selectedButtons) {
-                  handleInputChange('selectedButtons', [])
+                  setFormData(prev => ({ ...prev, selectedButtons: [] }))
                 }
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder={schema.placeholder || 'Selecione um template'}>
-                  {currentValue && templates.find(t => t.name === currentValue)?.name}
-                </SelectValue>
+                <SelectValue placeholder={schema.placeholder || 'Selecione um template'} />
               </SelectTrigger>
               <SelectContent>
                 {templates.length === 0 ? (
@@ -303,7 +337,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
                   </div>
                 ) : (
                   templates.map((template) => (
-                    <SelectItem key={`${template.id}-${template.name}`} value={template.name}>
+                    <SelectItem key={template.id} value={template.name}>
                       <div className="flex flex-col">
                         <span>{template.name}</span>
                         <span className="text-xs text-muted-foreground">
