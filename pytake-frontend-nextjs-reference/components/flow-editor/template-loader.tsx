@@ -39,6 +39,14 @@ export function TemplateLoader({ onLoadTemplate, onPreviewTemplate }: TemplateLo
     setIsLoading(true)
     
     try {
+      console.log('Template Loader - Loading template:', template)
+      console.log('Template structure:', {
+        hasNodes: !!template.nodes,
+        hasFlow: !!template.flow,
+        nodeCount: template.nodes?.length || template.flow?.nodes?.length || 0,
+        edgeCount: template.edges?.length || template.flow?.edges?.length || 0
+      })
+      
       // Simular delay de carregamento
       await new Promise(resolve => setTimeout(resolve, 500))
       

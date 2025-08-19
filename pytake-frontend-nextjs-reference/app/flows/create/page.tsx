@@ -257,8 +257,19 @@ function FlowEditor() {
     // Carregar template no editor
     console.log('Loading template:', template)
     
+    if (!template) {
+      console.error('Template is null or undefined')
+      return
+    }
+    
+    // Validar estrutura do template
+    const nodes = template.nodes || template.flow?.nodes || []
+    const edges = template.edges || template.flow?.edges || []
+    
+    console.log('Template structure:', { nodes: nodes.length, edges: edges.length })
+    
     // Converter nodes do template para format do ReactFlow
-    const templateNodes = template.nodes.map((node: any) => ({
+    const templateNodes = nodes.map((node: any) => ({
       ...node,
       data: {
         ...node.data,
@@ -266,7 +277,7 @@ function FlowEditor() {
       }
     }))
     
-    const templateEdges = template.edges || []
+    const templateEdges = edges
     
     // Atualizar o store com os dados do template
     setNodes(templateNodes)
@@ -275,9 +286,16 @@ function FlowEditor() {
     // Fechar painel de templates
     setShowTemplates(false)
     
-    // TODO: Atualizar nome do flow no store
+    // Atualizar nome do flow se disponível
+    if (template.name && flow) {
+      useFlowEditorStore.setState({ 
+        flow: { ...flow, name: template.name },
+        isDirty: true 
+      })
+    }
+    
     console.log('Template loaded successfully!')
-  }, [setNodes, setEdges])
+  }, [setNodes, setEdges, flow])
 
   const handlePreviewTemplate = useCallback((template: any) => {
     // Abrir preview do template
