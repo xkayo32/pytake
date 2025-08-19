@@ -29,9 +29,11 @@ import {
   Globe,
   Lock,
   Archive,
-  History
+  History,
+  Phone
 } from 'lucide-react'
 import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
+import { WhatsAppNumberSelector } from '@/components/whatsapp/whatsapp-number-selector'
 
 interface FlowSaveModalProps {
   isOpen: boolean
@@ -48,6 +50,7 @@ interface SavedFlowData {
   version: string
   status: 'draft' | 'published' | 'archived'
   isPublic: boolean
+  whatsappNumbers: string[] // IDs dos números WhatsApp onde o flow está ativo
   flow: {
     nodes: any[]
     edges: any[]
@@ -98,6 +101,8 @@ export function FlowSaveModal({ isOpen, onClose, onSave }: FlowSaveModalProps) {
     isPublic: false
   })
   
+  const [selectedWhatsAppNumbers, setSelectedWhatsAppNumbers] = useState<string[]>([])
+  
   const [errors, setErrors] = useState<Record<string, string>>({})
   
   // Análise do flow
@@ -134,6 +139,10 @@ export function FlowSaveModal({ isOpen, onClose, onSave }: FlowSaveModalProps) {
       newErrors.flow = 'Flow publicado deve ter pelo menos um gatilho (trigger)'
     }
     
+    if (formData.status === 'published' && selectedWhatsAppNumbers.length === 0) {
+      newErrors.whatsapp = 'Flow publicado deve ter pelo menos um número WhatsApp selecionado'
+    }
+    
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -156,6 +165,7 @@ export function FlowSaveModal({ isOpen, onClose, onSave }: FlowSaveModalProps) {
         id: flowId,
         ...formData,
         tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
+        whatsappNumbers: selectedWhatsAppNumbers,
         flow: {
           nodes: nodes.map(node => ({
             ...node,
@@ -219,6 +229,7 @@ export function FlowSaveModal({ isOpen, onClose, onSave }: FlowSaveModalProps) {
           status: 'draft',
           isPublic: false
         })
+        setSelectedWhatsAppNumbers([])
       }, 2000)
       
     } catch (error) {
@@ -227,7 +238,7 @@ export function FlowSaveModal({ isOpen, onClose, onSave }: FlowSaveModalProps) {
     } finally {
       setIsSaving(false)
     }
-  }, [formData, nodes, edges, flow, onSave, onClose, clearLocalStorage, validateForm, flowAnalysis])
+  }, [formData, nodes, edges, flow, onSave, onClose, clearLocalStorage, validateForm, flowAnalysis, selectedWhatsAppNumbers])
   
   const selectedStatus = FLOW_STATUSES.find(s => s.value === formData.status)
   
@@ -405,6 +416,32 @@ export function FlowSaveModal({ isOpen, onClose, onSave }: FlowSaveModalProps) {
                 onCheckedChange={(checked) => setFormData({ ...formData, isPublic: checked })}
               />
             </div>
+
+            {/* Seleção de Números WhatsApp */}
+            {formData.status === 'published' && (
+              <div className="space-y-4 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-2 mb-4">
+                  <Phone className="h-4 w-4 text-blue-600" />
+                  <h4 className="font-medium text-blue-900 dark:text-blue-100">
+                    Números WhatsApp para Ativação
+                  </h4>
+                </div>
+                <WhatsAppNumberSelector
+                  selectedNumbers={selectedWhatsAppNumbers}
+                  onNumbersChange={setSelectedWhatsAppNumbers}
+                  title="Selecionar Números"
+                  description="Escolha em quais números este flow será ativado quando publicado"
+                  allowMultiple={true}
+                  showAddNumber={false}
+                />
+                {errors.whatsapp && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.whatsapp}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
           
           {errors.save && (

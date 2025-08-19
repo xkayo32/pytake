@@ -35,6 +35,7 @@ export interface Flow {
   createdAt: string
   updatedAt: string
   version: number
+  apiId?: string
 }
 
 export interface FlowTrigger {

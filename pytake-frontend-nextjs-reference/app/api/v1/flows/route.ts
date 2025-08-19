@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    console.log('📤 Frontend proxy recebeu flow:', JSON.stringify(body, null, 2))
     
     
     const response = await fetch(`${API_BASE_URL}/api/v1/flows`, {

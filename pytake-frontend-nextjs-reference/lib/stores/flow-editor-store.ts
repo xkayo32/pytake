@@ -340,7 +340,8 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
         // Garantir que campos obrigatórios existam
         name: flow.name || 'Flow sem nome',
         description: flow.description || '',
-        status: flow.status || 'draft'
+        status: flow.status || 'draft',
+        apiId: 'v1' // Required by backend
       }
       
       // Salvar no backend via API
@@ -348,7 +349,7 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
       
       try {
         console.log('🔄 [DEBUG] Tentando salvar no backend')
-        console.log('🔄 Enviando flow para API:', updatedFlow)
+        console.log('🔄 Enviando flow para API:', JSON.stringify(updatedFlow, null, 2))
         
         const response = await fetch('/api/v1/flows', {
           method: 'POST',
@@ -512,6 +513,7 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       version: 1,
+      apiId: 'v1',
       trigger: {
         type: 'keyword',
         config: {}
