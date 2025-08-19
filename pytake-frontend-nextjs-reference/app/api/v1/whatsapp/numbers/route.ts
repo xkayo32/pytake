@@ -6,7 +6,27 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔄 Buscando números WhatsApp...')
     
-    // Primeiro tentar buscar do endpoint phone-numbers
+    let phoneNumbers: any[] = []
+    let configs: any[] = []
+    
+    // Buscar configurações do WhatsApp
+    try {
+      const configsResponse = await fetch(`${API_BASE_URL}/api/v1/whatsapp-configs`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+
+      if (configsResponse.ok) {
+        configs = await configsResponse.json()
+        console.log('📱 WhatsApp configs:', configs)
+      }
+    } catch (error) {
+      console.log('⚠️ Erro ao buscar configs:', error)
+    }
+    
+    // Buscar números do WhatsApp
     try {
       const phoneNumbersResponse = await fetch(`${API_BASE_URL}/api/v1/whatsapp/phone-numbers`, {
         method: 'GET',
@@ -16,33 +36,46 @@ export async function GET(request: NextRequest) {
       })
 
       if (phoneNumbersResponse.ok) {
-        const phoneNumbers = await phoneNumbersResponse.json()
+        phoneNumbers = await phoneNumbersResponse.json()
         console.log('✅ Números WhatsApp do banco:', phoneNumbers)
-        
-        // Formatar números do banco para o formato esperado
-        if (phoneNumbers && Array.isArray(phoneNumbers) && phoneNumbers.length > 0) {
-          const formattedNumbers = phoneNumbers.map((num: any, index: number) => ({
-            id: num.id || `whatsapp-${index + 1}`,
-            phone: num.display_phone_number || num.phone,
-            number: num.display_phone_number || num.phone,
-            name: num.verified_name || `WhatsApp ${index + 1}`,
-            label: num.verified_name || num.display_phone_number,
-            status: num.status === 'EXPIRED' || num.status === 'DISCONNECTED' ? 'DISCONNECTED' : 'CONNECTED',
-            verified: num.status !== 'EXPIRED',
-            isVerified: num.status !== 'EXPIRED',
-            businessName: num.verified_name || 'PyTake',
-            business_name: num.verified_name || 'PyTake',
-            quality_rating: num.quality_rating,
-            platform_type: num.platform_type,
-            lastSeen: new Date().toISOString(),
-            last_seen: new Date().toISOString()
-          }))
-          
-          return NextResponse.json(formattedNumbers)
-        }
       }
     } catch (phoneError) {
       console.log('⚠️ Erro ao buscar phone-numbers:', phoneError)
+    }
+    
+    // Combinar dados de números e configurações
+    if (phoneNumbers && Array.isArray(phoneNumbers) && phoneNumbers.length > 0) {
+      const formattedNumbers = phoneNumbers.map((num: any, index: number) => {
+        // Procurar configuração correspondente
+        const config = configs.find((c: any) => 
+          c.phone_number_id === num.id || 
+          c.phone_number_id === num.phone_number_id
+        )
+        
+        return {
+          id: num.id || `whatsapp-${index + 1}`,
+          phone: num.display_phone_number || num.phone,
+          number: num.display_phone_number || num.phone,
+          name: config?.name || num.verified_name || `WhatsApp ${index + 1}`,
+          label: config?.name || num.verified_name || num.display_phone_number,
+          // Se tem configuração e está marcado como connected, está conectado
+          status: config?.status === 'connected' || num.verified_name ? 'connected' : 'disconnected',
+          verified: true, // Se tem verified_name, está verificado
+          isVerified: true,
+          businessName: num.verified_name || 'PyTake',
+          business_name: num.verified_name || 'PyTake',
+          quality_rating: num.quality_rating,
+          platform_type: num.platform_type,
+          webhook_configured: config?.webhook_verify_token ? true : false,
+          business_account_id: config?.business_account_id || num.business_account_id,
+          created_at: config?.created_at,
+          updated_at: config?.updated_at,
+          lastSeen: new Date().toISOString(),
+          last_seen: new Date().toISOString()
+        }
+      })
+      
+      return NextResponse.json(formattedNumbers)
     }
     
     // Tentar buscar do endpoint whatsapp-configs
