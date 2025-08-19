@@ -39,22 +39,34 @@ export async function getWhatsAppTemplates(): Promise<WhatsAppTemplate[]> {
     const cachedTemplates = localStorage.getItem('whatsapp_templates_cache')
     if (cachedTemplates) {
       const parsed = JSON.parse(cachedTemplates)
-      // Verificar se cache não está muito antigo (1h)
-      if (Date.now() - parsed.timestamp < 60 * 60 * 1000) {
-        return parsed.templates.filter((t: WhatsAppTemplate) => t.status === 'APPROVED')
+      // Verificar se cache não está muito antigo (5 minutos para desenvolvimento)
+      if (Date.now() - parsed.timestamp < 5 * 60 * 1000) {
+        return parsed.templates
       }
     }
     
-    // Cache expirado ou não existe, buscar da API
-    const response = await fetch('/api/v1/whatsapp/templates')
+    // Cache expirado ou não existe, buscar da API real de gerenciamento
+    const response = await fetch('/api/v1/whatsapp/templates/manage')
     if (response.ok) {
-      const data = await response.json()
-      const templates = data.data || []
+      const templates = await response.json()
+      
+      // Filtrar apenas templates aprovados e formatar para o padrão esperado
+      const formattedTemplates = templates
+        .filter((t: any) => t.status === 'APPROVED' || t.status === 'approved')
+        .map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          language: t.language || 'pt_BR',
+          category: t.category || 'UTILITY',
+          status: 'APPROVED' as const,
+          components: t.components || [],
+          variables: t.variables || []
+        }))
       
       // Salvar no cache
-      cacheWhatsAppTemplates(templates)
+      cacheWhatsAppTemplates(formattedTemplates)
       
-      return templates.filter((t: WhatsAppTemplate) => t.status === 'APPROVED')
+      return formattedTemplates
     }
   } catch (error) {
     console.error('Erro ao carregar templates:', error)
@@ -64,7 +76,7 @@ export async function getWhatsAppTemplates(): Promise<WhatsAppTemplate[]> {
       const cachedTemplates = localStorage.getItem('whatsapp_templates_cache')
       if (cachedTemplates) {
         const parsed = JSON.parse(cachedTemplates)
-        return parsed.templates.filter((t: WhatsAppTemplate) => t.status === 'APPROVED')
+        return parsed.templates
       }
     } catch (cacheError) {
       console.error('Erro ao carregar cache de fallback:', cacheError)
@@ -81,7 +93,7 @@ export function getWhatsAppTemplatesSync(): WhatsAppTemplate[] {
     const cachedTemplates = localStorage.getItem('whatsapp_templates_cache')
     if (cachedTemplates) {
       const parsed = JSON.parse(cachedTemplates)
-      return parsed.templates.filter((t: WhatsAppTemplate) => t.status === 'APPROVED')
+      return parsed.templates || []
     }
   } catch (error) {
     console.error('Erro ao carregar templates do cache:', error)

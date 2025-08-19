@@ -33,6 +33,7 @@ export function WhatsAppTemplateManager({ isOpen, onClose }: WhatsAppTemplateMan
   const [templates, setTemplates] = useState<WhatsAppTemplate[]>([])
   const [showAddTemplate, setShowAddTemplate] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<WhatsAppTemplate | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
   
   // Form state
   const [templateName, setTemplateName] = useState('')
@@ -46,25 +47,81 @@ export function WhatsAppTemplateManager({ isOpen, onClose }: WhatsAppTemplateMan
   const [newButtonValue, setNewButtonValue] = useState('')
 
   useEffect(() => {
-    loadTemplates()
-  }, [])
+    if (isOpen) {
+      loadTemplates()
+    }
+  }, [isOpen])
 
-  const loadTemplates = () => {
+  const loadTemplates = async () => {
+    setIsLoading(true)
     try {
-      const cached = localStorage.getItem('whatsapp_templates_cache')
-      if (cached) {
-        const parsed = JSON.parse(cached)
-        setTemplates(parsed.templates || [])
+      // Primeiro, buscar templates da API
+      const response = await fetch('/api/v1/whatsapp/templates/manage')
+      if (response.ok) {
+        const apiTemplates = await response.json()
+        
+        // Formatar templates da API para o nosso formato
+        const formattedApiTemplates = apiTemplates.map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          language: t.language || 'pt_BR',
+          category: t.category || 'UTILITY',
+          status: t.status || 'APPROVED',
+          components: t.components || [],
+          variables: t.variables || []
+        }))
+        
+        // Também carregar templates locais criados pelo usuário
+        const cached = localStorage.getItem('whatsapp_templates_cache')
+        let localTemplates: WhatsAppTemplate[] = []
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          localTemplates = parsed.templates || []
+        }
+        
+        // Combinar templates da API com templates locais (evitando duplicatas)
+        const apiIds = new Set(formattedApiTemplates.map((t: WhatsAppTemplate) => t.id))
+        const userCreatedTemplates = localTemplates.filter(t => 
+          t.id.startsWith('custom_') && !apiIds.has(t.id)
+        )
+        
+        const allTemplates = [...formattedApiTemplates, ...userCreatedTemplates]
+        setTemplates(allTemplates)
+        
+        // Atualizar cache com todos os templates
+        cacheWhatsAppTemplates(allTemplates)
+      } else {
+        // Se API falhar, usar apenas cache local
+        const cached = localStorage.getItem('whatsapp_templates_cache')
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          setTemplates(parsed.templates || [])
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar templates:', error)
-      setTemplates([])
+      // Em caso de erro, tentar cache local
+      try {
+        const cached = localStorage.getItem('whatsapp_templates_cache')
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          setTemplates(parsed.templates || [])
+        }
+      } catch (cacheError) {
+        console.error('Erro ao carregar cache:', cacheError)
+        setTemplates([])
+      }
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const saveTemplates = (newTemplates: WhatsAppTemplate[]) => {
+  const saveTemplates = async (newTemplates: WhatsAppTemplate[]) => {
     setTemplates(newTemplates)
     cacheWhatsAppTemplates(newTemplates)
+    
+    // Se for um template customizado, também salvar via API (opcional)
+    // Por enquanto, apenas salvar localmente
   }
 
   const handleAddButton = () => {
@@ -167,10 +224,24 @@ export function WhatsAppTemplateManager({ isOpen, onClose }: WhatsAppTemplateMan
     setShowAddTemplate(true)
   }
 
-  const handleDeleteTemplate = (templateId: string) => {
+  const handleDeleteTemplate = async (templateId: string) => {
     if (confirm('Tem certeza que deseja excluir este template?')) {
+      // Se for um template da API (não customizado), tentar deletar via API
+      if (!templateId.startsWith('custom_')) {
+        try {
+          const response = await fetch(`/api/v1/whatsapp/templates/manage/${templateId}`, {
+            method: 'DELETE'
+          })
+          if (!response.ok) {
+            console.error('Erro ao deletar template na API')
+          }
+        } catch (error) {
+          console.error('Erro ao deletar template:', error)
+        }
+      }
+      
       const updatedTemplates = templates.filter(t => t.id !== templateId)
-      saveTemplates(updatedTemplates)
+      await saveTemplates(updatedTemplates)
     }
   }
 
@@ -219,7 +290,18 @@ export function WhatsAppTemplateManager({ isOpen, onClose }: WhatsAppTemplateMan
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <div className="text-sm text-muted-foreground">
-                {templates.length} template(s) cadastrado(s)
+                {isLoading ? (
+                  <span>Carregando templates...</span>
+                ) : (
+                  <>
+                    {templates.length} template(s) cadastrado(s)
+                    {templates.filter(t => !t.id.startsWith('custom_')).length > 0 && (
+                      <span className="ml-2 text-xs">
+                        ({templates.filter(t => !t.id.startsWith('custom_')).length} da API)
+                      </span>
+                    )}
+                  </>
+                )}
               </div>
               <Button onClick={() => setShowAddTemplate(true)}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -253,6 +335,16 @@ export function WhatsAppTemplateManager({ isOpen, onClose }: WhatsAppTemplateMan
                           <Badge variant="outline" className="text-xs">
                             {template.status}
                           </Badge>
+                          {!template.id.startsWith('custom_') && (
+                            <Badge variant="default" className="text-xs">
+                              Meta
+                            </Badge>
+                          )}
+                          {template.id.startsWith('custom_') && (
+                            <Badge variant="secondary" className="text-xs">
+                              Local
+                            </Badge>
+                          )}
                         </div>
                         
                         <div className="text-sm text-muted-foreground mb-2">

@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
 import { getNodeConfig, validateNodeConfig } from '@/lib/types/node-schemas'
-import { getWhatsAppTemplatesSync, getTemplateButtons } from '@/lib/data/whatsapp-templates'
+import { getWhatsAppTemplatesSync, getTemplateButtons, getWhatsAppTemplates } from '@/lib/data/whatsapp-templates'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ButtonSelector } from '@/components/flow-editor/button-selector'
 import { VariableEditor } from '@/components/flow-editor/variable-editor'
@@ -51,6 +51,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState('config')
   const [showTemplateManager, setShowTemplateManager] = useState(false)
+  const [templatesLoaded, setTemplatesLoaded] = useState(false)
 
   const selectedNodeData = selectedNode 
     ? nodes.find(node => node.id === selectedNode)
@@ -97,6 +98,23 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
       setCustomName('')
     }
   }, [selectedNodeData, nodeType])
+  
+  // Carregar templates da API quando o componente montar
+  useEffect(() => {
+    if (!templatesLoaded) {
+      getWhatsAppTemplates().then(() => {
+        setTemplatesLoaded(true)
+        // Forçar re-render se houver um template selecionado
+        if (formData.templateName) {
+          const currentTemplate = formData.templateName
+          handleInputChange('templateName', '')
+          setTimeout(() => {
+            handleInputChange('templateName', currentTemplate)
+          }, 50)
+        }
+      })
+    }
+  }, [templatesLoaded])
   
   // Auto-save no localStorage quando houver mudanças
   useEffect(() => {
@@ -405,14 +423,16 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         onClose={() => {
           setShowTemplateManager(false)
           // Recarregar templates após fechar o gerenciador
-          // Forçar re-render do campo de seleção
-          const currentTemplate = formData.templateName
-          if (currentTemplate) {
-            handleInputChange('templateName', '')
-            setTimeout(() => {
-              handleInputChange('templateName', currentTemplate)
-            }, 50)
-          }
+          getWhatsAppTemplates().then(() => {
+            // Forçar re-render do campo de seleção
+            const currentTemplate = formData.templateName
+            if (currentTemplate) {
+              handleInputChange('templateName', '')
+              setTimeout(() => {
+                handleInputChange('templateName', currentTemplate)
+              }, 50)
+            }
+          })
         }}
       />
       
