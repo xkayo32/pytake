@@ -99,81 +99,41 @@ export default function FlowTestPage() {
   
   const loadFlow = async () => {
     try {
-      // Primeiro tentar carregar do backend
+      console.log('🔄 Carregando flow do backend:', flowId)
+      
+      // Carregar apenas do backend - não há mais localStorage
       const response = await fetch(`/api/v1/flows/${flowId}`)
-      if (response.ok) {
-        const data = await response.json()
-        setFlow(data)
-        
-        // Inicializar variáveis padrão
-        setVariables([
-          { name: 'contact.name', value: 'Usuário Teste', type: 'string' },
-          { name: 'contact.phone', value: '+5511999999999', type: 'string' },
-          { name: 'flow.id', value: flowId, type: 'string' },
-          { name: 'flow.name', value: data.name, type: 'string' },
-        ])
-        
-        addDebugLog('system', 'Sistema', 'system', 'success', `Flow "${data.name}" carregado do backend`)
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          setError(`Flow com ID "${flowId}" não foi encontrado no servidor.`)
+          addDebugLog('system', 'Sistema', 'system', 'error', `Flow "${flowId}" não encontrado (404)`)
+        } else {
+          setError(`Erro ao carregar flow: ${response.status} - ${response.statusText}`)
+          addDebugLog('system', 'Sistema', 'system', 'error', `Erro HTTP ${response.status}: ${response.statusText}`)
+        }
         return
       }
       
-      // Se não encontrou no backend, tentar localStorage
-      console.log('🔍 Flow não encontrado no backend, procurando no localStorage...')
-      const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
-      console.log('📋 Flows no localStorage:', savedFlows)
-      console.log('🔍 Procurando flow com ID:', flowId)
+      const data = await response.json()
+      console.log('✅ Flow carregado do backend:', data)
       
-      const localFlow = savedFlows.find((f: any) => f.id === flowId)
-      console.log('📋 Flow encontrado:', localFlow)
+      setFlow(data)
       
-      if (localFlow) {
-        setFlow(localFlow)
-        
-        // Inicializar variáveis padrão
-        setVariables([
-          { name: 'contact.name', value: 'Usuário Teste', type: 'string' },
-          { name: 'contact.phone', value: '+5511999999999', type: 'string' },
-          { name: 'flow.id', value: flowId, type: 'string' },
-          { name: 'flow.name', value: localFlow.name, type: 'string' },
-        ])
-        
-        addDebugLog('system', 'Sistema', 'system', 'success', `Flow "${localFlow.name}" carregado do localStorage`)
-      } else {
-        // Tentar também no localStorage de draft
-        console.log('🔍 Tentando carregar do draft localStorage...')
-        const draftData = localStorage.getItem('pytake_flow_draft')
-        if (draftData) {
-          const draft = JSON.parse(draftData)
-          console.log('📋 Draft encontrado:', draft)
-          
-          // Criar flow temporário do draft
-          const tempFlow = {
-            id: flowId,
-            name: 'Flow Draft',
-            flow: {
-              nodes: draft.nodes || [],
-              edges: draft.edges || []
-            }
-          }
-          
-          setFlow(tempFlow)
-          
-          setVariables([
-            { name: 'contact.name', value: 'Usuário Teste', type: 'string' },
-            { name: 'contact.phone', value: '+5511999999999', type: 'string' },
-            { name: 'flow.id', value: flowId, type: 'string' },
-            { name: 'flow.name', value: 'Flow Draft', type: 'string' },
-          ])
-          
-          addDebugLog('system', 'Sistema', 'system', 'success', 'Flow carregado do draft localStorage')
-        } else {
-          console.log('❌ Flow não encontrado em lugar nenhum')
-          addDebugLog('error', 'Sistema', 'system', 'error', 'Flow não encontrado nem no backend nem no localStorage')
-        }
-      }
+      // Inicializar variáveis padrão
+      setVariables([
+        { name: 'contact.name', value: 'Usuário Teste', type: 'string' },
+        { name: 'contact.phone', value: '+5511999999999', type: 'string' },
+        { name: 'flow.id', value: flowId, type: 'string' },
+        { name: 'flow.name', value: data.name, type: 'string' },
+      ])
+      
+      addDebugLog('system', 'Sistema', 'system', 'success', `Flow "${data.name}" carregado com sucesso`)
+      
     } catch (error) {
-      console.error('Erro ao carregar flow:', error)
-      addDebugLog('error', 'Sistema', 'system', 'error', `Erro ao carregar flow: ${error}`)
+      console.error('❌ Erro ao carregar flow:', error)
+      setError(`Erro de conexão: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
+      addDebugLog('system', 'Sistema', 'system', 'error', `Erro de conexão: ${error}`)
     }
   }
   
