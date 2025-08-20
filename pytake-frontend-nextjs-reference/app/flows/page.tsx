@@ -199,6 +199,49 @@ export default function FlowsPage() {
   //   }
   // }, [isAuthenticated])
 
+  const handleCreateNewFlow = async () => {
+    try {
+      setLoading(true)
+      
+      // Criar novo flow no backend imediatamente
+      const newFlowData = {
+        name: 'Novo Flow',
+        description: 'Flow criado automaticamente',
+        status: 'draft',
+        flow: {
+          nodes: [],
+          edges: []
+        },
+        trigger: {
+          type: 'keyword',
+          config: {}
+        }
+      }
+      
+      const response = await fetch('/api/v1/flows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newFlowData)
+      })
+      
+      if (response.ok) {
+        const createdFlow = await response.json()
+        console.log('✅ Novo flow criado:', createdFlow.id)
+        
+        // Redirecionar imediatamente para a página de edição
+        router.push(`/flows/${createdFlow.id}/edit`)
+      } else {
+        console.error('❌ Erro ao criar flow:', response.status)
+        alert('Erro ao criar novo flow. Tente novamente.')
+      }
+    } catch (error) {
+      console.error('Erro ao criar flow:', error)
+      alert('Erro ao criar novo flow. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
+  }
+  
   const loadFlows = async () => {
     try {
       setLoading(true)
@@ -409,7 +452,7 @@ export default function FlowsPage() {
                 Gerencie seus fluxos automatizados do WhatsApp
               </p>
             </div>
-            <Button onClick={() => router.push('/flows/create')}>
+            <Button onClick={handleCreateNewFlow} disabled={loading}>
               <Plus className="h-4 w-4 mr-2" />
               Novo Flow
             </Button>
@@ -560,7 +603,7 @@ export default function FlowsPage() {
                   }
                 </p>
                 {!searchTerm && (
-                  <Button onClick={() => router.push('/flows/create')}>
+                  <Button onClick={handleCreateNewFlow} disabled={loading}>
                     <Plus className="h-4 w-4 mr-2" />
                     Criar Primeiro Flow
                   </Button>
