@@ -39,6 +39,7 @@ interface FlowSaveModalProps {
   isOpen: boolean
   onClose: () => void
   onSave?: (flowData: SavedFlowData) => void
+  mode?: 'create' | 'edit'
 }
 
 interface SavedFlowData {
@@ -86,7 +87,7 @@ const FLOW_STATUSES = [
   { value: 'archived', label: 'Arquivado', icon: '📦', description: 'Flow inativo, mantido para histórico' }
 ]
 
-export function FlowSaveModal({ isOpen, onClose, onSave }: FlowSaveModalProps) {
+export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: FlowSaveModalProps) {
   const { nodes, edges, flow, clearLocalStorage } = useFlowEditorStore()
   const [isSaving, setIsSaving] = useState(false)
   const [savedSuccess, setSavedSuccess] = useState(false)
@@ -195,8 +196,8 @@ export function FlowSaveModal({ isOpen, onClose, onSave }: FlowSaveModalProps) {
     setIsSaving(true)
     
     try {
-      // Gerar ID único se não existir
-      const flowId = flow?.id || `flow-${Date.now()}`
+      // Em modo edit, usar ID existente; em modo create, gerar novo
+      const flowId = mode === 'edit' && flow?.id ? flow.id : `flow-${Date.now()}`
       
       // Buscar versão anterior se existir
       const existingFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')

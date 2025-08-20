@@ -102,6 +102,47 @@ function FlowEditor() {
   }, [authLoading, isAuthenticated, router])
 
   useEffect(() => {
+    // Primeiro, verificar se há um flow sendo editado no localStorage (prioridade para recuperação após refresh)
+    const draftData = localStorage.getItem('pytake_flow_draft')
+    let hasRecoveredFromRefresh = false
+    
+    if (draftData) {
+      try {
+        const parsed = JSON.parse(draftData)
+        // Se estava editando um flow publicado/ativo recentemente (menos de 1 hora), recuperar automaticamente
+        const timestamp = new Date(parsed.timestamp)
+        const now = new Date()
+        const minutesDiff = (now.getTime() - timestamp.getTime()) / (1000 * 60)
+        
+        if (parsed.isEditingPublishedFlow && minutesDiff < 60) {
+          console.log('🔄 Detectado refresh durante edição de flow publicado - recuperando automaticamente')
+          
+          // Corrigir nodes recuperados também
+          const correctedNodes = (parsed.nodes || []).map((node: any) => {
+            // Garantir que o node tenha nodeType no data para funcionar no painel de propriedades
+            if (node.data && !node.data.nodeType && node.type) {
+              console.log('🔧 Corrigindo nodeType para node recuperado:', node.id, node.type)
+              node.data.nodeType = node.type
+            }
+            return node
+          })
+          
+          setNodes(correctedNodes)
+          setEdges(parsed.edges || [])
+          useFlowEditorStore.setState({
+            flow: parsed.flow,
+            isDirty: true // Marcar como dirty pois estava sendo editado
+          })
+          hasRecoveredFromRefresh = true
+        }
+      } catch (error) {
+        console.error('Erro ao verificar recovery de flow:', error)
+      }
+    }
+    
+    // Se já recuperou de um refresh, não carregar mais nada
+    if (hasRecoveredFromRefresh) return
+    
     // Verificar se há um flow salvo para carregar
     const flowToLoad = sessionStorage.getItem('load_flow')
     if (flowToLoad) {
@@ -109,8 +150,87 @@ function FlowEditor() {
         const flow = JSON.parse(flowToLoad)
         console.log('Loading saved flow from session:', flow)
         
-        // Carregar nodes e edges do flow
-        setNodes(flow.nodes || [])
+        // Carregar nodes e edges do flow com correção de estrutura
+        const correctedNodes = (flow.nodes || []).map((node: any) => {
+          // Garantir que o node tenha nodeType no data para funcionar no painel de propriedades
+          if (node.data && !node.data.nodeType && node.type) {
+            console.log('🔧 Corrigindo nodeType para node:', node.id, node.type)
+            node.data.nodeType = node.type
+          }
+          
+          // Garantir que nós especiais mantenham seu tipo correto
+          if (node.data?.nodeType === 'trigger_template_button' && node.type !== 'trigger_template_button') {
+            console.log('🔧 Fixing node type for trigger_template_button')
+            return { ...node, type: 'trigger_template_button' }
+          }
+          if (node.data?.nodeType === 'msg_negotiation_template' && node.type !== 'msg_negotiation_template') {
+            return { ...node, type: 'msg_negotiation_template' }
+          }
+          if (node.data?.nodeType === 'msg_text' && node.type !== 'msg_text') {
+            return { ...node, type: 'msg_text' }
+          }
+          if (node.data?.nodeType === 'msg_image' && node.type !== 'msg_image') {
+            return { ...node, type: 'msg_image' }
+          }
+          if (node.data?.nodeType === 'msg_audio' && node.type !== 'msg_audio') {
+            return { ...node, type: 'msg_audio' }
+          }
+          if (node.data?.nodeType === 'msg_video' && node.type !== 'msg_video') {
+            return { ...node, type: 'msg_video' }
+          }
+          if (node.data?.nodeType === 'msg_document' && node.type !== 'msg_document') {
+            return { ...node, type: 'msg_document' }
+          }
+          if (node.data?.nodeType === 'msg_template' && node.type !== 'msg_template') {
+            return { ...node, type: 'msg_template' }
+          }
+          if (node.data?.nodeType === 'ai_chatgpt' && node.type !== 'ai_chatgpt') {
+            return { ...node, type: 'ai_chatgpt' }
+          }
+          if (node.data?.nodeType === 'ai_claude' && node.type !== 'ai_claude') {
+            return { ...node, type: 'ai_claude' }
+          }
+          if (node.data?.nodeType === 'ai_gemini' && node.type !== 'ai_gemini') {
+            return { ...node, type: 'ai_gemini' }
+          }
+          if (node.data?.nodeType === 'api_rest' && node.type !== 'api_rest') {
+            return { ...node, type: 'api_rest' }
+          }
+          if (node.data?.nodeType === 'condition_if' && node.type !== 'condition_if') {
+            return { ...node, type: 'condition_if' }
+          }
+          if (node.data?.nodeType === 'condition_switch' && node.type !== 'condition_switch') {
+            return { ...node, type: 'condition_switch' }
+          }
+          if (node.data?.nodeType === 'flow_delay' && node.type !== 'flow_delay') {
+            return { ...node, type: 'flow_delay' }
+          }
+          if (node.data?.nodeType === 'flow_goto' && node.type !== 'flow_goto') {
+            return { ...node, type: 'flow_goto' }
+          }
+          if (node.data?.nodeType === 'flow_end' && node.type !== 'flow_end') {
+            return { ...node, type: 'flow_end' }
+          }
+          if (node.data?.nodeType === 'data_set' && node.type !== 'data_set') {
+            return { ...node, type: 'data_set' }
+          }
+          if (node.data?.nodeType === 'data_get' && node.type !== 'data_get') {
+            return { ...node, type: 'data_get' }
+          }
+          if (node.data?.nodeType === 'db_query' && node.type !== 'db_query') {
+            return { ...node, type: 'db_query' }
+          }
+          if (node.data?.nodeType === 'db_insert' && node.type !== 'db_insert') {
+            return { ...node, type: 'db_insert' }
+          }
+          if (node.data?.nodeType === 'int_email' && node.type !== 'int_email') {
+            return { ...node, type: 'int_email' }
+          }
+          
+          return node
+        })
+        
+        setNodes(correctedNodes)
         setEdges(flow.edges || [])
         
         // Carregar o flow no store
@@ -119,8 +239,13 @@ function FlowEditor() {
           isDirty: false 
         })
         
-        // Limpar flow do sessionStorage
-        sessionStorage.removeItem('load_flow')
+        // Salvar imediatamente no localStorage para permitir recuperação após refresh
+        setTimeout(() => {
+          saveToLocalStorage()
+        }, 100)
+        
+        // NÃO remover do sessionStorage até que seja explicitamente salvo
+        // sessionStorage.removeItem('load_flow') - Comentado para preservar dados
       } catch (error) {
         console.error('Error loading flow:', error)
         sessionStorage.removeItem('load_flow')

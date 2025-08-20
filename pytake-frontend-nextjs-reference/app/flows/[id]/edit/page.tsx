@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, DragEvent } from 'react'
+import { useCallback, useEffect, useRef, DragEvent, KeyboardEvent } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { 
   ReactFlow, 
@@ -14,10 +14,13 @@ import {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 
-import { AppLayout } from '@/components/layout/app-layout'
-import { NodePalette } from '@/components/flow-editor/node-palette'
+import { NodePalette } from '@/components/flow-editor/node-palette-v2'
 import { PropertiesPanel } from '@/components/flow-editor/properties-panel'
-import { TriggerNode, ActionNode, ConditionNode, DataNode } from '@/components/flow-editor/nodes/base-node'
+import { FlowLoader } from '@/components/flow-editor/flow-loader'
+import { FlowExecutorModal } from '@/components/flow-editor/flow-executor-modal'
+import { FlowSaveModal } from '@/components/flow-editor/flow-save-modal'
+import { WhatsAppTemplateManager } from '@/components/flow-editor/whatsapp-template-manager'
+import { nodeTypes } from '@/components/flow-editor/nodes/custom-nodes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -33,345 +36,403 @@ import {
   CheckCircle, 
   Settings,
   Eye,
-  Trash2,
-  Copy
+  Maximize2,
+  Minimize2,
+  Package,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  MessageSquare
 } from 'lucide-react'
+import { useState } from 'react'
 
-const nodeTypes = {
-  trigger: TriggerNode,
-  action: ActionNode,
-  condition: ConditionNode,
-  data: DataNode,
-}
-
-function FlowEditor() {
+function FlowEditorContent() {
   const router = useRouter()
   const params = useParams()
   const flowId = params.id as string
-  const reactFlowWrapper = useRef<HTMLDivElement>(null)
-  const { project } = useReactFlow()
+  
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   
   const {
     flow,
     nodes,
     edges,
     selectedNode,
-    isLoading,
     isDirty,
-    setNodes,
-    setEdges,
+    isLoading: storeLoading,
     onNodesChange,
     onEdgesChange,
     onConnect,
     addNode,
     selectNode,
-    selectEdge,
-    saveFlow,
-    loadFlow,
-    validateFlow
+    showProperties,
+    setShowProperties,
+    saveToLocalStorage,
+    loadFromLocalStorage,
+    createNewFlow,
+    setFlow,
+    setNodes,
+    setEdges,
+    updateNodeData
   } = useFlowEditorStore()
 
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [showSaveModal, setShowSaveModal] = useState(false)
+  const [showExecutorModal, setShowExecutorModal] = useState(false)
+  const [showLoader, setShowLoader] = useState(false)
+  const [showTemplateManager, setShowTemplateManager] = useState(false)
+  const [showPalette, setShowPalette] = useState(true)
+  const [fullScreen, setFullScreen] = useState(false)
+  
   const { isAuthenticated, isLoading: authLoading } = useAuth()
 
+  // Carregar flow específico por ID
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/login')
+    const loadFlow = async () => {
+      if (!flowId) return
+      
+      setIsLoading(true)
+      setLoadError(null)
+      
+      try {
+        console.log('🔄 Carregando flow para edição:', flowId)
+        
+        // Primeiro, tentar carregar do backend
+        const response = await fetch(`/api/v1/flows/${flowId}`)
+        
+        if (response.ok) {
+          const flowData = await response.json()
+          console.log('✅ Flow carregado do backend:', flowData)
+          
+          // Corrigir estrutura dos nós para o editor
+          const correctedNodes = (flowData.nodes || []).map((node: any) => {
+            // Garantir que o node tenha nodeType no data para funcionar no painel de propriedades
+            if (node.data && !node.data.nodeType && node.type) {
+              console.log('🔧 Corrigindo nodeType para node:', node.id, node.type)
+              node.data.nodeType = node.type
+            }
+            return node
+          })
+          
+          // Carregar no store
+          setFlow(flowData)
+          setNodes(correctedNodes)
+          setEdges(flowData.edges || [])
+          
+          // Salvar no localStorage para permitir recuperação
+          setTimeout(() => {
+            saveToLocalStorage()
+          }, 100)
+          
+        } else if (response.status === 404) {
+          // Flow não encontrado no backend, tentar localStorage
+          console.log('⚠️ Flow não encontrado no backend, verificando localStorage')
+          
+          const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
+          const localFlow = savedFlows.find((f: any) => f.id === flowId)
+          
+          if (localFlow) {
+            console.log('✅ Flow encontrado no localStorage:', localFlow)
+            
+            // Corrigir estrutura dos nós
+            const correctedNodes = (localFlow.nodes || []).map((node: any) => {
+              if (node.data && !node.data.nodeType && node.type) {
+                node.data.nodeType = node.type
+              }
+              return node
+            })
+            
+            setFlow(localFlow)
+            setNodes(correctedNodes)
+            setEdges(localFlow.edges || [])
+            
+          } else {
+            throw new Error('Flow não encontrado')
+          }
+        } else {
+          throw new Error(`Erro ao carregar flow: ${response.status}`)
+        }
+        
+      } catch (error) {
+        console.error('❌ Erro ao carregar flow:', error)
+        setLoadError(error instanceof Error ? error.message : 'Erro desconhecido')
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }, [authLoading, isAuthenticated, router])
 
+    loadFlow()
+  }, [flowId, setFlow, setNodes, setEdges, saveToLocalStorage])
+
+  // Auto-save para localStorage a cada mudança
   useEffect(() => {
-    if (flowId && !isLoading && isAuthenticated) {
-      loadFlow(flowId)
+    if (isDirty && nodes.length > 0 && !isLoading) {
+      const timeoutId = setTimeout(() => {
+        saveToLocalStorage()
+        setLastSaved(new Date())
+      }, 1000) // Salva após 1 segundo de inatividade
+      return () => clearTimeout(timeoutId)
     }
-  }, [flowId, loadFlow, isLoading, isAuthenticated])
+  }, [nodes, edges, isDirty, saveToLocalStorage, isLoading])
 
-  const onDragOver = useCallback((event: DragEvent) => {
+  const handleNodeDrop = useCallback((event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+
+    const nodeTypeData = event.dataTransfer.getData('application/node-type')
+    if (!nodeTypeData) return
+
+    try {
+      const nodeType: NodeType = JSON.parse(nodeTypeData)
+      const reactFlowBounds = (event.target as HTMLElement).getBoundingClientRect()
+      
+      const position = {
+        x: event.clientX - reactFlowBounds.left - 100,
+        y: event.clientY - reactFlowBounds.top - 50,
+      }
+
+      addNode(nodeType, position)
+    } catch (error) {
+      console.error('Error parsing node type:', error)
+    }
+  }, [addNode])
+
+  const handleNodeDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     event.dataTransfer.dropEffect = 'move'
   }, [])
 
-  const onDrop = useCallback(
-    (event: DragEvent) => {
-      event.preventDefault()
-
-      const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect()
-      if (!reactFlowBounds) return
-
-      const nodeTypeData = event.dataTransfer.getData('application/reactflow')
-      if (!nodeTypeData) return
-
-      const nodeType: NodeType = JSON.parse(nodeTypeData)
-      const position = project({
-        x: event.clientX - reactFlowBounds.left,
-        y: event.clientY - reactFlowBounds.top,
-      })
-
-      addNode(nodeType, position)
-    },
-    [project, addNode]
-  )
-
-  const handleNodeDragStart = (nodeType: NodeType) => {
-    console.log('Node drag started:', nodeType.name)
-  }
-
-  const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
-    selectNode(node.id)
-  }, [selectNode])
-
-  const onEdgeClick = useCallback((event: React.MouseEvent, edge: any) => {
-    selectEdge(edge.id)
-  }, [selectEdge])
-
-  const onPaneClick = useCallback(() => {
-    selectNode(null)
-    selectEdge(null)
-  }, [selectNode, selectEdge])
-
-  const handleSave = async () => {
-    await saveFlow()
-  }
-
-  const handleTest = () => {
-    // TODO: Implement flow testing
-    console.log('Testing flow...')
-  }
-
-  const handleBack = () => {
-    if (isDirty) {
-      if (confirm('Você tem alterações não salvas. Deseja continuar?')) {
-        router.push('/flows')
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey) {
+        switch (event.key) {
+          case 's':
+            event.preventDefault()
+            setShowSaveModal(true)
+            break
+          case 'r':
+            event.preventDefault()
+            setShowExecutorModal(true)
+            break
+        }
       }
-    } else {
-      router.push('/flows')
+    }
+
+    document.addEventListener('keydown', handleKeyPress as any)
+    return () => document.removeEventListener('keydown', handleKeyPress as any)
+  }, [])
+
+  // Função para atualizar nome do flow
+  const handleFlowNameChange = (newName: string) => {
+    if (flow) {
+      const updatedFlow = { ...flow, name: newName }
+      setFlow(updatedFlow)
     }
   }
 
-  const handleDuplicate = () => {
-    // TODO: Implement flow duplication
-    console.log('Duplicating flow...')
-  }
-
-  const handleDelete = () => {
-    if (confirm('Tem certeza que deseja excluir este flow? Esta ação não pode ser desfeita.')) {
-      // TODO: Implement flow deletion
-      console.log('Deleting flow...')
-      router.push('/flows')
-    }
-  }
-
-  const validation = validateFlow()
-
-  if (authLoading || (isLoading && !flow)) {
+  if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <span className="ml-2">
+          {authLoading ? 'Verificando autenticação...' : 'Carregando flow...'}
+        </span>
       </div>
     )
   }
 
   if (!isAuthenticated) {
+    router.push('/login')
     return null
   }
 
-  return (
-    <AppLayout>
-      <div className="flex flex-col h-full">
-        {/* Header */}
-        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
-          <div className="container flex h-16 items-center justify-between px-4">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={handleBack}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar
-              </Button>
-              
-              <div className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-primary" />
-                <div>
-                  <h1 className="text-lg font-semibold">
-                    {flow?.name || 'Carregando...'}
-                  </h1>
-                  <div className="flex items-center gap-2">
-                    {validation.isValid ? (
-                      <div className="flex items-center gap-1 text-sm text-green-600">
-                        <CheckCircle className="h-3 w-3" />
-                        <span>Válido</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1 text-sm text-red-600">
-                        <AlertCircle className="h-3 w-3" />
-                        <span>{validation.errors.length} erro{validation.errors.length > 1 ? 's' : ''}</span>
-                      </div>
-                    )}
-                    
-                    {isDirty && (
-                      <Badge variant="secondary" className="text-xs">
-                        Não salvo
-                      </Badge>
-                    )}
-
-                    {flow?.status && (
-                      <Badge 
-                        variant="outline" 
-                        className={
-                          flow.status === 'active' 
-                            ? 'bg-green-100 text-green-800 border-green-200'
-                            : flow.status === 'inactive'
-                            ? 'bg-red-100 text-red-800 border-red-200'
-                            : 'bg-yellow-100 text-yellow-800 border-yellow-200'
-                        }
-                      >
-                        {flow.status === 'active' ? 'Ativo' : 
-                         flow.status === 'inactive' ? 'Inativo' : 'Rascunho'}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Nome do flow..."
-                value={flow?.name || ''}
-                onChange={(e) => {
-                  // TODO: Update flow name in store
-                }}
-                className="w-48"
-              />
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDuplicate}
-              >
-                <Copy className="h-4 w-4 mr-2" />
-                Duplicar
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleTest}
-                disabled={!validation.isValid}
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Testar
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDelete}
-                className="text-red-600 hover:text-red-700"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Excluir
-              </Button>
-              
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={isLoading || !isDirty}
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {isLoading ? 'Salvando...' : 'Salvar'}
-              </Button>
-            </div>
-          </div>
-        </header>
-
-        {/* Editor */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Node Palette */}
-          <NodePalette onNodeDragStart={handleNodeDragStart} />
-
-          {/* Canvas */}
-          <div className="flex-1 relative" ref={reactFlowWrapper}>
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              onDragOver={onDragOver}
-              onDrop={onDrop}
-              onNodeClick={onNodeClick}
-              onEdgeClick={onEdgeClick}
-              onPaneClick={onPaneClick}
-              nodeTypes={nodeTypes}
-              fitView
-              attributionPosition="bottom-left"
-              className="bg-slate-50 dark:bg-background"
-            >
-              <Background 
-                variant={BackgroundVariant.Dots} 
-                gap={20} 
-                size={1}
-                className="opacity-50"
-              />
-              <Controls 
-                position="bottom-right"
-                className="bg-background border shadow-lg"
-              />
-              <MiniMap 
-                position="bottom-left"
-                className="bg-background border shadow-lg"
-                nodeColor={(node) => node.data.color || '#94a3b8'}
-                maskColor="rgba(0,0,0,0.1)"
-              />
-
-              {/* Validation Errors Panel */}
-              {!validation.isValid && (
-                <Panel position="top-center">
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 max-w-md">
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertCircle className="h-4 w-4 text-red-600" />
-                      <span className="font-medium text-red-800">
-                        Erros de Validação
-                      </span>
-                    </div>
-                    <ul className="text-sm text-red-700 space-y-1">
-                      {validation.errors.map((error, index) => (
-                        <li key={index} className="flex items-center gap-1">
-                          <div className="w-1 h-1 bg-red-600 rounded-full" />
-                          {error}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </Panel>
-              )}
-
-              {/* Flow Info Panel */}
-              {flow && (
-                <Panel position="top-left">
-                  <div className="bg-background/95 border border-border rounded-lg p-3 shadow-lg">
-                    <div className="text-xs text-muted-foreground space-y-1">
-                      <div>ID: <span className="font-mono">{flow.id}</span></div>
-                      <div>Versão: {flow.version}</div>
-                      <div>Criado: {new Date(flow.createdAt).toLocaleDateString('pt-BR')}</div>
-                      <div>Atualizado: {new Date(flow.updatedAt).toLocaleDateString('pt-BR')}</div>
-                    </div>
-                  </div>
-                </Panel>
-              )}
-            </ReactFlow>
-          </div>
-
-          {/* Properties Panel */}
-          <PropertiesPanel />
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2">Erro ao carregar flow</h2>
+          <p className="text-muted-foreground mb-4">{loadError}</p>
+          <Button onClick={() => router.push('/flows')}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar para flows
+          </Button>
         </div>
       </div>
-    </AppLayout>
+    )
+  }
+
+  return (
+    <div className={`h-screen flex flex-col ${fullScreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
+      {/* Header */}
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex-shrink-0">
+        <div className="container flex h-16 items-center justify-between px-4">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push('/flows')}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+            
+            <div className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-primary" />
+              <div>
+                <Input
+                  className="font-semibold border-none bg-transparent p-0 h-auto text-base focus-visible:ring-0"
+                  value={flow?.name || 'Editando Flow'}
+                  onChange={(e) => handleFlowNameChange(e.target.value)}
+                  placeholder="Nome do flow"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {isDirty ? 'Não salvo' : lastSaved ? `Salvo ${lastSaved.toLocaleTimeString()}` : 'Carregado'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Status badges */}
+            <div className="flex items-center gap-2">
+              {flow?.status && (
+                <Badge variant={flow.status === 'active' ? 'default' : 'secondary'}>
+                  {flow.status === 'active' ? 'Ativo' : 
+                   flow.status === 'draft' ? 'Rascunho' : 
+                   flow.status === 'inactive' ? 'Inativo' : flow.status}
+                </Badge>
+              )}
+              {isDirty && (
+                <Badge variant="outline" className="text-orange-600 border-orange-600">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Não salvo
+                </Badge>
+              )}
+            </div>
+
+            {/* Action buttons */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowExecutorModal(true)}
+            >
+              <Play className="h-4 w-4 mr-2" />
+              Testar
+            </Button>
+            
+            <Button
+              size="sm"
+              onClick={() => setShowSaveModal(true)}
+              disabled={!isDirty}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Salvar
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Node Palette */}
+        {showPalette && (
+          <div className="w-80 border-r bg-muted/30 flex-shrink-0">
+            <NodePalette />
+          </div>
+        )}
+
+        {/* Flow Editor */}
+        <div className="flex-1 relative">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onDrop={handleNodeDrop}
+            onDragOver={handleNodeDragOver}
+            onNodeClick={(_, node) => {
+              selectNode(node.id)
+              setShowProperties(true)
+            }}
+            onPaneClick={() => selectNode(null)}
+            fitView
+            className="bg-background"
+          >
+            <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
+            <Controls />
+            <MiniMap />
+            
+            {/* Control Panel */}
+            <Panel position="top-right" className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPalette(!showPalette)}
+              >
+                {showPalette ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowProperties(!showProperties)}
+              >
+                {showProperties ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFullScreen(!fullScreen)}
+              >
+                {fullScreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </Button>
+            </Panel>
+          </ReactFlow>
+        </div>
+
+        {/* Properties Panel */}
+        {showProperties && selectedNode && (
+          <div className="w-80 border-l bg-muted/30 flex-shrink-0">
+            <PropertiesPanel />
+          </div>
+        )}
+      </div>
+
+      {/* Modals */}
+      <FlowSaveModal 
+        isOpen={showSaveModal} 
+        onClose={() => setShowSaveModal(false)}
+        mode="edit"
+      />
+      
+      <FlowExecutorModal
+        isOpen={showExecutorModal}
+        onClose={() => setShowExecutorModal(false)}
+      />
+      
+      <FlowLoader
+        isOpen={showLoader}
+        onClose={() => setShowLoader(false)}
+      />
+      
+      <WhatsAppTemplateManager
+        isOpen={showTemplateManager}
+        onClose={() => setShowTemplateManager(false)}
+      />
+    </div>
   )
 }
 
-export default function EditFlowPage() {
+export default function FlowEditPage() {
   return (
     <ReactFlowProvider>
-      <FlowEditor />
+      <FlowEditorContent />
     </ReactFlowProvider>
   )
 }

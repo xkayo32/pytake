@@ -80,8 +80,10 @@ export function WhatsAppNumberSelector({
             id: num.id || num.phone || `num-${Date.now()}`,
             phone: num.phone || num.number,
             name: num.name || num.label || 'Número WhatsApp',
-            status: num.status === 'CONNECTED' ? 'connected' : 
-                   num.status === 'DISCONNECTED' ? 'disconnected' : 'pending',
+            status: num.status === 'connected' ? 'connected' : 
+                   num.status === 'CONNECTED' ? 'connected' : 
+                   num.status === 'DISCONNECTED' ? 'disconnected' : 
+                   num.status === 'disconnected' ? 'disconnected' : 'pending',
             isVerified: num.verified || num.isVerified || false,
             businessName: num.businessName || num.business_name,
             lastSeen: num.lastSeen || num.last_seen
@@ -95,8 +97,10 @@ export function WhatsAppNumberSelector({
               id: num.id || num.phone || `num-${Date.now()}`,
               phone: num.phone || num.number,
               name: num.name || num.label || 'Número WhatsApp',
-              status: num.status === 'CONNECTED' ? 'connected' : 
-                     num.status === 'DISCONNECTED' ? 'disconnected' : 'pending',
+              status: num.status === 'connected' ? 'connected' : 
+                     num.status === 'CONNECTED' ? 'connected' : 
+                     num.status === 'DISCONNECTED' ? 'disconnected' : 
+                     num.status === 'disconnected' ? 'disconnected' : 'pending',
               isVerified: num.verified || num.isVerified || false,
               businessName: num.businessName || num.business_name,
               lastSeen: num.lastSeen || num.last_seen

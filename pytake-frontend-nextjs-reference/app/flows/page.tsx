@@ -19,7 +19,8 @@ import {
   List,
   TrendingUp,
   Activity,
-  CheckCircle
+  CheckCircle,
+  Phone
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -28,12 +29,21 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { WhatsAppNumberSelector } from '@/components/whatsapp/whatsapp-number-selector'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 interface Flow {
   id: string
   name: string
   description: string
-  status: 'active' | 'inactive' | 'draft'
+  status: 'draft' | 'active' | 'inactive'
   trigger: string
   createdAt: string
   updatedAt: string
@@ -87,13 +97,13 @@ const mockFlows: Flow[] = [
     id: '3',
     name: 'Agendamento Consulta',
     description: 'Permite agendar consultas através do WhatsApp com integração ao calendário',
-    status: 'draft',
+    status: 'active',
     trigger: 'Palavra-chave: agendar, consulta, horário',
     createdAt: '2024-01-12T09:10:00Z',
     updatedAt: '2024-01-15T08:30:00Z',
     stats: {
-      executions: 0,
-      successRate: 0
+      executions: 156,
+      successRate: 94.2
     },
     tags: ['agendamento', 'calendário']
   },
@@ -160,6 +170,9 @@ export default function FlowsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards')
+  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false)
+  const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null)
+  const [selectedWhatsAppNumbers, setSelectedWhatsAppNumbers] = useState<string[]>([])
   const { isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
 
@@ -433,7 +446,7 @@ export default function FlowsPage() {
       sessionStorage.setItem('load_flow', JSON.stringify(flow.flowData))
       router.push('/flows/create')
     }
-    // Flow normal do backend
+    // Flow normal do backend ou flow local com ID
     else {
       router.push(`/flows/${flowId}/edit`)
     }
@@ -560,6 +573,58 @@ export default function FlowsPage() {
       }
     } catch (error) {
       console.error('Error deleting flow:', error)
+    }
+  }
+
+  const handleLinkWhatsApp = async (flowId: string) => {
+    const flow = flows.find(f => f.id === flowId)
+    if (!flow) return
+
+    setSelectedFlow(flow)
+    
+    // Carregar números WhatsApp já vinculados a este flow
+    try {
+      const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
+      const flowData = savedFlows.find((f: any) => f.id === flowId)
+      if (flowData && flowData.whatsappNumbers) {
+        setSelectedWhatsAppNumbers(flowData.whatsappNumbers)
+      } else {
+        setSelectedWhatsAppNumbers([])
+      }
+    } catch (error) {
+      console.error('Erro ao carregar números vinculados:', error)
+      setSelectedWhatsAppNumbers([])
+    }
+    
+    setIsLinkDialogOpen(true)
+  }
+
+  const handleSaveLinkWhatsApp = async () => {
+    if (!selectedFlow) return
+
+    try {
+      // Atualizar flow local com os números selecionados
+      if (selectedFlow.isLocal) {
+        const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
+        const updatedFlows = savedFlows.map((f: any) => 
+          f.id === selectedFlow.flowData?.id 
+            ? { ...f, whatsappNumbers: selectedWhatsAppNumbers }
+            : f
+        )
+        localStorage.setItem('saved_flows', JSON.stringify(updatedFlows))
+        console.log('✅ Números WhatsApp vinculados ao flow local')
+      } else {
+        // Para flows do backend, implementar API call aqui no futuro
+        console.log('🔄 Vinculação de números para flows do backend será implementada')
+      }
+      
+      // Fechar modal
+      setIsLinkDialogOpen(false)
+      setSelectedFlow(null)
+      setSelectedWhatsAppNumbers([])
+      
+    } catch (error) {
+      console.error('Erro ao vincular números WhatsApp:', error)
     }
   }
 
@@ -853,6 +918,18 @@ export default function FlowsPage() {
                         )}
                       </Button>
 
+                      {/* Botão de vincular números WhatsApp para flows ativos */}
+                      {flow.status === 'active' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleLinkWhatsApp(flow.id)}
+                          title="Vincular números WhatsApp"
+                        >
+                          <Phone className="h-4 w-4" />
+                        </Button>
+                      )}
+
                       <Button
                         variant="outline"
                         size="sm"
@@ -988,6 +1065,41 @@ export default function FlowsPage() {
             </Card>
           )}
         </main>
+
+        {/* Modal de Vinculação WhatsApp */}
+        <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Phone className="h-5 w-5" />
+                Vincular Números WhatsApp
+              </DialogTitle>
+              <DialogDescription>
+                Selecione os números WhatsApp que irão ativar o flow "{selectedFlow?.name}"
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="py-4">
+              <WhatsAppNumberSelector
+                selectedNumbers={selectedWhatsAppNumbers}
+                onNumbersChange={setSelectedWhatsAppNumbers}
+                title="Números Disponíveis"
+                description="Escolha quais números WhatsApp irão executar este flow quando ativados"
+                allowMultiple={true}
+              />
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsLinkDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveLinkWhatsApp}>
+                <Phone className="h-4 w-4 mr-2" />
+                Vincular {selectedWhatsAppNumbers.length} número{selectedWhatsAppNumbers.length !== 1 ? 's' : ''}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   )

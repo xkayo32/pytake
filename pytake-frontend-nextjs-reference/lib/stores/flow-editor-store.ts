@@ -371,8 +371,15 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
         console.log('🔄 [DEBUG] Tentando salvar no backend')
         console.log('🔄 Enviando flow para API:', JSON.stringify(updatedFlow, null, 2))
         
-        const response = await fetch('/api/v1/flows', {
-          method: 'POST',
+        // Detectar se é edição (flow já existe) ou criação
+        const isEditing = flow && flow.id && flow.id === updatedFlow.id
+        const apiUrl = isEditing ? `/api/v1/flows/${updatedFlow.id}` : '/api/v1/flows'
+        const method = isEditing ? 'PUT' : 'POST'
+        
+        console.log(`🔄 [DEBUG] ${isEditing ? 'Editando' : 'Criando'} flow via ${method} ${apiUrl}`)
+        
+        const response = await fetch(apiUrl, {
+          method,
           headers: {
             'Content-Type': 'application/json',
           },
@@ -407,6 +414,14 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
           isDirty: false,
           isLoading: false
         })
+        
+        // Limpar sessionStorage pois o flow foi salvo com sucesso
+        try {
+          sessionStorage.removeItem('load_flow')
+          console.log('✅ SessionStorage limpo após salvamento com sucesso')
+        } catch (error) {
+          console.log('⚠️ Erro ao limpar sessionStorage:', error)
+        }
       } catch (apiError) {
         console.error('Erro ao salvar no backend, salvando apenas localmente:', apiError)
         
@@ -427,6 +442,13 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
           isDirty: false,
           isLoading: false
         })
+        
+        // Limpar sessionStorage também no fallback
+        try {
+          sessionStorage.removeItem('load_flow')
+        } catch (error) {
+          console.log('⚠️ Erro ao limpar sessionStorage no fallback:', error)
+        }
       }
     } catch (error) {
       console.error('❌ [DEBUG] Erro geral ao salvar flow:', error)
@@ -560,12 +582,17 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
       flow,
       nodes,
       edges,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      isEditingPublishedFlow: flow?.status === 'active' || flow?.status === 'published',
+      originalFlowId: flow?.id
     }
     
     try {
       localStorage.setItem('pytake_flow_draft', JSON.stringify(draftData))
-      console.log('Flow salvo como rascunho')
+      console.log('Flow salvo como rascunho', {
+        isEditingPublished: draftData.isEditingPublishedFlow,
+        flowId: draftData.originalFlowId
+      })
     } catch (error) {
       console.error('Erro ao salvar rascunho:', error)
     }
@@ -585,6 +612,12 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
         if (hoursDiff < 24) {
           // Verificar e corrigir tipos de nós especiais
           const nodes = (parsed.nodes || []).map((node: any) => {
+            // Garantir que o node tenha nodeType no data para funcionar no painel de propriedades
+            if (node.data && !node.data.nodeType && node.type) {
+              console.log('🔧 Corrigindo nodeType para node do localStorage:', node.id, node.type)
+              node.data.nodeType = node.type
+            }
+            
             // Garantir que nós especiais mantenham seu tipo
             if (node.data?.nodeType === 'trigger_template_button' && node.type !== 'trigger_template_button') {
               console.log('Fixing node type for trigger_template_button')
@@ -600,9 +633,14 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
             flow: parsed.flow,
             nodes,
             edges: parsed.edges || [],
-            isDirty: false
+            isDirty: parsed.isEditingPublishedFlow ? true : false // Se estava editando flow publicado, marcar como dirty
           })
-          console.log('Rascunho carregado do localStorage')
+          
+          if (parsed.isEditingPublishedFlow) {
+            console.log('🔄 Flow publicado recuperado após refresh:', parsed.originalFlowId)
+          } else {
+            console.log('📝 Rascunho carregado do localStorage')
+          }
           return true
         } else {
           // Rascunho muito antigo, limpar
