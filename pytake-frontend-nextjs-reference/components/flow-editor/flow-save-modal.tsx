@@ -49,7 +49,7 @@ interface SavedFlowData {
   category: string
   tags: string[]
   version: string
-  status: 'draft' | 'published' | 'archived'
+  status: 'draft' | 'active' | 'inactive' | 'archived'
   isPublic: boolean
   whatsappNumbers: string[] // IDs dos números WhatsApp onde o flow está ativo
   flow: {
@@ -83,7 +83,8 @@ const FLOW_CATEGORIES = [
 
 const FLOW_STATUSES = [
   { value: 'draft', label: 'Rascunho', icon: '✏️', description: 'Flow em desenvolvimento' },
-  { value: 'published', label: 'Publicado', icon: '🚀', description: 'Flow ativo e funcional' },
+  { value: 'active', label: 'Ativo', icon: '🚀', description: 'Flow ativo e funcional' },
+  { value: 'inactive', label: 'Inativo', icon: '⏸️', description: 'Flow pausado temporariamente' },
   { value: 'archived', label: 'Arquivado', icon: '📦', description: 'Flow inativo, mantido para histórico' }
 ]
 
@@ -103,6 +104,11 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
   })
   
   const [selectedWhatsAppNumbers, setSelectedWhatsAppNumbers] = useState<string[]>([])
+  
+  // Debug para monitorar mudanças no estado
+  useEffect(() => {
+    console.log('📱 selectedWhatsAppNumbers mudou para:', selectedWhatsAppNumbers)
+  }, [selectedWhatsAppNumbers])
   
   // Carregar dados do flow existente quando o modal abrir
   useEffect(() => {
@@ -178,12 +184,12 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
       newErrors.flow = 'O flow deve ter pelo menos um nó'
     }
     
-    if (formData.status === 'published' && flowAnalysis.triggers.length === 0) {
-      newErrors.flow = 'Flow publicado deve ter pelo menos um gatilho (trigger)'
+    if (formData.status === 'active' && flowAnalysis.triggers.length === 0) {
+      newErrors.flow = 'Flow ativo deve ter pelo menos um gatilho (trigger)'
     }
     
-    if (formData.status === 'published' && selectedWhatsAppNumbers.length === 0) {
-      newErrors.whatsapp = 'Flow publicado deve ter pelo menos um número WhatsApp selecionado'
+    if (formData.status === 'active' && selectedWhatsAppNumbers.length === 0) {
+      newErrors.whatsapp = 'Flow ativo deve ter pelo menos um número WhatsApp selecionado'
     }
     
     setErrors(newErrors)
@@ -461,7 +467,7 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
             </div>
 
             {/* Seleção de Números WhatsApp */}
-            {formData.status === 'published' && (
+            {formData.status === 'active' && (
               <div className="space-y-4 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
                 <div className="flex items-center gap-2 mb-4">
                   <Phone className="h-4 w-4 text-blue-600" />
@@ -471,7 +477,12 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
                 </div>
                 <WhatsAppNumberSelector
                   selectedNumbers={selectedWhatsAppNumbers}
-                  onNumbersChange={setSelectedWhatsAppNumbers}
+                  onNumbersChange={(numbers) => {
+                    console.log('🔄 Modal recebeu mudança de números:', numbers)
+                    console.log('🔄 Estado anterior selectedWhatsAppNumbers:', selectedWhatsAppNumbers)
+                    setSelectedWhatsAppNumbers(numbers)
+                    console.log('🔄 setSelectedWhatsAppNumbers chamado com:', numbers)
+                  }}
                   title="Selecionar Números"
                   description="Escolha em quais números este flow será ativado quando publicado"
                   allowMultiple={true}

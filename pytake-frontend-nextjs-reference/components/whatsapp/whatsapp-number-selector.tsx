@@ -54,10 +54,16 @@ export function WhatsAppNumberSelector({
   allowMultiple = true,
   showAddNumber = false
 }: WhatsAppNumberSelectorProps) {
+  console.log('🔄 WhatsAppNumberSelector renderizado:', { selectedNumbers, allowMultiple, title })
   const [numbers, setNumbers] = useState<WhatsAppNumber[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [newNumber, setNewNumber] = useState('')
+
+  // Debug dos props recebidos
+  useEffect(() => {
+    console.log('🔍 Props atualizadas:', { selectedNumbers, allowMultiple })
+  }, [selectedNumbers, allowMultiple])
 
   // Carregar números WhatsApp disponíveis
   useEffect(() => {
@@ -133,18 +139,30 @@ export function WhatsAppNumberSelector({
   }
 
   const handleNumberToggle = (numberId: string, checked: boolean) => {
+    console.log('🔄 handleNumberToggle INICIADO:', { numberId, checked, allowMultiple, currentSelected: selectedNumbers })
+    
     if (!allowMultiple) {
       // Modo single select
-      onNumbersChange(checked ? [numberId] : [])
+      const newSelection = checked ? [numberId] : []
+      console.log('📱 Single select - Nova seleção:', newSelection)
+      console.log('📞 Chamando onNumbersChange com:', newSelection)
+      onNumbersChange(newSelection)
       return
     }
 
     // Modo multi select
+    let newSelection: string[]
     if (checked) {
-      onNumbersChange([...selectedNumbers, numberId])
+      newSelection = [...selectedNumbers, numberId]
+      console.log('✅ Adicionando número:', numberId, 'Nova seleção:', newSelection)
     } else {
-      onNumbersChange(selectedNumbers.filter(id => id !== numberId))
+      newSelection = selectedNumbers.filter(id => id !== numberId)
+      console.log('❌ Removendo número:', numberId, 'Nova seleção:', newSelection)
     }
+    
+    console.log('📞 Chamando onNumbersChange com:', newSelection)
+    onNumbersChange(newSelection)
+    console.log('🔄 handleNumberToggle FINALIZADO')
   }
 
   const handleAddNumber = () => {
@@ -194,6 +212,12 @@ export function WhatsAppNumberSelector({
     )
   }
 
+  console.log('📋 RENDER FINAL - Estado atual:', {
+    numbers: numbers.length,
+    selectedNumbers,
+    numbersData: numbers
+  })
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -234,23 +258,53 @@ export function WhatsAppNumberSelector({
             const isSelected = selectedNumbers.includes(number.id)
             const isDisabled = number.status === 'disconnected'
             
+            console.log('🔍 Renderizando número:', {
+              id: number.id,
+              phone: number.phone,
+              isSelected,
+              isDisabled,
+              selectedNumbers,
+              status: number.status
+            })
+            
+            // Testar se o número está sendo selecionado corretamente
+            console.log('🔍 Detalhes do checkbox:', {
+              'number.id': number.id,
+              'selectedNumbers': selectedNumbers,
+              'includes?': selectedNumbers.includes(number.id),
+              'isSelected': isSelected
+            })
+            
             return (
-              <Card key={number.id} className={`p-4 transition-all ${
-                isSelected 
-                  ? 'border-primary bg-primary/5' 
-                  : isDisabled 
-                    ? 'opacity-60' 
-                    : 'hover:shadow-md'
-              }`}>
+              <Card 
+                key={number.id} 
+                className={`p-4 transition-all cursor-pointer ${
+                  isSelected 
+                    ? 'border-primary bg-primary/5' 
+                    : isDisabled 
+                      ? 'opacity-60 cursor-not-allowed' 
+                      : 'hover:shadow-md'
+                }`}
+                onClick={() => {
+                  console.log('🎯 Card clicked:', { numberId: number.id, isDisabled, currentSelected: isSelected })
+                  if (!isDisabled) {
+                    handleNumberToggle(number.id, !isSelected)
+                  }
+                }}
+              >
                 <div className="flex items-center gap-4">
-                  {/* Checkbox */}
-                  <Checkbox
+                  {/* Checkbox usando input nativo */}
+                  <input
+                    type="checkbox"
                     id={number.id}
                     checked={isSelected}
-                    onCheckedChange={(checked) => 
-                      handleNumberToggle(number.id, checked as boolean)
-                    }
+                    onChange={() => {}}
                     disabled={isDisabled}
+                    className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      console.log('📋 Input checkbox clicked')
+                    }}
                   />
 
                   {/* Number Info */}
