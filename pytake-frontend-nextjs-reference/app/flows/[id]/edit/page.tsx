@@ -489,7 +489,7 @@ function FlowEditor() {
       })
       setTimeout(() => setNotification(null), 3000)
     }
-  }, [flowToSave, flowId, nodes, edges])
+  }, [flow, flowId, nodes, edges])
   
   const handleSaveModalSave = useCallback(async (flowData: any) => {
     // Atualizar o flow no store com os dados do modal
