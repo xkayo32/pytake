@@ -18,7 +18,6 @@ import { NodePalette } from '@/components/flow-editor/node-palette-v2'
 import { PropertiesPanel } from '@/components/flow-editor/properties-panel'
 import { FlowLoader } from '@/components/flow-editor/flow-loader'
 import { FlowExecutorModal } from '@/components/flow-editor/flow-executor-modal'
-import { FlowSaveModal } from '@/components/flow-editor/flow-save-modal'
 import { WhatsAppTemplateManager } from '@/components/flow-editor/whatsapp-template-manager'
 import { WhatsAppNumberSelector } from '@/components/whatsapp/whatsapp-number-selector'
 import { nodeTypes } from '@/components/flow-editor/nodes/custom-nodes'
@@ -39,7 +38,6 @@ import {
   Eye,
   Maximize2,
   Minimize2,
-  Package,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
@@ -69,7 +67,6 @@ function FlowEditor() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showPalette, setShowPalette] = useState(true)
   const [showFlows, setShowFlows] = useState(false)
-  const [showSaveFlow, setShowSaveFlow] = useState(false)
   const [showWhatsAppTemplates, setShowWhatsAppTemplates] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
@@ -472,12 +469,6 @@ function FlowEditor() {
   const handleActivateFlow = useCallback(async () => {
     const validation = validateFlow()
     
-    if (!flow?.id) {
-      setNotification({ message: 'Flow deve ser salvo antes de ativar', type: 'error' })
-      setTimeout(() => setNotification(null), 3000)
-      return
-    }
-    
     if (!validation.isValid) {
       setNotification({ message: 'Flow deve estar válido para ser ativado', type: 'error' })
       setTimeout(() => setNotification(null), 3000)
@@ -491,30 +482,88 @@ function FlowEditor() {
     }
     
     try {
-      // Salvar flow como ativo no backend
-      const flowData = {
-        ...flow,
-        status: 'active',
-        whatsappNumbers: selectedWhatsAppNumbers,
-        flow: { nodes, edges }
-      }
+      let flowId = flow?.id
       
-      const response = await fetch(`/api/v1/flows/${flow.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(flowData)
-      })
-      
-      if (response.ok) {
-        setFlowStatus('active')
-        setNotification({ message: `Flow ativado em ${selectedWhatsAppNumbers.length} número(s)`, type: 'success' })
-        setTimeout(() => setNotification(null), 3000)
+      // Se o flow não tem ID, primeiro salvar no backend
+      if (!flowId || flowId.startsWith('flow-')) {
+        console.log('🔄 Flow não existe no backend, criando primeiro...')
+        
+        const createFlowData = {
+          name: flow?.name || 'Novo Flow',
+          description: flow?.description || '',
+          status: 'active', // Já criar como ativo
+          whatsappNumbers: selectedWhatsAppNumbers,
+          flow: { nodes, edges },
+          trigger: flow?.trigger || {
+            type: 'keyword',
+            config: {}
+          }
+        }
+        
+        const createResponse = await fetch('/api/v1/flows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(createFlowData)
+        })
+        
+        if (!createResponse.ok) {
+          const errorText = await createResponse.text()
+          console.error('❌ Erro ao criar flow:', errorText)
+          throw new Error('Erro ao criar flow no backend')
+        }
+        
+        const createdFlow = await createResponse.json()
+        flowId = createdFlow.id
+        
+        // Atualizar o flow local com o ID do backend
+        useFlowEditorStore.setState({ 
+          flow: { 
+            ...flow, 
+            id: flowId,
+            status: 'active'
+          }
+        })
+        
+        console.log('✅ Flow criado no backend com ID:', flowId)
       } else {
-        throw new Error('Erro ao ativar flow no backend')
+        // Flow já existe no backend, apenas atualizar
+        console.log('🔄 Atualizando flow existente no backend...')
+        
+        const updateFlowData = {
+          ...flow,
+          status: 'active',
+          whatsappNumbers: selectedWhatsAppNumbers,
+          flow: { nodes, edges }
+        }
+        
+        const updateResponse = await fetch(`/api/v1/flows/${flowId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateFlowData)
+        })
+        
+        if (!updateResponse.ok) {
+          const errorText = await updateResponse.text()
+          console.error('❌ Erro ao atualizar flow:', errorText)
+          throw new Error('Erro ao atualizar flow no backend')
+        }
+        
+        console.log('✅ Flow atualizado no backend')
       }
+      
+      setFlowStatus('active')
+      setNotification({ 
+        message: `Flow ativado com sucesso em ${selectedWhatsAppNumbers.length} número(s)`, 
+        type: 'success' 
+      })
+      setTimeout(() => setNotification(null), 3000)
+      
     } catch (error) {
       console.error('Erro ao ativar flow:', error)
-      setNotification({ message: 'Erro ao ativar flow', type: 'error' })
+      setNotification({ 
+        message: error instanceof Error ? error.message : 'Erro ao ativar flow', 
+        type: 'error' 
+      })
       setTimeout(() => setNotification(null), 3000)
     }
   }, [flow, validateFlow, selectedWhatsAppNumbers, nodes, edges])
@@ -828,17 +877,6 @@ function FlowEditor() {
               WhatsApp
             </Button>
             
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowSaveFlow(true)}
-              className="h-7 px-2 text-xs"
-              title="Salvar Flow para reutilizar"
-              disabled={nodes.length === 0}
-            >
-              <Package className="h-3 w-3 mr-1" />
-              Salvar Flow
-            </Button>
             
             {/* Botões de Ativação/Desativação */}
             {flowStatus === 'draft' && (
@@ -848,7 +886,7 @@ function FlowEditor() {
                 onClick={handleActivateFlow}
                 className="h-7 px-2 text-xs border-green-500 text-green-600 hover:bg-green-50"
                 title={`Ativar flow em produção${selectedWhatsAppNumbers.length > 0 ? ` (${selectedWhatsAppNumbers.length} número${selectedWhatsAppNumbers.length !== 1 ? 's' : ''})` : ''}`}
-                disabled={!validation.isValid || nodes.length === 0 || !flow?.id}
+                disabled={!validation.isValid || nodes.length === 0}
               >
                 <Power className="h-3 w-3 mr-1" />
                 Ativar{selectedWhatsAppNumbers.length > 0 && ` (${selectedWhatsAppNumbers.length})`}
@@ -1065,21 +1103,6 @@ function FlowEditor() {
         onLogsUpdate={(logs) => setExecutionLogs(logs)}
       />
       
-      {/* Flow Save Modal */}
-      <FlowSaveModal
-        isOpen={showSaveFlow}
-        onClose={() => setShowSaveFlow(false)}
-        onSave={(flowData) => {
-          setNotification({ 
-            message: `Flow "${flowData.name}" salvo com sucesso!`, 
-            type: 'success' 
-          })
-          setTimeout(() => setNotification(null), 3000)
-          
-          // Se o flow foi salvo, não redirecionar automaticamente
-          // Mantém o usuário no editor para continuar editando
-        }}
-      />
       
       <WhatsAppTemplateManager
         isOpen={showWhatsAppTemplates}
