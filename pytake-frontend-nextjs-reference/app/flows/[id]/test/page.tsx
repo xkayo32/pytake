@@ -86,6 +86,7 @@ export default function FlowTestPage() {
   const [isPaused, setIsPaused] = useState(false)
   const [breakpoints, setBreakpoints] = useState<Set<string>>(new Set())
   const [testMode, setTestMode] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   
   // Carregar flow
   useEffect(() => {
@@ -408,6 +409,19 @@ export default function FlowTestPage() {
             </Button>
           </div>
         </div>
+        
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 mx-4 mt-2 rounded-md">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <div>
+                <p className="font-medium">Erro ao carregar flow</p>
+                <p className="text-sm">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Messages Area */}
         <ScrollArea className="flex-1 p-4 bg-muted/30">
