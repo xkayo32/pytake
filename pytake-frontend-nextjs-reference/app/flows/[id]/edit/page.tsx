@@ -562,7 +562,9 @@ function FlowEditor() {
           let errorMessage = ''
           try {
             const errorText = await createResponse.text()
-            if (errorText) {
+            console.log('❌ Create flow error response:', errorText)
+            
+            if (errorText && errorText.trim() !== '' && errorText !== '{}') {
               try {
                 const errorJson = JSON.parse(errorText)
                 errorMessage = errorJson.message || errorJson.error || errorText
@@ -570,11 +572,16 @@ function FlowEditor() {
                 errorMessage = errorText
               }
             } else {
-              errorMessage = `Status ${createResponse.status}: ${createResponse.statusText}`
+              errorMessage = `HTTP ${createResponse.status}: ${createResponse.statusText}`
             }
           } catch {
-            errorMessage = `Status ${createResponse.status}: ${createResponse.statusText}`
+            errorMessage = `HTTP ${createResponse.status}: ${createResponse.statusText}`
           }
+          
+          if (!errorMessage || errorMessage === '{}') {
+            errorMessage = `Falha na criação - Status HTTP ${createResponse.status}`
+          }
+          
           throw new Error(`Erro ao criar flow: ${errorMessage}`)
         }
         
@@ -613,7 +620,9 @@ function FlowEditor() {
         let errorMessage = ''
         try {
           const errorText = await updateResponse.text()
-          if (errorText) {
+          console.log('❌ Error response from backend:', errorText)
+          
+          if (errorText && errorText.trim() !== '' && errorText !== '{}') {
             try {
               const errorJson = JSON.parse(errorText)
               errorMessage = errorJson.message || errorJson.error || errorText
@@ -621,11 +630,16 @@ function FlowEditor() {
               errorMessage = errorText
             }
           } else {
-            errorMessage = `Status ${updateResponse.status}: ${updateResponse.statusText}`
+            errorMessage = `HTTP ${updateResponse.status}: ${updateResponse.statusText}`
           }
         } catch {
-          errorMessage = `Status ${updateResponse.status}: ${updateResponse.statusText}`
+          errorMessage = `HTTP ${updateResponse.status}: ${updateResponse.statusText}`
         }
+        
+        if (!errorMessage || errorMessage === '{}') {
+          errorMessage = `Falha na ativação - Status HTTP ${updateResponse.status}`
+        }
+        
         throw new Error(`Erro ao ativar flow: ${errorMessage}`)
       }
       
