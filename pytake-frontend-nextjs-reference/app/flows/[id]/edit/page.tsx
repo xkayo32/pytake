@@ -98,9 +98,6 @@ function FlowEditor() {
     saveFlow,
     createNewFlow,
     validateFlow,
-    loadFromLocalStorage,
-    saveToLocalStorage,
-    clearLocalStorage,
     deleteNode,
     deleteEdge,
     undo,
@@ -321,8 +318,23 @@ function FlowEditor() {
         })
         
         if (!response.ok) {
-          const errorText = await response.text()
-          throw new Error(`Erro ao atualizar flow: ${response.status} - ${errorText}`)
+          let errorMessage = ''
+          try {
+            const errorText = await response.text()
+            if (errorText) {
+              try {
+                const errorJson = JSON.parse(errorText)
+                errorMessage = errorJson.message || errorJson.error || errorText
+              } catch {
+                errorMessage = errorText
+              }
+            } else {
+              errorMessage = `Status ${response.status}: ${response.statusText}`
+            }
+          } catch {
+            errorMessage = `Status ${response.status}: ${response.statusText}`
+          }
+          throw new Error(`Erro ao atualizar flow: ${errorMessage}`)
         }
         
         savedFlow = await response.json()
@@ -349,8 +361,23 @@ function FlowEditor() {
         })
         
         if (!response.ok) {
-          const errorText = await response.text()
-          throw new Error(`Erro ao criar flow: ${response.status} - ${errorText}`)
+          let errorMessage = ''
+          try {
+            const errorText = await response.text()
+            if (errorText) {
+              try {
+                const errorJson = JSON.parse(errorText)
+                errorMessage = errorJson.message || errorJson.error || errorText
+              } catch {
+                errorMessage = errorText
+              }
+            } else {
+              errorMessage = `Status ${response.status}: ${response.statusText}`
+            }
+          } catch {
+            errorMessage = `Status ${response.status}: ${response.statusText}`
+          }
+          throw new Error(`Erro ao criar flow: ${errorMessage}`)
         }
         
         savedFlow = await response.json()
@@ -427,8 +454,23 @@ function FlowEditor() {
         })
         
         if (!createResponse.ok) {
-          const errorText = await createResponse.text()
-          throw new Error(`Erro ao criar flow: ${createResponse.status} - ${errorText}`)
+          let errorMessage = ''
+          try {
+            const errorText = await createResponse.text()
+            if (errorText) {
+              try {
+                const errorJson = JSON.parse(errorText)
+                errorMessage = errorJson.message || errorJson.error || errorText
+              } catch {
+                errorMessage = errorText
+              }
+            } else {
+              errorMessage = `Status ${createResponse.status}: ${createResponse.statusText}`
+            }
+          } catch {
+            errorMessage = `Status ${createResponse.status}: ${createResponse.statusText}`
+          }
+          throw new Error(`Erro ao criar flow: ${errorMessage}`)
         }
         
         const createdFlow = await createResponse.json()
@@ -463,8 +505,23 @@ function FlowEditor() {
       })
       
       if (!updateResponse.ok) {
-        const errorText = await updateResponse.text()
-        throw new Error(`Erro ao ativar flow: ${updateResponse.status} - ${errorText}`)
+        let errorMessage = ''
+        try {
+          const errorText = await updateResponse.text()
+          if (errorText) {
+            try {
+              const errorJson = JSON.parse(errorText)
+              errorMessage = errorJson.message || errorJson.error || errorText
+            } catch {
+              errorMessage = errorText
+            }
+          } else {
+            errorMessage = `Status ${updateResponse.status}: ${updateResponse.statusText}`
+          }
+        } catch {
+          errorMessage = `Status ${updateResponse.status}: ${updateResponse.statusText}`
+        }
+        throw new Error(`Erro ao ativar flow: ${errorMessage}`)
       }
       
       setFlowStatus('active')
@@ -506,7 +563,23 @@ function FlowEditor() {
         setNotification({ message: 'Flow desativado', type: 'info' })
         setTimeout(() => setNotification(null), 3000)
       } else {
-        throw new Error('Erro ao desativar flow no backend')
+        let errorMessage = ''
+        try {
+          const errorText = await response.text()
+          if (errorText) {
+            try {
+              const errorJson = JSON.parse(errorText)
+              errorMessage = errorJson.message || errorJson.error || errorText
+            } catch {
+              errorMessage = errorText
+            }
+          } else {
+            errorMessage = `Status ${response.status}: ${response.statusText}`
+          }
+        } catch {
+          errorMessage = `Status ${response.status}: ${response.statusText}`
+        }
+        throw new Error(`Erro ao desativar flow: ${errorMessage}`)
       }
     } catch (error) {
       console.error('Erro ao desativar flow:', error)
