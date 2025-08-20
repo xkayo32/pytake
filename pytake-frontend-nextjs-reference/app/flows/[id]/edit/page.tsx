@@ -331,14 +331,17 @@ function FlowEditor() {
           if (flowsResponse.ok) {
             const flowsData = await flowsResponse.json()
             const flows = flowsData.flows || flowsData || []
-            existingFlow = flows.find((f: any) => f.name === flow.name)
+            existingFlow = flows.find((f: any) => 
+              f.name === flow.name && 
+              !f.id.startsWith('flow-') // Ignorar IDs locais
+            )
           }
         } catch (error) {
           console.warn('Erro ao buscar flows existentes:', error)
         }
         
-        if (existingFlow) {
-          // Flow já existe - atualizar
+        if (existingFlow && !existingFlow.id.startsWith('flow-')) {
+          // Flow realmente existe no backend - atualizar
           console.log('🔄 Flow encontrado no backend, atualizando:', existingFlow.id)
           currentFlowId = existingFlow.id
           
@@ -468,10 +471,11 @@ function FlowEditor() {
             const flowsData = await flowsResponse.json()
             const flows = flowsData.flows || flowsData || []
             
-            // Buscar flow com mesmo nome e que seja um rascunho
+            // Buscar flow com mesmo nome e que seja um rascunho no backend (não local)
             existingFlow = flows.find((f: any) => 
               f.name === flow?.name && 
-              (f.status === 'draft' || f.status === 'inactive')
+              (f.status === 'draft' || f.status === 'inactive') &&
+              !f.id.startsWith('flow-') // Ignorar IDs locais
             )
             
             if (existingFlow) {
