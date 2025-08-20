@@ -81,17 +81,13 @@ const FLOW_CATEGORIES = [
   { value: 'outro', label: 'Outro', icon: '📦' }
 ]
 
-const FLOW_STATUSES = [
-  { value: 'draft', label: 'Rascunho', icon: '✏️', description: 'Flow em desenvolvimento' },
-  { value: 'active', label: 'Ativo', icon: '🚀', description: 'Flow ativo e funcional' },
-  { value: 'inactive', label: 'Inativo', icon: '⏸️', description: 'Flow pausado temporariamente' },
-  { value: 'archived', label: 'Arquivado', icon: '📦', description: 'Flow inativo, mantido para histórico' }
-]
+// Statuses removidos - agora controlados por botões separados
 
 export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: FlowSaveModalProps) {
   const { nodes, edges, flow, clearLocalStorage } = useFlowEditorStore()
   const [isSaving, setIsSaving] = useState(false)
   const [savedSuccess, setSavedSuccess] = useState(false)
+  const [saveMessage, setSaveMessage] = useState('')
   
   const [formData, setFormData] = useState({
     name: flow?.name || '',
@@ -99,7 +95,6 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
     category: 'vendas',
     tags: '',
     version: '1.0.0',
-    status: 'draft' as 'draft' | 'published' | 'archived',
     isPublic: false
   })
   
@@ -127,7 +122,6 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
           category: existingFlow.category || 'vendas',
           tags: Array.isArray(existingFlow.tags) ? existingFlow.tags.join(', ') : '',
           version: existingFlow.version || '1.0.0',
-          status: existingFlow.status || 'draft',
           isPublic: existingFlow.isPublic || false
         })
         
@@ -144,7 +138,6 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
           category: 'vendas',
           tags: '',
           version: '1.0.0',
-          status: flow.status || 'draft',
           isPublic: false
         })
         setSelectedWhatsAppNumbers([])
@@ -184,13 +177,7 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
       newErrors.flow = 'O flow deve ter pelo menos um nó'
     }
     
-    if (formData.status === 'active' && flowAnalysis.triggers.length === 0) {
-      newErrors.flow = 'Flow ativo deve ter pelo menos um gatilho (trigger)'
-    }
-    
-    if (formData.status === 'active' && selectedWhatsAppNumbers.length === 0) {
-      newErrors.whatsapp = 'Flow ativo deve ter pelo menos um número WhatsApp selecionado'
-    }
+    // Validações removidas - status agora é controlado separadamente
     
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -213,6 +200,7 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
       const flowData: SavedFlowData = {
         id: flowId,
         ...formData,
+        status: 'draft', // Sempre salvar como draft
         tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
         whatsappNumbers: selectedWhatsAppNumbers,
         flow: {
@@ -234,7 +222,8 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
         }
       }
       
-      // Salvar flow principal
+      // Sempre salvar no localStorage como draft
+      console.log('💾 Salvando flow no localStorage:', flowData)
       const savedFlows = existingFlows.filter((f: any) => f.id !== flowId)
       savedFlows.push(flowData)
       localStorage.setItem('saved_flows', JSON.stringify(savedFlows))
@@ -250,15 +239,22 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
         localStorage.setItem(`flow_history_${flowId}`, JSON.stringify(flowHistory))
       }
       
-      // Limpar rascunho se flow foi salvo como não-draft
-      if (formData.status !== 'draft') {
-        console.log('🧹 Limpando rascunho - flow salvo como', formData.status)
-        clearLocalStorage()
-        
-        // Também forçar limpeza adicional para garantir
-        localStorage.removeItem('pytake_flow_draft')
-        console.log('🧹 Rascunho limpo completamente')
-      }
+      // Limpar rascunho do editor
+      clearLocalStorage()
+      localStorage.removeItem('pytake_flow_draft')
+      console.log('🧹 Rascunho do editor limpo')
+      
+      setSaveMessage(`Flow "${flowData.name}" salvo!`)
+      
+      // Atualizar o store com os dados salvos
+      const { setFlow } = useFlowEditorStore.getState()
+      setFlow({
+        id: flowData.id,
+        name: flowData.name,
+        description: flowData.description,
+        status: 'draft',
+        ...flowData
+      })
       
       // Callback externo
       onSave?.(flowData)
@@ -269,13 +265,13 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
       setTimeout(() => {
         onClose()
         setSavedSuccess(false)
+        setSaveMessage('')
         setFormData({
           name: '',
           description: '',
           category: 'vendas',
           tags: '',
           version: '1.0.0',
-          status: 'draft',
           isPublic: false
         })
         setSelectedWhatsAppNumbers([])
@@ -289,7 +285,7 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
     }
   }, [formData, nodes, edges, flow, onSave, onClose, clearLocalStorage, validateForm, flowAnalysis, selectedWhatsAppNumbers])
   
-  const selectedStatus = FLOW_STATUSES.find(s => s.value === formData.status)
+  // Status removido - sempre será draft
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -380,56 +376,25 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
               )}
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="status">
-                  Status do Flow
-                </Label>
-                <Select value={formData.status} onValueChange={(value: any) => setFormData({ ...formData, status: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FLOW_STATUSES.map(status => (
-                      <SelectItem key={status.value} value={status.value}>
-                        <div className="flex items-center gap-2">
-                          <span>{status.icon}</span>
-                          <div>
-                            <div className="font-medium">{status.label}</div>
-                            <div className="text-xs text-muted-foreground">{status.description}</div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selectedStatus && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {selectedStatus.description}
-                  </p>
-                )}
-              </div>
-              
-              <div>
-                <Label htmlFor="category">
-                  Categoria
-                </Label>
-                <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FLOW_CATEGORIES.map(cat => (
-                      <SelectItem key={cat.value} value={cat.value}>
-                        <div className="flex items-center gap-2">
-                          <span>{cat.icon}</span>
-                          <span>{cat.label}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label htmlFor="category">
+                Categoria
+              </Label>
+              <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FLOW_CATEGORIES.map(cat => (
+                    <SelectItem key={cat.value} value={cat.value}>
+                      <div className="flex items-center gap-2">
+                        <span>{cat.icon}</span>
+                        <span>{cat.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
             <div>
@@ -466,36 +431,7 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
               />
             </div>
 
-            {/* Seleção de Números WhatsApp */}
-            {formData.status === 'active' && (
-              <div className="space-y-4 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-center gap-2 mb-4">
-                  <Phone className="h-4 w-4 text-blue-600" />
-                  <h4 className="font-medium text-blue-900 dark:text-blue-100">
-                    Números WhatsApp para Ativação
-                  </h4>
-                </div>
-                <WhatsAppNumberSelector
-                  selectedNumbers={selectedWhatsAppNumbers}
-                  onNumbersChange={(numbers) => {
-                    console.log('🔄 Modal recebeu mudança de números:', numbers)
-                    console.log('🔄 Estado anterior selectedWhatsAppNumbers:', selectedWhatsAppNumbers)
-                    setSelectedWhatsAppNumbers(numbers)
-                    console.log('🔄 setSelectedWhatsAppNumbers chamado com:', numbers)
-                  }}
-                  title="Selecionar Números"
-                  description="Escolha em quais números este flow será ativado quando publicado"
-                  allowMultiple={true}
-                  showAddNumber={false}
-                />
-                {errors.whatsapp && (
-                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {errors.whatsapp}
-                  </p>
-                )}
-              </div>
-            )}
+            {/* Seção de WhatsApp removida - agora controlada pelos botões no builder */}
           </div>
           
           {errors.save && (
@@ -515,7 +451,7 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
           {savedSuccess && (
             <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg text-green-600 dark:text-green-400 text-sm flex items-center gap-2">
               <Check className="h-4 w-4" />
-              Flow salvo com sucesso!
+              {saveMessage || 'Flow salvo com sucesso!'}
             </div>
           )}
         </div>

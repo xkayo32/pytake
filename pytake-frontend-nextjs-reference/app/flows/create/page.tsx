@@ -20,6 +20,7 @@ import { FlowLoader } from '@/components/flow-editor/flow-loader'
 import { FlowExecutorModal } from '@/components/flow-editor/flow-executor-modal'
 import { FlowSaveModal } from '@/components/flow-editor/flow-save-modal'
 import { WhatsAppTemplateManager } from '@/components/flow-editor/whatsapp-template-manager'
+import { WhatsAppNumberSelector } from '@/components/whatsapp/whatsapp-number-selector'
 import { nodeTypes } from '@/components/flow-editor/nodes/custom-nodes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,8 +44,20 @@ import {
   PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
-  MessageSquare
+  MessageSquare,
+  Power,
+  PowerOff,
+  Pause,
+  Phone
 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useState } from 'react'
 
 // Node types imported from custom-nodes
@@ -60,7 +73,9 @@ function FlowEditor() {
   const [showWhatsAppTemplates, setShowWhatsAppTemplates] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
-  
+  const [flowStatus, setFlowStatus] = useState<'draft' | 'active' | 'inactive'>('draft')
+  const [selectedWhatsAppNumbers, setSelectedWhatsAppNumbers] = useState<string[]>([])
+  const [showWhatsAppSelector, setShowWhatsAppSelector] = useState(false)
   const {
     flow,
     nodes,
@@ -453,6 +468,86 @@ function FlowEditor() {
   const handleTest = useCallback(() => {
     setShowExecutor(true)
   }, [])
+  
+  const handleActivateFlow = useCallback(async () => {
+    const validation = validateFlow()
+    
+    if (!flow?.id) {
+      setNotification({ message: 'Flow deve ser salvo antes de ativar', type: 'error' })
+      setTimeout(() => setNotification(null), 3000)
+      return
+    }
+    
+    if (!validation.isValid) {
+      setNotification({ message: 'Flow deve estar válido para ser ativado', type: 'error' })
+      setTimeout(() => setNotification(null), 3000)
+      return
+    }
+    
+    if (selectedWhatsAppNumbers.length === 0) {
+      // Abrir modal de seleção de números WhatsApp
+      setShowWhatsAppSelector(true)
+      return
+    }
+    
+    try {
+      // Salvar flow como ativo no backend
+      const flowData = {
+        ...flow,
+        status: 'active',
+        whatsappNumbers: selectedWhatsAppNumbers,
+        flow: { nodes, edges }
+      }
+      
+      const response = await fetch(`/api/v1/flows/${flow.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(flowData)
+      })
+      
+      if (response.ok) {
+        setFlowStatus('active')
+        setNotification({ message: `Flow ativado em ${selectedWhatsAppNumbers.length} número(s)`, type: 'success' })
+        setTimeout(() => setNotification(null), 3000)
+      } else {
+        throw new Error('Erro ao ativar flow no backend')
+      }
+    } catch (error) {
+      console.error('Erro ao ativar flow:', error)
+      setNotification({ message: 'Erro ao ativar flow', type: 'error' })
+      setTimeout(() => setNotification(null), 3000)
+    }
+  }, [flow, validateFlow, selectedWhatsAppNumbers, nodes, edges])
+  
+  const handleDeactivateFlow = useCallback(async () => {
+    if (!flow?.id) return
+    
+    try {
+      const flowData = {
+        ...flow,
+        status: 'inactive',
+        flow: { nodes, edges }
+      }
+      
+      const response = await fetch(`/api/v1/flows/${flow.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(flowData)
+      })
+      
+      if (response.ok) {
+        setFlowStatus('inactive')
+        setNotification({ message: 'Flow desativado', type: 'info' })
+        setTimeout(() => setNotification(null), 3000)
+      } else {
+        throw new Error('Erro ao desativar flow no backend')
+      }
+    } catch (error) {
+      console.error('Erro ao desativar flow:', error)
+      setNotification({ message: 'Erro ao desativar flow', type: 'error' })
+      setTimeout(() => setNotification(null), 3000)
+    }
+  }, [flow, nodes, edges])
 
   const handleLoadFlow = useCallback((savedFlow: any) => {
     // Carregar flow salvo no editor
@@ -745,6 +840,60 @@ function FlowEditor() {
               Salvar Flow
             </Button>
             
+            {/* Botões de Ativação/Desativação */}
+            {flowStatus === 'draft' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleActivateFlow}
+                className="h-7 px-2 text-xs border-green-500 text-green-600 hover:bg-green-50"
+                title={`Ativar flow em produção${selectedWhatsAppNumbers.length > 0 ? ` (${selectedWhatsAppNumbers.length} número${selectedWhatsAppNumbers.length !== 1 ? 's' : ''})` : ''}`}
+                disabled={!validation.isValid || nodes.length === 0 || !flow?.id}
+              >
+                <Power className="h-3 w-3 mr-1" />
+                Ativar{selectedWhatsAppNumbers.length > 0 && ` (${selectedWhatsAppNumbers.length})`}
+              </Button>
+            )}
+            
+            {flowStatus === 'active' && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDeactivateFlow}
+                  className="h-7 px-2 text-xs border-red-500 text-red-600 hover:bg-red-50"
+                  title="Desativar flow"
+                >
+                  <PowerOff className="h-3 w-3 mr-1" />
+                  Desativar
+                </Button>
+                <Badge variant="default" className="h-5 px-2 text-[10px] bg-green-100 text-green-700">
+                  <div className="w-1 h-1 bg-green-500 rounded-full mr-1" />
+                  Ativo
+                </Badge>
+              </>
+            )}
+            
+            {flowStatus === 'inactive' && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleActivateFlow}
+                  className="h-7 px-2 text-xs border-green-500 text-green-600 hover:bg-green-50"
+                  title="Reativar flow"
+                  disabled={!validation.isValid}
+                >
+                  <Power className="h-3 w-3 mr-1" />
+                  Ativar
+                </Button>
+                <Badge variant="outline" className="h-5 px-2 text-[10px] text-orange-600 border-orange-500">
+                  <Pause className="h-2 w-2 mr-1" />
+                  Pausado
+                </Badge>
+              </>
+            )}
+            
             <div className="w-px h-5 bg-border mx-1" />
             
             <Button
@@ -927,12 +1076,8 @@ function FlowEditor() {
           })
           setTimeout(() => setNotification(null), 3000)
           
-          // Se o flow foi publicado, redirecionar para a lista de flows
-          if (flowData.status === 'published') {
-            setTimeout(() => {
-              router.push('/flows')
-            }, 2500)
-          }
+          // Se o flow foi salvo, não redirecionar automaticamente
+          // Mantém o usuário no editor para continuar editando
         }}
       />
       
@@ -940,6 +1085,53 @@ function FlowEditor() {
         isOpen={showWhatsAppTemplates}
         onClose={() => setShowWhatsAppTemplates(false)}
       />
+      
+      {/* WhatsApp Number Selection Modal */}
+      <Dialog open={showWhatsAppSelector} onOpenChange={setShowWhatsAppSelector}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Phone className="h-5 w-5 text-primary" />
+              Ativar Flow
+            </DialogTitle>
+            <DialogDescription>
+              Selecione em quais números WhatsApp este flow será ativado. O flow será executado automaticamente quando receber mensagens nos números selecionados.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto py-4">
+            <WhatsAppNumberSelector
+              selectedNumbers={selectedWhatsAppNumbers}
+              onNumbersChange={setSelectedWhatsAppNumbers}
+              title="Números WhatsApp Disponíveis"
+              description="Escolha os números onde o flow será executado"
+              allowMultiple={true}
+              showAddNumber={false}
+            />
+          </div>
+          
+          <DialogFooter className="flex-shrink-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowWhatsAppSelector(false)}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={() => {
+                setShowWhatsAppSelector(false)
+                // Tentar ativar novamente após seleção
+                handleActivateFlow()
+              }}
+              disabled={selectedWhatsAppNumbers.length === 0}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Power className="h-4 w-4 mr-2" />
+              Ativar Flow ({selectedWhatsAppNumbers.length} número{selectedWhatsAppNumbers.length !== 1 ? 's' : ''})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
