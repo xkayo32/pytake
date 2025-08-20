@@ -328,18 +328,12 @@ function FlowEditor() {
         sessionStorage.removeItem('load_template')
       } catch (error) {
         console.error('Error loading template:', error)
-        // Se falhar, carregar normalmente
-        const hasDraft = loadFromLocalStorage()
-        if (!hasDraft) {
-          createNewFlow()
-        }
+        // Se falhar, inicializar flow vazio
+        createNewFlow()
       }
     } else {
       // Inicializar flow vazio
-      const hasDraft = loadFromLocalStorage()
-      if (!hasDraft) {
-        createNewFlow()
-      }
+      createNewFlow()
     }
   }, [])
 
