@@ -209,7 +209,7 @@ function FlowEditor() {
         
         useFlowEditorStore.setState({ 
           flow: emptyFlow,
-          isDirty: false 
+          isDirty: true // Marcar como dirty para permitir salvar
         })
         
         setFlowStatus('draft')
@@ -245,7 +245,7 @@ function FlowEditor() {
         
         useFlowEditorStore.setState({ 
           flow: emptyFlow,
-          isDirty: false 
+          isDirty: true // Marcar como dirty para permitir salvar
         })
         
         setFlowStatus('draft')
@@ -355,15 +355,15 @@ function FlowEditor() {
       let currentFlowId = flow.id || flowId
       let savedFlow
       
-      // Se já tem ID do backend, atualizar; senão, criar
+      // Primeiro, tentar atualizar se tiver ID; se falhar com 404, criar novo
       if (currentFlowId && !currentFlowId.startsWith('flow-')) {
-        // Flow já existe no backend - atualizar
-        console.log('🔄 Atualizando flow existente no backend:', currentFlowId)
+        // Tentar atualizar flow existente
+        console.log('🔄 Tentando atualizar flow no backend:', currentFlowId)
         
         const updateData = {
           ...flow,
           id: currentFlowId,
-          status: 'draft',
+          status: flow.status || 'draft',
           flow: { nodes, edges },
           updatedAt: new Date().toISOString()
         }
@@ -375,28 +375,38 @@ function FlowEditor() {
         })
         
         if (!response.ok) {
-          let errorMessage = ''
-          try {
-            const errorText = await response.text()
-            if (errorText) {
-              try {
-                const errorJson = JSON.parse(errorText)
-                errorMessage = errorJson.message || errorJson.error || errorText
-              } catch {
-                errorMessage = errorText
+          if (response.status === 404) {
+            // Flow não existe no backend ainda, vamos criar
+            console.log('⚠️ Flow não encontrado (404), criando novo...')
+            currentFlowId = null // Forçar criação abaixo
+          } else {
+            // Outro erro, lançar exceção
+            let errorMessage = ''
+            try {
+              const errorText = await response.text()
+              if (errorText) {
+                try {
+                  const errorJson = JSON.parse(errorText)
+                  errorMessage = errorJson.message || errorJson.error || errorText
+                } catch {
+                  errorMessage = errorText
+                }
+              } else {
+                errorMessage = `Status ${response.status}: ${response.statusText}`
               }
-            } else {
+            } catch {
               errorMessage = `Status ${response.status}: ${response.statusText}`
             }
-          } catch {
-            errorMessage = `Status ${response.status}: ${response.statusText}`
+            throw new Error(`Erro ao atualizar flow: ${errorMessage}`)
           }
-          throw new Error(`Erro ao atualizar flow: ${errorMessage}`)
+        } else {
+          savedFlow = await response.json()
+          console.log('✅ Flow atualizado no backend:', savedFlow.id)
         }
-        
-        savedFlow = await response.json()
-        console.log('✅ Flow atualizado no backend:', savedFlow.id)
-      } else {
+      }
+      
+      // Se não tem ID ou falhou com 404, criar novo
+      if (!currentFlowId || !savedFlow) {
         // Criar novo flow no backend
         console.log('🔄 Criando novo flow no backend')
         
@@ -994,7 +1004,7 @@ function FlowEditor() {
             <Button
               size="sm"
               onClick={handleSave}
-              disabled={isLoading || !isDirty}
+              disabled={isLoading}
               className="h-7 px-2 text-xs"
               title="Salvar flow atual"
             >
