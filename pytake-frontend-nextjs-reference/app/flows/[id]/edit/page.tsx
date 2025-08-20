@@ -375,9 +375,6 @@ function FlowEditor() {
           
           savedFlow = await response.json()
           currentFlowId = savedFlow.id
-          
-          // Update URL to reflect new ID
-          router.replace(`/flows/${currentFlowId}/edit`)
         }
       }
       
@@ -404,7 +401,7 @@ function FlowEditor() {
       })
       setTimeout(() => setNotification(null), 3000)
     }
-  }, [flow, flowId, validateFlow, nodes, edges, clearLocalStorage, router])
+  }, [flow, flowId, validateFlow, nodes, edges, clearLocalStorage])
 
   const [showExecutor, setShowExecutor] = useState(false)
   const [executionLogs, setExecutionLogs] = useState<any[]>([])
@@ -488,9 +485,6 @@ function FlowEditor() {
           const createdFlow = await createResponse.json()
           currentFlowId = createdFlow.id
           console.log('✅ Flow criado no backend com ID:', currentFlowId)
-          
-          // Update URL to reflect new ID
-          router.replace(`/flows/${currentFlowId}/edit`)
         }
         
         // Atualizar o flow local com o ID do backend
@@ -542,7 +536,7 @@ function FlowEditor() {
       })
       setTimeout(() => setNotification(null), 3000)
     }
-  }, [flow, flowId, validateFlow, selectedWhatsAppNumbers, nodes, edges, router])
+  }, [flow, flowId, validateFlow, selectedWhatsAppNumbers, nodes, edges])
   
   const handleDeactivateFlow = useCallback(async () => {
     const currentFlowId = flow?.id || flowId
