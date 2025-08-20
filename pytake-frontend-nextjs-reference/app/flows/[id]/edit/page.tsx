@@ -206,16 +206,32 @@ function FlowEditor() {
     }
   }, [flowId])
 
-  // Auto-save para localStorage a cada mudança
+  // Auto-save no backend a cada mudança (opcional - pode remover se preferir só manual)
   useEffect(() => {
-    if (isDirty && nodes.length > 0) {
-      const timeoutId = setTimeout(() => {
-        saveToLocalStorage()
-        setLastSaved(new Date())
-      }, 1000) // Salva após 1 segundo de inatividade
+    if (isDirty && nodes.length > 0 && flow && flow.id && !flow.id.startsWith('flow-')) {
+      const timeoutId = setTimeout(async () => {
+        try {
+          const updateData = {
+            ...flow,
+            flow: { nodes, edges },
+            updatedAt: new Date().toISOString()
+          }
+          
+          await fetch(`/api/v1/flows/${flow.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updateData)
+          })
+          
+          setLastSaved(new Date())
+          useFlowEditorStore.setState({ isDirty: false })
+        } catch (error) {
+          console.log('Auto-save error (silent):', error)
+        }
+      }, 5000) // Auto-save após 5 segundos de inatividade
       return () => clearTimeout(timeoutId)
     }
-  }, [nodes, edges, isDirty, saveToLocalStorage])
+  }, [nodes, edges, isDirty, flow])
 
   const onDragOver = useCallback((event: DragEvent) => {
     event.preventDefault()
@@ -285,27 +301,18 @@ function FlowEditor() {
       let currentFlowId = flow.id || flowId
       let savedFlow
       
-      // Verificar se é uma atualização ou criação
+      // Se já tem ID do backend, atualizar; senão, criar
       if (currentFlowId && !currentFlowId.startsWith('flow-')) {
         // Flow já existe no backend - atualizar
-        console.log('🔄 Atualizando flow existente:', currentFlowId)
+        console.log('🔄 Atualizando flow existente no backend:', currentFlowId)
         
         const updateData = {
           ...flow,
           id: currentFlowId,
-          status: 'draft', // Sempre salvar como draft
+          status: 'draft',
           flow: { nodes, edges },
-          updatedAt: new Date().toISOString(),
-          // Garantir campos essenciais
-          name: flow.name || 'Novo Flow',
-          description: flow.description || '',
-          trigger: flow.trigger || {
-            type: 'keyword',
-            config: {}
-          }
+          updatedAt: new Date().toISOString()
         }
-        
-        console.log('🔄 Atualizando flow com dados:', updateData)
         
         const response = await fetch(`/api/v1/flows/${currentFlowId}`, {
           method: 'PUT',
@@ -313,114 +320,53 @@ function FlowEditor() {
           body: JSON.stringify(updateData)
         })
         
-        console.log('📡 Response status para update direto:', response.status)
-        
         if (!response.ok) {
           const errorText = await response.text()
-          console.error('❌ Erro na atualização direta:', errorText)
           throw new Error(`Erro ao atualizar flow: ${response.status} - ${errorText}`)
         }
         
         savedFlow = await response.json()
-        console.log('✅ Flow atualizado diretamente:', savedFlow)
+        console.log('✅ Flow atualizado no backend:', savedFlow.id)
       } else {
-        // Verificar se já existe um flow com este nome no backend
-        let existingFlow = null
-        try {
-          const flowsResponse = await fetch('/api/v1/flows')
-          if (flowsResponse.ok) {
-            const flowsData = await flowsResponse.json()
-            const flows = flowsData.flows || flowsData || []
-            existingFlow = flows.find((f: any) => 
-              f.name === flow.name && 
-              !f.id.startsWith('flow-') // Ignorar IDs locais
-            )
+        // Criar novo flow no backend
+        console.log('🔄 Criando novo flow no backend')
+        
+        const createData = {
+          name: flow.name || 'Novo Flow',
+          description: flow.description || '',
+          status: 'draft',
+          flow: { nodes, edges },
+          trigger: flow.trigger || {
+            type: 'keyword',
+            config: {}
           }
-        } catch (error) {
-          console.warn('Erro ao buscar flows existentes:', error)
         }
         
-        if (existingFlow && !existingFlow.id.startsWith('flow-')) {
-          // Flow realmente existe no backend - atualizar
-          console.log('🔄 Flow encontrado no backend, atualizando:', existingFlow.id)
-          currentFlowId = existingFlow.id
-          
-          const updateData = {
-            ...existingFlow,
-            ...flow,
-            id: existingFlow.id,
-            status: 'draft',
-            flow: { nodes, edges },
-            updatedAt: new Date().toISOString(),
-            // Garantir campos essenciais
-            name: flow.name || existingFlow.name || 'Novo Flow',
-            description: flow.description || existingFlow.description || '',
-            trigger: flow.trigger || existingFlow.trigger || {
-              type: 'keyword',
-              config: {}
-            }
-          }
-          
-          console.log('🔄 Enviando dados para atualização:', updateData)
-          
-          const response = await fetch(`/api/v1/flows/${existingFlow.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updateData)
-          })
-          
-          console.log('📡 Response status para update:', response.status)
-          
-          if (!response.ok) {
-            const errorText = await response.text()
-            console.error('❌ Erro na resposta do backend:', errorText)
-            throw new Error(`Erro ao atualizar flow existente: ${response.status} - ${errorText}`)
-          }
-          
-          savedFlow = await response.json()
-          console.log('✅ Flow atualizado com sucesso:', savedFlow)
-        } else {
-          // Criar novo flow
-          console.log('🔄 Criando novo flow no backend')
-          
-          const createData = {
-            name: flow.name || 'Novo Flow',
-            description: flow.description || '',
-            status: 'draft',
-            flow: { nodes, edges },
-            trigger: flow.trigger || {
-              type: 'keyword',
-              config: {}
-            }
-          }
-          
-          const response = await fetch('/api/v1/flows', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(createData)
-          })
-          
-          if (!response.ok) {
-            throw new Error('Erro ao criar flow')
-          }
-          
-          savedFlow = await response.json()
-          currentFlowId = savedFlow.id
+        const response = await fetch('/api/v1/flows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(createData)
+        })
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`Erro ao criar flow: ${response.status} - ${errorText}`)
         }
+        
+        savedFlow = await response.json()
+        currentFlowId = savedFlow.id
+        console.log('✅ Flow criado no backend:', currentFlowId)
       }
       
-      // Atualizar flow local com dados do backend
+      // Atualizar estado local com dados do backend
       useFlowEditorStore.setState({
         flow: {
-          ...flow,
-          id: currentFlowId,
-          status: 'draft',
-          updatedAt: savedFlow.updatedAt || new Date().toISOString()
+          ...savedFlow,
+          id: currentFlowId
         },
         isDirty: false
       })
       
-      clearLocalStorage() // Limpar rascunho após salvar com sucesso
       setNotification({ message: 'Flow salvo com sucesso', type: 'success' })
       setTimeout(() => setNotification(null), 3000)
       
@@ -432,7 +378,7 @@ function FlowEditor() {
       })
       setTimeout(() => setNotification(null), 3000)
     }
-  }, [flow, flowId, validateFlow, nodes, edges, clearLocalStorage])
+  }, [flow, flowId, validateFlow, nodes, edges])
 
   const [showExecutor, setShowExecutor] = useState(false)
   const [executionLogs, setExecutionLogs] = useState<any[]>([])
@@ -459,98 +405,66 @@ function FlowEditor() {
     try {
       let currentFlowId = flow?.id || flowId
       
-      // Se o flow não tem ID do backend, verificar se já existe um flow com esse nome/rascunho
+      // Se não tem ID do backend, primeiro salvar como draft
       if (!currentFlowId || currentFlowId.startsWith('flow-')) {
-        console.log('🔍 Verificando se flow já existe no backend...')
+        console.log('🔄 Flow não existe no backend, criando primeiro como draft...')
         
-        // Primeiro, tentar buscar flows existentes para evitar duplicação
-        let existingFlow = null
-        try {
-          const flowsResponse = await fetch('/api/v1/flows')
-          if (flowsResponse.ok) {
-            const flowsData = await flowsResponse.json()
-            const flows = flowsData.flows || flowsData || []
-            
-            // Buscar flow com mesmo nome e que seja um rascunho no backend (não local)
-            existingFlow = flows.find((f: any) => 
-              f.name === flow?.name && 
-              (f.status === 'draft' || f.status === 'inactive') &&
-              !f.id.startsWith('flow-') // Ignorar IDs locais
-            )
-            
-            if (existingFlow) {
-              console.log('✅ Encontrado flow existente no backend:', existingFlow.id)
-              currentFlowId = existingFlow.id
-            }
+        const createFlowData = {
+          name: flow?.name || 'Novo Flow',
+          description: flow?.description || '',
+          status: 'draft',
+          flow: { nodes, edges },
+          trigger: flow?.trigger || {
+            type: 'keyword',
+            config: {}
           }
-        } catch (error) {
-          console.warn('⚠️ Erro ao buscar flows existentes, prosseguindo com criação:', error)
         }
         
-        if (!existingFlow) {
-          console.log('🔄 Flow não existe no backend, criando primeiro...')
-          
-          const createFlowData = {
-            name: flow?.name || 'Novo Flow',
-            description: flow?.description || '',
-            status: 'active', // Já criar como ativo
-            whatsappNumbers: selectedWhatsAppNumbers,
-            flow: { nodes, edges },
-            trigger: flow?.trigger || {
-              type: 'keyword',
-              config: {}
-            }
-          }
-          
-          const createResponse = await fetch('/api/v1/flows', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(createFlowData)
-          })
-          
-          if (!createResponse.ok) {
-            const errorText = await createResponse.text()
-            console.error('❌ Erro ao criar flow:', errorText)
-            throw new Error('Erro ao criar flow no backend')
-          }
-          
-          const createdFlow = await createResponse.json()
-          currentFlowId = createdFlow.id
-          console.log('✅ Flow criado no backend com ID:', currentFlowId)
+        const createResponse = await fetch('/api/v1/flows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(createFlowData)
+        })
+        
+        if (!createResponse.ok) {
+          const errorText = await createResponse.text()
+          throw new Error(`Erro ao criar flow: ${createResponse.status} - ${errorText}`)
         }
         
-        // Atualizar o flow local com o ID do backend
+        const createdFlow = await createResponse.json()
+        currentFlowId = createdFlow.id
+        
+        // Atualizar estado local
         useFlowEditorStore.setState({ 
           flow: { 
-            ...flow, 
-            id: currentFlowId,
-            status: 'active'
+            ...createdFlow,
+            id: currentFlowId
           }
         })
-      } else {
-        // Flow já existe no backend, apenas atualizar
-        console.log('🔄 Atualizando flow existente no backend...')
         
-        const updateFlowData = {
-          ...flow,
-          status: 'active',
-          whatsappNumbers: selectedWhatsAppNumbers,
-          flow: { nodes, edges }
-        }
-        
-        const updateResponse = await fetch(`/api/v1/flows/${currentFlowId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updateFlowData)
-        })
-        
-        if (!updateResponse.ok) {
-          const errorText = await updateResponse.text()
-          console.error('❌ Erro ao atualizar flow:', errorText)
-          throw new Error('Erro ao atualizar flow no backend')
-        }
-        
-        console.log('✅ Flow atualizado no backend')
+        console.log('✅ Flow criado no backend:', currentFlowId)
+      }
+      
+      // Agora ativar o flow
+      console.log('🔄 Ativando flow no backend...')
+      
+      const updateFlowData = {
+        ...flow,
+        id: currentFlowId,
+        status: 'active',
+        whatsappNumbers: selectedWhatsAppNumbers,
+        flow: { nodes, edges }
+      }
+      
+      const updateResponse = await fetch(`/api/v1/flows/${currentFlowId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateFlowData)
+      })
+      
+      if (!updateResponse.ok) {
+        const errorText = await updateResponse.text()
+        throw new Error(`Erro ao ativar flow: ${updateResponse.status} - ${errorText}`)
       }
       
       setFlowStatus('active')
