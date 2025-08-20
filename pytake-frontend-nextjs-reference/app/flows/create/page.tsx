@@ -429,35 +429,14 @@ function FlowEditor() {
     }
     
     try {
-      let flowId = flow.id
+      // Na página de criação, sempre criar novo flow
+      // Ignorar flow.id pois pode ter IDs inválidos ou temporários
+      let flowId = null
       let savedFlow
       
-      // Se já tem ID do backend, atualizar; senão, criar
-      if (flowId && !flowId.startsWith('flow-')) {
-        // Flow já existe no backend - atualizar
-        console.log('🔄 Atualizando flow existente no backend:', flowId)
-        
-        const updateData = {
-          ...flow,
-          status: 'draft',
-          flow: { nodes, edges },
-          updatedAt: new Date().toISOString()
-        }
-        
-        const response = await fetch(`/api/v1/flows/${flowId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updateData)
-        })
-        
-        if (!response.ok) {
-          const errorText = await response.text()
-          throw new Error(`Erro ao atualizar flow: ${response.status} - ${errorText}`)
-        }
-        
-        savedFlow = await response.json()
-        console.log('✅ Flow atualizado no backend:', savedFlow.id)
-      } else {
+      // Na página de criação, sempre criar novo flow
+      // Não tentar atualizar pois esta é a página /flows/create
+      {
         // Criar novo flow no backend
         console.log('🔄 Criando novo flow no backend')
         
@@ -497,8 +476,12 @@ function FlowEditor() {
         isDirty: false
       })
       
-      setNotification({ message: 'Flow salvo com sucesso', type: 'success' })
-      setTimeout(() => setNotification(null), 3000)
+      setNotification({ message: 'Flow criado com sucesso! Redirecionando...', type: 'success' })
+      
+      // Redirecionar para a página de edição com o ID do flow criado
+      setTimeout(() => {
+        router.push(`/flows/${flowId}/edit`)
+      }, 1000)
       
     } catch (error) {
       console.error('Erro ao salvar flow:', error)
@@ -508,7 +491,7 @@ function FlowEditor() {
       })
       setTimeout(() => setNotification(null), 3000)
     }
-  }, [flow, validateFlow, nodes, edges])
+  }, [flow, validateFlow, nodes, edges, router])
 
   const [showExecutor, setShowExecutor] = useState(false)
   const [executionLogs, setExecutionLogs] = useState<any[]>([])
