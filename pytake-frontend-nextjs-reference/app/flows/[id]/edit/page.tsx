@@ -18,6 +18,7 @@ import { NodePalette } from '@/components/flow-editor/node-palette-v2'
 import { PropertiesPanel } from '@/components/flow-editor/properties-panel'
 import { FlowLoader } from '@/components/flow-editor/flow-loader'
 import { FlowExecutorModal } from '@/components/flow-editor/flow-executor-modal'
+import { FlowSaveModal } from '@/components/flow-editor/flow-save-modal'
 import { WhatsAppTemplateManager } from '@/components/flow-editor/whatsapp-template-manager'
 import { WhatsAppNumberSelector } from '@/components/whatsapp/whatsapp-number-selector'
 import { nodeTypes } from '@/components/flow-editor/nodes/custom-nodes'
@@ -76,6 +77,7 @@ function FlowEditor() {
   const [flowStatus, setFlowStatus] = useState<'draft' | 'active' | 'inactive'>('draft')
   const [selectedWhatsAppNumbers, setSelectedWhatsAppNumbers] = useState<string[]>([])
   const [showWhatsAppSelector, setShowWhatsAppSelector] = useState(false)
+  const [showSaveModal, setShowSaveModal] = useState(false)
   
   const {
     flow,
@@ -351,8 +353,23 @@ function FlowEditor() {
       return
     }
     
+    // Se é um flow novo (sem descrição ou categoria), mostrar modal de save
+    const isNewFlow = !flow.description || flow.description === '' || flow.name === 'Novo Flow'
+    if (isNewFlow) {
+      setShowSaveModal(true)
+      return
+    }
+    
+    // Se não é novo, salvar diretamente
+    await performSave()
+  }, [flow, flowId, validateFlow, nodes, edges])
+  
+  const performSave = useCallback(async (flowData?: any) => {
+    const flowToSave = flowData || flow
+    if (!flowToSave) return
+    
     try {
-      let currentFlowId = flow.id || flowId
+      let currentFlowId = flowToSave.id || flowId
       let savedFlow
       
       // Primeiro, tentar atualizar se tiver ID; se falhar com 404, criar novo
@@ -361,9 +378,9 @@ function FlowEditor() {
         console.log('🔄 Tentando atualizar flow no backend:', currentFlowId)
         
         const updateData = {
-          ...flow,
+          ...flowToSave,
           id: currentFlowId,
-          status: flow.status || 'draft',
+          status: flowToSave.status || 'draft',
           flow: { nodes, edges },
           updatedAt: new Date().toISOString()
         }
@@ -411,11 +428,11 @@ function FlowEditor() {
         console.log('🔄 Criando novo flow no backend')
         
         const createData = {
-          name: flow.name || 'Novo Flow',
-          description: flow.description || '',
+          name: flowToSave.name || 'Novo Flow',
+          description: flowToSave.description || '',
           status: 'draft',
           flow: { nodes, edges },
-          trigger: flow.trigger || {
+          trigger: flowToSave.trigger || {
             type: 'keyword',
             config: {}
           }
@@ -472,7 +489,28 @@ function FlowEditor() {
       })
       setTimeout(() => setNotification(null), 3000)
     }
-  }, [flow, flowId, validateFlow, nodes, edges])
+  }, [flowToSave, flowId, nodes, edges])
+  
+  const handleSaveModalSave = useCallback(async (flowData: any) => {
+    // Atualizar o flow no store com os dados do modal
+    useFlowEditorStore.setState({
+      flow: {
+        ...flow,
+        ...flowData,
+        id: flow?.id || flowId
+      }
+    })
+    
+    // Salvar no backend
+    await performSave({
+      ...flow,
+      ...flowData,
+      id: flow?.id || flowId
+    })
+    
+    // Fechar modal
+    setShowSaveModal(false)
+  }, [flow, flowId, performSave])
 
   const [showExecutor, setShowExecutor] = useState(false)
   const [executionLogs, setExecutionLogs] = useState<any[]>([])
@@ -1210,6 +1248,14 @@ function FlowEditor() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Flow Save Modal */}
+      <FlowSaveModal
+        isOpen={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        onSave={handleSaveModalSave}
+        mode="create"
+      />
     </div>
   )
 }
