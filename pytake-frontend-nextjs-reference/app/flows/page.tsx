@@ -226,7 +226,11 @@ export default function FlowsPage() {
       
       if (response.ok) {
         const createdFlow = await response.json()
-        console.log('✅ Novo flow criado:', createdFlow.id)
+        console.log('✅ Novo flow criado:', createdFlow)
+        
+        // Salvar flow no sessionStorage para a página de edição carregar
+        // Isso garante que mesmo se o backend falhar no GET, temos os dados
+        sessionStorage.setItem('load_flow', JSON.stringify(createdFlow))
         
         // Redirecionar imediatamente para a página de edição
         router.push(`/flows/${createdFlow.id}/edit`)

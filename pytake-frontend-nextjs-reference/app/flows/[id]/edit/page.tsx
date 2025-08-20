@@ -185,13 +185,70 @@ function FlowEditor() {
           return
         }
         
-        // If not found, redirect to create
-        console.log('Flow not found, redirecting to create')
-        router.push('/flows/create')
+        // If not found, try to create a new flow with this ID or show error
+        console.log('Flow not found with ID:', flowId)
+        
+        // Criar um flow vazio para editar
+        const emptyFlow = {
+          id: flowId,
+          name: 'Novo Flow',
+          description: '',
+          status: 'draft',
+          flow: {
+            nodes: [],
+            edges: []
+          },
+          trigger: {
+            type: 'keyword',
+            config: {}
+          }
+        }
+        
+        setNodes([])
+        setEdges([])
+        
+        useFlowEditorStore.setState({ 
+          flow: emptyFlow,
+          isDirty: false 
+        })
+        
+        setFlowStatus('draft')
+        
+        // Mostrar notificação
+        setNotification({ 
+          message: 'Novo flow criado. Comece a adicionar nós!', 
+          type: 'info' 
+        })
+        setTimeout(() => setNotification(null), 3000)
         
       } catch (error) {
         console.error('Error loading flow:', error)
-        router.push('/flows/create')
+        
+        // Em caso de erro, criar flow vazio ao invés de redirecionar
+        const emptyFlow = {
+          id: flowId,
+          name: 'Novo Flow',
+          description: '',
+          status: 'draft',
+          flow: {
+            nodes: [],
+            edges: []
+          },
+          trigger: {
+            type: 'keyword',
+            config: {}
+          }
+        }
+        
+        setNodes([])
+        setEdges([])
+        
+        useFlowEditorStore.setState({ 
+          flow: emptyFlow,
+          isDirty: false 
+        })
+        
+        setFlowStatus('draft')
       }
     }
     
