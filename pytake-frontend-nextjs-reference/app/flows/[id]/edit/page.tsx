@@ -295,8 +295,17 @@ function FlowEditor() {
           id: currentFlowId,
           status: 'draft', // Sempre salvar como draft
           flow: { nodes, edges },
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
+          // Garantir campos essenciais
+          name: flow.name || 'Novo Flow',
+          description: flow.description || '',
+          trigger: flow.trigger || {
+            type: 'keyword',
+            config: {}
+          }
         }
+        
+        console.log('🔄 Atualizando flow com dados:', updateData)
         
         const response = await fetch(`/api/v1/flows/${currentFlowId}`, {
           method: 'PUT',
@@ -304,11 +313,16 @@ function FlowEditor() {
           body: JSON.stringify(updateData)
         })
         
+        console.log('📡 Response status para update direto:', response.status)
+        
         if (!response.ok) {
-          throw new Error('Erro ao atualizar flow')
+          const errorText = await response.text()
+          console.error('❌ Erro na atualização direta:', errorText)
+          throw new Error(`Erro ao atualizar flow: ${response.status} - ${errorText}`)
         }
         
         savedFlow = await response.json()
+        console.log('✅ Flow atualizado diretamente:', savedFlow)
       } else {
         // Verificar se já existe um flow com este nome no backend
         let existingFlow = null
@@ -334,8 +348,17 @@ function FlowEditor() {
             id: existingFlow.id,
             status: 'draft',
             flow: { nodes, edges },
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date().toISOString(),
+            // Garantir campos essenciais
+            name: flow.name || existingFlow.name || 'Novo Flow',
+            description: flow.description || existingFlow.description || '',
+            trigger: flow.trigger || existingFlow.trigger || {
+              type: 'keyword',
+              config: {}
+            }
           }
+          
+          console.log('🔄 Enviando dados para atualização:', updateData)
           
           const response = await fetch(`/api/v1/flows/${existingFlow.id}`, {
             method: 'PUT',
@@ -343,11 +366,16 @@ function FlowEditor() {
             body: JSON.stringify(updateData)
           })
           
+          console.log('📡 Response status para update:', response.status)
+          
           if (!response.ok) {
-            throw new Error('Erro ao atualizar flow existente')
+            const errorText = await response.text()
+            console.error('❌ Erro na resposta do backend:', errorText)
+            throw new Error(`Erro ao atualizar flow existente: ${response.status} - ${errorText}`)
           }
           
           savedFlow = await response.json()
+          console.log('✅ Flow atualizado com sucesso:', savedFlow)
         } else {
           // Criar novo flow
           console.log('🔄 Criando novo flow no backend')
