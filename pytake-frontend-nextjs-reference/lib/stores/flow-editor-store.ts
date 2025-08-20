@@ -56,10 +56,6 @@ interface FlowEditorStore {
   loadFlow: (flowId: string) => Promise<void>
   createNewFlow: () => void
   
-  // Local storage
-  saveToLocalStorage: () => void
-  loadFromLocalStorage: () => boolean
-  clearLocalStorage: () => void
   
   // Validation
   validateFlow: () => { isValid: boolean; errors: string[] }
@@ -397,17 +393,6 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
         
         const savedFlow = await response.json()
         
-        // Também salvar no localStorage como backup
-        const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
-        const existingIndex = savedFlows.findIndex((f: any) => f.id === savedFlow.id)
-        
-        if (existingIndex >= 0) {
-          savedFlows[existingIndex] = savedFlow
-        } else {
-          savedFlows.push(savedFlow)
-        }
-        
-        localStorage.setItem('saved_flows', JSON.stringify(savedFlows))
         
         set({ 
           flow: savedFlow,
@@ -425,17 +410,9 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
       } catch (apiError) {
         console.error('Erro ao salvar no backend, salvando apenas localmente:', apiError)
         
-        // Se falhar no backend, salvar apenas no localStorage
-        const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
-        const existingIndex = savedFlows.findIndex((f: any) => f.id === updatedFlow.id)
-        
-        if (existingIndex >= 0) {
-          savedFlows[existingIndex] = updatedFlow
-        } else {
-          savedFlows.push(updatedFlow)
-        }
-        
-        localStorage.setItem('saved_flows', JSON.stringify(savedFlows))
+        // Flow save failed
+        console.error('Failed to save flow to backend')
+        throw new Error('Failed to save flow')
         
         set({ 
           flow: updatedFlow,
@@ -576,87 +553,8 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
   },
   
   // Local storage
-  saveToLocalStorage: () => {
-    const { flow, nodes, edges } = get()
-    const draftData = {
-      flow,
-      nodes,
-      edges,
-      timestamp: new Date().toISOString(),
-      isEditingPublishedFlow: flow?.status === 'active' || flow?.status === 'published',
-      originalFlowId: flow?.id
-    }
-    
-    try {
-      localStorage.setItem('pytake_flow_draft', JSON.stringify(draftData))
-      console.log('Flow salvo como rascunho', {
-        isEditingPublished: draftData.isEditingPublishedFlow,
-        flowId: draftData.originalFlowId
-      })
-    } catch (error) {
-      console.error('Erro ao salvar rascunho:', error)
-    }
-  },
   
-  loadFromLocalStorage: () => {
-    try {
-      const draftData = localStorage.getItem('pytake_flow_draft')
-      if (draftData) {
-        const parsed = JSON.parse(draftData)
-        
-        // Verificar se o rascunho não é muito antigo (24 horas)
-        const timestamp = new Date(parsed.timestamp)
-        const now = new Date()
-        const hoursDiff = (now.getTime() - timestamp.getTime()) / (1000 * 60 * 60)
-        
-        if (hoursDiff < 24) {
-          // Verificar e corrigir tipos de nós especiais
-          const nodes = (parsed.nodes || []).map((node: any) => {
-            // Garantir que o node tenha nodeType no data para funcionar no painel de propriedades
-            if (node.data && !node.data.nodeType && node.type) {
-              console.log('🔧 Corrigindo nodeType para node do localStorage:', node.id, node.type)
-              node.data.nodeType = node.type
-            }
-            
-            // Garantir que nós especiais mantenham seu tipo
-            if (node.data?.nodeType === 'trigger_template_button' && node.type !== 'trigger_template_button') {
-              console.log('Fixing node type for trigger_template_button')
-              return { ...node, type: 'trigger_template_button' }
-            }
-            if (node.data?.nodeType === 'msg_negotiation_template' && node.type !== 'msg_negotiation_template') {
-              return { ...node, type: 'msg_negotiation_template' }
-            }
-            return node
-          })
-          
-          set({
-            flow: parsed.flow,
-            nodes,
-            edges: parsed.edges || [],
-            isDirty: parsed.isEditingPublishedFlow ? true : false // Se estava editando flow publicado, marcar como dirty
-          })
-          
-          if (parsed.isEditingPublishedFlow) {
-            console.log('🔄 Flow publicado recuperado após refresh:', parsed.originalFlowId)
-          } else {
-            console.log('📝 Rascunho carregado do localStorage')
-          }
-          return true
-        } else {
-          // Rascunho muito antigo, limpar
-          localStorage.removeItem('pytake_flow_draft')
-        }
-      }
-    } catch (error) {
-      console.error('Erro ao carregar rascunho:', error)
-    }
-    return false
-  },
   
-  clearLocalStorage: () => {
-    localStorage.removeItem('pytake_flow_draft')
-    console.log('Rascunho removido')
-  },
   
   // Validation
   validateFlow: () => {

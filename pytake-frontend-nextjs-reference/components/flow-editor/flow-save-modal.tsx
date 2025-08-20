@@ -84,7 +84,7 @@ const FLOW_CATEGORIES = [
 // Statuses removidos - agora controlados por botões separados
 
 export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: FlowSaveModalProps) {
-  const { nodes, edges, flow, clearLocalStorage } = useFlowEditorStore()
+  const { nodes, edges, flow } = useFlowEditorStore()
   const [isSaving, setIsSaving] = useState(false)
   const [savedSuccess, setSavedSuccess] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
@@ -108,40 +108,16 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
   // Carregar dados do flow existente quando o modal abrir
   useEffect(() => {
     if (isOpen && flow) {
-      // Tentar carregar flow salvo para obter números WhatsApp
-      const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
-      const existingFlow = savedFlows.find((f: any) => f.id === flow.id)
-      
-      if (existingFlow) {
-        console.log('Carregando flow existente:', existingFlow)
-        
-        // Atualizar formulário com dados do flow existente
-        setFormData({
-          name: existingFlow.name || flow.name || '',
-          description: existingFlow.description || flow.description || '',
-          category: existingFlow.category || 'vendas',
-          tags: Array.isArray(existingFlow.tags) ? existingFlow.tags.join(', ') : '',
-          version: existingFlow.version || '1.0.0',
-          isPublic: existingFlow.isPublic || false
-        })
-        
-        // Carregar números WhatsApp selecionados anteriormente
-        if (existingFlow.whatsappNumbers && Array.isArray(existingFlow.whatsappNumbers)) {
-          console.log('Números WhatsApp salvos:', existingFlow.whatsappNumbers)
-          setSelectedWhatsAppNumbers(existingFlow.whatsappNumbers)
-        }
-      } else {
-        // Se não encontrar flow salvo, usar dados do flow atual
-        setFormData({
-          name: flow.name || '',
-          description: flow.description || '',
-          category: 'vendas',
-          tags: '',
-          version: '1.0.0',
-          isPublic: false
-        })
-        setSelectedWhatsAppNumbers([])
-      }
+      // Usar dados do flow atual do backend
+      setFormData({
+        name: flow.name || '',
+        description: flow.description || '',
+        category: 'vendas',
+        tags: '',
+        version: '1.0.0',
+        isPublic: false
+      })
+      setSelectedWhatsAppNumbers([])
     }
   }, [isOpen, flow])
   
@@ -189,75 +165,51 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
     setIsSaving(true)
     
     try {
-      // Em modo edit, usar ID existente; em modo create, gerar novo
-      const flowId = mode === 'edit' && flow?.id ? flow.id : `flow-${Date.now()}`
-      
-      // Buscar versão anterior se existir
-      const existingFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
-      const existingFlow = existingFlows.find((f: any) => f.id === flowId)
-      const currentVersion = existingFlow ? (existingFlow.metadata?.version || 1) + 1 : 1
-      
-      const flowData: SavedFlowData = {
-        id: flowId,
-        ...formData,
-        status: 'draft', // Sempre salvar como draft
-        tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
-        whatsappNumbers: selectedWhatsAppNumbers,
+      // Salvar flow via backend API
+      const flowData = {
+        name: formData.name,
+        description: formData.description,
+        status: 'draft',
         flow: {
           nodes: nodes.map(node => ({
             ...node,
             selected: false
           })),
           edges
-        },
-        metadata: {
-          createdAt: existingFlow?.metadata?.createdAt || new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          nodeCount: flowAnalysis.nodeCount,
-          edgeCount: flowAnalysis.edgeCount,
-          triggers: flowAnalysis.triggers,
-          actions: flowAnalysis.actions,
-          version: currentVersion,
-          parentVersion: existingFlow ? `v${existingFlow.metadata?.version || 1}` : undefined
         }
       }
       
-      // Sempre salvar no localStorage como draft
-      console.log('💾 Salvando flow no localStorage:', flowData)
-      const savedFlows = existingFlows.filter((f: any) => f.id !== flowId)
-      savedFlows.push(flowData)
-      localStorage.setItem('saved_flows', JSON.stringify(savedFlows))
-      
-      // Salvar histórico de versões
-      const flowHistory = JSON.parse(localStorage.getItem(`flow_history_${flowId}`) || '[]')
-      if (existingFlow) {
-        flowHistory.push({
-          ...existingFlow,
-          versionLabel: `v${existingFlow.metadata?.version || 1}`,
-          archivedAt: new Date().toISOString()
+      let response
+      if (mode === 'edit' && flow?.id) {
+        // Atualizar flow existente
+        response = await fetch(`/api/v1/flows/${flow.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(flowData)
         })
-        localStorage.setItem(`flow_history_${flowId}`, JSON.stringify(flowHistory))
+      } else {
+        // Criar novo flow
+        response = await fetch('/api/v1/flows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(flowData)
+        })
       }
       
-      // Limpar rascunho do editor
-      clearLocalStorage()
-      localStorage.removeItem('pytake_flow_draft')
-      console.log('🧹 Rascunho do editor limpo')
+      if (!response.ok) {
+        throw new Error(`Erro ao salvar flow: ${response.status}`)
+      }
       
-      setSaveMessage(`Flow "${flowData.name}" salvo!`)
+      const savedFlow = await response.json()
+      
+      setSaveMessage(`Flow "${savedFlow.name}" salvo!`)
       
       // Atualizar o store com os dados salvos
       const { setFlow } = useFlowEditorStore.getState()
-      setFlow({
-        id: flowData.id,
-        name: flowData.name,
-        description: flowData.description,
-        status: 'draft',
-        ...flowData
-      })
+      setFlow(savedFlow)
       
       // Callback externo
-      onSave?.(flowData)
+      onSave?.(savedFlow)
       
       setSavedSuccess(true)
       
@@ -283,7 +235,7 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
     } finally {
       setIsSaving(false)
     }
-  }, [formData, nodes, edges, flow, onSave, onClose, clearLocalStorage, validateForm, flowAnalysis, selectedWhatsAppNumbers])
+  }, [formData, nodes, edges, flow, onSave, onClose, validateForm, flowAnalysis, selectedWhatsAppNumbers])
   
   // Status removido - sempre será draft
   

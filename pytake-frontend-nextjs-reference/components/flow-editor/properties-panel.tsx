@@ -113,17 +113,10 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
     }
   }, [templatesLoaded])
   
-  // Auto-save no localStorage quando houver mudanças
+  // Auto-save disabled - no localStorage usage
   useEffect(() => {
-    const saveTimer = setTimeout(() => {
-      if (selectedNode && formData) {
-        const { saveToLocalStorage } = useFlowEditorStore.getState()
-        saveToLocalStorage()
-        console.log('Auto-save: dados salvos no localStorage')
-      }
-    }, 1000) // Salva após 1 segundo de inatividade
-    
-    return () => clearTimeout(saveTimer)
+    // Auto-save functionality removed
+    // Data is now only saved when explicitly saved to backend
   }, [formData, customName, selectedNode])
 
   useEffect(() => {

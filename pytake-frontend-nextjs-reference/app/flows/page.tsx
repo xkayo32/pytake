@@ -181,122 +181,11 @@ export default function FlowsPage() {
     // Only load flows on client side
     if (typeof window !== 'undefined') {
       console.log('Loading flows on client side...')
-      // Load view mode preference from localStorage
-      const savedViewMode = localStorage.getItem('flowsViewMode')
-      if (savedViewMode === 'list' || savedViewMode === 'cards') {
-        setViewMode(savedViewMode)
-      }
-      // Load flows sequentially to avoid race conditions
-      loadFlows().then(() => {
-        loadLocalData()
-      })
+      // Load flows from backend only
+      loadFlows()
     }
   }, [])
   
-  // Carregar templates e rascunhos do localStorage
-  const loadLocalData = () => {
-    try {
-      // Carregar flows salvos localmente
-      const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
-      console.log('🔄 loadLocalData - Flows salvos encontrados:', savedFlows.length)
-      const localFlows = savedFlows.map((flow: any) => ({
-        id: flow.id,
-        name: flow.name || 'Flow sem nome',
-        description: flow.description || 'Flow criado no editor',
-        status: flow.status || 'draft',
-        trigger: flow.trigger?.type || 'Configurar gatilho',
-        createdAt: flow.createdAt || flow.metadata?.createdAt || new Date().toISOString(),
-        updatedAt: flow.updatedAt || flow.metadata?.updatedAt || new Date().toISOString(),
-        stats: {
-          executions: 0,
-          successRate: 0
-        },
-        tags: ['local', 'salvo'],
-        isLocal: true,
-        flowData: flow
-      }))
-      
-      // Carregar flows salvos como template (legado - compatibilidade)
-      const legacyTemplates = JSON.parse(localStorage.getItem('flow_templates') || '[]')
-      console.log('🔄 loadLocalData - Templates legado encontrados:', legacyTemplates.length)
-      const legacyFlows = legacyTemplates.map((template: any, index: number) => ({
-        id: `legacy-${index}`,
-        name: `${template.name} (Template Legacy)`,
-        description: template.description,
-        status: 'draft' as const,
-        trigger: `Legacy - ${template.category}`,
-        createdAt: template.metadata?.createdAt || new Date().toISOString(),
-        updatedAt: template.metadata?.updatedAt || new Date().toISOString(),
-        stats: {
-          executions: 0,
-          successRate: 0
-        },
-        tags: ['legacy', ...(template.tags || [])],
-        isLegacy: true,
-        templateData: template
-      }))
-      
-      // Carregar rascunho atual se existir E não conflitar com flows salvos
-      const draftData = localStorage.getItem('pytake_flow_draft')
-      const draftFlows = []
-      if (draftData) {
-        const draft = JSON.parse(draftData)
-        if (draft.flow && draft.nodes && draft.nodes.length > 0) {
-          // Verificar se já existe um flow salvo com o mesmo nome
-          const draftName = draft.flow?.name || 'Rascunho sem título'
-          const conflictingFlow = localFlows.find(f => f.name === draftName)
-          
-          // Só adicionar o rascunho se não houver conflito ou se o flow não foi publicado
-          if (!conflictingFlow || conflictingFlow.status === 'draft') {
-            draftFlows.push({
-              id: 'draft-current',
-              name: draftName,
-              description: 'Rascunho salvo automaticamente',
-              status: 'draft' as const,
-              trigger: 'Rascunho em edição',
-              createdAt: draft.timestamp || new Date().toISOString(),
-              updatedAt: draft.timestamp || new Date().toISOString(),
-              stats: {
-                executions: 0,
-                successRate: 0
-              },
-              tags: ['rascunho', 'auto-save'],
-              isDraft: true,
-              draftData: draft
-            })
-          } else {
-            console.log('🚫 Rascunho ignorado - conflita com flow publicado:', draftName)
-            // Remover rascunho órfão se há um flow publicado com o mesmo nome
-            if (conflictingFlow.status === 'published') {
-              localStorage.removeItem('pytake_flow_draft')
-              console.log('🧹 Rascunho órfão removido automaticamente')
-            }
-          }
-        }
-      }
-      
-      // Combinar com flows existentes
-      setFlows(prev => {
-        // Remover flows anteriores para evitar duplicatas
-        const filtered = prev.filter(f => 
-          !f.id.startsWith('legacy-') && 
-          !f.id.startsWith('draft-') &&
-          !localFlows.some((lf: any) => lf.id === f.id)
-        )
-        const finalFlows = [...filtered, ...localFlows, ...legacyFlows, ...draftFlows]
-        console.log('🔄 loadLocalData - Total flows após merge:', finalFlows.length)
-        console.log('🔄 loadLocalData - Tipos:', {
-          api: filtered.length,
-          local: localFlows.length,
-          legacy: legacyFlows.length,
-          drafts: draftFlows.length
-        })
-        return finalFlows
-      })
-    } catch (error) {
-      console.error('Error loading local data:', error)
-    }
-  }
 
   // useEffect(() => {
   //   if (!isLoading && !isAuthenticated) {
@@ -342,7 +231,7 @@ export default function FlowsPage() {
         console.log('Continuing without API flows')
       }
       
-      // Set API flows first, loadLocalData will merge with these
+      // Set API flows only - no more localStorage integration
       setFlows(apiFlows)
       
     } catch (error) {
@@ -383,43 +272,20 @@ export default function FlowsPage() {
     const newStatus = flow.status === 'active' ? 'inactive' : 'active'
     
     try {
-      // Se for flow local, atualizar no localStorage
-      if (flow.isLocal) {
-        console.log('🔄 Alterando status do flow local:', flowId, 'para', newStatus)
-        
-        const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
-        const updatedFlows = savedFlows.map((f: any) => 
-          f.id === flow.flowData?.id ? { ...f, status: newStatus } : f
-        )
-        localStorage.setItem('saved_flows', JSON.stringify(updatedFlows))
-        
-        // Atualizar na lista local
+      // Flow do backend - alterar via API
+      console.log('🔄 Alterando status do flow do backend:', flowId, 'para', newStatus)
+      const response = await fetch(`/api/v1/flows/${flowId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+      
+      if (response.ok) {
+        const updatedFlow = await response.json()
         setFlows(prev => prev.map(f => 
-          f.id === flowId ? { ...f, status: newStatus } : f
+          f.id === flowId ? updatedFlow : f
         ))
-        console.log('✅ Status do flow local alterado')
-        
-      } else if (flow.isLegacy || flow.isDraft) {
-        // Flows legacy e drafts não podem ter status alterado via toggle
-        console.log('⚠️ Status de flows legacy/draft não pode ser alterado')
-        return
-        
-      } else {
-        // Flow do backend - alterar via API
-        console.log('🔄 Alterando status do flow do backend:', flowId, 'para', newStatus)
-        const response = await fetch(`/api/v1/flows/${flowId}/status`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: newStatus })
-        })
-        
-        if (response.ok) {
-          const updatedFlow = await response.json()
-          setFlows(prev => prev.map(f => 
-            f.id === flowId ? updatedFlow : f
-          ))
-          console.log('✅ Status do flow do backend alterado')
-        }
+        console.log('✅ Status do flow do backend alterado')
       }
     } catch (error) {
       console.error('Error updating flow status:', error)
@@ -430,18 +296,7 @@ export default function FlowsPage() {
     const flow = flows.find(f => f.id === flowId)
     if (!flow) return
     
-    // Se for um flow legado (antigos templates), carregar no editor
-    if (flow.isLegacy && flow.templateData) {
-      // Salvar template legado no sessionStorage para carregar no editor
-      sessionStorage.setItem('load_template', JSON.stringify(flow.templateData))
-      router.push('/flows/create')
-    } 
-    // Sempre usar a rota com ID para todos os tipos de flow
-    if (flow.isLocal && flow.flowData) {
-      // Salvar flow no sessionStorage para carregar no editor
-      sessionStorage.setItem('load_flow', JSON.stringify(flow.flowData))
-    }
-    
+    // Sempre usar a rota com ID para todos os flows
     router.push(`/flows/${flowId}/edit`)
   }
 
@@ -458,63 +313,22 @@ export default function FlowsPage() {
     if (!originalFlow) return
 
     try {
-      // Se for flow local, duplicar no localStorage
-      if (originalFlow.isLocal || originalFlow.isDraft || originalFlow.isLegacy) {
-        console.log('📋 Duplicando flow local:', flowId)
-        
-        let flowToDuplicate = originalFlow.flowData
-        
-        // Se for legacy, usar templateData
-        if (originalFlow.isLegacy) {
-          flowToDuplicate = {
-            id: `flow-${Date.now()}`,
-            name: originalFlow.name,
-            description: originalFlow.description,
-            status: 'draft',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            nodes: originalFlow.templateData?.flow?.nodes || [],
-            edges: originalFlow.templateData?.flow?.edges || []
-          }
-        }
-        
-        // Criar cópia do flow
-        const duplicatedFlow = {
-          ...flowToDuplicate,
-          id: `flow-${Date.now()}`,
+      // Flow do backend - duplicar via API
+      console.log('📋 Duplicando flow do backend:', flowId)
+      const response = await fetch('/api/v1/flows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...originalFlow,
           name: `${originalFlow.name} (Cópia)`,
-          status: 'draft',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-        
-        // Salvar no localStorage
-        const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
-        savedFlows.push(duplicatedFlow)
-        localStorage.setItem('saved_flows', JSON.stringify(savedFlows))
-        
-        // Recarregar dados locais para mostrar a cópia
-        loadLocalData()
-        console.log('✅ Flow local duplicado')
-        
-      } else {
-        // Flow do backend - duplicar via API
-        console.log('📋 Duplicando flow do backend:', flowId)
-        const response = await fetch('/api/v1/flows', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...originalFlow,
-            name: `${originalFlow.name} (Cópia)`,
-            status: 'draft'
-          })
+          status: 'draft'
         })
-        
-        if (response.ok) {
-          const newFlow = await response.json()
-          setFlows(prev => [newFlow, ...prev])
-          console.log('✅ Flow do backend duplicado')
-        }
+      })
+      
+      if (response.ok) {
+        const newFlow = await response.json()
+        setFlows(prev => [newFlow, ...prev])
+        console.log('✅ Flow do backend duplicado')
       }
     } catch (error) {
       console.error('Error duplicating flow:', error)
@@ -528,49 +342,17 @@ export default function FlowsPage() {
     if (!flow) return
     
     try {
-      // Se for flow local, deletar do localStorage
-      if (flow.isLocal || flow.isDraft || flow.isLegacy) {
-        console.log('🗑️ Deletando flow local:', flowId)
-        
-        // Deletar flow local
-        if (flow.isLocal) {
-          const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
-          const filteredFlows = savedFlows.filter((f: any) => f.id !== flow.flowData?.id)
-          localStorage.setItem('saved_flows', JSON.stringify(filteredFlows))
-        }
-        
-        // Deletar flow legacy (template antigo)
-        if (flow.isLegacy) {
-          const templates = JSON.parse(localStorage.getItem('flow_templates') || '[]')
-          const flowIndex = parseInt(flowId.replace('legacy-', ''))
-          if (flowIndex >= 0 && flowIndex < templates.length) {
-            templates.splice(flowIndex, 1)
-            localStorage.setItem('flow_templates', JSON.stringify(templates))
-          }
-        }
-        
-        // Deletar rascunho
-        if (flow.isDraft) {
-          localStorage.removeItem('pytake_flow_draft')
-        }
-        
-        // Remover da lista local
-        setFlows(prev => prev.filter(f => f.id !== flowId))
-        console.log('✅ Flow local deletado')
-        
+      // Flow do backend - deletar via API
+      console.log('🗑️ Deletando flow do backend:', flowId)
+      const response = await fetch(`/api/v1/flows/${flowId}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        setFlows(prev => prev.filter(flow => flow.id !== flowId))
+        console.log('✅ Flow do backend deletado')
       } else {
-        // Flow do backend - deletar via API
-        console.log('🗑️ Deletando flow do backend:', flowId)
-        const response = await fetch(`/api/v1/flows/${flowId}`, {
-          method: 'DELETE'
-        })
-        
-        if (response.ok) {
-          setFlows(prev => prev.filter(flow => flow.id !== flowId))
-          console.log('✅ Flow do backend deletado')
-        } else {
-          console.error('❌ Erro ao deletar flow do backend:', response.status)
-        }
+        console.error('❌ Erro ao deletar flow do backend:', response.status)
       }
     } catch (error) {
       console.error('Error deleting flow:', error)
@@ -583,19 +365,8 @@ export default function FlowsPage() {
 
     setSelectedFlow(flow)
     
-    // Carregar números WhatsApp já vinculados a este flow
-    try {
-      const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
-      const flowData = savedFlows.find((f: any) => f.id === flowId)
-      if (flowData && flowData.whatsappNumbers) {
-        setSelectedWhatsAppNumbers(flowData.whatsappNumbers)
-      } else {
-        setSelectedWhatsAppNumbers([])
-      }
-    } catch (error) {
-      console.error('Erro ao carregar números vinculados:', error)
-      setSelectedWhatsAppNumbers([])
-    }
+    // TODO: Carregar números WhatsApp vinculados do backend
+    setSelectedWhatsAppNumbers([])
     
     setIsLinkDialogOpen(true)
   }
@@ -604,20 +375,8 @@ export default function FlowsPage() {
     if (!selectedFlow) return
 
     try {
-      // Atualizar flow local com os números selecionados
-      if (selectedFlow.isLocal) {
-        const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
-        const updatedFlows = savedFlows.map((f: any) => 
-          f.id === selectedFlow.flowData?.id 
-            ? { ...f, whatsappNumbers: selectedWhatsAppNumbers }
-            : f
-        )
-        localStorage.setItem('saved_flows', JSON.stringify(updatedFlows))
-        console.log('✅ Números WhatsApp vinculados ao flow local')
-      } else {
-        // Para flows do backend, implementar API call aqui no futuro
-        console.log('🔄 Vinculação de números para flows do backend será implementada')
-      }
+      // Para flows do backend, implementar API call aqui
+      console.log('🔄 Vinculação de números para flows do backend será implementada')
       
       // Fechar modal
       setIsLinkDialogOpen(false)
@@ -774,20 +533,14 @@ export default function FlowsPage() {
               <Button
                 variant={viewMode === 'cards' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => {
-                  setViewMode('cards')
-                  localStorage.setItem('flowsViewMode', 'cards')
-                }}
+                onClick={() => setViewMode('cards')}
               >
                 <Grid3x3 className="h-4 w-4" />
               </Button>
               <Button
                 variant={viewMode === 'list' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => {
-                  setViewMode('list')
-                  localStorage.setItem('flowsViewMode', 'list')
-                }}
+                onClick={() => setViewMode('list')}
               >
                 <List className="h-4 w-4" />
               </Button>

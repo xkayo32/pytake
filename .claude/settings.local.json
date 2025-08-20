@@ -101,7 +101,8 @@
       "Bash(./start-server.sh:*)",
       "Bash(npm ls:*)",
       "Bash(ping:*)",
-      "Bash(pm2 list:*)"
+      "Bash(pm2 list:*)",
+      "Bash(DISABLE_ESLINT=true npx next build --no-lint)"
     ],
     "deny": [],
     "additionalDirectories": [

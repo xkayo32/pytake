@@ -26,19 +26,29 @@ export function FlowLoader({ onLoadFlow, onPreviewFlow }: FlowLoaderProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   
-  // Carregar flows do localStorage
+  // Carregar flows do backend
   useEffect(() => {
-    loadFlowsFromStorage()
+    loadFlowsFromBackend()
   }, [])
   
-  const loadFlowsFromStorage = () => {
+  const loadFlowsFromBackend = async () => {
     try {
-      const savedFlows = JSON.parse(localStorage.getItem('saved_flows') || '[]')
-      console.log('🔄 FlowLoader - Carregando flows:', savedFlows.length)
-      setFlows(savedFlows)
+      setIsLoading(true)
+      const response = await fetch('/api/v1/flows')
+      if (response.ok) {
+        const data = await response.json()
+        const flows = data.flows || []
+        console.log('🔄 FlowLoader - Carregando flows do backend:', flows.length)
+        setFlows(flows)
+      } else {
+        console.error('Erro ao carregar flows do backend')
+        setFlows([])
+      }
     } catch (error) {
       console.error('Erro ao carregar flows:', error)
       setFlows([])
+    } finally {
+      setIsLoading(false)
     }
   }
   

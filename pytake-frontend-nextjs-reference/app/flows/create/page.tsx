@@ -94,9 +94,6 @@ function FlowEditor() {
     saveFlow,
     createNewFlow,
     validateFlow,
-    loadFromLocalStorage,
-    saveToLocalStorage,
-    clearLocalStorage,
     deleteNode,
     deleteEdge,
     undo,
@@ -114,46 +111,6 @@ function FlowEditor() {
   }, [authLoading, isAuthenticated, router])
 
   useEffect(() => {
-    // Primeiro, verificar se há um flow sendo editado no localStorage (prioridade para recuperação após refresh)
-    const draftData = localStorage.getItem('pytake_flow_draft')
-    let hasRecoveredFromRefresh = false
-    
-    if (draftData) {
-      try {
-        const parsed = JSON.parse(draftData)
-        // Se estava editando um flow publicado/ativo recentemente (menos de 1 hora), recuperar automaticamente
-        const timestamp = new Date(parsed.timestamp)
-        const now = new Date()
-        const minutesDiff = (now.getTime() - timestamp.getTime()) / (1000 * 60)
-        
-        if (parsed.isEditingPublishedFlow && minutesDiff < 60) {
-          console.log('🔄 Detectado refresh durante edição de flow publicado - recuperando automaticamente')
-          
-          // Corrigir nodes recuperados também
-          const correctedNodes = (parsed.nodes || []).map((node: any) => {
-            // Garantir que o node tenha nodeType no data para funcionar no painel de propriedades
-            if (node.data && !node.data.nodeType && node.type) {
-              console.log('🔧 Corrigindo nodeType para node recuperado:', node.id, node.type)
-              node.data.nodeType = node.type
-            }
-            return node
-          })
-          
-          setNodes(correctedNodes)
-          setEdges(parsed.edges || [])
-          useFlowEditorStore.setState({
-            flow: parsed.flow,
-            isDirty: true // Marcar como dirty pois estava sendo editado
-          })
-          hasRecoveredFromRefresh = true
-        }
-      } catch (error) {
-        console.error('Erro ao verificar recovery de flow:', error)
-      }
-    }
-    
-    // Se já recuperou de um refresh, não carregar mais nada
-    if (hasRecoveredFromRefresh) return
     
     // Verificar se há um flow salvo para carregar
     const flowToLoad = sessionStorage.getItem('load_flow')
@@ -251,10 +208,7 @@ function FlowEditor() {
           isDirty: false 
         })
         
-        // Salvar imediatamente no localStorage para permitir recuperação após refresh
-        setTimeout(() => {
-          saveToLocalStorage()
-        }, 100)
+        // Flow carregado do sessionStorage
         
         // NÃO remover do sessionStorage até que seja explicitamente salvo
         // sessionStorage.removeItem('load_flow') - Comentado para preservar dados
@@ -381,7 +335,7 @@ function FlowEditor() {
         }
       }
     } else {
-      // Carregar do localStorage se existir
+      // Inicializar flow vazio
       const hasDraft = loadFromLocalStorage()
       if (!hasDraft) {
         createNewFlow()
