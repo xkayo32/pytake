@@ -365,11 +365,11 @@ function FlowEditor() {
   }, [flow, flowId, validateFlow, nodes, edges])
   
   const performSave = useCallback(async (flowData?: any) => {
-    const flowToSave = flowData || flow
-    if (!flowToSave) return
+    const currentFlow = flowData || flow
+    if (!currentFlow) return
     
     try {
-      let currentFlowId = flowToSave.id || flowId
+      let currentFlowId = currentFlow.id || flowId
       let savedFlow
       
       // Primeiro, tentar atualizar se tiver ID; se falhar com 404, criar novo
@@ -378,9 +378,9 @@ function FlowEditor() {
         console.log('🔄 Tentando atualizar flow no backend:', currentFlowId)
         
         const updateData = {
-          ...flowToSave,
+          ...currentFlow,
           id: currentFlowId,
-          status: flowToSave.status || 'draft',
+          status: currentFlow.status || 'draft',
           flow: { nodes, edges },
           updatedAt: new Date().toISOString()
         }
@@ -428,11 +428,11 @@ function FlowEditor() {
         console.log('🔄 Criando novo flow no backend')
         
         const createData = {
-          name: flowToSave.name || 'Novo Flow',
-          description: flowToSave.description || '',
+          name: currentFlow.name || 'Novo Flow',
+          description: currentFlow.description || '',
           status: 'draft',
           flow: { nodes, edges },
-          trigger: flowToSave.trigger || {
+          trigger: currentFlow.trigger || {
             type: 'keyword',
             config: {}
           }
