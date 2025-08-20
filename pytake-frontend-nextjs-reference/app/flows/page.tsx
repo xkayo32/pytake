@@ -20,7 +20,8 @@ import {
   TrendingUp,
   Activity,
   CheckCircle,
-  Phone
+  Phone,
+  Bug
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -435,21 +436,21 @@ export default function FlowsPage() {
       sessionStorage.setItem('load_template', JSON.stringify(flow.templateData))
       router.push('/flows/create')
     } 
-    // Se for um rascunho, continuar editando
-    else if (flow.isDraft) {
-      // O rascunho já está no localStorage, apenas redirecionar
-      router.push('/flows/create')
-    }
-    // Se for um flow local salvo
-    else if (flow.isLocal && flow.flowData) {
+    // Sempre usar a rota com ID para todos os tipos de flow
+    if (flow.isLocal && flow.flowData) {
       // Salvar flow no sessionStorage para carregar no editor
       sessionStorage.setItem('load_flow', JSON.stringify(flow.flowData))
-      router.push('/flows/create')
     }
-    // Flow normal do backend ou flow local com ID
-    else {
-      router.push(`/flows/${flowId}/edit`)
-    }
+    
+    router.push(`/flows/${flowId}/edit`)
+  }
+
+  const handleTest = (flowId: string) => {
+    const flow = flows.find(f => f.id === flowId)
+    if (!flow) return
+    
+    console.log('🧪 Testando flow:', flowId)
+    router.push(`/flows/${flowId}/test`)
   }
 
   const handleDuplicate = async (flowId: string) => {
@@ -904,6 +905,17 @@ export default function FlowsPage() {
                       >
                         <Edit3 className="h-4 w-4 mr-1" />
                         Editar
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleTest(flow.id)}
+                        className="flex-1"
+                        title="Testar flow com debug"
+                      >
+                        <Bug className="h-4 w-4 mr-1" />
+                        Testar
                       </Button>
 
                       <Button
