@@ -601,7 +601,13 @@ function FlowEditor() {
         }
         
         const createdFlow = await createResponse.json()
-        currentFlowId = createdFlow.id
+        console.log('📦 Flow criado - resposta completa:', createdFlow)
+        
+        currentFlowId = createdFlow.id || createdFlow._id || createdFlow.flowId
+        
+        if (!currentFlowId) {
+          throw new Error('Backend não retornou ID do flow criado')
+        }
         
         // Atualizar estado local e usar o flow criado
         const updatedFlow = { 
@@ -616,11 +622,16 @@ function FlowEditor() {
         // Usar o flow recém criado para ativar
         flow = updatedFlow
         
-        console.log('✅ Flow criado no backend:', currentFlowId)
+        console.log('✅ Flow criado no backend com ID:', currentFlowId)
       }
       
       // Agora ativar o flow (usar o flow atualizado se foi criado)
       console.log('🔄 Ativando flow no backend com ID:', currentFlowId)
+      
+      // Garantir que temos o ID correto
+      if (!currentFlowId || currentFlowId.startsWith('flow-')) {
+        throw new Error('ID do flow inválido ou temporário. Por favor, salve o flow primeiro.')
+      }
       
       const currentFlowData = flow || useFlowEditorStore.getState().flow
       const updateFlowData = {
@@ -630,6 +641,12 @@ function FlowEditor() {
         whatsappNumbers: selectedWhatsAppNumbers,
         flow: { nodes, edges }
       }
+      
+      console.log('📡 Enviando request para ativar flow:', {
+        url: `/api/v1/flows/${currentFlowId}`,
+        flowId: currentFlowId,
+        whatsappNumbers: selectedWhatsAppNumbers
+      })
       
       const updateResponse = await fetch(`/api/v1/flows/${currentFlowId}`, {
         method: 'PUT',

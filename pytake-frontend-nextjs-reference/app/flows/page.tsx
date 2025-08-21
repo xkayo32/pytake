@@ -226,14 +226,27 @@ export default function FlowsPage() {
       
       if (response.ok) {
         const createdFlow = await response.json()
-        console.log('✅ Novo flow criado:', createdFlow)
+        console.log('✅ Novo flow criado - resposta completa:', createdFlow)
+        
+        const flowId = createdFlow.id || createdFlow._id || createdFlow.flowId
+        
+        if (!flowId) {
+          console.error('❌ Backend não retornou ID do flow:', createdFlow)
+          alert('Erro: Flow criado mas sem ID. Verifique o backend.')
+          return
+        }
+        
+        // Garantir que o flow tem o ID correto
+        const flowWithId = { ...createdFlow, id: flowId }
         
         // Salvar flow no sessionStorage para a página de edição carregar
         // Isso garante que mesmo se o backend falhar no GET, temos os dados
-        sessionStorage.setItem('load_flow', JSON.stringify(createdFlow))
+        sessionStorage.setItem('load_flow', JSON.stringify(flowWithId))
+        
+        console.log('🚀 Redirecionando para:', `/flows/${flowId}/edit`)
         
         // Redirecionar imediatamente para a página de edição
-        router.push(`/flows/${createdFlow.id}/edit`)
+        router.push(`/flows/${flowId}/edit`)
       } else {
         console.error('❌ Erro ao criar flow:', response.status)
         alert('Erro ao criar novo flow. Tente novamente.')
