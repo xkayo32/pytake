@@ -534,6 +534,21 @@ function FlowEditor() {
       return
     }
     
+    // Primeiro, garantir que o flow está salvo
+    if (!flow || !flow.id || flow.id.startsWith('flow-')) {
+      setNotification({ message: 'Salvando flow antes de ativar...', type: 'info' })
+      
+      // Se é um flow novo sem descrição, mostrar modal de save
+      const isNewFlow = !flow?.description || flow.description === '' || flow?.name === 'Novo Flow'
+      if (isNewFlow) {
+        setShowSaveModal(true)
+        return
+      }
+      
+      // Caso contrário, salvar diretamente
+      await performSave()
+    }
+    
     try {
       let currentFlowId = flow?.id || flowId
       
@@ -588,22 +603,28 @@ function FlowEditor() {
         const createdFlow = await createResponse.json()
         currentFlowId = createdFlow.id
         
-        // Atualizar estado local
+        // Atualizar estado local e usar o flow criado
+        const updatedFlow = { 
+          ...createdFlow,
+          id: currentFlowId
+        }
+        
         useFlowEditorStore.setState({ 
-          flow: { 
-            ...createdFlow,
-            id: currentFlowId
-          }
+          flow: updatedFlow
         })
+        
+        // Usar o flow recém criado para ativar
+        flow = updatedFlow
         
         console.log('✅ Flow criado no backend:', currentFlowId)
       }
       
-      // Agora ativar o flow
-      console.log('🔄 Ativando flow no backend...')
+      // Agora ativar o flow (usar o flow atualizado se foi criado)
+      console.log('🔄 Ativando flow no backend com ID:', currentFlowId)
       
+      const currentFlowData = flow || useFlowEditorStore.getState().flow
       const updateFlowData = {
-        ...flow,
+        ...currentFlowData,
         id: currentFlowId,
         status: 'active',
         whatsappNumbers: selectedWhatsAppNumbers,
