@@ -96,10 +96,7 @@ type WhatsAppConfig struct {
 	PhoneNumber       string     `json:"phone_number" db:"phone_number"`
 	PhoneNumberID     string     `json:"phone_number_id" db:"phone_number_id"`
 	BusinessAccountID string     `json:"business_account_id" db:"business_account_id"`
-	BusinessName      string     `json:"business_name" db:"business_name"`
 	IsDefault         bool       `json:"is_default" db:"is_default"`
-	IsVerified        bool       `json:"is_verified" db:"is_verified"`
-	Status            string     `json:"status" db:"status"`
 	WebhookVerifyToken string    `json:"webhook_verify_token" db:"webhook_verify_token"`
 	CreatedAt         time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at" db:"updated_at"`

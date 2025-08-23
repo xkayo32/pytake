@@ -41,6 +41,7 @@ import { Switch } from '@/components/ui/switch'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -414,6 +415,9 @@ export default function WhatsAppSettingsPage() {
                 <DialogTitle>
                   {editingConfig ? 'Editar Configuração' : 'Nova Configuração WhatsApp'}
                 </DialogTitle>
+                <DialogDescription>
+                  Configure as credenciais do WhatsApp Business API para conectar seu número.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={configForm.handleSubmit(handleSaveConfig)} className="space-y-4">
                 <div>
@@ -688,6 +692,9 @@ export default function WhatsAppSettingsPage() {
               <Webhook className="h-5 w-5" />
               Configuração do Webhook
             </DialogTitle>
+            <DialogDescription>
+              Configure o webhook para receber mensagens do WhatsApp em tempo real.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-4">
@@ -827,6 +834,9 @@ export default function WhatsAppSettingsPage() {
               <TestTube className="h-5 w-5" />
               Teste de Mensagem
             </DialogTitle>
+            <DialogDescription>
+              Envie uma mensagem de teste para verificar se a configuração está funcionando.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={testForm.handleSubmit(handleSendTestMessage)} className="space-y-4">
             <div>

@@ -36,7 +36,10 @@ func main() {
 	// Setup CORS (using manual middleware instead)
 	
 	router.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := c.Request.Header.Get("Origin")
+		if origin == "https://app.pytake.net" || origin == "http://app.pytake.net" {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		}
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
@@ -61,10 +64,16 @@ func main() {
 	// Create services
 	flowService := NewFlowService(db, redis)
 	whatsappService := NewWhatsAppService(db, redis)
+	authService := NewAuthService(db, redis)
 
 	// Setup routes
 	api := router.Group("/api/v1")
 	{
+		// Auth routes
+		api.POST("/auth/login", authService.Login)
+		api.GET("/auth/me", authService.Me)
+		api.POST("/auth/logout", authService.Logout)
+
 		// Flow routes
 		api.GET("/flows", flowService.GetFlows)
 		api.POST("/flows", flowService.CreateFlow)
@@ -77,7 +86,14 @@ func main() {
 		api.GET("/whatsapp/numbers", whatsappService.GetNumbers)
 		api.GET("/whatsapp/phone-numbers", whatsappService.GetPhoneNumbers)
 		api.GET("/whatsapp-configs", whatsappService.GetConfigs)
+		api.POST("/whatsapp-configs", whatsappService.SaveConfig)
 		api.GET("/whatsapp/templates", whatsappService.GetTemplates)
+		api.GET("/whatsapp/templates/manage", whatsappService.GetTemplates) // Alias for frontend compatibility
+		api.POST("/whatsapp/templates/sync", whatsappService.SyncTemplates)
+		api.POST("/whatsapp/templates", whatsappService.CreateTemplate)
+		api.PUT("/whatsapp/templates/:id", whatsappService.UpdateTemplate)
+		api.DELETE("/whatsapp/templates/:id", whatsappService.DeleteTemplate)
+		api.POST("/whatsapp/templates/:id/submit", whatsappService.SubmitTemplate)
 	}
 
 	// Start server

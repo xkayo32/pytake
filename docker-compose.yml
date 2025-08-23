@@ -5,9 +5,9 @@ services:
     container_name: pytake-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-pytake_admin}
+      POSTGRES_USER: ${POSTGRES_USER:-pytake_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Odc7/ffNnTnG4hkbwV+Sx2ZgK61rXW2r9U2o7Rd25DU=}
-      POSTGRES_DB: ${POSTGRES_DB:-pytake_production}
+      POSTGRES_DB: ${POSTGRES_DB:-pytake}
     ports:
       - "5433:5432"
     volumes:
@@ -16,7 +16,7 @@ services:
     networks:
       - pytake-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pytake_admin}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pytake_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -52,15 +52,15 @@ services:
       - ./.env:/app/.env:ro
     environment:
       # Database
-      # DATABASE_URL: postgresql://${POSTGRES_USER:-pytake_admin}:${POSTGRES_PASSWORD:-Odc7/ffNnTnG4hkbwV+Sx2ZgK61rXW2r9U2o7Rd25DU=}@postgres:5432/${POSTGRES_DB:-pytake_production}?sslmode=disable
+      # DATABASE_URL: postgresql://${POSTGRES_USER:-pytake_user}:${POSTGRES_PASSWORD:-Odc7/ffNnTnG4hkbwV+Sx2ZgK61rXW2r9U2o7Rd25DU=}@postgres:5432/${POSTGRES_DB:-pytake}?sslmode=disable
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-pytake_admin}
+      POSTGRES_USER: ${POSTGRES_USER:-pytake_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Odc7/ffNnTnG4hkbwV+Sx2ZgK61rXW2r9U2o7Rd25DU=}
-      POSTGRES_DB: ${POSTGRES_DB:-pytake_production}
+      POSTGRES_DB: ${POSTGRES_DB:-pytake}
       
       # Redis
-      REDIS_URL: redis://default:${REDIS_PASSWORD:-gOe7JRn+i8iWY5UAvYt3mJxBFJnAf9+jo/VZM3UN4xw=}@redis:6379
+      REDIS_URL: redis://default:gOe7JRn%2Bi8iWY5UAvYt3mJxBFJnAf9%2Bjo%2FVZM3UN4xw%3D@redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-gOe7JRn+i8iWY5UAvYt3mJxBFJnAf9+jo/VZM3UN4xw=}
       
       # Server
@@ -134,6 +134,7 @@ services:
       - "8081:80"
       - "8443:443"
     volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./nginx-ssl:/etc/letsencrypt:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro

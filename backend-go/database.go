@@ -28,7 +28,7 @@ func InitDB() (*sql.DB, error) {
 		}
 		user := os.Getenv("POSTGRES_USER")
 		if user == "" {
-			user = "pytake_admin"
+			user = "pytake_user"
 		}
 		password := os.Getenv("POSTGRES_PASSWORD")
 		if password == "" {
@@ -36,7 +36,7 @@ func InitDB() (*sql.DB, error) {
 		}
 		dbname := os.Getenv("POSTGRES_DB")
 		if dbname == "" {
-			dbname = "pytake_production"
+			dbname = "pytake"
 		}
 		port := os.Getenv("POSTGRES_PORT")
 		if port == "" {
