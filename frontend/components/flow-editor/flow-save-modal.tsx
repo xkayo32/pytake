@@ -117,7 +117,11 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
         version: '1.0.0',
         isPublic: false
       })
-      setSelectedWhatsAppNumbers([])
+      // Preservar os números WhatsApp já selecionados
+      // NÃO resetar para array vazio!
+      if (flow.whatsappNumbers && Array.isArray(flow.whatsappNumbers)) {
+        setSelectedWhatsAppNumbers(flow.whatsappNumbers)
+      }
     }
   }, [isOpen, flow])
   
@@ -218,15 +222,8 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
         onClose()
         setSavedSuccess(false)
         setSaveMessage('')
-        setFormData({
-          name: '',
-          description: '',
-          category: 'vendas',
-          tags: '',
-          version: '1.0.0',
-          isPublic: false
-        })
-        setSelectedWhatsAppNumbers([])
+        // Não limpar o formulário completamente após salvar
+        // Manter os dados do flow para evitar perda de estado
       }, 2000)
       
     } catch (error) {
