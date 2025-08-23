@@ -131,7 +131,8 @@
       "Bash(wget:*)",
       "Bash(tcpdump:*)",
       "Bash(dig +short:*)",
-      "Bash(dig:*)"
+      "Bash(dig:*)",
+      "Bash(PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d pytake_db -c \"SELECT id, name, description, status, created_at FROM flows ORDER BY created_at DESC LIMIT 5;\")"
     ],
     "deny": [],
     "additionalDirectories": [

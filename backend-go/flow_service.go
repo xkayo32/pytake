@@ -438,15 +438,40 @@ func (s *FlowService) UpdateFlow(c *gin.Context) {
 	}
 
 	if len(req.Flow) > 0 {
-		setParts = append(setParts, fmt.Sprintf("flow = $%d", argIndex))
-		args = append(args, req.Flow)
-		argIndex++
+		// Parse flow JSON to extract nodes and edges
+		var flowData map[string]interface{}
+		if err := json.Unmarshal(req.Flow, &flowData); err == nil {
+			if nodes, ok := flowData["nodes"]; ok {
+				nodesJSON, _ := json.Marshal(nodes)
+				setParts = append(setParts, fmt.Sprintf("nodes = $%d", argIndex))
+				args = append(args, nodesJSON)
+				argIndex++
+			}
+			if edges, ok := flowData["edges"]; ok {
+				edgesJSON, _ := json.Marshal(edges)
+				setParts = append(setParts, fmt.Sprintf("edges = $%d", argIndex))
+				args = append(args, edgesJSON)
+				argIndex++
+			}
+		}
 	}
 
 	if len(req.Trigger) > 0 {
-		setParts = append(setParts, fmt.Sprintf("trigger = $%d", argIndex))
-		args = append(args, req.Trigger)
-		argIndex++
+		// Parse trigger JSON to extract type and value
+		var triggerData map[string]interface{}
+		if err := json.Unmarshal(req.Trigger, &triggerData); err == nil {
+			if triggerType, ok := triggerData["type"].(string); ok {
+				setParts = append(setParts, fmt.Sprintf("trigger_type = $%d", argIndex))
+				args = append(args, triggerType)
+				argIndex++
+			}
+			if triggerValue, ok := triggerData["value"]; ok {
+				valueStr := fmt.Sprintf("%v", triggerValue)
+				setParts = append(setParts, fmt.Sprintf("trigger_value = $%d", argIndex))
+				args = append(args, valueStr)
+				argIndex++
+			}
+		}
 	}
 
 	if len(setParts) == 0 {
@@ -468,21 +493,31 @@ func (s *FlowService) UpdateFlow(c *gin.Context) {
 		UPDATE flows 
 		SET %s 
 		WHERE id = $%d
-		RETURNING id, name, description, status, flow, trigger, created_at, updated_at, version
+		RETURNING id, name, description, status, nodes, edges, created_at, updated_at, version
 	`, joinStrings(setParts, ", "), argIndex)
 
 	var flow Flow
+	var nodesJSON, edgesJSON json.RawMessage
 	err = s.db.QueryRow(query, args...).Scan(
 		&flow.ID,
 		&flow.Name,
 		&flow.Description,
 		&flow.Status,
-		&flow.Flow,
-		&flow.Trigger,
+		&nodesJSON,
+		&edgesJSON,
 		&flow.CreatedAt,
 		&flow.UpdatedAt,
 		&flow.Version,
 	)
+	
+	// Combine nodes and edges into flow field
+	if err == nil {
+		flowData := map[string]interface{}{
+			"nodes": json.RawMessage(nodesJSON),
+			"edges": json.RawMessage(edgesJSON),
+		}
+		flow.Flow, _ = json.Marshal(flowData)
+	}
 
 	if err != nil {
 		log.Printf("Error updating flow %s: %v", id, err)
@@ -531,21 +566,31 @@ func (s *FlowService) UpdateFlowStatus(c *gin.Context) {
 		UPDATE flows 
 		SET status = $1, updated_at = $2, version = version + 1 
 		WHERE id = $3
-		RETURNING id, name, description, status, flow, trigger, created_at, updated_at, version
+		RETURNING id, name, description, status, nodes, edges, created_at, updated_at, version
 	`
 
 	var flow Flow
+	var nodesJSON, edgesJSON json.RawMessage
 	err := s.db.QueryRow(query, req.Status, time.Now(), id).Scan(
 		&flow.ID,
 		&flow.Name,
 		&flow.Description,
 		&flow.Status,
-		&flow.Flow,
-		&flow.Trigger,
+		&nodesJSON,
+		&edgesJSON,
 		&flow.CreatedAt,
 		&flow.UpdatedAt,
 		&flow.Version,
 	)
+	
+	// Combine nodes and edges into flow field
+	if err == nil {
+		flowData := map[string]interface{}{
+			"nodes": json.RawMessage(nodesJSON),
+			"edges": json.RawMessage(edgesJSON),
+		}
+		flow.Flow, _ = json.Marshal(flowData)
+	}
 
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Flow not found"})
