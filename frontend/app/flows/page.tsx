@@ -289,7 +289,8 @@ export default function FlowsPage() {
       
       if (response.ok) {
         const data = await response.json()
-        apiFlows = data.flows || []
+        // Handle both array and object responses
+        apiFlows = Array.isArray(data) ? data : (data.flows || [])
         console.log('✅ Flows loaded via proxy:', apiFlows.length)
       } else {
         console.error('❌ Proxy response error:', response.status, response.statusText)
@@ -298,6 +299,7 @@ export default function FlowsPage() {
       }
       
       // Set API flows only - no more localStorage integration
+      console.log('🔧 Setting flows in state:', apiFlows)
       setFlows(apiFlows)
       
     } catch (error) {
@@ -321,15 +323,25 @@ export default function FlowsPage() {
     )
   }
 
+  console.log('🔍 Current flows state:', flows.length, 'flows')
+  console.log('🔍 Filter status:', filterStatus, 'Search term:', searchTerm)
+  
   const filteredFlows = flows.filter(flow => {
+    // Handle trigger safely - it might be string or object
+    const triggerText = typeof flow.trigger === 'string' 
+      ? flow.trigger 
+      : (flow.triggerType || '')
+    
     const matchesSearch = flow.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          flow.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         flow.trigger.toLowerCase().includes(searchTerm.toLowerCase())
+                         triggerText.toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesStatus = filterStatus === 'all' || flow.status === filterStatus
 
     return matchesSearch && matchesStatus
   })
+  
+  console.log('🔍 Filtered flows:', filteredFlows.length, 'flows')
 
   const handleStatusToggle = async (flowId: string) => {
     const flow = flows.find(f => f.id === flowId)

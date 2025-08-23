@@ -22,7 +22,9 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json()
-    console.log('✅ Flows fetched from backend:', data.flows?.length, 'flows')
+    // Handle both array and object responses
+    const flows = Array.isArray(data) ? data : (data.flows || [])
+    console.log('✅ Flows fetched from backend:', flows.length, 'flows')
     
     return NextResponse.json(data)
   } catch (error) {
