@@ -165,6 +165,21 @@ const formatDate = (dateString: string | undefined) => {
   })
 }
 
+const formatTrigger = (trigger: any): string => {
+  if (typeof trigger === 'string') {
+    return trigger
+  }
+  
+  if (typeof trigger === 'object' && trigger) {
+    if (trigger.type === 'keyword') {
+      return `Palavra-chave: ${trigger.value || trigger.config?.keywords?.join(', ') || 'não definida'}`
+    }
+    return `${trigger.type || 'Gatilho'}: ${trigger.value || 'não definido'}`
+  }
+  
+  return 'Gatilho não definido'
+}
+
 export default function FlowsPage() {
   const [flows, setFlows] = useState<Flow[]>([])
   const [loading, setLoading] = useState(true)
@@ -695,7 +710,7 @@ export default function FlowsPage() {
                       <div className="flex items-center gap-2 text-sm">
                         <Settings className="h-4 w-4 text-muted-foreground" />
                         <span className="text-muted-foreground">Gatilho:</span>
-                        <span className="font-medium">{flow.trigger}</span>
+                        <span className="font-medium">{formatTrigger(flow.trigger)}</span>
                       </div>
 
                       <div className="flex items-center gap-2 text-sm">
@@ -851,7 +866,7 @@ export default function FlowsPage() {
                           </Badge>
                         </td>
                         <td className="p-4">
-                          <div className="text-sm">{flow.trigger}</div>
+                          <div className="text-sm">{formatTrigger(flow.trigger)}</div>
                         </td>
                         <td className="p-4 text-center">
                           <div className="font-medium">{flow.stats.executions}</div>
