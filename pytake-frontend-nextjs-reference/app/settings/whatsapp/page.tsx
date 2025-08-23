@@ -154,6 +154,8 @@ export default function WhatsAppSettingsPage() {
         ? `/api/v1/whatsapp-configs/${editingConfig.id}`
         : '/api/v1/whatsapp-configs'
       
+      console.log('Saving config:', { isEditing, editingConfig, url, data })
+      
       const payload = {
         ...data,
         is_default: !isEditing && configs.length === 0 // First config becomes default
@@ -167,15 +169,7 @@ export default function WhatsAppSettingsPage() {
 
       if (response.ok) {
         await loadConfigs()
-        setIsDialogOpen(false)
-        setEditingConfig(null)
-        configForm.reset({
-          name: '',
-          phone_number_id: '',
-          access_token: '',
-          business_account_id: '',
-          webhook_verify_token: ''
-        })
+        setIsDialogOpen(false) // This will trigger onOpenChange and clear form
         addToast({
           type: 'success',
           title: isEditing ? 'Configuração atualizada' : 'Configuração adicionada',
@@ -407,7 +401,14 @@ export default function WhatsAppSettingsPage() {
               Gerencie múltiplos números WhatsApp Business conectados ao sistema
             </p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open)
+            if (!open) {
+              // Clear form when closing
+              setEditingConfig(null)
+              configForm.reset()
+            }
+          }}>
             <DialogTrigger asChild>
               <Button 
                 className="bg-green-600 hover:bg-green-700"
