@@ -508,13 +508,43 @@ func (s *WhatsAppService) DeleteConfig(c *gin.Context) {
 func (s *WhatsAppService) TestConfig(c *gin.Context) {
 	configID := c.Param("id")
 	
-	// Mock implementation - simulate test
+	// Get config details from database
+	var config struct {
+		Name         string `db:"name"`
+		PhoneNumber  string `db:"phone_number"`
+		PhoneNumberID string `db:"phone_number_id"`
+	}
+	
+	query := `SELECT name, phone_number, phone_number_id FROM whatsapp_configs WHERE id = $1`
+	err := s.db.QueryRow(query, configID).Scan(&config.Name, &config.PhoneNumber, &config.PhoneNumberID)
+	
+	if err != nil {
+		log.Printf("Error fetching config for test: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error": gin.H{
+				"message": "Configuration not found",
+			},
+		})
+		return
+	}
+	
+	// Mock successful test response with phone number data
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Connection test successful",
 		"config_id": configID,
 		"status": "connected",
 		"latency": 123,
+		"data": gin.H{
+			"phone_numbers": []gin.H{
+				{
+					"display_phone_number": config.PhoneNumber,
+					"phone_number_id": config.PhoneNumberID,
+					"verified_name": config.Name,
+				},
+			},
+		},
 	})
 }
 
