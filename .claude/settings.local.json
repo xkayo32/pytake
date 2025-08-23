@@ -125,7 +125,13 @@
       "Bash(__NEW_LINE__ echo -e \"\\n3. Parando containers atuais:\")",
       "Bash(__NEW_LINE__ echo -e \"\\n4. Removendo containers antigos para rebuild:\")",
       "Bash(__NEW_LINE__ echo -e \"\\n5. Construindo e iniciando nova estrutura:\")",
-      "Bash(__NEW_LINE__ echo \"Verificando arquivos gerados:\")"
+      "Bash(__NEW_LINE__ echo \"Verificando arquivos gerados:\")",
+      "Bash(ss:*)",
+      "Bash(systemctl status:*)",
+      "Bash(wget:*)",
+      "Bash(tcpdump:*)",
+      "Bash(dig +short:*)",
+      "Bash(dig:*)"
     ],
     "deny": [],
     "additionalDirectories": [

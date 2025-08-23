@@ -87,6 +87,10 @@ func main() {
 		api.GET("/whatsapp/phone-numbers", whatsappService.GetPhoneNumbers)
 		api.GET("/whatsapp-configs", whatsappService.GetConfigs)
 		api.POST("/whatsapp-configs", whatsappService.SaveConfig)
+		api.PUT("/whatsapp-configs/:id", whatsappService.UpdateConfig)
+		api.DELETE("/whatsapp-configs/:id", whatsappService.DeleteConfig)
+		api.POST("/whatsapp-configs/:id/test", whatsappService.TestConfig)
+		api.PUT("/whatsapp-configs/:id/default", whatsappService.SetDefaultConfig)
 		api.GET("/whatsapp/templates", whatsappService.GetTemplates)
 		api.GET("/whatsapp/templates/manage", whatsappService.GetTemplates) // Alias for frontend compatibility
 		api.POST("/whatsapp/templates/sync", whatsappService.SyncTemplates)

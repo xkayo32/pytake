@@ -27,10 +27,121 @@ func NewFlowService(db *sql.DB, redis *redis.Client) *FlowService {
 
 // GetFlows returns all flows with their statistics
 func (s *FlowService) GetFlows(c *gin.Context) {
-	// For now, return empty array to test basic API connection
-	log.Printf("🔍 NEW CODE: GetFlows called - returning empty array for testing")
-	flows := []FlowWithStats{}
-	log.Printf("✅ Returning %d flows (temporary empty response)", len(flows))
+	query := `
+		SELECT id, tenant_id, name, description, trigger_type, trigger_value, nodes, edges, is_active, version, created_by, created_at, updated_at
+		FROM flows 
+		ORDER BY updated_at DESC
+	`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		log.Printf("Error querying flows: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch flows"})
+		return
+	}
+	defer rows.Close()
+
+	var flows []FlowWithStats
+
+	for rows.Next() {
+		var flow Flow
+		var tenantID, triggerValue, createdBy sql.NullString
+		var description sql.NullString
+
+		err := rows.Scan(
+			&flow.ID,
+			&tenantID,
+			&flow.Name,
+			&description,
+			&flow.TriggerType,
+			&triggerValue,
+			&flow.Nodes,
+			&flow.Edges,
+			&flow.IsActive,
+			&flow.Version,
+			&createdBy,
+			&flow.CreatedAt,
+			&flow.UpdatedAt,
+		)
+		if err != nil {
+			log.Printf("Error scanning flow: %v", err)
+			continue
+		}
+
+		// Handle nullable fields
+		if description.Valid {
+			flow.Description = description.String
+		}
+		if tenantID.Valid {
+			flow.TenantID = &tenantID.String
+		}
+		if triggerValue.Valid {
+			flow.TriggerValue = &triggerValue.String
+		}
+		if createdBy.Valid {
+			flow.CreatedBy = &createdBy.String
+		}
+
+		// Compute derived fields for frontend compatibility
+		if flow.IsActive {
+			flow.Status = "active"
+		} else {
+			flow.Status = "draft"
+		}
+
+		// Combine nodes and edges into flow structure
+		flowData := map[string]interface{}{
+			"nodes": json.RawMessage(flow.Nodes),
+			"edges": json.RawMessage(flow.Edges),
+		}
+		flowJSON, _ := json.Marshal(flowData)
+		flow.Flow = json.RawMessage(flowJSON)
+
+		// Combine trigger type and value
+		triggerData := map[string]interface{}{
+			"type":   flow.TriggerType,
+		}
+		if flow.TriggerValue != nil {
+			var triggerConfig interface{}
+			if err := json.Unmarshal([]byte(*flow.TriggerValue), &triggerConfig); err == nil {
+				triggerData["config"] = triggerConfig
+			} else {
+				triggerData["config"] = map[string]interface{}{"value": *flow.TriggerValue}
+			}
+		} else {
+			triggerData["config"] = map[string]interface{}{}
+		}
+		triggerJSON, _ := json.Marshal(triggerData)
+		flow.Trigger = json.RawMessage(triggerJSON)
+
+		// Get flow statistics
+		stats := s.getFlowStats(flow.ID)
+
+		// Get tags (simplified - you can implement proper tagging later)
+		tags := []string{}
+		if flow.Status == "active" {
+			tags = append(tags, "ativo")
+		}
+		if flow.Status == "draft" {
+			tags = append(tags, "rascunho")
+		}
+
+		flowWithStats := FlowWithStats{
+			Flow:  flow,
+			Stats: stats,
+			Tags:  tags,
+		}
+
+		flows = append(flows, flowWithStats)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Printf("Error iterating flows: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch flows"})
+		return
+	}
+
+	log.Printf("✅ Returning %d flows", len(flows))
 	c.JSON(http.StatusOK, flows)
 }
 
@@ -49,18 +160,21 @@ func (s *FlowService) GetFlow(c *gin.Context) {
 	`
 
 	var flow Flow
+	var tenantID, triggerValue, createdBy sql.NullString
+	var description sql.NullString
+
 	err := s.db.QueryRow(query, id).Scan(
 		&flow.ID,
-		&flow.TenantID,
+		&tenantID,
 		&flow.Name,
-		&flow.Description,
+		&description,
 		&flow.TriggerType,
-		&flow.TriggerValue,
+		&triggerValue,
 		&flow.Nodes,
 		&flow.Edges,
 		&flow.IsActive,
 		&flow.Version,
-		&flow.CreatedBy,
+		&createdBy,
 		&flow.CreatedAt,
 		&flow.UpdatedAt,
 	)
@@ -73,6 +187,20 @@ func (s *FlowService) GetFlow(c *gin.Context) {
 		log.Printf("Error querying flow %s: %v", id, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch flow"})
 		return
+	}
+
+	// Handle nullable fields
+	if description.Valid {
+		flow.Description = description.String
+	}
+	if tenantID.Valid {
+		flow.TenantID = &tenantID.String
+	}
+	if triggerValue.Valid {
+		flow.TriggerValue = &triggerValue.String
+	}
+	if createdBy.Valid {
+		flow.CreatedBy = &createdBy.String
 	}
 
 	// Compute derived fields for frontend compatibility
@@ -95,7 +223,14 @@ func (s *FlowService) GetFlow(c *gin.Context) {
 		"type":   flow.TriggerType,
 	}
 	if flow.TriggerValue != nil {
-		triggerData["config"] = json.RawMessage(*flow.TriggerValue)
+		var triggerConfig interface{}
+		if err := json.Unmarshal([]byte(*flow.TriggerValue), &triggerConfig); err == nil {
+			triggerData["config"] = triggerConfig
+		} else {
+			triggerData["config"] = map[string]interface{}{"value": *flow.TriggerValue}
+		}
+	} else {
+		triggerData["config"] = map[string]interface{}{}
 	}
 	triggerJSON, _ := json.Marshal(triggerData)
 	flow.Trigger = json.RawMessage(triggerJSON)
@@ -120,45 +255,82 @@ func (s *FlowService) CreateFlow(c *gin.Context) {
 		return
 	}
 
-	// Generate UUID for the flow
-	flowID := generateFlowID()
-
-	// Set default status if not provided
-	if req.Status == "" {
-		req.Status = "draft"
+	// Set default trigger type if not provided
+	if req.TriggerType == "" {
+		req.TriggerType = "keyword"
 	}
 
-	// Set default flow structure if not provided
-	if len(req.Flow) == 0 {
-		req.Flow = json.RawMessage(`{"nodes": [], "edges": []}`)
+	// Set default nodes/edges if not provided
+	if len(req.Nodes) == 0 {
+		req.Nodes = json.RawMessage(`[]`)
+	}
+	if len(req.Edges) == 0 {
+		req.Edges = json.RawMessage(`[]`)
 	}
 
-	// Set default trigger if not provided
-	if len(req.Trigger) == 0 {
-		req.Trigger = json.RawMessage(`{"type": "keyword", "config": {}}`)
+	// Parse legacy fields if new fields not provided
+	if req.TriggerType == "" && len(req.Trigger) > 0 {
+		var trigger map[string]interface{}
+		if err := json.Unmarshal(req.Trigger, &trigger); err == nil {
+			if triggerType, ok := trigger["type"].(string); ok {
+				req.TriggerType = triggerType
+				if config, ok := trigger["config"]; ok {
+					configJSON, _ := json.Marshal(config)
+					triggerValue := string(configJSON)
+					req.TriggerValue = &triggerValue
+				}
+			}
+		}
 	}
 
-	now := time.Now()
+	if len(req.Nodes) == 0 && len(req.Flow) > 0 {
+		var flowData map[string]interface{}
+		if err := json.Unmarshal(req.Flow, &flowData); err == nil {
+			if nodes, ok := flowData["nodes"]; ok {
+				nodesJSON, _ := json.Marshal(nodes)
+				req.Nodes = json.RawMessage(nodesJSON)
+			}
+			if edges, ok := flowData["edges"]; ok {
+				edgesJSON, _ := json.Marshal(edges)
+				req.Edges = json.RawMessage(edgesJSON)
+			}
+		}
+	}
 
 	query := `
-		INSERT INTO flows (id, name, description, status, flow, trigger, created_at, updated_at, version)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING id, created_at, updated_at
+		INSERT INTO flows (name, description, trigger_type, trigger_value, nodes, edges, is_active)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, created_at, updated_at, version
 	`
 
 	var flow Flow
+	var description sql.NullString
+	if req.Description != "" {
+		description.String = req.Description
+		description.Valid = true
+	}
+
+	var triggerValue sql.NullString
+	if req.TriggerValue != nil {
+		triggerValue.String = *req.TriggerValue
+		triggerValue.Valid = true
+	}
+
+	isActive := req.IsActive
+	if req.Status == "active" {
+		isActive = true
+	}
+
 	err := s.db.QueryRow(
 		query,
-		flowID,
 		req.Name,
-		req.Description,
-		req.Status,
-		req.Flow,
-		req.Trigger,
-		now,
-		now,
-		1,
-	).Scan(&flow.ID, &flow.CreatedAt, &flow.UpdatedAt)
+		description,
+		req.TriggerType,
+		triggerValue,
+		req.Nodes,
+		req.Edges,
+		isActive,
+	).Scan(&flow.ID, &flow.CreatedAt, &flow.UpdatedAt, &flow.Version)
 
 	if err != nil {
 		log.Printf("Error creating flow: %v", err)
@@ -166,25 +338,52 @@ func (s *FlowService) CreateFlow(c *gin.Context) {
 		return
 	}
 
-	// Build response
-	response := Flow{
-		ID:          flow.ID,
-		Name:        req.Name,
-		Description: req.Description,
-		Status:      req.Status,
-		Flow:        req.Flow,
-		Trigger:     req.Trigger,
-		CreatedAt:   flow.CreatedAt,
-		UpdatedAt:   flow.UpdatedAt,
-		Version:     1,
+	// Build response with derived fields for frontend compatibility
+	flow.Name = req.Name
+	flow.Description = req.Description
+	flow.TriggerType = req.TriggerType
+	flow.TriggerValue = req.TriggerValue
+	flow.Nodes = req.Nodes
+	flow.Edges = req.Edges
+	flow.IsActive = isActive
+
+	if flow.IsActive {
+		flow.Status = "active"
+	} else {
+		flow.Status = "draft"
 	}
 
+	// Combine nodes and edges into flow structure
+	flowData := map[string]interface{}{
+		"nodes": json.RawMessage(flow.Nodes),
+		"edges": json.RawMessage(flow.Edges),
+	}
+	flowJSON, _ := json.Marshal(flowData)
+	flow.Flow = json.RawMessage(flowJSON)
+
+	// Combine trigger type and value
+	triggerData := map[string]interface{}{
+		"type": flow.TriggerType,
+	}
+	if flow.TriggerValue != nil {
+		var triggerConfig interface{}
+		if err := json.Unmarshal([]byte(*flow.TriggerValue), &triggerConfig); err == nil {
+			triggerData["config"] = triggerConfig
+		} else {
+			triggerData["config"] = map[string]interface{}{"value": *flow.TriggerValue}
+		}
+	} else {
+		triggerData["config"] = map[string]interface{}{}
+	}
+	triggerJSON, _ := json.Marshal(triggerData)
+	flow.Trigger = json.RawMessage(triggerJSON)
+
 	if len(req.WhatsappNumbers) > 0 {
-		response.WhatsappNumbers = req.WhatsappNumbers
+		flow.WhatsappNumbers = req.WhatsappNumbers
 	}
 
 	log.Printf("✅ Flow created with ID: %s", flow.ID)
-	c.JSON(http.StatusCreated, response)
+	c.JSON(http.StatusCreated, flow)
 }
 
 // UpdateFlow updates an existing flow

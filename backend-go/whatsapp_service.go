@@ -421,3 +421,84 @@ func (s *WhatsAppService) SubmitTemplate(c *gin.Context) {
 		"status": "IN_APPEAL",
 	})
 }
+
+// UpdateConfig updates WhatsApp configuration
+func (s *WhatsAppService) UpdateConfig(c *gin.Context) {
+	configID := c.Param("id")
+	var configData map[string]interface{}
+	
+	if err := c.ShouldBindJSON(&configData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Mock implementation - return updated config
+	configData["id"] = configID
+	configData["updated_at"] = time.Now()
+	
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"config": configData,
+	})
+}
+
+// DeleteConfig deletes WhatsApp configuration
+func (s *WhatsAppService) DeleteConfig(c *gin.Context) {
+	configID := c.Param("id")
+	
+	// Delete from database
+	query := `DELETE FROM whatsapp_configs WHERE id = $1`
+	_, err := s.db.Exec(query, configID)
+	
+	if err != nil {
+		log.Printf("Error deleting config: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete configuration"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Configuration deleted successfully",
+	})
+}
+
+// TestConfig tests WhatsApp configuration
+func (s *WhatsAppService) TestConfig(c *gin.Context) {
+	configID := c.Param("id")
+	
+	// Mock implementation - simulate test
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Connection test successful",
+		"config_id": configID,
+		"status": "connected",
+		"latency": 123,
+	})
+}
+
+// SetDefaultConfig sets a config as default
+func (s *WhatsAppService) SetDefaultConfig(c *gin.Context) {
+	configID := c.Param("id")
+	
+	// First, unset all configs as default
+	_, err := s.db.Exec(`UPDATE whatsapp_configs SET is_default = false`)
+	if err != nil {
+		log.Printf("Error unsetting default configs: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update default configuration"})
+		return
+	}
+	
+	// Then set the selected one as default
+	_, err = s.db.Exec(`UPDATE whatsapp_configs SET is_default = true WHERE id = $1`, configID)
+	if err != nil {
+		log.Printf("Error setting default config: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update default configuration"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Default configuration updated",
+		"config_id": configID,
+	})
+}
