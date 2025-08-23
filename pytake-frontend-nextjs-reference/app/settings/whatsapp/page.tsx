@@ -149,14 +149,18 @@ export default function WhatsAppSettingsPage() {
 
   const handleSaveConfig = async (data: WhatsappConfig) => {
     try {
+      const isEditing = !!editingConfig
+      const url = isEditing 
+        ? `/api/v1/whatsapp-configs/${editingConfig.id}`
+        : '/api/v1/whatsapp-configs'
+      
       const payload = {
         ...data,
-        id: editingConfig?.id,
-        is_default: configs.length === 0 // First config becomes default
+        is_default: !isEditing && configs.length === 0 // First config becomes default
       }
 
-      const response = await fetch('/api/v1/whatsapp-configs', {
-        method: 'POST',
+      const response = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
@@ -174,12 +178,24 @@ export default function WhatsAppSettingsPage() {
         })
         addToast({
           type: 'success',
-          title: editingConfig ? 'Configuração atualizada' : 'Configuração adicionada',
+          title: isEditing ? 'Configuração atualizada' : 'Configuração adicionada',
           description: 'As alterações foram salvas com sucesso'
+        })
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        addToast({
+          type: 'error',
+          title: 'Erro ao salvar configuração',
+          description: errorData.error || 'Ocorreu um erro ao salvar as alterações'
         })
       }
     } catch (error) {
       console.error('Error saving config:', error)
+      addToast({
+        type: 'error',
+        title: 'Erro ao salvar configuração',
+        description: 'Ocorreu um erro inesperado'
+      })
     }
   }
 

@@ -425,20 +425,62 @@ func (s *WhatsAppService) SubmitTemplate(c *gin.Context) {
 // UpdateConfig updates WhatsApp configuration
 func (s *WhatsAppService) UpdateConfig(c *gin.Context) {
 	configID := c.Param("id")
-	var configData map[string]interface{}
+	var configData struct {
+		Name               string `json:"name"`
+		PhoneNumber        string `json:"phone_number"`
+		PhoneNumberID      string `json:"phone_number_id"`
+		AccessToken        string `json:"access_token"`
+		BusinessAccountID  string `json:"business_account_id"`
+		IsDefault          bool   `json:"is_default"`
+		WebhookVerifyToken string `json:"webhook_verify_token"`
+	}
 	
 	if err := c.ShouldBindJSON(&configData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Mock implementation - return updated config
-	configData["id"] = configID
-	configData["updated_at"] = time.Now()
+	// Build dynamic update query
+	query := `
+		UPDATE whatsapp_configs 
+		SET name = $2,
+		    phone_number_id = $3,
+		    business_account_id = $4,
+		    access_token = $5,
+		    webhook_verify_token = $6,
+		    updated_at = NOW()
+		WHERE id = $1
+		RETURNING updated_at
+	`
+
+	var updatedAt time.Time
+	err := s.db.QueryRow(
+		query,
+		configID,
+		configData.Name,
+		configData.PhoneNumberID,
+		configData.BusinessAccountID,
+		configData.AccessToken,
+		configData.WebhookVerifyToken,
+	).Scan(&updatedAt)
+
+	if err != nil {
+		log.Printf("Error updating config: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update configuration"})
+		return
+	}
 	
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"config": configData,
+		"config": gin.H{
+			"id":                   configID,
+			"name":                 configData.Name,
+			"phone_number_id":      configData.PhoneNumberID,
+			"business_account_id":  configData.BusinessAccountID,
+			"access_token":         configData.AccessToken,
+			"webhook_verify_token": configData.WebhookVerifyToken,
+			"updated_at":           updatedAt,
+		},
 	})
 }
 
