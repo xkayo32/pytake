@@ -98,7 +98,18 @@ func main() {
 		api.PUT("/whatsapp/templates/:id", whatsappService.UpdateTemplate)
 		api.DELETE("/whatsapp/templates/:id", whatsappService.DeleteTemplate)
 		api.POST("/whatsapp/templates/:id/submit", whatsappService.SubmitTemplate)
+		
+		// Webhook routes
+		webhookService := NewWebhookService(db, redis)
+		api.POST("/whatsapp-configs/:id/webhook/validate", webhookService.ValidateWebhookConfig)
+		api.POST("/whatsapp-configs/:id/webhook/subscribe", webhookService.SubscribeWebhook)
+		api.GET("/webhook/logs", webhookService.GetWebhookLogs)
 	}
+	
+	// Webhook endpoints (outside auth group - Meta needs to access these)
+	webhookService := NewWebhookService(db, redis)
+	router.GET("/webhook/whatsapp", webhookService.WebhookVerification)
+	router.POST("/webhook/whatsapp", webhookService.WebhookReceive)
 
 	// Start server
 	port := os.Getenv("PORT")

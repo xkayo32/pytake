@@ -51,6 +51,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useToast } from '@/components/ui/toast'
@@ -224,6 +225,87 @@ export default function WhatsAppSettingsPage() {
     }
   }
 
+  const handleValidateWebhook = async (config: WhatsAppConfigData) => {
+    setIsTesting(true)
+    addLog('🔍 Validando configuração do webhook...')
+    
+    try {
+      const response = await fetch(`/api/v1/whatsapp-configs/${config.id}/webhook/validate`, {
+        method: 'POST'
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        if (result.subscribed) {
+          addLog('✅ Webhook está configurado e ativo!')
+          addLog(`📍 URL: ${result.webhook_url}`)
+          addLog(`🔑 Token: ${result.verify_token}`)
+          addToast({
+            type: 'success',
+            title: 'Webhook Configurado',
+            description: 'O webhook está ativo e recebendo eventos'
+          })
+        } else {
+          addLog('⚠️ Webhook não está inscrito')
+          addLog('💡 Use o botão "Inscrever Webhook" para ativar')
+          addToast({
+            type: 'warning',
+            title: 'Webhook Não Inscrito',
+            description: 'Configure o webhook no Meta Business'
+          })
+        }
+      } else {
+        addLog('❌ Erro ao validar webhook')
+        addToast({
+          type: 'error',
+          title: 'Erro na Validação',
+          description: 'Não foi possível validar o webhook'
+        })
+      }
+    } catch (error) {
+      console.error('Error validating webhook:', error)
+      addLog('❌ Erro ao validar webhook')
+    } finally {
+      setIsTesting(false)
+    }
+  }
+
+  const handleSubscribeWebhook = async (config: WhatsAppConfigData) => {
+    setIsTesting(true)
+    addLog('🔄 Inscrevendo webhook...')
+    
+    try {
+      const response = await fetch(`/api/v1/whatsapp-configs/${config.id}/webhook/subscribe`, {
+        method: 'POST'
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        addLog('✅ Webhook inscrito com sucesso!')
+        addLog('📱 Agora você receberá mensagens do WhatsApp')
+        addToast({
+          type: 'success',
+          title: 'Webhook Inscrito',
+          description: 'Agora você receberá eventos do WhatsApp'
+        })
+      } else {
+        addLog(`❌ Erro ao inscrever: ${result.error || 'Erro desconhecido'}`)
+        addToast({
+          type: 'error',
+          title: 'Erro ao Inscrever',
+          description: result.error || 'Não foi possível inscrever o webhook'
+        })
+      }
+    } catch (error) {
+      console.error('Error subscribing webhook:', error)
+      addLog('❌ Erro ao inscrever webhook')
+    } finally {
+      setIsTesting(false)
+    }
+  }
+
   const handleDelete = async (configId: string) => {
     // Por enquanto mantemos o confirm, mas podemos trocar por um modal depois
     if (!confirm('Tem certeza que deseja excluir esta configuração?')) {
@@ -260,20 +342,48 @@ export default function WhatsAppSettingsPage() {
       const result = await response.json()
       
       if (result.success) {
-        addLog('✅ Teste realizado com sucesso!')
-        addLog(`📱 Número: ${result.data?.phone_numbers?.[0]?.display_phone_number || 'N/A'}`)
-        addToast({
-          type: 'success',
-          title: 'Teste realizado com sucesso!',
-          description: `Conectado ao número ${result.data?.phone_numbers?.[0]?.display_phone_number || 'WhatsApp'}`
-        })
+        const phoneNumber = result.data?.phone_numbers?.[0]?.display_phone_number
+        
+        if (phoneNumber && phoneNumber !== 'N/A') {
+          addLog('✅ Teste realizado com sucesso!')
+          addLog(`📱 Número: ${phoneNumber}`)
+          addToast({
+            type: 'success',
+            title: 'Teste realizado com sucesso!',
+            description: `Conectado ao número ${phoneNumber}`
+          })
+        } else {
+          // Success but couldn't fetch phone number
+          addLog('⚠️ Conexão parcial - não foi possível obter o número')
+          addLog('💡 Verifique se o Access Token está válido')
+          addToast({
+            type: 'warning',
+            title: 'Conexão Parcial',
+            description: 'Configuração salva mas não foi possível verificar o número do WhatsApp'
+          })
+        }
       } else {
-        addLog(`❌ Erro: ${result.error?.message}`)
-        addToast({
-          type: 'error',
-          title: 'Erro no teste de conexão',
-          description: result.error?.message || 'Verifique suas credenciais'
-        })
+        // Handle error - the API returns message and api_error directly in result
+        const errorMessage = result.message || result.api_error || result.error?.message || 'Erro desconhecido'
+        
+        // Check if it's a token error
+        if (result.status === 'token_error' || result.status === 'auth_error') {
+          addLog(`❌ ${errorMessage}`)
+          addLog(`💡 Atualize o Access Token nas configurações`)
+          addLog(`📖 Consulte o guia em WHATSAPP_TOKEN_GUIDE.md`)
+          addToast({
+            type: 'error',
+            title: 'Problema com Token de Acesso',
+            description: errorMessage
+          })
+        } else {
+          addLog(`❌ Erro: ${errorMessage}`)
+          addToast({
+            type: 'error',
+            title: 'Erro no teste de conexão',
+            description: errorMessage
+          })
+        }
       }
       
       await loadConfigs()
@@ -603,11 +713,20 @@ export default function WhatsAppSettingsPage() {
                         <TestTube className="h-4 w-4 mr-2" />
                         Testar Conexão
                       </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => handleValidateWebhook(config)}>
+                        <Shield className="h-4 w-4 mr-2" />
+                        Validar Webhook
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleSubscribeWebhook(config)}>
+                        <Webhook className="h-4 w-4 mr-2" />
+                        Inscrever Webhook
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => {
                         setSelectedConfig(config)
                         setIsWebhookDialogOpen(true)
                       }}>
-                        <Webhook className="h-4 w-4 mr-2" />
+                        <Settings className="h-4 w-4 mr-2" />
                         Configurar Webhook
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => {

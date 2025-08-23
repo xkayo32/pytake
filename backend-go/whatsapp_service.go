@@ -2,6 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -20,6 +23,76 @@ func NewWhatsAppService(db *sql.DB, redis *redis.Client) *WhatsAppService {
 		db:    db,
 		redis: redis,
 	}
+}
+
+// fetchPhoneNumberFromAPI fetches the actual phone number from WhatsApp Business API
+func (s *WhatsAppService) fetchPhoneNumberFromAPI(phoneNumberID, accessToken string) (string, error) {
+	url := fmt.Sprintf("https://graph.facebook.com/v21.0/%s?fields=display_phone_number", phoneNumberID)
+	log.Printf("Fetching phone number from WhatsApp API: %s", url)
+	
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Printf("Error creating request: %v", err)
+		return "", err
+	}
+	
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	log.Printf("Using token ending with: ...%s", accessToken[len(accessToken)-20:])
+	
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("Error making API request: %v", err)
+		return "", err
+	}
+	defer resp.Body.Close()
+	
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Error reading response body: %v", err)
+		return "", err
+	}
+	
+	log.Printf("WhatsApp API response status: %d, body: %s", resp.StatusCode, string(body))
+	
+	if resp.StatusCode == 401 {
+		// Parse error message for more details
+		var errResp struct {
+			Error struct {
+				Message string `json:"message"`
+				Type    string `json:"type"`
+				Code    int    `json:"code"`
+			} `json:"error"`
+		}
+		json.Unmarshal(body, &errResp)
+		
+		if errResp.Error.Message == "The access token could not be decrypted" {
+			return "", fmt.Errorf("Token inválido: O token fornecido está corrompido ou mal formatado")
+		} else if errResp.Error.Message == "Invalid OAuth access token" {
+			return "", fmt.Errorf("Token expirado: O token precisa ser renovado")
+		} else {
+			return "", fmt.Errorf("Erro de autenticação: %s", errResp.Error.Message)
+		}
+	} else if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("WhatsApp API error (status %d): %s", resp.StatusCode, string(body))
+	}
+	
+	var result struct {
+		DisplayPhoneNumber string `json:"display_phone_number"`
+	}
+	
+	if err := json.Unmarshal(body, &result); err != nil {
+		log.Printf("Error parsing JSON response: %v", err)
+		return "", err
+	}
+	
+	if result.DisplayPhoneNumber == "" {
+		log.Printf("No phone number in API response")
+		return "", fmt.Errorf("no phone number returned from API")
+	}
+	
+	log.Printf("Successfully fetched phone number: %s", result.DisplayPhoneNumber)
+	return result.DisplayPhoneNumber, nil
 }
 
 // GetNumbers returns all WhatsApp numbers (for frontend compatibility)
@@ -220,6 +293,15 @@ func (s *WhatsAppService) getConfigsFromDB() []WhatsAppConfig {
 			continue
 		}
 
+		// Determine status based on phone number
+		if config.PhoneNumber != "" && config.PhoneNumber != "+1234567890" && config.PhoneNumber != "N/A" {
+			config.Status = "connected"
+		} else if config.PhoneNumberID != "" {
+			config.Status = "disconnected"
+		} else {
+			config.Status = "error"
+		}
+
 		configs = append(configs, config)
 	}
 
@@ -292,10 +374,19 @@ func (s *WhatsAppService) SaveConfig(c *gin.Context) {
 		return
 	}
 
-	// If phone_number is empty, use a default format
+	// Fetch the actual phone number from WhatsApp API
 	phoneNumber := configData.PhoneNumber
-	if phoneNumber == "" {
-		phoneNumber = "+1234567890" // Default placeholder
+	if configData.PhoneNumberID != "" && configData.AccessToken != "" {
+		if fetchedNumber, err := s.fetchPhoneNumberFromAPI(configData.PhoneNumberID, configData.AccessToken); err == nil {
+			phoneNumber = fetchedNumber
+			log.Printf("Fetched real phone number from WhatsApp API: %s", phoneNumber)
+		} else {
+			log.Printf("Failed to fetch phone number from WhatsApp API: %v", err)
+			// Use provided phone number or a placeholder if fetch fails
+			if phoneNumber == "" {
+				phoneNumber = "+1234567890" // Temporary fallback
+			}
+		}
 	}
 
 	query := `
@@ -327,6 +418,12 @@ func (s *WhatsAppService) SaveConfig(c *gin.Context) {
 		return
 	}
 
+	// Determine status
+	status := "disconnected"
+	if phoneNumber != "" && phoneNumber != "+1234567890" && phoneNumber != "N/A" {
+		status = "connected"
+	}
+
 	// Return the saved config
 	config := gin.H{
 		"id":                   id,
@@ -337,7 +434,7 @@ func (s *WhatsAppService) SaveConfig(c *gin.Context) {
 		"access_token":         configData.AccessToken,
 		"is_default":           configData.IsDefault,
 		"webhook_verify_token": configData.WebhookVerifyToken,
-		"status":               "disconnected",
+		"status":               status,
 		"created_at":           createdAt,
 		"updated_at":           updatedAt,
 	}
@@ -440,14 +537,26 @@ func (s *WhatsAppService) UpdateConfig(c *gin.Context) {
 		return
 	}
 
+	// Fetch the actual phone number from WhatsApp API if we have the necessary credentials
+	phoneNumber := configData.PhoneNumber
+	if configData.PhoneNumberID != "" && configData.AccessToken != "" {
+		if fetchedNumber, err := s.fetchPhoneNumberFromAPI(configData.PhoneNumberID, configData.AccessToken); err == nil {
+			phoneNumber = fetchedNumber
+			log.Printf("Fetched real phone number from WhatsApp API: %s", phoneNumber)
+		} else {
+			log.Printf("Failed to fetch phone number from WhatsApp API: %v", err)
+		}
+	}
+
 	// Build dynamic update query
 	query := `
 		UPDATE whatsapp_configs 
 		SET name = $2,
-		    phone_number_id = $3,
-		    business_account_id = $4,
-		    access_token = $5,
-		    webhook_verify_token = $6,
+		    phone_number = $3,
+		    phone_number_id = $4,
+		    business_account_id = $5,
+		    access_token = $6,
+		    webhook_verify_token = $7,
 		    updated_at = NOW()
 		WHERE id = $1
 		RETURNING updated_at
@@ -458,6 +567,7 @@ func (s *WhatsAppService) UpdateConfig(c *gin.Context) {
 		query,
 		configID,
 		configData.Name,
+		phoneNumber,
 		configData.PhoneNumberID,
 		configData.BusinessAccountID,
 		configData.AccessToken,
@@ -470,15 +580,23 @@ func (s *WhatsAppService) UpdateConfig(c *gin.Context) {
 		return
 	}
 	
+	// Determine status
+	status := "disconnected"
+	if phoneNumber != "" && phoneNumber != "+1234567890" && phoneNumber != "N/A" {
+		status = "connected"
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"config": gin.H{
 			"id":                   configID,
 			"name":                 configData.Name,
+			"phone_number":         phoneNumber,
 			"phone_number_id":      configData.PhoneNumberID,
 			"business_account_id":  configData.BusinessAccountID,
 			"access_token":         configData.AccessToken,
 			"webhook_verify_token": configData.WebhookVerifyToken,
+			"status":               status,
 			"updated_at":           updatedAt,
 		},
 	})
@@ -508,15 +626,18 @@ func (s *WhatsAppService) DeleteConfig(c *gin.Context) {
 func (s *WhatsAppService) TestConfig(c *gin.Context) {
 	configID := c.Param("id")
 	
-	// Get config details from database
+	// Get config details from database including access token for API call
 	var config struct {
 		Name         string `db:"name"`
 		PhoneNumber  string `db:"phone_number"`
 		PhoneNumberID string `db:"phone_number_id"`
+		AccessToken  string `db:"access_token"`
 	}
 	
-	query := `SELECT name, phone_number, phone_number_id FROM whatsapp_configs WHERE id = $1`
-	err := s.db.QueryRow(query, configID).Scan(&config.Name, &config.PhoneNumber, &config.PhoneNumberID)
+	query := `SELECT name, phone_number, phone_number_id, access_token FROM whatsapp_configs WHERE id = $1`
+	err := s.db.QueryRow(query, configID).Scan(&config.Name, &config.PhoneNumber, &config.PhoneNumberID, &config.AccessToken)
+	
+	log.Printf("Test Config - ID: %s, PhoneNumberID: %s, Token Length: %d", configID, config.PhoneNumberID, len(config.AccessToken))
 	
 	if err != nil {
 		log.Printf("Error fetching config for test: %v", err)
@@ -529,23 +650,82 @@ func (s *WhatsAppService) TestConfig(c *gin.Context) {
 		return
 	}
 	
-	// Mock successful test response with phone number data
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Connection test successful",
+	// Try to fetch the real phone number from WhatsApp API
+	displayPhoneNumber := config.PhoneNumber
+	apiStatus := "unknown"
+	var apiError string
+	
+	if config.PhoneNumberID != "" && config.AccessToken != "" {
+		if fetchedNumber, err := s.fetchPhoneNumberFromAPI(config.PhoneNumberID, config.AccessToken); err == nil {
+			displayPhoneNumber = fetchedNumber
+			apiStatus = "connected"
+			log.Printf("Test: Fetched real phone number from WhatsApp API: %s", displayPhoneNumber)
+			
+			// Update the database with the real phone number
+			updateQuery := `UPDATE whatsapp_configs SET phone_number = $1 WHERE id = $2`
+			if _, err := s.db.Exec(updateQuery, displayPhoneNumber, configID); err != nil {
+				log.Printf("Failed to update phone number in database: %v", err)
+			}
+		} else {
+			log.Printf("Test: Failed to fetch phone number from WhatsApp API: %v", err)
+			apiError = err.Error()
+			
+			// Check the type of error
+			errStr := err.Error()
+			if len(errStr) >= 5 && errStr[:5] == "Token" {
+				// Token-related errors
+				apiStatus = "token_error"
+				apiError = errStr
+			} else if len(errStr) >= 4 && errStr[:4] == "Erro" {
+				// Authentication errors
+				apiStatus = "auth_error"
+				apiError = errStr
+			} else {
+				// Other API errors
+				apiStatus = "api_error"
+				apiError = errStr
+			}
+			
+			// Use stored phone number if API fails
+			if displayPhoneNumber == "" || displayPhoneNumber == "+1234567890" {
+				displayPhoneNumber = "N/A"
+			}
+		}
+	} else {
+		apiStatus = "not_configured"
+		apiError = "Missing phone number ID or access token"
+		if displayPhoneNumber == "" || displayPhoneNumber == "+1234567890" {
+			displayPhoneNumber = "N/A"
+		}
+	}
+	
+	// Return test response with real or stored phone number
+	response := gin.H{
+		"success": apiStatus == "connected",
+		"message": "Connection test completed",
 		"config_id": configID,
-		"status": "connected",
+		"status": apiStatus,
 		"latency": 123,
 		"data": gin.H{
 			"phone_numbers": []gin.H{
 				{
-					"display_phone_number": config.PhoneNumber,
+					"display_phone_number": displayPhoneNumber,
 					"phone_number_id": config.PhoneNumberID,
 					"verified_name": config.Name,
 				},
 			},
 		},
-	})
+	}
+	
+	// Add error information if API failed
+	if apiError != "" {
+		response["api_error"] = apiError
+		response["message"] = apiError
+	} else if apiStatus == "connected" {
+		response["message"] = "Connection test successful"
+	}
+	
+	c.JSON(http.StatusOK, response)
 }
 
 // SetDefaultConfig sets a config as default
