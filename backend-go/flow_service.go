@@ -28,7 +28,7 @@ func NewFlowService(db *sql.DB, redis *redis.Client) *FlowService {
 // GetFlows returns all flows with their statistics
 func (s *FlowService) GetFlows(c *gin.Context) {
 	query := `
-		SELECT id, tenant_id, name, description, trigger_type, trigger_value, nodes, edges, is_active, version, created_by, created_at, updated_at
+		SELECT id, tenant_id, name, description, trigger_type, trigger_value, nodes, edges, is_active, version, created_by, created_at, updated_at, status
 		FROM flows 
 		ORDER BY updated_at DESC
 	`
@@ -47,6 +47,7 @@ func (s *FlowService) GetFlows(c *gin.Context) {
 		var flow Flow
 		var tenantID, triggerValue, createdBy sql.NullString
 		var description sql.NullString
+		var status sql.NullString
 
 		err := rows.Scan(
 			&flow.ID,
@@ -62,6 +63,7 @@ func (s *FlowService) GetFlows(c *gin.Context) {
 			&createdBy,
 			&flow.CreatedAt,
 			&flow.UpdatedAt,
+			&status,
 		)
 		if err != nil {
 			log.Printf("Error scanning flow: %v", err)
@@ -81,12 +83,15 @@ func (s *FlowService) GetFlows(c *gin.Context) {
 		if createdBy.Valid {
 			flow.CreatedBy = &createdBy.String
 		}
-
-		// Compute derived fields for frontend compatibility
-		if flow.IsActive {
-			flow.Status = "active"
+		if status.Valid {
+			flow.Status = status.String
 		} else {
-			flow.Status = "draft"
+			// Fallback to computed status for backward compatibility
+			if flow.IsActive {
+				flow.Status = "active"
+			} else {
+				flow.Status = "draft"
+			}
 		}
 
 		// Combine nodes and edges into flow structure
