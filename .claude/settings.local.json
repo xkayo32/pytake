@@ -139,7 +139,8 @@
       "Bash(export PORT=3004)",
       "Bash(cargo check:*)",
       "Bash(timeout:*)",
-      "Bash(cargo build:*)"
+      "Bash(cargo build:*)",
+      "Bash(./start-test-server.sh:*)"
     ],
     "deny": [],
     "additionalDirectories": [

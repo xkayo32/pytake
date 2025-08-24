@@ -39,7 +39,7 @@ const nextConfig = {
   
   // Minimal experimental features
   experimental: {
-    optimizePackageImports: ['lucide-react'],
+    // optimizePackageImports: ['lucide-react'],
   },
 }
 

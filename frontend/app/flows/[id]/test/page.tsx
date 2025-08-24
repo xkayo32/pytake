@@ -60,6 +60,7 @@ export default function FlowTestPage() {
   const [inputMessage, setInputMessage] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [debugLogs, setDebugLogs] = useState<DebugLog[]>([])
+  const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set())
   const [variables, setVariables] = useState<FlowVariable[]>([])
   const [isExecuting, setIsExecuting] = useState(false)
   const [currentNodeId, setCurrentNodeId] = useState<string | null>(null)
@@ -68,6 +69,10 @@ export default function FlowTestPage() {
   const [breakpoints, setBreakpoints] = useState<Set<string>>(new Set())
   const [testMode, setTestMode] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Estados para agrupar logs  
+  const [groupedLogs, setGroupedLogs] = useState<Record<string, DebugLog[]>>({})
+  const [lastLogTime, setLastLogTime] = useState<Record<string, number>>({})
 
   // Estados do sistema mock
   const [isWaitingForInput, setIsWaitingForInput] = useState(false)
@@ -105,7 +110,34 @@ export default function FlowTestPage() {
     })
     
     engine.onLog((log: ExecutionLog) => {
-      setDebugLogs(prev => [...prev, log])
+      const now = Date.now()
+      const nodeKey = log.nodeId || log.nodeName
+      
+      setLastLogTime(prev => ({ ...prev, [nodeKey]: now }))
+      
+      // Agrupar logs por nó
+      setGroupedLogs(prev => {
+        const existing = prev[nodeKey] || []
+        
+        // Se é o mesmo status que o último log do mesmo nó, atualizar o último
+        if (existing.length > 0 && existing[existing.length - 1].status === log.status) {
+          return {
+            ...prev,
+            [nodeKey]: [...existing.slice(0, -1), log]
+          }
+        } else {
+          return {
+            ...prev,
+            [nodeKey]: [...existing, log]
+          }
+        }
+      })
+      
+      setDebugLogs(prev => {
+        // Limitar logs totais para evitar acúmulo
+        const logs = [...prev, log]
+        return logs.slice(-100) // Manter apenas os últimos 100 logs
+      })
     })
     
     engine.onVariableUpdate((vars: FlowVariable[]) => {
@@ -214,6 +246,9 @@ export default function FlowTestPage() {
     setIsExecuting(true)
     setMessages([])
     setDebugLogs([])
+    setGroupedLogs({})
+    setExpandedLogs(new Set())
+    setLastLogTime({})
     setExecutionPath([])
     setCurrentNodeId(null)
     setIsWaitingForInput(false)
@@ -438,7 +473,30 @@ export default function FlowTestPage() {
       message,
       duration
     }
-    setDebugLogs(prev => [...prev, log])
+    
+    // Agrupar logs por nó
+    setGroupedLogs(prev => {
+      const nodeKey = nodeId || nodeName
+      const existing = prev[nodeKey] || []
+      
+      // Se é o mesmo status que o último log do mesmo nó, atualizar
+      if (existing.length > 0 && existing[existing.length - 1].status === status && status !== 'error') {
+        return {
+          ...prev,
+          [nodeKey]: [...existing.slice(0, -1), log]
+        }
+      } else {
+        return {
+          ...prev,
+          [nodeKey]: [...existing, log]
+        }
+      }
+    })
+    
+    setDebugLogs(prev => {
+      const logs = [...prev, log]
+      return logs.slice(-100) // Manter apenas últimos 100 logs
+    })
   }
   
   const toggleBreakpoint = (nodeId: string) => {
@@ -467,6 +525,9 @@ export default function FlowTestPage() {
   const resetFlow = () => {
     setMessages([])
     setDebugLogs([])
+    setGroupedLogs({})
+    setExpandedLogs(new Set())
+    setLastLogTime({})
     setVariables([])
     setExecutionPath([])
     setCurrentNodeId(null)
@@ -492,10 +553,48 @@ export default function FlowTestPage() {
     }
   }
   
+  // Função para alternar expansão de logs
+  const toggleLogExpansion = (logId: string) => {
+    setExpandedLogs(prev => {
+      const next = new Set(prev)
+      if (next.has(logId)) {
+        next.delete(logId)
+      } else {
+        next.add(logId)
+      }
+      return next
+    })
+  }
+  
+  // Função para obter logs consolidados
+  const getConsolidatedLogs = () => {
+    const consolidated: DebugLog[] = []
+    const nodeLastLog: Record<string, DebugLog> = {}
+    
+    debugLogs.forEach(log => {
+      const nodeKey = log.nodeId || log.nodeName
+      const existing = nodeLastLog[nodeKey]
+      
+      // Se mudou de status ou é um nó diferente, adicionar ao consolidado
+      if (!existing || existing.status !== log.status || log.status === 'error') {
+        consolidated.push(log)
+        nodeLastLog[nodeKey] = log
+      } else {
+        // Atualizar o log existente com informações mais recentes
+        const index = consolidated.findIndex(l => l.id === existing.id)
+        if (index !== -1) {
+          consolidated[index] = { ...log, id: existing.id }
+        }
+      }
+    })
+    
+    return consolidated
+  }
+  
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background overflow-hidden">
       {/* Chat Simulator */}
-      <div className="flex-1 flex flex-col max-w-3xl">
+      <div className="flex-1 flex flex-col max-w-3xl overflow-hidden">
         {/* WhatsApp Header */}
         <div className="bg-green-600 text-white p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -707,7 +806,7 @@ export default function FlowTestPage() {
       </div>
       
       {/* Debug Panel */}
-      <div className="w-[500px] border-l bg-background flex flex-col">
+      <div className="w-[500px] border-l bg-background flex flex-col overflow-hidden">
         {/* Control Bar */}
         <div className="p-4 border-b bg-muted/30">
           <div className="flex items-center justify-between mb-4">
@@ -767,7 +866,7 @@ export default function FlowTestPage() {
         </div>
         
         {/* Debug Tabs */}
-        <Tabs defaultValue="logs" className="flex-1 flex flex-col">
+        <Tabs defaultValue="logs" className="flex-1 flex flex-col overflow-hidden">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="logs">Logs</TabsTrigger>
             <TabsTrigger value="variables">Variáveis</TabsTrigger>
@@ -776,33 +875,76 @@ export default function FlowTestPage() {
           </TabsList>
           
           <TabsContent value="logs" className="flex-1 overflow-hidden">
-            <ScrollArea className="h-full p-4">
-              <div className="space-y-2">
-                {debugLogs.map((log) => (
-                  <Card key={log.id} className="p-3">
-                    <div className="flex items-start gap-2">
-                      {getStatusIcon(log.status)}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium text-sm truncate">
-                            {log.nodeName}
-                          </p>
-                          <span className="text-xs text-muted-foreground">
-                            {log.timestamp.toLocaleTimeString()}
-                          </span>
+            <ScrollArea className="h-full">
+              <div className="p-4 space-y-2">
+                {getConsolidatedLogs().map((log) => {
+                  const isExpanded = expandedLogs.has(log.id)
+                  const nodeKey = log.nodeId || log.nodeName
+                  const nodeLogs = groupedLogs[nodeKey] || []
+                  const logCount = nodeLogs.filter(l => l.status === log.status).length
+                  
+                  return (
+                    <Card 
+                      key={log.id} 
+                      className={cn(
+                        "p-3 transition-all cursor-pointer hover:bg-muted/50",
+                        isExpanded && "ring-1 ring-primary/20"
+                      )}
+                      onClick={() => toggleLogExpansion(log.id)}
+                    >
+                      <div className="flex items-start gap-2">
+                        {getStatusIcon(log.status)}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm truncate">
+                                {log.nodeName}
+                              </p>
+                              {logCount > 1 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {logCount}x
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {log.timestamp.toLocaleTimeString()}
+                            </span>
+                          </div>
+                          
+                          {/* Resumo compacto */}
+                          {!isExpanded && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {log.status === 'success' ? '✓ Executado' : 
+                               log.status === 'running' ? '⏳ Executando...' :
+                               log.status === 'waiting' ? '⏸ Aguardando entrada' :
+                               log.status === 'error' ? '✗ Erro na execução' :
+                               log.status === 'skipped' ? '⏭ Pulado' : log.message}
+                            </p>
+                          )}
+                          
+                          {/* Detalhes expandidos */}
+                          {isExpanded && (
+                            <div className="mt-2 space-y-1">
+                              <p className="text-xs text-muted-foreground">{log.nodeType}</p>
+                              <p className="text-sm">{log.message}</p>
+                              {log.details && (
+                                <pre className="text-xs bg-muted p-2 rounded mt-2 overflow-x-auto">
+                                  {JSON.stringify(log.details, null, 2)}
+                                </pre>
+                              )}
+                              {log.duration && (
+                                <Badge variant="outline" className="mt-1">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  {log.duration}ms
+                                </Badge>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <p className="text-xs text-muted-foreground">{log.nodeType}</p>
-                        <p className="text-sm mt-1">{log.message}</p>
-                        {log.duration && (
-                          <Badge variant="outline" className="mt-1">
-                            <Clock className="h-3 w-3 mr-1" />
-                            {log.duration}ms
-                          </Badge>
-                        )}
                       </div>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  )
+                })}
                 {debugLogs.length === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
                     <Bug className="h-8 w-8 mx-auto mb-2 opacity-50" />
