@@ -132,7 +132,11 @@
       "Bash(tcpdump:*)",
       "Bash(dig +short:*)",
       "Bash(dig:*)",
-      "Bash(PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d pytake_db -c \"SELECT id, name, description, status, created_at FROM flows ORDER BY created_at DESC LIMIT 5;\")"
+      "Bash(PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d pytake_db -c \"SELECT id, name, description, status, created_at FROM flows ORDER BY created_at DESC LIMIT 5;\")",
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=1024\" npm run dev)",
+      "Bash(export NODE_OPTIONS=\"--max-old-space-size=1024\")",
+      "Bash(PORT=3004 npx next dev)",
+      "Bash(export PORT=3004)"
     ],
     "deny": [],
     "additionalDirectories": [

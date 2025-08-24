@@ -223,6 +223,16 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
       }
     }
     
+    // Debug para verificar criação do nó
+    if (nodeType.id.includes('trigger')) {
+      console.log('Creating trigger node:', {
+        nodeTypeId: nodeType.id,
+        nodeTypeForReactFlow,
+        nodeConfig,
+        initialConfig
+      })
+    }
+    
     set({
       nodes: [...nodes, newNode],
       selectedNode: newNode.id,
