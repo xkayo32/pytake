@@ -382,34 +382,46 @@ function FlowEditor() {
       let currentFlowId = currentFlow.id || flowId
       let savedFlow
       
-      // Backend não tem rota PUT, sempre criar novo flow quando salvar
-      // Para evitar duplicação, verificar se já existe
+      // Verificar se é atualização ou criação
       if (currentFlowId && !currentFlowId.startsWith('flow-')) {
-        console.log('🔄 Verificando se flow já existe:', currentFlowId)
+        console.log('🔄 Atualizando flow existente:', currentFlowId)
         
-        // Não podemos atualizar, apenas informar que foi salvo
-        console.log('⚠️ Backend não suporta atualização de flows')
-        console.log('💾 Mantendo estado local atualizado')
+        // Atualizar flow existente via PUT
+        const response = await fetch(`/api/v1/flows/${currentFlowId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...currentFlow,
+            flow: { nodes, edges },
+            updatedAt: new Date().toISOString()
+          })
+        })
         
-        savedFlow = {
-          ...currentFlow,
-          id: currentFlowId,
-          flow: { nodes, edges },
-          updatedAt: new Date().toISOString()
+        if (response.ok) {
+          savedFlow = {
+            ...currentFlow,
+            id: currentFlowId,
+            flow: { nodes, edges },
+            updatedAt: new Date().toISOString()
+          }
+          
+          // Atualizar estado
+          useFlowEditorStore.setState({
+            flow: savedFlow,
+            isDirty: false
+          })
+          
+          setNotification({ 
+            message: '✅ Flow atualizado com sucesso!', 
+            type: 'success' 
+          })
+          setTimeout(() => setNotification(null), 3000)
+          setLastSaved(new Date())
+          return
+        } else {
+          console.error('Erro ao atualizar flow:', response.status)
+          // Se falhar, continuar para criar novo
         }
-        
-        // Atualizar apenas localmente
-        useFlowEditorStore.setState({
-          flow: savedFlow,
-          isDirty: false
-        })
-        
-        setNotification({ 
-          message: 'Alterações salvas localmente (backend não suporta atualização)', 
-          type: 'info' 
-        })
-        setTimeout(() => setNotification(null), 3000)
-        return
       }
       
       // Se não tem ID ou falhou com 404, criar novo
