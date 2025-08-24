@@ -574,7 +574,8 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
 
                 {/* Form Fields */}
                 <div className="space-y-4">
-                  {Object.entries(nodeType.configSchema).map(([key, schema]) => {
+                  {nodeType && nodeType.configSchema ? (
+                    Object.entries(nodeType.configSchema).map(([key, schema]) => {
                     // Pular customName porque já é renderizado no cabeçalho
                     if (key === 'customName') {
                       return null
@@ -607,7 +608,14 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
                         )}
                       </div>
                     )
-                  })}
+                  })
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Settings className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Este nó não possui configurações</p>
+                      <p className="text-xs mt-1">ID do nó: {selectedNodeData?.data?.nodeType}</p>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
 
