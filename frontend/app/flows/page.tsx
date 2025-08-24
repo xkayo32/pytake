@@ -165,19 +165,39 @@ const formatDate = (dateString: string | undefined) => {
   })
 }
 
-const formatTrigger = (trigger: any): string => {
-  if (typeof trigger === 'string') {
-    return trigger
+const getTriggerFromFlow = (flow: any): string => {
+  // Extrair trigger dos nodes
+  const nodes = flow.nodes || flow.flow?.nodes || []
+  const triggerNode = nodes.find((n: any) => 
+    n.type?.startsWith('trigger_') || n.data?.nodeType?.startsWith('trigger_')
+  )
+  
+  if (!triggerNode) {
+    return 'Sem gatilho'
   }
   
-  if (typeof trigger === 'object' && trigger) {
-    if (trigger.type === 'keyword') {
-      return `Palavra-chave: ${trigger.value || trigger.config?.keywords?.join(', ') || 'não definida'}`
-    }
-    return `${trigger.type || 'Gatilho'}: ${trigger.value || 'não definido'}`
-  }
+  const nodeType = triggerNode.data?.nodeType || triggerNode.type
+  const config = triggerNode.data?.config || {}
   
-  return 'Gatilho não definido'
+  switch(nodeType) {
+    case 'trigger_keyword':
+      const keywords = config.keywords ? 
+        config.keywords.split('\n').filter((k: string) => k.trim()).join(', ') : 
+        'não definida'
+      return keywords !== 'não definida' ? keywords : 'Palavra-chave não configurada'
+      
+    case 'trigger_webhook':
+      return 'Webhook'
+      
+    case 'trigger_schedule':
+      return config.schedule || 'Agendamento'
+      
+    case 'trigger_template_button':
+      return 'Botão de Template'
+      
+    default:
+      return nodeType?.replace('trigger_', '').replace(/_/g, ' ') || 'Gatilho'
+  }
 }
 
 export default function FlowsPage() {
@@ -710,7 +730,7 @@ export default function FlowsPage() {
                       <div className="flex items-center gap-2 text-sm">
                         <Settings className="h-4 w-4 text-muted-foreground" />
                         <span className="text-muted-foreground">Gatilho:</span>
-                        <span className="font-medium">{formatTrigger(flow.trigger)}</span>
+                        <span className="font-medium">{getTriggerFromFlow(flow)}</span>
                       </div>
 
                       <div className="flex items-center gap-2 text-sm">
@@ -866,7 +886,7 @@ export default function FlowsPage() {
                           </Badge>
                         </td>
                         <td className="p-4">
-                          <div className="text-sm">{formatTrigger(flow.trigger)}</div>
+                          <div className="text-sm">{getTriggerFromFlow(flow)}</div>
                         </td>
                         <td className="p-4 text-center">
                           <div className="font-medium">{flow.stats.executions}</div>
