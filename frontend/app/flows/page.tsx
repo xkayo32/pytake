@@ -205,6 +205,7 @@ export default function FlowsPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [filterWhatsApp, setFilterWhatsApp] = useState<boolean>(false)
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards')
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false)
   const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null)
@@ -372,8 +373,10 @@ export default function FlowsPage() {
                          triggerText.toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesStatus = filterStatus === 'all' || flow.status === filterStatus
+    
+    const matchesWhatsApp = !filterWhatsApp || (flow.whatsapp_numbers && flow.whatsapp_numbers.length > 0)
 
-    return matchesSearch && matchesStatus
+    return matchesSearch && matchesStatus && matchesWhatsApp
   })
   
   console.log('🔍 Filtered flows:', filteredFlows.length, 'flows')
@@ -620,6 +623,15 @@ export default function FlowsPage() {
             
             <div className="flex gap-2">
               <Button
+                variant={filterWhatsApp ? 'success' : 'outline'}
+                size="sm"
+                onClick={() => setFilterWhatsApp(!filterWhatsApp)}
+                className={filterWhatsApp ? 'bg-green-500 hover:bg-green-600 text-white' : ''}
+              >
+                <Phone className="h-4 w-4 mr-1" />
+                WhatsApp
+              </Button>
+              <Button
                 variant={filterStatus === 'all' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setFilterStatus('all')}
@@ -683,7 +695,23 @@ export default function FlowsPage() {
           ) : viewMode === 'cards' ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredFlows.map((flow) => (
-                <Card key={flow.id} className="hover:shadow-lg transition-shadow">
+                <Card key={flow.id} className="hover:shadow-lg transition-shadow relative">
+                  {/* Indicador de WhatsApp vinculado */}
+                  {flow.whatsapp_numbers && flow.whatsapp_numbers.length > 0 && (
+                    <div 
+                      className="absolute top-2 right-2 z-10"
+                      title={`WhatsApp: ${flow.whatsapp_numbers.join(', ')}`}
+                    >
+                      <Badge 
+                        variant="success" 
+                        className="bg-green-500 text-white hover:bg-green-600 cursor-help"
+                      >
+                        <Phone className="h-3 w-3 mr-1" />
+                        {flow.whatsapp_numbers.length}
+                      </Badge>
+                    </div>
+                  )}
+                  
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -732,6 +760,26 @@ export default function FlowsPage() {
                         <span className="text-muted-foreground">Gatilho:</span>
                         <span className="font-medium">{getTriggerFromFlow(flow)}</span>
                       </div>
+                      
+                      {flow.whatsapp_numbers && flow.whatsapp_numbers.length > 0 && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <Phone className="h-4 w-4 text-green-600 mt-0.5" />
+                          <div className="flex-1">
+                            <span className="text-muted-foreground">WhatsApp:</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {flow.whatsapp_numbers.map((number: string) => (
+                                <Badge 
+                                  key={number}
+                                  variant="secondary" 
+                                  className="text-xs bg-green-50 text-green-700"
+                                >
+                                  {number}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="flex items-center gap-2 text-sm">
                         <Clock className="h-4 w-4 text-muted-foreground" />
@@ -851,6 +899,20 @@ export default function FlowsPage() {
                           <div>
                             <div className="font-medium flex items-center gap-2">
                               {flow.name}
+                              {flow.whatsapp_numbers && flow.whatsapp_numbers.length > 0 && (
+                                <div 
+                                  className="inline-flex items-center"
+                                  title={`WhatsApp: ${flow.whatsapp_numbers.join(', ')}`}
+                                >
+                                  <Badge 
+                                    variant="success" 
+                                    className="bg-green-500 text-white text-xs cursor-help"
+                                  >
+                                    <Phone className="h-3 w-3 mr-1" />
+                                    {flow.whatsapp_numbers.length}
+                                  </Badge>
+                                </div>
+                              )}
                               {flow.isLegacy && (
                                 <Badge variant="outline" className="text-xs bg-gray-50 text-gray-700 border-gray-300">
                                   📋 Legacy
