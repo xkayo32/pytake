@@ -539,6 +539,12 @@ function FlowEditor() {
       return
     }
     
+    // Primeiro salvar alterações se houver
+    if (isDirty) {
+      setNotification({ message: 'Salvando alterações antes de ativar...', type: 'info' })
+      await handleSave()
+    }
+    
     // Primeiro, garantir que o flow está salvo
     if (!flow || !flow.id || flow.id.startsWith('flow-')) {
       setNotification({ message: 'Salvando flow antes de ativar...', type: 'info' })
@@ -639,13 +645,31 @@ function FlowEditor() {
       
       const currentFlowData = flow || useFlowEditorStore.getState().flow
       
+      // IMPORTANTE: Usar os nodes e edges do flow salvo ou do estado atual
+      const flowNodes = currentFlowData.flow?.nodes || currentFlowData.nodes || nodes
+      const flowEdges = currentFlowData.flow?.edges || currentFlowData.edges || edges
+      
+      // Verificar se temos conteúdo
+      if (flowNodes.length === 0) {
+        console.error('❌ Tentativa de ativar flow sem nodes')
+        setNotification({ 
+          message: 'Flow precisa ter pelo menos um nó para ser ativado', 
+          type: 'error' 
+        })
+        setTimeout(() => setNotification(null), 3000)
+        return
+      }
+      
       // Criar novo flow com status active
       const activeFlowData = {
         name: currentFlowData.name || 'Novo Flow',
         description: currentFlowData.description || '',
         status: 'active',
         whatsappNumbers: selectedWhatsAppNumbers,
-        flow: { nodes, edges },
+        flow: { 
+          nodes: flowNodes, 
+          edges: flowEdges 
+        },
         trigger: currentFlowData.trigger || {
           type: 'keyword',
           config: {}
@@ -690,22 +714,33 @@ function FlowEditor() {
       const activatedFlow = await createResponse.json()
       const newFlowId = activatedFlow.id
       
-      console.log('✅ Flow ativo criado com sucesso, ID:', newFlowId)
+      console.log('✅ Flow ativo criado com sucesso:', {
+        id: newFlowId,
+        nodes: flowNodes.length,
+        edges: flowEdges.length
+      })
       
-      // Atualizar estado local com o novo flow
+      // IMPORTANTE: Atualizar estado local com o flow e preservar nodes/edges
       useFlowEditorStore.setState({
         flow: {
           ...activatedFlow,
-          id: newFlowId
+          id: newFlowId,
+          flow: { nodes: flowNodes, edges: flowEdges }
         },
+        nodes: flowNodes,
+        edges: flowEdges,
         isDirty: false
       })
       
       // Se o ID mudou, redirecionar para o novo flow
       if (newFlowId !== flowId) {
         console.log('🔄 Redirecionando para o novo flow ativo')
-        // Salvar no sessionStorage para carregar na nova página
-        sessionStorage.setItem('load_flow', JSON.stringify(activatedFlow))
+        // Salvar no sessionStorage para carregar na nova página com conteúdo completo
+        const fullFlow = {
+          ...activatedFlow,
+          flow: { nodes: flowNodes, edges: flowEdges }
+        }
+        sessionStorage.setItem('load_flow', JSON.stringify(fullFlow))
         router.push(`/flows/${newFlowId}/edit`)
       }
       
@@ -724,7 +759,7 @@ function FlowEditor() {
       })
       setTimeout(() => setNotification(null), 3000)
     }
-  }, [flow, flowId, validateFlow, selectedWhatsAppNumbers, nodes, edges])
+  }, [flow, flowId, validateFlow, selectedWhatsAppNumbers, nodes, edges, isDirty, handleSave])
   
   const handleDeactivateFlow = useCallback(async () => {
     // Primeiro salvar o estado atual antes de desativar
