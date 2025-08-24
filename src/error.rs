@@ -31,6 +31,8 @@ impl fmt::Display for AppError {
     }
 }
 
+impl std::error::Error for AppError {}
+
 impl ResponseError for AppError {
     fn error_response(&self) -> HttpResponse {
         match self {
@@ -120,5 +122,14 @@ impl From<reqwest::Error> for AppError {
 impl From<std::env::VarError> for AppError {
     fn from(err: std::env::VarError) -> Self {
         AppError::InternalServerError(format!("Environment variable error: {}", err))
+    }
+}
+
+impl From<sqlx::Error> for AppError {
+    fn from(err: sqlx::Error) -> Self {
+        match err {
+            sqlx::Error::RowNotFound => AppError::NotFound("Resource not found".to_string()),
+            _ => AppError::DatabaseError(format!("Database error: {}", err)),
+        }
     }
 }

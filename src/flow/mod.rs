@@ -9,6 +9,10 @@ pub mod session;
 pub mod webhook;
 pub mod examples;
 
+// Re-export commonly used types
+pub use engine::FlowEngine;
+pub use session::FlowSessionManager;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlowSession {
     pub id: String,

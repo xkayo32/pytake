@@ -5,7 +5,7 @@ use actix_web_httpauth::extractors::AuthenticationError;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use std::future::{ready, Ready};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,      // Subject (user id)
     pub email: String,    // User email

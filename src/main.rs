@@ -7,9 +7,11 @@ mod whatsapp;
 mod api;
 mod auth;
 mod error;
+mod database;
 
 use flow::{FlowEngine, session::FlowSessionManager};
 use whatsapp::WhatsAppService;
+use database::create_connection_pool;
 
 #[actix_web::main]
 async fn main() -> Result<()> {
@@ -18,6 +20,9 @@ async fn main() -> Result<()> {
 
     // Carregar variáveis de ambiente
     dotenv::dotenv().ok();
+
+    // Inicializar conexão com PostgreSQL
+    let db_pool = Arc::new(create_connection_pool().await?);
 
     // Configurar Redis URL
     let redis_url = std::env::var("REDIS_URL")
@@ -47,8 +52,9 @@ async fn main() -> Result<()> {
             .app_data(web::Data::new(flow_engine.clone()))
             .app_data(web::Data::new(whatsapp_service.clone()))
             .app_data(web::Data::new(session_manager.clone()))
+            .app_data(web::Data::new(db_pool.clone()))
             .wrap(Logger::default())
-            .configure(api::flows::configure_routes)
+            .configure(api::flows_simple::configure_routes)
             .configure(api::webhook::configure_webhook_routes)
             .route("/health", web::get().to(health_check))
             .route("/", web::get().to(index))

@@ -38,8 +38,7 @@ import {
   SkipForward,
   ChevronRight,
   ArrowLeft,
-  Home,
-  Package
+  Home
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -54,7 +53,6 @@ export default function FlowTestPage() {
   const flowId = params.id as string
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
-  // Estados principais
   const [flow, setFlow] = useState<any>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [inputMessage, setInputMessage] = useState('')
@@ -68,8 +66,6 @@ export default function FlowTestPage() {
   const [breakpoints, setBreakpoints] = useState<Set<string>>(new Set())
   const [testMode, setTestMode] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  // Estados do sistema mock
   const [isWaitingForInput, setIsWaitingForInput] = useState(false)
   const [waitingInputType, setWaitingInputType] = useState<string | null>(null)
   const [executionEngine, setExecutionEngine] = useState<FlowExecutionEngine | null>(null)
@@ -84,14 +80,6 @@ export default function FlowTestPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
-
-  // Atualizar estados baseado no execution engine
-  useEffect(() => {
-    if (executionEngine) {
-      setCurrentNodeId(executionEngine.currentNodeId)
-      setExecutionPath(executionEngine.executionPath)
-    }
-  }, [executionEngine])
   
   const initializeMockEngine = (mockFlow: any) => {
     const engine = new FlowExecutionEngine(mockFlow)
@@ -126,7 +114,7 @@ export default function FlowTestPage() {
   
   const loadFlow = async () => {
     try {
-      console.log('🔄 Carregando flow:', flowId)
+      console.log('🔄 Carregando flow do backend:', flowId)
       
       // Verificar se é um flow mock
       if (isMockFlow(flowId)) {
@@ -216,39 +204,28 @@ export default function FlowTestPage() {
     setDebugLogs([])
     setExecutionPath([])
     setCurrentNodeId(null)
-    setIsWaitingForInput(false)
-    setWaitingInputType(null)
     
-    if (isMockMode && executionEngine) {
-      // Usar execution engine para modo mock
-      try {
-        await executionEngine.startFlow()
-      } catch (error) {
-        addDebugLog('system', 'Sistema', 'system', 'error', `Erro na execução: ${error}`)
-      }
+    // Encontrar nó inicial (trigger)
+    const nodes = flow?.flow?.nodes || flow?.nodes || []
+    const edges = flow?.flow?.edges || flow?.edges || []
+    
+    const triggerNode = nodes.find((n: any) => 
+      n.type === 'trigger_keyword' || 
+      n.type === 'trigger_template_button' ||
+      n.type === 'trigger_webhook'
+    )
+    
+    if (triggerNode) {
+      addDebugLog(triggerNode.id, triggerNode.data.label || 'Trigger', triggerNode.type, 'running', 'Iniciando flow...')
+      await executeNode(triggerNode)
     } else {
-      // Modo backend - execução legacy
-      const nodes = flow?.flow?.nodes || flow?.nodes || []
-      
-      const triggerNode = nodes.find((n: any) => 
-        n.type === 'trigger_keyword' || 
-        n.type === 'trigger_template_button' ||
-        n.type === 'trigger_webhook'
-      )
-      
-      if (triggerNode) {
-        addDebugLog(triggerNode.id, triggerNode.data.label || 'Trigger', triggerNode.type, 'running', 'Iniciando flow...')
-        await executeNodeLegacy(triggerNode)
-      } else {
-        addDebugLog('error', 'Sistema', 'system', 'error', 'Nenhum trigger encontrado no flow')
-      }
+      addDebugLog('error', 'Sistema', 'system', 'error', 'Nenhum trigger encontrado no flow')
     }
     
     setIsExecuting(false)
   }
-
-  // Execução legacy para modo backend
-  const executeNodeLegacy = async (node: any) => {
+  
+  const executeNode = async (node: any) => {
     setCurrentNodeId(node.id)
     setExecutionPath(prev => [...prev, node.id])
     
@@ -262,21 +239,22 @@ export default function FlowTestPage() {
     const startTime = Date.now()
     
     try {
+      // Simular execução baseada no tipo de nó
       switch (node.type) {
         case 'message':
-          await handleMessageNodeLegacy(node)
+          await handleMessageNode(node)
           break
         case 'condition':
-          await handleConditionNodeLegacy(node)
+          await handleConditionNode(node)
           break
         case 'delay':
-          await handleDelayNodeLegacy(node)
+          await handleDelayNode(node)
           break
         case 'api':
-          await handleApiNodeLegacy(node)
+          await handleApiNode(node)
           break
         case 'assign_variable':
-          await handleVariableNodeLegacy(node)
+          await handleVariableNode(node)
           break
         default:
           addDebugLog(node.id, node.data.label, node.type, 'skipped', 'Tipo de nó não implementado')
@@ -293,7 +271,7 @@ export default function FlowTestPage() {
       if (nextEdge) {
         const nextNode = nodes.find((n: any) => n.id === nextEdge.target)
         if (nextNode && !isPaused) {
-          await executeNodeLegacy(nextNode)
+          await executeNode(nextNode)
         }
       }
     } catch (error) {
@@ -301,8 +279,7 @@ export default function FlowTestPage() {
     }
   }
   
-  // Handlers legacy para backend
-  const handleMessageNodeLegacy = async (node: any) => {
+  const handleMessageNode = async (node: any) => {
     const message = node.data.message || 'Mensagem de teste'
     const processedMessage = processVariables(message)
     
@@ -312,23 +289,25 @@ export default function FlowTestPage() {
     
     addMessage('bot', processedMessage, node.id)
   }
-
-  const handleConditionNodeLegacy = async (node: any) => {
+  
+  const handleConditionNode = async (node: any) => {
     const condition = node.data.condition
     addDebugLog(node.id, node.data.label, 'condition', 'running', `Avaliando condição: ${condition}`)
+    // Simular avaliação de condição
   }
-
-  const handleDelayNodeLegacy = async (node: any) => {
+  
+  const handleDelayNode = async (node: any) => {
     const delay = node.data.delay || 1000
     addDebugLog(node.id, node.data.label, 'delay', 'running', `Aguardando ${delay}ms`)
     await new Promise(resolve => setTimeout(resolve, delay))
   }
-
-  const handleApiNodeLegacy = async (node: any) => {
+  
+  const handleApiNode = async (node: any) => {
     addDebugLog(node.id, node.data.label, 'api', 'running', `Chamando API: ${node.data.url}`)
+    // Simular chamada API
   }
-
-  const handleVariableNodeLegacy = async (node: any) => {
+  
+  const handleVariableNode = async (node: any) => {
     const varName = node.data.variableName
     const varValue = node.data.variableValue
     
@@ -354,74 +333,29 @@ export default function FlowTestPage() {
     return processed
   }
   
-  const sendMessage = async () => {
+  const sendMessage = () => {
     if (!inputMessage.trim()) return
     
-    const userInput = inputMessage.trim()
+    addMessage('user', inputMessage)
     setInputMessage('')
     
-    if (isMockMode && executionEngine) {
-      // Usar execution engine para processar input
-      if (executionEngine.isWaitingForInput) {
-        if (executionEngine.waitingInputType === 'text') {
-          await executionEngine.handleUserInput(userInput)
-        }
-      } else {
-        // Se não está esperando input, adicionar mensagem do usuário e simular resposta
-        addMessage('user', userInput)
-        
-        // Verificar se é comando para reiniciar (oi, olá, menu, etc.)
-        const triggerKeywords = ['oi', 'olá', 'hello', 'start', 'começar', 'ajuda', 'menu']
-        if (triggerKeywords.some(keyword => userInput.toLowerCase().includes(keyword))) {
-          setTimeout(async () => {
-            await startFlow()
-          }, 500)
-        } else {
-          // Resposta padrão
-          setTimeout(() => {
-            setIsTyping(true)
-            setTimeout(() => {
-              setIsTyping(false)
-              addMessage('bot', '🤔 Não entendi. Digite "menu" para ver as opções disponíveis.')
-            }, 1500)
-          }, 500)
-        }
-      }
-    } else {
-      // Modo backend - comportamento original
-      addMessage('user', userInput)
-      
+    // Simular resposta do bot
+    setTimeout(() => {
+      setIsTyping(true)
       setTimeout(() => {
-        setIsTyping(true)
-        setTimeout(() => {
-          setIsTyping(false)
-          addMessage('bot', 'Esta é uma resposta simulada do flow')
-        }, 1500)
-      }, 500)
-    }
+        setIsTyping(false)
+        addMessage('bot', 'Esta é uma resposta simulada do flow')
+      }, 1500)
+    }, 500)
   }
   
-  const handleButtonClick = async (buttonId: string) => {
-    if (isMockMode && executionEngine && executionEngine.isWaitingForInput) {
-      await executionEngine.handleButtonClick(buttonId)
-    }
-  }
-  
-  const handleListSelection = async (itemId: string) => {
-    if (isMockMode && executionEngine && executionEngine.isWaitingForInput) {
-      await executionEngine.handleListSelection(itemId)
-    }
-  }
-  
-  const addMessage = (sender: 'user' | 'bot', content: string, nodeId?: string, type: Message['type'] = 'text', buttons?: any[], listItems?: any[]) => {
+  const addMessage = (sender: 'user' | 'bot', content: string, nodeId?: string) => {
     const message: Message = {
       id: `msg-${Date.now()}`,
       sender,
       content,
       timestamp: new Date(),
-      type,
-      buttons,
-      listItems,
+      type: 'text',
       nodeId
     }
     setMessages(prev => [...prev, message])
@@ -459,7 +393,7 @@ export default function FlowTestPage() {
       const nodes = flow?.flow?.nodes || flow?.nodes || []
       const currentNode = nodes.find((n: any) => n.id === currentNodeId)
       if (currentNode) {
-        executeNodeLegacy(currentNode)
+        executeNode(currentNode)
       }
     }
   }
@@ -472,8 +406,6 @@ export default function FlowTestPage() {
     setCurrentNodeId(null)
     setIsExecuting(false)
     setIsPaused(false)
-    setIsWaitingForInput(false)
-    setWaitingInputType(null)
     loadFlow()
   }
   
@@ -485,8 +417,6 @@ export default function FlowTestPage() {
         return <CheckCircle className="h-3 w-3 text-green-500" />
       case 'error':
         return <AlertCircle className="h-3 w-3 text-red-500" />
-      case 'waiting':
-        return <Clock className="h-3 w-3 text-yellow-500" />
       case 'skipped':
         return <Clock className="h-3 w-3 text-gray-400" />
     }
@@ -514,9 +444,7 @@ export default function FlowTestPage() {
             <div>
               <h2 className="font-semibold">{flow?.name || 'Flow de Teste'}</h2>
               <p className="text-xs opacity-90">
-                {isTyping ? 'digitando...' : 
-                 isExecuting ? 'executando flow...' : 
-                 isWaitingForInput ? `aguardando ${waitingInputType}...` : 'online'}
+                {isTyping ? 'digitando...' : isExecuting ? 'executando flow...' : 'online'}
               </p>
             </div>
           </div>
@@ -550,19 +478,6 @@ export default function FlowTestPage() {
               <div>
                 <p className="font-medium">Erro ao carregar flow</p>
                 <p className="text-sm">{error}</p>
-                {isMockFlow(flowId) && (
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="mt-2"
-                    onClick={() => {
-                      setError(null)
-                      loadFlow()
-                    }}
-                  >
-                    Tentar Modo Mock
-                  </Button>
-                )}
               </div>
             </div>
           </div>
@@ -581,80 +496,26 @@ export default function FlowTestPage() {
               >
                 <div
                   className={cn(
-                    "max-w-[80%] rounded-lg px-4 py-2 shadow-sm",
+                    "max-w-[70%] rounded-lg px-4 py-2 shadow-sm",
                     message.sender === 'user'
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-card text-card-foreground border'
                   )}
                 >
-                  <p className="text-sm whitespace-pre-line">{message.content}</p>
-                  
-                  {/* Render buttons */}
-                  {message.type === 'buttons' && message.buttons && (
-                    <div className="mt-3 space-y-2">
-                      {message.buttons.map((button) => (
-                        <Button
-                          key={button.id}
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start text-left h-auto py-3 px-4"
-                          onClick={() => handleButtonClick(button.id)}
-                          disabled={!isWaitingForInput || waitingInputType !== 'button'}
-                        >
-                          <div className="text-left">
-                            <div className="font-medium">{button.text}</div>
-                            {button.description && (
-                              <div className="text-xs opacity-70 mt-1">{button.description}</div>
-                            )}
-                          </div>
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Render list items */}
-                  {message.type === 'list' && message.listItems && (
-                    <div className="mt-3 space-y-1">
-                      <div className="text-xs opacity-70 mb-2">Escolha uma opção:</div>
-                      {message.listItems.map((item) => (
-                        <Button
-                          key={item.id}
-                          variant="ghost"
-                          size="sm"
-                          className="w-full justify-start text-left h-auto py-3 px-3 hover:bg-muted border-l-2 border-l-primary/20"
-                          onClick={() => handleListSelection(item.id)}
-                          disabled={!isWaitingForInput || waitingInputType !== 'list'}
-                        >
-                          <div className="text-left">
-                            <div className="font-medium text-sm">{item.title}</div>
-                            {item.description && (
-                              <div className="text-xs opacity-70 mt-1">{item.description}</div>
-                            )}
-                          </div>
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                  
-                  <p className="text-xs opacity-60 mt-2 flex items-center justify-between">
-                    <span>{message.timestamp.toLocaleTimeString()}</span>
-                    {message.nodeId && (
-                      <span className="font-mono text-xs bg-black/10 px-1 rounded">
-                        {message.nodeId.slice(0, 8)}
-                      </span>
-                    )}
+                  <p className="text-sm">{message.content}</p>
+                  <p className="text-xs opacity-60 mt-1">
+                    {message.timestamp.toLocaleTimeString()}
                   </p>
                 </div>
               </div>
             ))}
             {isTyping && (
               <div className="flex justify-start">
-                <div className="bg-card text-card-foreground rounded-lg px-4 py-3 shadow-sm border">
-                  <div className="flex gap-1 items-center">
+                <div className="bg-card text-card-foreground rounded-lg px-4 py-2 shadow-sm border">
+                  <div className="flex gap-1">
                     <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
                     <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-75" />
                     <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-150" />
-                    <span className="ml-2 text-xs text-muted-foreground">digitando...</span>
                   </div>
                 </div>
               </div>
@@ -676,33 +537,13 @@ export default function FlowTestPage() {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-              placeholder={
-                isWaitingForInput && waitingInputType === 'text' 
-                  ? "Digite sua resposta..." 
-                  : isWaitingForInput 
-                    ? `Aguardando seleção...`
-                    : "Digite uma mensagem..."
-              }
+              placeholder="Digite uma mensagem..."
               className="flex-1"
-              disabled={isWaitingForInput && waitingInputType !== 'text'}
             />
-            <Button 
-              onClick={sendMessage} 
-              size="icon"
-              disabled={isWaitingForInput && waitingInputType !== 'text'}
-            >
+            <Button onClick={sendMessage} size="icon">
               {inputMessage ? <Send className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
             </Button>
           </div>
-          
-          {isWaitingForInput && (
-            <div className="mt-2 text-xs text-muted-foreground flex items-center gap-2">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Aguardando {waitingInputType === 'button' ? 'seleção de botão' : 
-                         waitingInputType === 'list' ? 'seleção da lista' : 
-                         waitingInputType === 'text' ? 'entrada de texto' : 'entrada do usuário'}
-            </div>
-          )}
         </div>
       </div>
       
@@ -715,23 +556,9 @@ export default function FlowTestPage() {
               <Bug className="h-5 w-5" />
               Debug Console
             </h3>
-            <div className="flex gap-2">
-              <Badge variant={testMode ? 'default' : 'destructive'}>
-                {testMode ? 'Modo Teste' : 'Modo Produção'}
-              </Badge>
-              <Badge variant={isMockMode ? 'secondary' : 'outline'} className="flex items-center gap-1">
-                {isMockMode ? (
-                  <>
-                    <Package className="h-3 w-3" />
-                    Mock
-                  </>
-                ) : (
-                  <>
-                    🌐 Backend
-                  </>
-                )}
-              </Badge>
-            </div>
+            <Badge variant={testMode ? 'default' : 'destructive'}>
+              {testMode ? 'Modo Teste' : 'Modo Produção'}
+            </Badge>
           </div>
           <div className="flex gap-2">
             <Button
@@ -741,7 +568,7 @@ export default function FlowTestPage() {
               className="flex-1"
             >
               <Play className="h-4 w-4 mr-1" />
-              {isExecuting ? 'Executando...' : 'Iniciar'}
+              Iniciar
             </Button>
             {isPaused && (
               <Button
@@ -803,13 +630,6 @@ export default function FlowTestPage() {
                     </div>
                   </Card>
                 ))}
-                {debugLogs.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Bug className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>Nenhum log ainda</p>
-                    <p className="text-xs">Clique em "Iniciar" para começar</p>
-                  </div>
-                )}
               </div>
             </ScrollArea>
           </TabsContent>
@@ -824,18 +644,12 @@ export default function FlowTestPage() {
                         <p className="font-mono text-sm font-medium">{variable.name}</p>
                         <p className="text-xs text-muted-foreground">{variable.type}</p>
                       </div>
-                      <Badge variant="secondary" className="font-mono max-w-32 truncate">
+                      <Badge variant="secondary" className="font-mono">
                         {JSON.stringify(variable.value)}
                       </Badge>
                     </div>
                   </Card>
                 ))}
-                {variables.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Variable className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>Nenhuma variável</p>
-                  </div>
-                )}
               </div>
             </ScrollArea>
           </TabsContent>
@@ -862,7 +676,7 @@ export default function FlowTestPage() {
                               breakpoints.has(nodeId) && "border-red-500"
                             )}
                           >
-                            {node?.data?.label || nodeId.slice(0, 8)}
+                            {node?.data?.label || nodeId}
                           </Badge>
                           {breakpoints.has(nodeId) && (
                             <PauseCircle className="h-3 w-3 text-red-500" />
@@ -870,9 +684,6 @@ export default function FlowTestPage() {
                         </div>
                       )
                     })}
-                    {executionPath.length === 0 && (
-                      <p className="text-sm text-muted-foreground">Nenhum nó executado</p>
-                    )}
                   </div>
                 </Card>
                 
@@ -885,10 +696,7 @@ export default function FlowTestPage() {
                     {(flow?.flow?.nodes || flow?.nodes || []).map((node: any) => (
                       <div
                         key={node.id}
-                        className={cn(
-                          "flex items-center justify-between p-2 rounded hover:bg-muted/50 transition-colors",
-                          currentNodeId === node.id && "bg-primary/10 border border-primary/20"
-                        )}
+                        className="flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
                       >
                         <div className="flex items-center gap-2">
                           <Button
@@ -896,7 +704,6 @@ export default function FlowTestPage() {
                             size="icon"
                             className="h-6 w-6"
                             onClick={() => toggleBreakpoint(node.id)}
-                            title={breakpoints.has(node.id) ? "Remover breakpoint" : "Adicionar breakpoint"}
                           >
                             {breakpoints.has(node.id) ? (
                               <PauseCircle className="h-4 w-4 text-red-500" />
@@ -904,7 +711,7 @@ export default function FlowTestPage() {
                               <PlayCircle className="h-4 w-4" />
                             )}
                           </Button>
-                          <span className="text-sm">{node.data?.label || node.id.slice(0, 10)}</span>
+                          <span className="text-sm">{node.data?.label || node.id}</span>
                         </div>
                         <Badge variant="outline" className="text-xs">
                           {node.type}
@@ -938,39 +745,19 @@ export default function FlowTestPage() {
               </Card>
               
               <Card className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">Sistema Mock</h4>
-                    <p className="text-xs text-muted-foreground">
-                      {isMockMode ? 'Usando dados mock offline' : 'Conectado ao backend'}
-                    </p>
+                <h4 className="font-medium mb-3">Configurações de Debug</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Mostrar timestamps</span>
+                    <Button variant="outline" size="sm">Ativado</Button>
                   </div>
-                  <Badge variant={isMockMode ? 'secondary' : 'outline'}>
-                    {isMockMode ? '📦 Mock' : '🌐 Backend'}
-                  </Badge>
-                </div>
-              </Card>
-              
-              <Card className="p-4">
-                <h4 className="font-medium mb-3">Flow Info</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>ID:</span>
-                    <code className="text-xs bg-muted px-1 rounded">
-                      {flowId?.slice(0, 8)}...
-                    </code>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Log detalhado</span>
+                    <Button variant="outline" size="sm">Ativado</Button>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Nome:</span>
-                    <span>{flow?.name || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Nós:</span>
-                    <span>{(flow?.flow?.nodes || flow?.nodes || []).length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Edges:</span>
-                    <span>{(flow?.flow?.edges || flow?.edges || []).length}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Auto-scroll logs</span>
+                    <Button variant="outline" size="sm">Ativado</Button>
                   </div>
                 </div>
               </Card>
