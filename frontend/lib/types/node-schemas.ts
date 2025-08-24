@@ -723,8 +723,8 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
   },
 
   // ========== LOGIC NODES ==========
-  'condition_if': {
-    id: 'condition_if',
+  'logic_condition': {
+    id: 'logic_condition',
     name: 'Condição Se',
     category: 'logic',
     icon: 'GitBranch',
@@ -772,8 +772,8 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
     }
   },
 
-  'condition_switch': {
-    id: 'condition_switch',
+  'logic_switch': {
+    id: 'logic_switch',
     name: 'Switch Múltiplo',
     category: 'logic',
     icon: 'ToggleLeft',
@@ -810,8 +810,8 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
   },
 
   // ========== FLOW CONTROL NODES ==========
-  'flow_delay': {
-    id: 'flow_delay',
+  'logic_wait': {
+    id: 'logic_wait',
     name: 'Aguardar',
     category: 'flow',
     icon: 'Clock',
@@ -916,6 +916,276 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
       saveConversation: {
         type: 'boolean',
         label: 'Salvar conversa',
+        defaultValue: true
+      }
+    }
+  },
+
+  // ========== MESSAGE NODES ==========
+  'msg_location': {
+    id: 'msg_location',
+    name: 'Localização',
+    category: 'message',
+    icon: 'MapPin',
+    color: '#3b82f6',
+    description: 'Envia localização no WhatsApp',
+    inputs: 1,
+    outputs: 1,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Enviar localização loja',
+        required: false
+      },
+      latitude: {
+        type: 'text',
+        label: 'Latitude',
+        placeholder: '-23.550520',
+        required: true,
+        supportsVariables: true
+      },
+      longitude: {
+        type: 'text',
+        label: 'Longitude',
+        placeholder: '-46.633308',
+        required: true,
+        supportsVariables: true
+      },
+      name: {
+        type: 'text',
+        label: 'Nome do local',
+        placeholder: 'Loja Principal',
+        required: false,
+        supportsVariables: true
+      },
+      address: {
+        type: 'text',
+        label: 'Endereço',
+        placeholder: 'Rua das Flores, 123 - São Paulo, SP',
+        required: false,
+        supportsVariables: true
+      }
+    }
+  },
+
+  'msg_buttons': {
+    id: 'msg_buttons',
+    name: 'Botões',
+    category: 'message',
+    icon: 'MousePointer',
+    color: '#3b82f6',
+    description: 'Mensagem com botões interativos',
+    inputs: 1,
+    outputs: 1,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Menu principal',
+        required: false
+      },
+      message: {
+        type: 'textarea',
+        label: 'Mensagem',
+        placeholder: 'Selecione uma opção:',
+        required: true,
+        supportsVariables: true
+      },
+      buttons: {
+        type: 'json',
+        label: 'Botões',
+        placeholder: '[\n  {"id": "option1", "text": "Opção 1"},\n  {"id": "option2", "text": "Opção 2"},\n  {"id": "option3", "text": "Opção 3"}\n]',
+        required: true
+      }
+    }
+  },
+
+  'msg_list': {
+    id: 'msg_list',
+    name: 'Lista',
+    category: 'message',
+    icon: 'List',
+    color: '#3b82f6',
+    description: 'Lista interativa de opções',
+    inputs: 1,
+    outputs: 1,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Catálogo de produtos',
+        required: false
+      },
+      message: {
+        type: 'textarea',
+        label: 'Mensagem',
+        placeholder: 'Escolha um produto:',
+        required: true,
+        supportsVariables: true
+      },
+      buttonText: {
+        type: 'text',
+        label: 'Texto do botão',
+        placeholder: 'Ver opções',
+        required: true
+      },
+      sections: {
+        type: 'json',
+        label: 'Seções da lista',
+        placeholder: '[\n  {\n    "title": "Produtos",\n    "rows": [\n      {"id": "prod1", "title": "Produto 1", "description": "Descrição do produto 1"},\n      {"id": "prod2", "title": "Produto 2", "description": "Descrição do produto 2"}\n    ]\n  }\n]',
+        required: true
+      }
+    }
+  },
+
+  // ========== LOGIC NODES ==========
+  'logic_loop': {
+    id: 'logic_loop',
+    name: 'Loop',
+    category: 'logic',
+    icon: 'RefreshCw',
+    color: '#a855f7',
+    description: 'Repete ações para cada item de uma lista',
+    inputs: 1,
+    outputs: 2,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Para cada cliente',
+        required: false
+      },
+      array: {
+        type: 'text',
+        label: 'Array/Lista',
+        placeholder: '{{clientes}}',
+        required: true,
+        supportsVariables: true
+      },
+      itemVariable: {
+        type: 'text',
+        label: 'Nome da variável do item',
+        placeholder: 'cliente_atual',
+        required: true
+      },
+      maxIterations: {
+        type: 'number',
+        label: 'Máximo de iterações',
+        placeholder: '100',
+        defaultValue: 100
+      }
+    }
+  },
+
+  'logic_random': {
+    id: 'logic_random',
+    name: 'Aleatório',
+    category: 'logic',
+    icon: 'Shuffle',
+    color: '#a855f7',
+    description: 'Seleciona aleatoriamente uma das saídas',
+    inputs: 1,
+    outputs: 3,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Resposta aleatória',
+        required: false
+      },
+      option1Weight: {
+        type: 'number',
+        label: 'Peso da opção 1',
+        placeholder: '33',
+        defaultValue: 33
+      },
+      option2Weight: {
+        type: 'number',
+        label: 'Peso da opção 2',
+        placeholder: '33',
+        defaultValue: 33
+      },
+      option3Weight: {
+        type: 'number',
+        label: 'Peso da opção 3',
+        placeholder: '34',
+        defaultValue: 34
+      }
+    }
+  },
+
+  // ========== DATABASE NODES ==========
+  'db_update': {
+    id: 'db_update',
+    name: 'Atualizar',
+    category: 'database',
+    icon: 'Edit',
+    color: '#059669',
+    description: 'Atualiza registros no banco de dados',
+    inputs: 1,
+    outputs: 1,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Atualizar status cliente',
+        required: false
+      },
+      table: {
+        type: 'text',
+        label: 'Tabela',
+        placeholder: 'clientes',
+        required: true
+      },
+      data: {
+        type: 'json',
+        label: 'Dados para atualizar',
+        placeholder: '{\n  "status": "ativo",\n  "updated_at": "{{now}}"\n}',
+        required: true
+      },
+      where: {
+        type: 'text',
+        label: 'Condição WHERE',
+        placeholder: 'id = {{cliente.id}}',
+        required: true,
+        supportsVariables: true
+      }
+    }
+  },
+
+  'db_delete': {
+    id: 'db_delete',
+    name: 'Deletar',
+    category: 'database',
+    icon: 'Trash',
+    color: '#059669',
+    description: 'Remove registros do banco de dados',
+    inputs: 1,
+    outputs: 1,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Ex: Remover cliente inativo',
+        required: false
+      },
+      table: {
+        type: 'text',
+        label: 'Tabela',
+        placeholder: 'clientes',
+        required: true
+      },
+      where: {
+        type: 'text',
+        label: 'Condição WHERE',
+        placeholder: 'id = {{cliente.id}}',
+        required: true,
+        supportsVariables: true
+      },
+      confirmDelete: {
+        type: 'boolean',
+        label: 'Confirmar antes de deletar',
         defaultValue: true
       }
     }

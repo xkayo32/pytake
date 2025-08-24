@@ -1114,8 +1114,6 @@ export const nodeTypes = {
   logic_loop: BaseNode,
   logic_wait: BaseNode,
   logic_random: BaseNode,
-  condition_if: BaseNode,
-  condition_switch: BaseNode,
   // Flow control nodes
   flow_group: GroupNode,
   flow_subflow: BaseNode,
