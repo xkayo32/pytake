@@ -1064,7 +1064,13 @@ export const nodeTypes = {
   storage: BaseNode,
   transform: BaseNode,
   integration: BaseNode,
-  // Specialized nodes
+  // Trigger nodes
+  trigger_keyword: BaseNode,
+  trigger_webhook: BaseNode,
+  trigger_schedule: BaseNode,
+  trigger_template_button: TemplateButtonNode,
+  trigger_qrcode: BaseNode,
+  // Message nodes
   msg_text: BaseNode,
   msg_image: BaseNode,
   msg_audio: BaseNode,
@@ -1072,30 +1078,67 @@ export const nodeTypes = {
   msg_document: BaseNode,
   msg_template: BaseNode,
   msg_negotiation_template: NegotiationTemplateNode,
+  msg_location: BaseNode,
+  msg_buttons: BaseNode,
+  msg_list: BaseNode,
   // AI nodes
   ai_chatgpt: BaseNode,
   ai_claude: BaseNode,
   ai_gemini: BaseNode,
+  ai_llama: BaseNode,
+  ai_whisper: BaseNode,
+  ai_dalle: BaseNode,
   // API nodes
   api_rest: BaseNode,
   api_negotiation_queue: NegotiationQueueNode,
   api_start_negotiation_flow: BaseNode,
-  trigger_template_button: TemplateButtonNode,
-  // Logic nodes
-  condition_if: BaseNode,
-  condition_switch: BaseNode,
-  // Flow control nodes
-  flow_delay: BaseNode,
-  flow_goto: BaseNode,
-  flow_end: BaseNode,
-  // Data nodes
-  data_set: BaseNode,
-  data_get: BaseNode,
+  api_graphql: BaseNode,
+  api_soap: BaseNode,
+  api_webhook_send: BaseNode,
   // Database nodes
   db_query: BaseNode,
   db_insert: BaseNode,
+  db_update: BaseNode,
+  db_delete: BaseNode,
+  db_mongodb: BaseNode,
+  db_redis: BaseNode,
+  // Storage nodes
+  storage_upload: BaseNode,
+  storage_download: BaseNode,
+  storage_s3: BaseNode,
+  storage_gcs: BaseNode,
+  storage_ftp: BaseNode,
+  // Logic nodes
+  logic_condition: LogicNode,
+  logic_switch: BaseNode,
+  logic_loop: BaseNode,
+  logic_wait: BaseNode,
+  logic_random: BaseNode,
+  condition_if: BaseNode,
+  condition_switch: BaseNode,
+  // Flow control nodes
+  flow_group: GroupNode,
+  flow_subflow: BaseNode,
+  flow_goto: BaseNode,
+  flow_end: BaseNode,
+  flow_delay: BaseNode,
+  // Transform nodes
+  transform_json: BaseNode,
+  transform_csv: BaseNode,
+  transform_template: BaseNode,
+  transform_extract: BaseNode,
+  // Data nodes
+  data_set: BaseNode,
+  data_get: BaseNode,
   // Integration nodes
+  int_hubspot: BaseNode,
+  int_zapier: BaseNode,
+  int_slack: BaseNode,
   int_email: BaseNode,
+  int_sms: BaseNode,
+  int_calendar: BaseNode,
+  int_sheets: BaseNode,
+  int_payment: BaseNode,
 }
 
 GroupNode.displayName = 'GroupNode'

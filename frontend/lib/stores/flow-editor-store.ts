@@ -152,9 +152,19 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
     let nodeTypeForReactFlow = nodeType.category
     
     // Usar tipos customizados para nós especiais
-    if (nodeType.id === 'trigger_template_button') {
+    // TRIGGERS
+    if (nodeType.id === 'trigger_keyword') {
+      nodeTypeForReactFlow = 'trigger_keyword'
+    } else if (nodeType.id === 'trigger_webhook') {
+      nodeTypeForReactFlow = 'trigger_webhook'  
+    } else if (nodeType.id === 'trigger_schedule') {
+      nodeTypeForReactFlow = 'trigger_schedule'
+    } else if (nodeType.id === 'trigger_template_button') {
       nodeTypeForReactFlow = 'trigger_template_button'
       console.log('Creating TemplateButtonNode with type:', nodeTypeForReactFlow)
+    } else if (nodeType.id === 'trigger_qrcode') {
+      nodeTypeForReactFlow = 'trigger_qrcode'
+    // MESSAGES  
     } else if (nodeType.id === 'msg_negotiation_template') {
       nodeTypeForReactFlow = 'msg_negotiation_template'
     } else if (nodeType.id === 'msg_text') {
