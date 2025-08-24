@@ -80,6 +80,13 @@ export default function FlowTestPage() {
   const [executionEngine, setExecutionEngine] = useState<FlowExecutionEngine | null>(null)
   const [isMockMode, setIsMockMode] = useState(false)
   
+  // Estados para WhatsApp real
+  const [useRealWhatsApp, setUseRealWhatsApp] = useState(false)
+  const [whatsAppNumber, setWhatsAppNumber] = useState<string | null>(null)
+  const [isWhatsAppConnected, setIsWhatsAppConnected] = useState(false)
+  const [debugPanelWidth, setDebugPanelWidth] = useState(400)
+  const [isDebugCollapsed, setIsDebugCollapsed] = useState(false)
+  
   // Carregar flow
   useEffect(() => {
     loadFlow()
@@ -538,6 +545,22 @@ export default function FlowTestPage() {
     loadFlow()
   }
   
+  const checkWhatsAppConnection = async (number: string) => {
+    try {
+      // Verificar se o número está conectado ao WhatsApp
+      const response = await fetch(`/api/v1/whatsapp/status/${number}`)
+      if (response.ok) {
+        const data = await response.json()
+        setIsWhatsAppConnected(data.connected || false)
+      } else {
+        setIsWhatsAppConnected(false)
+      }
+    } catch (error) {
+      console.error('Erro ao verificar conexão WhatsApp:', error)
+      setIsWhatsAppConnected(false)
+    }
+  }
+  
   const getStatusIcon = (status: DebugLog['status']) => {
     switch (status) {
       case 'running':
@@ -594,9 +617,9 @@ export default function FlowTestPage() {
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Chat Simulator */}
-      <div className="flex-1 flex flex-col max-w-3xl overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* WhatsApp Header */}
-        <div className="bg-green-600 text-white p-4 flex items-center justify-between">
+        <div className="bg-green-600 text-white px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button 
               variant="ghost" 
@@ -610,10 +633,11 @@ export default function FlowTestPage() {
             <Avatar>
               <AvatarFallback className="bg-green-500 text-white text-lg">🤖</AvatarFallback>
             </Avatar>
-            <div>
-              <h2 className="font-semibold">{flow?.name || 'Flow de Teste'}</h2>
+            <div className="flex-1">
+              <h2 className="font-semibold text-sm">{flow?.name || 'Flow de Teste'}</h2>
               <p className="text-xs opacity-90">
-                {isTyping ? 'digitando...' : 
+                {useRealWhatsApp && whatsAppNumber ? `📱 ${whatsAppNumber}` :
+                 isTyping ? 'digitando...' : 
                  isExecuting ? 'executando flow...' : 
                  isWaitingForInput ? `aguardando ${waitingInputType}...` : 'online'}
               </p>
@@ -805,78 +829,126 @@ export default function FlowTestPage() {
         </div>
       </div>
       
-      {/* Debug Panel */}
-      <div className="w-[500px] border-l bg-background flex flex-col overflow-hidden">
+      {/* Debug Panel com largura ajustável */}
+      <div 
+        className={cn(
+          "border-l bg-background flex flex-col overflow-hidden transition-all duration-300",
+          isDebugCollapsed ? "w-12" : `w-[${debugPanelWidth}px]`
+        )}
+        style={{ width: isDebugCollapsed ? '48px' : `${debugPanelWidth}px` }}
+      >
+        {/* Botão para colapsar/expandir */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 bg-background border rounded-full h-6 w-6"
+          onClick={() => setIsDebugCollapsed(!isDebugCollapsed)}
+        >
+          {isDebugCollapsed ? 
+            <ChevronRight className="h-3 w-3" /> : 
+            <ChevronRight className="h-3 w-3 rotate-180" />
+          }
+        </Button>
+        
+        {!isDebugCollapsed && (
+        <>
         {/* Control Bar */}
-        <div className="p-4 border-b bg-muted/30">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Bug className="h-5 w-5" />
-              Debug Console
+        <div className="p-3 border-b bg-muted/30">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-medium text-sm flex items-center gap-2">
+              <Bug className="h-4 w-4" />
+              Debug
             </h3>
-            <div className="flex gap-2">
-              <Badge variant={testMode ? 'default' : 'destructive'}>
-                {testMode ? 'Modo Teste' : 'Modo Produção'}
+            <div className="flex gap-1">
+              <Badge variant={useRealWhatsApp ? 'success' : 'secondary'} className="text-xs px-2 py-0.5">
+                {useRealWhatsApp ? '📱 Real' : '🔧 Mock'}
               </Badge>
-              <Badge variant={isMockMode ? 'secondary' : 'outline'} className="flex items-center gap-1">
-                {isMockMode ? (
-                  <>
-                    <Package className="h-3 w-3" />
-                    Mock
-                  </>
-                ) : (
-                  <>
-                    🌐 Backend
-                  </>
-                )}
+              <Badge variant={testMode ? 'default' : 'destructive'} className="text-xs px-2 py-0.5">
+                {testMode ? 'Test' : 'Prod'}
               </Badge>
             </div>
           </div>
-          <div className="flex gap-2">
+          
+          {/* Toggle para WhatsApp Real */}
+          {flow?.whatsapp_numbers?.length > 0 && (
+            <div className="mb-3 p-2 bg-muted rounded-md">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-medium">Modo WhatsApp Real</label>
+                <Button
+                  variant={useRealWhatsApp ? "default" : "outline"}
+                  size="sm"
+                  className="h-6 text-xs"
+                  onClick={() => {
+                    setUseRealWhatsApp(!useRealWhatsApp)
+                    if (!useRealWhatsApp && flow?.whatsapp_numbers?.[0]) {
+                      setWhatsAppNumber(flow.whatsapp_numbers[0])
+                      checkWhatsAppConnection(flow.whatsapp_numbers[0])
+                    }
+                  }}
+                >
+                  {useRealWhatsApp ? 'Ativado' : 'Desativado'}
+                </Button>
+              </div>
+              {useRealWhatsApp && (
+                <select 
+                  className="w-full text-xs p-1 rounded border"
+                  value={whatsAppNumber || ''}
+                  onChange={(e) => {
+                    setWhatsAppNumber(e.target.value)
+                    checkWhatsAppConnection(e.target.value)
+                  }}
+                >
+                  {flow.whatsapp_numbers.map((num: string) => (
+                    <option key={num} value={num}>{num}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+          <div className="flex gap-1">
             <Button
               onClick={startFlow}
               disabled={isExecuting}
               size="sm"
-              className="flex-1"
+              className="flex-1 h-8"
             >
-              <Play className="h-4 w-4 mr-1" />
-              {isExecuting ? 'Executando...' : 'Iniciar'}
+              <Play className="h-3 w-3 mr-1" />
+              {isExecuting ? 'Run...' : 'Iniciar'}
             </Button>
             {isPaused && (
               <Button
                 onClick={continueExecution}
                 size="sm"
                 variant="outline"
-                className="flex-1"
+                className="flex-1 h-8"
               >
-                <PlayCircle className="h-4 w-4 mr-1" />
-                Continuar
+                <PlayCircle className="h-3 w-3" />
               </Button>
             )}
             <Button
               onClick={resetFlow}
               size="sm"
               variant="outline"
-              className="flex-1"
+              className="px-2 h-8"
+              title="Reiniciar"
             >
-              <RotateCcw className="h-4 w-4 mr-1" />
-              Reiniciar
+              <RotateCcw className="h-3 w-3" />
             </Button>
           </div>
         </div>
         
         {/* Debug Tabs */}
         <Tabs defaultValue="logs" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="logs">Logs</TabsTrigger>
-            <TabsTrigger value="variables">Variáveis</TabsTrigger>
-            <TabsTrigger value="flow">Flow</TabsTrigger>
-            <TabsTrigger value="settings">Config</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 h-9">
+            <TabsTrigger value="logs" className="text-xs">Logs</TabsTrigger>
+            <TabsTrigger value="variables" className="text-xs">Vars</TabsTrigger>
+            <TabsTrigger value="flow" className="text-xs">Flow</TabsTrigger>
+            <TabsTrigger value="settings" className="text-xs">Config</TabsTrigger>
           </TabsList>
           
           <TabsContent value="logs" className="flex-1 overflow-hidden">
             <ScrollArea className="h-full">
-              <div className="p-4 space-y-2">
+              <div className="p-2 space-y-1">
                 {getConsolidatedLogs().map((log) => {
                   const isExpanded = expandedLogs.has(log.id)
                   const nodeKey = log.nodeId || log.nodeName
@@ -887,7 +959,7 @@ export default function FlowTestPage() {
                     <Card 
                       key={log.id} 
                       className={cn(
-                        "p-3 transition-all cursor-pointer hover:bg-muted/50",
+                        "p-2 transition-all cursor-pointer hover:bg-muted/50",
                         isExpanded && "ring-1 ring-primary/20"
                       )}
                       onClick={() => toggleLogExpansion(log.id)}
@@ -957,8 +1029,8 @@ export default function FlowTestPage() {
           </TabsContent>
           
           <TabsContent value="variables" className="flex-1 overflow-hidden">
-            <ScrollArea className="h-full p-4">
-              <div className="space-y-2">
+            <ScrollArea className="h-full">
+              <div className="p-2 space-y-1">
                 {variables.map((variable) => (
                   <Card key={variable.name} className="p-3">
                     <div className="flex items-center justify-between">
@@ -983,8 +1055,8 @@ export default function FlowTestPage() {
           </TabsContent>
           
           <TabsContent value="flow" className="flex-1 overflow-hidden">
-            <ScrollArea className="h-full p-4">
-              <div className="space-y-2">
+            <ScrollArea className="h-full">
+              <div className="p-2 space-y-2">
                 <Card className="p-4">
                   <h4 className="font-medium mb-2 flex items-center gap-2">
                     <Map className="h-4 w-4" />
@@ -1119,7 +1191,10 @@ export default function FlowTestPage() {
             </div>
           </TabsContent>
         </Tabs>
+        </>
+        )}
       </div>
     </div>
   )
 }
+// Force recompile - Fixed Map issue with Next.js 15.4.6 and improved layout
