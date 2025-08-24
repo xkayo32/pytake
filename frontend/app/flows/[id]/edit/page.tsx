@@ -727,62 +727,126 @@ function FlowEditor() {
   }, [flow, flowId, validateFlow, selectedWhatsAppNumbers, nodes, edges])
   
   const handleDeactivateFlow = useCallback(async () => {
-    // Backend não tem rota PUT, criar novo flow com status inactive
+    // Primeiro salvar o estado atual antes de desativar
+    if (isDirty) {
+      setNotification({ message: 'Salvando alterações antes de desativar...', type: 'info' })
+      await handleSave()
+    }
+    
     const currentFlowData = flow || {}
     
+    // IMPORTANTE: Usar os nodes e edges do flow salvo, não os do estado atual
+    // que podem estar vazios devido a problemas de sincronização
+    const flowNodes = currentFlowData.flow?.nodes || currentFlowData.nodes || nodes
+    const flowEdges = currentFlowData.flow?.edges || currentFlowData.edges || edges
+    
+    // Verificar se realmente temos conteúdo
+    if (flowNodes.length === 0 && edges.length === 0) {
+      console.warn('⚠️ Tentativa de desativar flow vazio - abortando')
+      setNotification({ 
+        message: 'Flow está vazio. Adicione nós antes de desativar.', 
+        type: 'error' 
+      })
+      setTimeout(() => setNotification(null), 3000)
+      return
+    }
+    
     try {
-      const inactiveFlowData = {
-        name: currentFlowData.name || 'Novo Flow',
-        description: currentFlowData.description || '',
+      // Atualizar apenas o status, mantendo o conteúdo
+      const updateData = {
+        ...currentFlowData,
         status: 'inactive',
-        flow: { nodes, edges },
-        trigger: currentFlowData.trigger || {
-          type: 'keyword',
-          config: {}
-        }
+        flow: { 
+          nodes: flowNodes, 
+          edges: flowEdges 
+        },
+        updatedAt: new Date().toISOString()
       }
       
-      console.log('🔄 Criando versão inativa do flow')
-      
-      const response = await fetch('/api/v1/flows', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inactiveFlowData)
+      console.log('🔄 Desativando flow com conteúdo preservado:', {
+        id: flowId,
+        nodeCount: flowNodes.length,
+        edgeCount: flowEdges.length
       })
+      
+      // Tentar primeiro atualizar via PUT (se suportado)
+      let response = await fetch(`/api/v1/flows/${flowId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData)
+      })
+      
+      // Se PUT não funcionar (405), tentar criar nova versão via POST
+      if (!response.ok && response.status === 405) {
+        console.log('PUT não suportado, criando nova versão via POST')
+        
+        const inactiveFlowData = {
+          name: currentFlowData.name || 'Novo Flow',
+          description: currentFlowData.description || '',
+          status: 'inactive',
+          flow: { 
+            nodes: flowNodes, 
+            edges: flowEdges 
+          },
+          trigger: currentFlowData.trigger || {
+            type: 'keyword',
+            config: {}
+          },
+          whatsapp_numbers: currentFlowData.whatsapp_numbers || []
+        }
+        
+        response = await fetch('/api/v1/flows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(inactiveFlowData)
+        })
+      }
       
       if (response.ok) {
         const inactivatedFlow = await response.json()
         const newFlowId = inactivatedFlow.id
         
-        console.log('✅ Flow inativo criado, ID:', newFlowId)
+        console.log('✅ Flow desativado com sucesso:', {
+          id: newFlowId,
+          nodes: flowNodes.length,
+          edges: flowEdges.length
+        })
         
-        // Atualizar estado local
+        // IMPORTANTE: Atualizar o store com nodes e edges preservados
         useFlowEditorStore.setState({
           flow: {
             ...inactivatedFlow,
-            id: newFlowId
+            id: newFlowId,
+            flow: { nodes: flowNodes, edges: flowEdges }
           },
+          nodes: flowNodes,
+          edges: flowEdges,
           isDirty: false
         })
         
         setFlowStatus('inactive')
-        setNotification({ message: 'Flow desativado', type: 'info' })
+        setNotification({ message: 'Flow desativado com sucesso', type: 'success' })
         setTimeout(() => setNotification(null), 3000)
         
-        // Se o ID mudou, redirecionar
+        // Se o ID mudou, redirecionar com flow completo
         if (newFlowId !== flowId) {
-          sessionStorage.setItem('load_flow', JSON.stringify(inactivatedFlow))
+          const fullFlow = {
+            ...inactivatedFlow,
+            flow: { nodes: flowNodes, edges: flowEdges }
+          }
+          sessionStorage.setItem('load_flow', JSON.stringify(fullFlow))
           router.push(`/flows/${newFlowId}/edit`)
         }
       } else {
-        throw new Error('Erro ao desativar flow')
+        const errorText = await response.text()
+        throw new Error(`Erro ao desativar flow: ${errorText}`)
       }
     } catch (error) {
       console.error('Erro ao desativar flow:', error)
       setNotification({ message: 'Erro ao desativar flow', type: 'error' })
       setTimeout(() => setNotification(null), 3000)
     }
-  }, [flow, flowId, nodes, edges, router])
+  }, [flow, flowId, nodes, edges, router, isDirty, handleSave])
 
   const handleLoadFlow = useCallback((savedFlow: any) => {
     // Carregar flow salvo no editor
