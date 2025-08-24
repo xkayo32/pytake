@@ -19,6 +19,7 @@ import { PropertiesPanel } from '@/components/flow-editor/properties-panel'
 import { FlowLoader } from '@/components/flow-editor/flow-loader'
 import { FlowExecutorModal } from '@/components/flow-editor/flow-executor-modal'
 import { FlowSaveModal } from '@/components/flow-editor/flow-save-modal'
+import { FlowTestPanel } from '@/components/flow-editor/flow-test-panel'
 import { WhatsAppTemplateManager } from '@/components/flow-editor/whatsapp-template-manager'
 import { WhatsAppNumberSelector } from '@/components/whatsapp/whatsapp-number-selector'
 import { nodeTypes } from '@/components/flow-editor/nodes/custom-nodes'
@@ -78,6 +79,7 @@ function FlowEditor() {
   const [selectedWhatsAppNumbers, setSelectedWhatsAppNumbers] = useState<string[]>([])
   const [showWhatsAppSelector, setShowWhatsAppSelector] = useState(false)
   const [showSaveModal, setShowSaveModal] = useState(false)
+  const [showTestPanel, setShowTestPanel] = useState(false)
   
   const {
     flow,
@@ -518,7 +520,8 @@ function FlowEditor() {
   const [executionLogs, setExecutionLogs] = useState<any[]>([])
   
   const handleTest = useCallback(() => {
-    setShowExecutor(true)
+    // Usa o novo painel de teste ao invés do executor modal
+    setShowTestPanel(true)
   }, [])
   
   const handleActivateFlow = useCallback(async () => {
@@ -1122,9 +1125,10 @@ function FlowEditor() {
               onClick={handleTest}
               disabled={!validation.isValid}
               className="h-7 px-2 text-xs"
+              title={!validation.isValid ? 'Flow precisa ser válido para testar' : 'Testar flow'}
             >
-              <Eye className="h-3 w-3 mr-1" />
-              Test
+              <Play className="h-3 w-3 mr-1" />
+              Testar
             </Button>
             
             <Button
@@ -1343,6 +1347,16 @@ function FlowEditor() {
         onClose={() => setShowSaveModal(false)}
         onSave={handleSaveModalSave}
         mode="create"
+      />
+      
+      {/* Flow Test Panel */}
+      <FlowTestPanel
+        open={showTestPanel}
+        onClose={() => setShowTestPanel(false)}
+        flowId={flowId}
+        flowStatus={flowStatus}
+        whatsappNumbers={selectedWhatsAppNumbers}
+        flowName={flow?.name}
       />
     </div>
   )

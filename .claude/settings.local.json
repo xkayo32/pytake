@@ -140,7 +140,8 @@
       "Bash(cargo check:*)",
       "Bash(timeout:*)",
       "Bash(cargo build:*)",
-      "Bash(./start-test-server.sh:*)"
+      "Bash(./start-test-server.sh:*)",
+      "Bash(PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d pytake_db -c \"SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC;\")"
     ],
     "deny": [],
     "additionalDirectories": [
