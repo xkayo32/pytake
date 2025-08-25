@@ -157,6 +157,13 @@ function FlowEditor() {
             setFlowStatus(flowData.status as 'draft' | 'active' | 'inactive')
           }
           
+          // Set WhatsApp numbers if available (check both formats)
+          const whatsappNumbers = flowData.whatsapp_numbers || flowData.whatsappNumbers
+          if (whatsappNumbers && Array.isArray(whatsappNumbers)) {
+            console.log('📱 Loading WhatsApp numbers from session:', whatsappNumbers)
+            setSelectedWhatsAppNumbers(whatsappNumbers)
+          }
+          
           sessionStorage.removeItem('load_flow')
           return
         }
@@ -190,9 +197,11 @@ function FlowEditor() {
             // Set flow status based on backend data
             setFlowStatus(flowData.status as 'draft' | 'active' | 'inactive')
             
-            // Set WhatsApp numbers if available
-            if (flowData.whatsappNumbers && Array.isArray(flowData.whatsappNumbers)) {
-              setSelectedWhatsAppNumbers(flowData.whatsappNumbers)
+            // Set WhatsApp numbers if available (check both formats)
+            const whatsappNumbers = flowData.whatsapp_numbers || flowData.whatsappNumbers
+            if (whatsappNumbers && Array.isArray(whatsappNumbers)) {
+              console.log('📱 Loading WhatsApp numbers:', whatsappNumbers)
+              setSelectedWhatsAppNumbers(whatsappNumbers)
             }
             
             return
