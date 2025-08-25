@@ -28,7 +28,7 @@ func NewFlowService(db *sql.DB, redis *redis.Client) *FlowService {
 // GetFlows returns all flows with their statistics
 func (s *FlowService) GetFlows(c *gin.Context) {
 	query := `
-		SELECT id, tenant_id, name, description, trigger_type, trigger_value, nodes, edges, is_active, version, created_by, created_at, updated_at, status
+		SELECT id, tenant_id, name, description, trigger_type, trigger_value, nodes, edges, is_active, version, created_by, created_at, updated_at, status, whatsapp_numbers
 		FROM flows 
 		ORDER BY updated_at DESC
 	`
@@ -48,6 +48,7 @@ func (s *FlowService) GetFlows(c *gin.Context) {
 		var tenantID, triggerValue, createdBy sql.NullString
 		var description sql.NullString
 		var status sql.NullString
+		var whatsappNumbersJSON json.RawMessage
 
 		err := rows.Scan(
 			&flow.ID,
@@ -64,6 +65,7 @@ func (s *FlowService) GetFlows(c *gin.Context) {
 			&flow.CreatedAt,
 			&flow.UpdatedAt,
 			&status,
+			&whatsappNumbersJSON,
 		)
 		if err != nil {
 			log.Printf("Error scanning flow: %v", err)
@@ -91,6 +93,15 @@ func (s *FlowService) GetFlows(c *gin.Context) {
 				flow.Status = "active"
 			} else {
 				flow.Status = "draft"
+			}
+		}
+		
+		// Parse WhatsApp numbers from JSON
+		if len(whatsappNumbersJSON) > 0 {
+			var numbers []string
+			if err := json.Unmarshal(whatsappNumbersJSON, &numbers); err == nil {
+				flow.WhatsappNumbers = numbers
+				log.Printf("📱 Loaded WhatsApp numbers for flow %s: %v", flow.ID, numbers)
 			}
 		}
 
