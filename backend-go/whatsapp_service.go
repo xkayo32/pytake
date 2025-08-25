@@ -754,3 +754,44 @@ func (s *WhatsAppService) SetDefaultConfig(c *gin.Context) {
 		"config_id": configID,
 	})
 }
+
+// GetConfigByID returns a specific WhatsApp configuration by ID
+func (s *WhatsAppService) GetConfigByID(configID string) (map[string]interface{}, error) {
+	query := `
+		SELECT id, name, phone_number_id, access_token, is_active, is_default, created_at, updated_at
+		FROM whatsapp_configs 
+		WHERE id = $1
+	`
+	
+	var config = make(map[string]interface{})
+	var id, name, phoneNumberID, accessToken string
+	var isActive, isDefault bool
+	var createdAt, updatedAt time.Time
+	
+	err := s.db.QueryRow(query, configID).Scan(
+		&id,
+		&name,
+		&phoneNumberID,
+		&accessToken,
+		&isActive,
+		&isDefault,
+		&createdAt,
+		&updatedAt,
+	)
+	
+	if err != nil {
+		log.Printf("Error getting config by ID %s: %v", configID, err)
+		return nil, fmt.Errorf("configuration not found")
+	}
+	
+	config["id"] = id
+	config["name"] = name
+	config["phone_number_id"] = phoneNumberID
+	config["access_token"] = accessToken
+	config["is_active"] = isActive
+	config["is_default"] = isDefault
+	config["created_at"] = createdAt
+	config["updated_at"] = updatedAt
+	
+	return config, nil
+}

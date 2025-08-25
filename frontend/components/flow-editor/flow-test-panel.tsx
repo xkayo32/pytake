@@ -58,6 +58,8 @@ export function FlowTestPanel({
   const [isValidating, setIsValidating] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
   const [isExecuting, setIsExecuting] = useState(false)
+  const [testResult, setTestResult] = useState<any>(null)
+  const [showLogs, setShowLogs] = useState(false)
 
   useEffect(() => {
     console.log('🎯 FlowTestPanel - Status:', flowStatus)
@@ -77,19 +79,20 @@ export function FlowTestPanel({
     
     // Verifica se tem o formato brasileiro com DDD
     if (cleaned.length < 10) {
-      return { valid: false, error: 'Número muito curto' }
+      return { valid: false, error: 'Número muito curto (mínimo 10 dígitos)' }
     }
     
-    if (cleaned.length > 13) {
-      return { valid: false, error: 'Número muito longo' }
+    if (cleaned.length > 15) {
+      return { valid: false, error: 'Número muito longo (máximo 15 dígitos)' }
     }
     
-    // Se não tem código do país, adiciona +55
+    // Se não tem código do país, adiciona +55 (Brasil)
     if (!cleaned.startsWith('55') && cleaned.length <= 11) {
-      return { valid: true, formatted: `+55${cleaned}` }
+      return { valid: true, formatted: `55${cleaned}` }
     }
     
-    return { valid: true, formatted: `+${cleaned}` }
+    // Se já tem código do país, mantém como está
+    return { valid: true, formatted: cleaned }
   }
 
   const handleQuickTest = () => {
@@ -114,24 +117,27 @@ export function FlowTestPanel({
     setValidationError(null)
 
     try {
-      // Aqui faria a chamada para executar o flow real
       const response = await fetch(`/api/v1/flows/${flowId}/test`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          recipient: validation.formatted,
-          whatsappNumber: selectedWhatsApp,
-          testMode: false
+          to: validation.formatted,
+          config_id: selectedWhatsApp,
+          test_message: `🤖 Teste do flow "${flowName}" enviado via PyTake!\n\nEste é um teste para verificar se seu número WhatsApp está recebendo as mensagens corretamente.\n\nSe você recebeu esta mensagem, o sistema está funcionando! 🎉`
         })
       })
 
       if (response.ok) {
-        // Sucesso - abre página de acompanhamento
-        router.push(`/flows/${flowId}/test?number=${validation.formatted}`)
-        onClose()
+        const result = await response.json()
+        console.log('🎯 Test result:', result)
+        
+        // Mostrar resultado detalhado
+        setTestResult(result)
+        setValidationError(null)
+        setShowLogs(true)
       } else {
-        const error = await response.text()
-        setValidationError(`Erro ao iniciar teste: ${error}`)
+        const errorData = await response.json()
+        setValidationError(`Erro ao enviar teste: ${errorData.error || 'Erro desconhecido'}`)
       }
     } catch (error) {
       setValidationError('Erro ao conectar com o servidor')
@@ -144,7 +150,7 @@ export function FlowTestPanel({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <TestTube className="h-5 w-5" />
@@ -160,71 +166,73 @@ export function FlowTestPanel({
           <div className="space-y-3">
             <Label>Modo de Teste</Label>
             
-            {/* Teste Rápido (Mock) */}
-            <Card 
-              className={cn(
-                "cursor-pointer transition-all",
-                testMode === 'quick' && "ring-2 ring-primary"
-              )}
-              onClick={() => setTestMode('quick')}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Smartphone className="h-5 w-5 text-blue-600" />
+            <div className="grid grid-cols-2 gap-3">
+              {/* Teste Rápido (Mock) */}
+              <Card 
+                className={cn(
+                  "cursor-pointer transition-all",
+                  testMode === 'quick' && "ring-2 ring-primary"
+                )}
+                onClick={() => setTestMode('quick')}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Smartphone className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-sm">Teste Simulado</h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Simula localmente
+                      </p>
+                      <Badge variant="secondary" className="mt-2 text-xs">
+                        Sempre disponível
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-sm">Teste Rápido (Simulado)</h4>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Simula o flow localmente sem enviar mensagens reais
-                    </p>
-                    <Badge variant="secondary" className="mt-2 text-xs">
-                      Disponível sempre
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Teste Real */}
-            <Card 
-              className={cn(
-                "cursor-pointer transition-all",
-                !canUseRealTest && "opacity-50 cursor-not-allowed",
-                testMode === 'full' && canUseRealTest && "ring-2 ring-primary"
-              )}
-              onClick={() => canUseRealTest && setTestMode('full')}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <Phone className="h-5 w-5 text-green-600" />
+              {/* Teste Real */}
+              <Card 
+                className={cn(
+                  "cursor-pointer transition-all",
+                  !canUseRealTest && "opacity-50 cursor-not-allowed",
+                  testMode === 'full' && canUseRealTest && "ring-2 ring-primary"
+                )}
+                onClick={() => canUseRealTest && setTestMode('full')}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <Phone className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-sm">Teste Real</h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Envia via WhatsApp
+                      </p>
+                      {canUseRealTest ? (
+                        <Badge variant="success" className="mt-2 text-xs bg-green-500 text-white">
+                          Disponível
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="mt-2 text-xs">
+                          {flowStatus !== 'active' ? 'Ative o flow' : 'Configure WhatsApp'}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-sm">Teste Real (WhatsApp)</h4>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Envia mensagens reais via WhatsApp para um número
-                    </p>
-                    {canUseRealTest ? (
-                      <Badge variant="success" className="mt-2 text-xs bg-green-500 text-white">
-                        Disponível
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="mt-2 text-xs">
-                        {flowStatus !== 'active' ? 'Flow precisa estar ativo' : 'Configure WhatsApp'}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           {/* Configurações do Teste Real */}
           {testMode === 'full' && canUseRealTest && (
-            <div className="space-y-3 pt-2 border-t">
+            <div className="grid grid-cols-2 gap-4 pt-3 border-t">
               <div className="space-y-2">
-                <Label>WhatsApp de Origem</Label>
+                <Label className="text-xs">WhatsApp de Origem</Label>
                 <select 
                   className="w-full p-2 border rounded-md text-sm"
                   value={selectedWhatsApp}
@@ -237,62 +245,170 @@ export function FlowTestPanel({
                   ))}
                 </select>
                 <p className="text-xs text-muted-foreground">
-                  Selecione o número WhatsApp Business que enviará as mensagens
+                  Número que enviará as mensagens
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label>Número do Destinatário</Label>
-                <div className="flex gap-2">
+                <Label className="text-xs">Número do Destinatário</Label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground text-sm pointer-events-none">
+                    +55
+                  </div>
                   <Input
-                    placeholder="Ex: 11999999999"
+                    placeholder="11999999999"
                     value={recipientNumber}
                     onChange={(e) => {
                       setRecipientNumber(e.target.value)
                       setValidationError(null)
                     }}
-                    className={validationError ? 'border-red-500' : ''}
+                    className={`pl-12 ${validationError ? 'border-red-500' : ''}`}
                   />
                 </div>
                 {validationError && (
                   <p className="text-xs text-red-500">{validationError}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Digite o número que receberá as mensagens de teste
+                  Digite DDD + número
                 </p>
               </div>
             </div>
           )}
         </div>
 
+        {/* Resultados do Teste */}
+        {testResult && showLogs && (
+          <div className="space-y-3 py-3 border-t">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium text-sm">Resultado da Execução</h4>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowLogs(false)}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              {/* Resumo */}
+              <Card>
+                <CardContent className="p-3">
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="font-medium text-muted-foreground">Status:</span>
+                      <div className="flex items-center gap-1 mt-1">
+                        <CheckCircle className="h-3 w-3 text-green-600" />
+                        <span className="text-green-600">Concluído</span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-muted-foreground">Tempo:</span>
+                      <div className="mt-1 font-mono">{testResult.execution_time}</div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-muted-foreground">Steps:</span>
+                      <div className="mt-1">{testResult.steps_executed} executados</div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-muted-foreground">Mensagens:</span>
+                      <div className="mt-1">{testResult.messages_sent} enviadas</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 p-2 bg-green-50 rounded-md mt-3">
+                    <CheckCircle className="h-3 w-3 text-green-600" />
+                    <span className="text-xs text-green-700">
+                      Teste executado com sucesso!
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Logs em tempo real */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-3 w-3" />
+                  <span className="text-xs font-medium">Logs de Execução</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="ml-auto h-6 text-xs"
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(testResult.tracking_url)
+                        if (response.ok) {
+                          const logs = await response.json()
+                          console.log('📋 Execution logs:', logs)
+                        }
+                      } catch (error) {
+                        console.error('Error fetching logs:', error)
+                      }
+                    }}
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Detalhes
+                  </Button>
+                </div>
+                <ScrollArea className="h-28 w-full border rounded-md p-2">
+                  <div className="space-y-1 text-xs font-mono">
+                    <div className="text-green-600">✓ Flow iniciado para +{testResult.to}</div>
+                    <div className="text-blue-600">• Executando {testResult.steps_executed} steps...</div>
+                    <div className="text-green-600">✓ {testResult.messages_sent} mensagem(s) enviada(s)</div>
+                    <div className="text-green-600">✓ Execução concluída em {testResult.execution_time}</div>
+                  </div>
+                </ScrollArea>
+              </div>
+            </div>
+          </div>
+        )}
+
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancelar
-          </Button>
-          
-          {testMode === 'quick' ? (
-            <Button onClick={handleQuickTest} className="gap-2">
-              <Play className="h-4 w-4" />
-              Iniciar Teste Simulado
-            </Button>
+          {showLogs && testResult ? (
+            <>
+              <Button variant="outline" onClick={() => {
+                setTestResult(null)
+                setShowLogs(false)
+                setRecipientNumber('')
+                setValidationError(null)
+              }}>
+                Novo Teste
+              </Button>
+              <Button onClick={onClose}>
+                Fechar
+              </Button>
+            </>
           ) : (
-            <Button 
-              onClick={handleFullTest} 
-              disabled={!canUseRealTest || isExecuting}
-              className="gap-2"
-            >
-              {isExecuting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Iniciando...
-                </>
+            <>
+              <Button variant="outline" onClick={onClose}>
+                Cancelar
+              </Button>
+              
+              {testMode === 'quick' ? (
+                <Button onClick={handleQuickTest} className="gap-2">
+                  <Play className="h-4 w-4" />
+                  Iniciar Teste Simulado
+                </Button>
               ) : (
-                <>
-                  <Send className="h-4 w-4" />
-                  Enviar Teste Real
-                </>
+                <Button 
+                  onClick={handleFullTest} 
+                  disabled={!canUseRealTest || isExecuting}
+                  className="gap-2"
+                >
+                  {isExecuting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Executando Flow...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      Executar Flow Completo
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
+            </>
           )}
         </DialogFooter>
       </DialogContent>

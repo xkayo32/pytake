@@ -81,6 +81,8 @@ func main() {
 		api.PUT("/flows/:id", flowService.UpdateFlow)
 		api.DELETE("/flows/:id", flowService.DeleteFlow)
 		api.PATCH("/flows/:id/status", flowService.UpdateFlowStatus)
+		api.POST("/flows/:id/test", flowService.TestFlow)
+		api.GET("/flows/:id/test/:execution_id/logs", flowService.GetFlowTestLogs)
 
 		// WhatsApp routes
 		api.GET("/whatsapp/numbers", whatsappService.GetNumbers)

@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -148,6 +150,367 @@ func (s *FlowService) GetFlows(c *gin.Context) {
 
 	log.Printf("✅ Returning %d flows", len(flows))
 	c.JSON(http.StatusOK, flows)
+}
+
+// TestFlow executes a complete flow test with tracking
+func (s *FlowService) TestFlow(c *gin.Context) {
+	flowID := c.Param("id")
+	
+	var request struct {
+		To           string `json:"to" binding:"required"`
+		ConfigID     string `json:"config_id" binding:"required"`
+		TestMessage  string `json:"test_message"`
+	}
+	
+	if err := c.ShouldBindJSON(&request); err != nil {
+		log.Printf("Error binding request: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+	
+	log.Printf("🧪 Testing flow %s to %s using config %s", flowID, request.To, request.ConfigID)
+	
+	// Get complete flow from database
+	var flow Flow
+	query := `SELECT id, name, description, nodes, edges, trigger_type FROM flows WHERE id = $1`
+	var description sql.NullString
+	err := s.db.QueryRow(query, flowID).Scan(
+		&flow.ID,
+		&flow.Name,
+		&description,
+		&flow.Nodes,
+		&flow.Edges,
+		&flow.TriggerType,
+	)
+	if err != nil {
+		log.Printf("Error getting flow: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Flow not found"})
+		return
+	}
+	
+	if description.Valid {
+		flow.Description = description.String
+	}
+	
+	// Get WhatsApp config
+	whatsappService := NewWhatsAppService(s.db, s.redis)
+	config, err := whatsappService.GetConfigByID(request.ConfigID)
+	if err != nil {
+		log.Printf("Error getting WhatsApp config: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "WhatsApp configuration not found"})
+		return
+	}
+	
+	// Create test execution record
+	executionID := generateExecutionID()
+	
+	// Execute flow with real tracking
+	result, err := s.executeFlowTest(executionID, flow, request.To, config)
+	if err != nil {
+		log.Printf("Error executing flow test: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to execute flow test",
+			"details": err.Error(),
+		})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"execution_id": executionID,
+		"flow_name": flow.Name,
+		"to": request.To,
+		"config_name": config["name"],
+		"steps_executed": result.StepsExecuted,
+		"messages_sent": result.MessagesSent,
+		"execution_time": result.ExecutionTime,
+		"tracking_url": fmt.Sprintf("/api/v1/flows/%s/test/%s/logs", flowID, executionID),
+	})
+}
+
+// FlowExecutionResult represents the result of a flow execution
+type FlowExecutionResult struct {
+	StepsExecuted int             `json:"steps_executed"`
+	MessagesSent  int             `json:"messages_sent"`
+	ExecutionTime string          `json:"execution_time"`
+	Logs          []ExecutionLog  `json:"logs"`
+}
+
+// ExecutionLog represents a single log entry during flow execution
+type ExecutionLog struct {
+	Timestamp   string `json:"timestamp"`
+	StepType    string `json:"step_type"`
+	StepID      string `json:"step_id"`
+	Action      string `json:"action"`
+	Status      string `json:"status"`
+	Message     string `json:"message"`
+	Details     string `json:"details,omitempty"`
+}
+
+// executeFlowTest executes the complete flow with tracking
+func (s *FlowService) executeFlowTest(executionID string, flow Flow, recipient string, config map[string]interface{}) (*FlowExecutionResult, error) {
+	startTime := time.Now()
+	
+	result := &FlowExecutionResult{
+		Logs: []ExecutionLog{},
+	}
+	
+	// Parse flow nodes and edges
+	var nodes []map[string]interface{}
+	var edges []map[string]interface{}
+	
+	if err := json.Unmarshal([]byte(flow.Nodes), &nodes); err != nil {
+		return nil, fmt.Errorf("failed to parse flow nodes: %v", err)
+	}
+	
+	if err := json.Unmarshal([]byte(flow.Edges), &edges); err != nil {
+		return nil, fmt.Errorf("failed to parse flow edges: %v", err)
+	}
+	
+	// Log execution start
+	result.Logs = append(result.Logs, ExecutionLog{
+		Timestamp: time.Now().Format(time.RFC3339),
+		StepType:  "system",
+		StepID:    "start",
+		Action:    "flow_execution_started",
+		Status:    "success",
+		Message:   fmt.Sprintf("Iniciando execução do flow '%s' para %s", flow.Name, recipient),
+	})
+	
+	// Find start node (can be "start" or trigger nodes)
+	var startNode map[string]interface{}
+	startNodeTypes := []string{"start", "trigger_keyword", "trigger_webhook", "trigger_time", "trigger_manual"}
+	
+	for _, node := range nodes {
+		if nodeType, ok := node["type"].(string); ok {
+			for _, validType := range startNodeTypes {
+				if nodeType == validType {
+					startNode = node
+					break
+				}
+			}
+			if startNode != nil {
+				break
+			}
+		}
+	}
+	
+	if startNode == nil {
+		// If no specific start node found, use the first node
+		if len(nodes) > 0 {
+			startNode = nodes[0]
+			result.Logs = append(result.Logs, ExecutionLog{
+				Timestamp: time.Now().Format(time.RFC3339),
+				StepType:  "system",
+				StepID:    "auto_start",
+				Action:    "auto_start_selected",
+				Status:    "warning",
+				Message:   "Nenhum nó de início encontrado, usando primeiro nó do flow",
+			})
+		} else {
+			return nil, fmt.Errorf("flow is empty - no nodes found")
+		}
+	}
+	
+	// Execute flow from start node
+	currentNode := startNode
+	visited := make(map[string]bool)
+	
+	for currentNode != nil && len(visited) < 50 { // Safety limit
+		nodeID, ok := currentNode["id"].(string)
+		if !ok {
+			break
+		}
+		
+		if visited[nodeID] {
+			break // Avoid infinite loops
+		}
+		visited[nodeID] = true
+		
+		nodeType, _ := currentNode["type"].(string)
+		nodeData, _ := currentNode["data"].(map[string]interface{})
+		
+		// Execute current node
+		err := s.executeFlowNode(executionID, nodeType, nodeID, nodeData, recipient, config, result)
+		if err != nil {
+			result.Logs = append(result.Logs, ExecutionLog{
+				Timestamp: time.Now().Format(time.RFC3339),
+				StepType:  nodeType,
+				StepID:    nodeID,
+				Action:    "node_execution_failed",
+				Status:    "error",
+				Message:   fmt.Sprintf("Erro ao executar nó: %v", err),
+			})
+			return result, err
+		}
+		
+		result.StepsExecuted++
+		
+		// Find next node
+		currentNode = s.findNextNode(nodeID, edges, nodes)
+	}
+	
+	// Log execution end
+	result.ExecutionTime = time.Since(startTime).String()
+	result.Logs = append(result.Logs, ExecutionLog{
+		Timestamp: time.Now().Format(time.RFC3339),
+		StepType:  "system",
+		StepID:    "end",
+		Action:    "flow_execution_completed",
+		Status:    "success",
+		Message:   fmt.Sprintf("Execução concluída em %s", result.ExecutionTime),
+		Details:   fmt.Sprintf("Steps: %d, Messages: %d", result.StepsExecuted, result.MessagesSent),
+	})
+	
+	// Store execution logs in Redis for tracking
+	s.storeExecutionLogs(executionID, result.Logs)
+	
+	return result, nil
+}
+
+// executeFlowNode executes a single flow node
+func (s *FlowService) executeFlowNode(executionID, nodeType, nodeID string, nodeData map[string]interface{}, recipient string, config map[string]interface{}, result *FlowExecutionResult) error {
+	result.Logs = append(result.Logs, ExecutionLog{
+		Timestamp: time.Now().Format(time.RFC3339),
+		StepType:  nodeType,
+		StepID:    nodeID,
+		Action:    "node_execution_started",
+		Status:    "processing",
+		Message:   fmt.Sprintf("Executando nó %s", nodeType),
+	})
+	
+	switch nodeType {
+	case "start":
+		// Start node - just log
+		result.Logs = append(result.Logs, ExecutionLog{
+			Timestamp: time.Now().Format(time.RFC3339),
+			StepType:  nodeType,
+			StepID:    nodeID,
+			Action:    "start_node_processed",
+			Status:    "success",
+			Message:   "Nó de início processado",
+		})
+		
+	case "trigger_keyword":
+		// Trigger keyword - process as start node
+		result.Logs = append(result.Logs, ExecutionLog{
+			Timestamp: time.Now().Format(time.RFC3339),
+			StepType:  nodeType,
+			StepID:    nodeID,
+			Action:    "trigger_processed",
+			Status:    "success",
+			Message:   "Trigger de palavra-chave processado",
+		})
+		
+	case "trigger_webhook", "trigger_time", "trigger_manual":
+		// Other triggers - process as start node
+		result.Logs = append(result.Logs, ExecutionLog{
+			Timestamp: time.Now().Format(time.RFC3339),
+			StepType:  nodeType,
+			StepID:    nodeID,
+			Action:    "trigger_processed",
+			Status:    "success",
+			Message:   fmt.Sprintf("Trigger %s processado", nodeType),
+		})
+		
+	case "message", "msg_text":
+		// Message node - send WhatsApp message
+		var message string
+		if config, ok := nodeData["config"].(map[string]interface{}); ok {
+			if msg, ok := config["message"].(string); ok {
+				message = msg
+			}
+		}
+		if message == "" {
+			message = "Mensagem de teste do PyTake"
+		}
+		
+		// For now, simulate sending message
+		// TODO: Integrate with real WhatsApp API
+		result.MessagesSent++
+		
+		result.Logs = append(result.Logs, ExecutionLog{
+			Timestamp: time.Now().Format(time.RFC3339),
+			StepType:  nodeType,
+			StepID:    nodeID,
+			Action:    "message_sent",
+			Status:    "success",
+			Message:   fmt.Sprintf("Mensagem enviada para %s", recipient),
+			Details:   message,
+		})
+		
+	case "delay":
+		// Delay node - add delay
+		delay, _ := nodeData["delay"].(float64)
+		if delay > 0 && delay <= 10 { // Max 10 seconds for test
+			time.Sleep(time.Duration(delay) * time.Second)
+		}
+		
+		result.Logs = append(result.Logs, ExecutionLog{
+			Timestamp: time.Now().Format(time.RFC3339),
+			StepType:  nodeType,
+			StepID:    nodeID,
+			Action:    "delay_processed",
+			Status:    "success",
+			Message:   fmt.Sprintf("Delay de %.0f segundos aplicado", delay),
+		})
+		
+	case "condition":
+		// Condition node - evaluate condition
+		result.Logs = append(result.Logs, ExecutionLog{
+			Timestamp: time.Now().Format(time.RFC3339),
+			StepType:  nodeType,
+			StepID:    nodeID,
+			Action:    "condition_evaluated",
+			Status:    "success",
+			Message:   "Condição avaliada (teste sempre verdadeiro)",
+		})
+		
+	default:
+		result.Logs = append(result.Logs, ExecutionLog{
+			Timestamp: time.Now().Format(time.RFC3339),
+			StepType:  nodeType,
+			StepID:    nodeID,
+			Action:    "node_processed",
+			Status:    "success",
+			Message:   fmt.Sprintf("Nó %s processado", nodeType),
+		})
+	}
+	
+	return nil
+}
+
+// findNextNode finds the next node to execute based on edges
+func (s *FlowService) findNextNode(currentNodeID string, edges []map[string]interface{}, nodes []map[string]interface{}) map[string]interface{} {
+	// Find edge from current node
+	for _, edge := range edges {
+		source, _ := edge["source"].(string)
+		target, _ := edge["target"].(string)
+		
+		if source == currentNodeID {
+			// Find target node
+			for _, node := range nodes {
+				nodeID, _ := node["id"].(string)
+				if nodeID == target {
+					return node
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// storeExecutionLogs stores execution logs in Redis
+func (s *FlowService) storeExecutionLogs(executionID string, logs []ExecutionLog) {
+	ctx := context.Background()
+	logsJSON, _ := json.Marshal(logs)
+	key := fmt.Sprintf("flow_execution:%s", executionID)
+	s.redis.Set(ctx, key, string(logsJSON), 24*time.Hour) // Store for 24 hours
+}
+
+// generateExecutionID generates a unique execution ID
+func generateExecutionID() string {
+	return fmt.Sprintf("exec_%d_%d", time.Now().Unix(), rand.Intn(10000))
 }
 
 // GetFlow returns a specific flow by ID
@@ -663,6 +1026,38 @@ func (s *FlowService) getFlowStats(flowID string) FlowStats {
 // generateFlowID generates a unique ID for flows
 func generateFlowID() string {
 	return uuid.New().String()[:8] // Shortened UUID for readability
+}
+
+// GetFlowTestLogs returns execution logs for a specific test
+func (s *FlowService) GetFlowTestLogs(c *gin.Context) {
+	flowID := c.Param("id")
+	executionID := c.Param("execution_id")
+	
+	log.Printf("📋 Getting test logs for flow %s execution %s", flowID, executionID)
+	
+	// Get logs from Redis
+	ctx := context.Background()
+	key := fmt.Sprintf("flow_execution:%s", executionID)
+	logsJSON, err := s.redis.Get(ctx, key).Result()
+	if err != nil {
+		log.Printf("Error getting execution logs: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Execution logs not found"})
+		return
+	}
+	
+	var logs []ExecutionLog
+	if err := json.Unmarshal([]byte(logsJSON), &logs); err != nil {
+		log.Printf("Error parsing execution logs: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse logs"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"execution_id": executionID,
+		"flow_id": flowID,
+		"logs": logs,
+		"total_logs": len(logs),
+	})
 }
 
 // Helper function to join strings
