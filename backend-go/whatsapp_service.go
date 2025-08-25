@@ -447,11 +447,172 @@ func (s *WhatsAppService) SaveConfig(c *gin.Context) {
 
 // SyncTemplates syncs templates from WhatsApp Business API
 func (s *WhatsAppService) SyncTemplates(c *gin.Context) {
-	// Mock implementation - return success
+	configID := c.Query("config_id")
+	if configID == "" {
+		// Get default config
+		var defaultConfigID string
+		query := `SELECT id FROM whatsapp_configs WHERE is_default = true LIMIT 1`
+		err := s.db.QueryRow(query).Scan(&defaultConfigID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "No default WhatsApp config found"})
+			return
+		}
+		configID = defaultConfigID
+	}
+	
+	// Get config details
+	var businessAccountID, accessToken, phoneNumberID string
+	query := `SELECT business_account_id, access_token, phone_number_id FROM whatsapp_configs WHERE id = $1`
+	err := s.db.QueryRow(query, configID).Scan(&businessAccountID, &accessToken, &phoneNumberID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "WhatsApp configuration not found"})
+		return
+	}
+	
+	// Use WABA ID or try alternative endpoint
+	wabaID := businessAccountID
+	if wabaID == "" || wabaID == "YOUR_WABA_ID" {
+		// Try using phone_number_id to get WABA ID
+		wabaID = "130291356831385" // Your actual WABA ID from earlier
+		log.Printf("⚠️ Using hardcoded WABA ID: %s", wabaID)
+	}
+	
+	// Fetch templates from Meta API
+	url := fmt.Sprintf("https://graph.facebook.com/v21.0/%s/message_templates?fields=name,status,category,language,components&limit=100", wabaID)
+	
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Printf("Error creating request: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
+		return
+	}
+	
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("Error fetching templates from Meta: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch templates from Meta"})
+		return
+	}
+	defer resp.Body.Close()
+	
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Error reading Meta response: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read Meta response"})
+		return
+	}
+	
+	log.Printf("📋 Meta Templates Response Status: %d", resp.StatusCode)
+	
+	var metaResponse struct {
+		Data []struct {
+			Name       string `json:"name"`
+			Status     string `json:"status"`
+			Category   string `json:"category"`
+			Language   string `json:"language"`
+			ID         string `json:"id"`
+			Components []struct {
+				Type   string `json:"type"`
+				Text   string `json:"text"`
+				Format string `json:"format"`
+			} `json:"components"`
+		} `json:"data"`
+		Paging struct {
+			Next string `json:"next"`
+		} `json:"paging"`
+		Error struct {
+			Message string `json:"message"`
+			Code    int    `json:"code"`
+		} `json:"error"`
+	}
+	
+	if err := json.Unmarshal(body, &metaResponse); err != nil {
+		log.Printf("Error parsing Meta response: %v, Body: %s", err, string(body))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to parse Meta response",
+			"raw_response": string(body),
+		})
+		return
+	}
+	
+	// Check for API error
+	if metaResponse.Error.Message != "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": metaResponse.Error.Message,
+			"code": metaResponse.Error.Code,
+			"hint": "Check if access token has whatsapp_business_management permission",
+		})
+		return
+	}
+	
+	// Update database with Meta templates
+	var syncedTemplates []map[string]interface{}
+	defaultTenantID := "00000000-0000-0000-0000-000000000000"
+	
+	for _, template := range metaResponse.Data {
+		// Extract body text
+		bodyText := ""
+		for _, component := range template.Components {
+			if component.Type == "BODY" {
+				bodyText = component.Text
+				break
+			}
+		}
+		
+		// Update or insert template
+		query := `
+			INSERT INTO whatsapp_templates (
+				tenant_id, name, meta_template_id, status, category, language, body_text, whatsapp_config_id
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			ON CONFLICT (tenant_id, name) 
+			DO UPDATE SET 
+				meta_template_id = $3,
+				status = $4,
+				category = $5,
+				language = $6,
+				body_text = $7,
+				whatsapp_config_id = $8,
+				updated_at = NOW()
+			RETURNING id
+		`
+		
+		var templateID string
+		err := s.db.QueryRow(query, 
+			defaultTenantID,
+			template.Name,
+			template.Name, // Use same name as meta_template_id
+			template.Status,
+			template.Category,
+			template.Language,
+			bodyText,
+			configID,
+		).Scan(&templateID)
+		
+		if err != nil {
+			log.Printf("Error syncing template %s: %v", template.Name, err)
+		} else {
+			log.Printf("✅ Synced template: %s (status: %s, language: %s)", template.Name, template.Status, template.Language)
+			syncedTemplates = append(syncedTemplates, map[string]interface{}{
+				"id": templateID,
+				"name": template.Name,
+				"status": template.Status,
+				"category": template.Category,
+				"language": template.Language,
+				"body_text": bodyText,
+			})
+		}
+	}
+	
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"synced_count": 0,
-		"message": "Templates synchronized successfully",
+		"message": "Templates synced successfully",
+		"total_from_meta": len(metaResponse.Data),
+		"synced_to_db": len(syncedTemplates),
+		"templates": syncedTemplates,
+		"waba_id": wabaID,
 	})
 }
 

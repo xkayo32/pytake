@@ -82,6 +82,7 @@ func main() {
 		api.DELETE("/flows/:id", flowService.DeleteFlow)
 		api.PATCH("/flows/:id/status", flowService.UpdateFlowStatus)
 		api.POST("/flows/:id/test", flowService.TestFlow)
+		api.POST("/flows/test-template", flowService.TestTemplate)
 		api.GET("/flows/:id/test/:execution_id/logs", flowService.GetFlowTestLogs)
 		api.GET("/flows/window-status", flowService.CheckConversationWindow)
 		api.GET("/flows/templates", flowService.GetAvailableTemplates)

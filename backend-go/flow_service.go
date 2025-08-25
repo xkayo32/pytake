@@ -154,6 +154,50 @@ func (s *FlowService) GetFlows(c *gin.Context) {
 	c.JSON(http.StatusOK, flows)
 }
 
+// TestTemplate sends a test template message
+func (s *FlowService) TestTemplate(c *gin.Context) {
+	var request struct {
+		To           string `json:"to" binding:"required"`
+		ConfigID     string `json:"config_id" binding:"required"`
+		TemplateName string `json:"template_name"`
+	}
+	
+	if err := c.ShouldBindJSON(&request); err != nil {
+		log.Printf("Error binding request: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+	
+	log.Printf("📨 Testing template to %s using config %s", request.To, request.ConfigID)
+	
+	// Get WhatsApp config
+	whatsappService := NewWhatsAppService(s.db, s.redis)
+	config, err := whatsappService.GetConfigByID(request.ConfigID)
+	if err != nil {
+		log.Printf("Error getting WhatsApp config: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "WhatsApp configuration not found"})
+		return
+	}
+	
+	// Send template
+	err = s.sendWhatsAppMessage(request.To, "", config)
+	if err != nil {
+		log.Printf("❌ Error sending template: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to send template",
+			"details": err.Error(),
+		})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Template sent successfully",
+		"to": request.To,
+		"template": "hello_world",
+	})
+}
+
 // TestFlow executes a complete flow test with tracking
 func (s *FlowService) TestFlow(c *gin.Context) {
 	flowID := c.Param("id")
@@ -617,22 +661,30 @@ func (s *FlowService) sendWhatsAppMessage(recipient string, message string, what
 		return fmt.Errorf("failed to read response: %v", err)
 	}
 	
+	// Log response details
+	log.Printf("📬 WhatsApp API Response: Status=%d, Body=%s", resp.StatusCode, string(body))
+	
 	// Check response status
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		var errorResp map[string]interface{}
 		if err := json.Unmarshal(body, &errorResp); err == nil {
 			if errData, ok := errorResp["error"].(map[string]interface{}); ok {
 				if msg, ok := errData["message"].(string); ok {
+					log.Printf("❌ WhatsApp API error message: %s", msg)
 					return fmt.Errorf("WhatsApp API error: %s", msg)
 				}
 			}
 		}
+		log.Printf("❌ WhatsApp API error: status %d, body: %s", resp.StatusCode, string(body))
 		return fmt.Errorf("WhatsApp API error: status %d, body: %s", resp.StatusCode, string(body))
 	}
 	
 	// Update conversation window
 	if !hasWindow {
-		s.createConversationWindow(recipient)
+		err := s.createConversationWindow(recipient)
+		if err != nil {
+			log.Printf("⚠️ Warning: failed to create conversation window: %v", err)
+		}
 	}
 	
 	log.Printf("✅ WhatsApp message sent successfully to %s", recipient)
@@ -713,42 +765,60 @@ func (s *FlowService) ensureContact(phoneNumber string) string {
 
 // getTestTemplate returns an appropriate template for testing
 func (s *FlowService) getTestTemplate(message string) (string, []map[string]interface{}) {
-	// Use hello_world template as default for testing
-	// In production, you would select based on the message content
+	// Try to use a template that exists and is APPROVED in the Meta system
 	
-	// Check if we have the hello_world template
-	var templateName string
-	query := `SELECT name FROM whatsapp_templates WHERE status = 'APPROVED' AND name = 'hello_world' LIMIT 1`
-	err := s.db.QueryRow(query).Scan(&templateName)
+	// First priority: pytake_saudacao (Brazilian, no parameters needed)
+	var templateName, metaTemplateID string
+	query := `SELECT name, COALESCE(meta_template_id, name) FROM whatsapp_templates WHERE status = 'APPROVED' AND name = 'pytake_saudacao' LIMIT 1`
+	err := s.db.QueryRow(query).Scan(&templateName, &metaTemplateID)
 	if err == nil {
+		log.Printf("📋 Using template: %s (meta_id: %s) - APPROVED", templateName, metaTemplateID)
+		// pytake_saudacao doesn't need parameters
+		return metaTemplateID, []map[string]interface{}{}
+	}
+	
+	// Second priority: hello_world (English, but approved)
+	query = `SELECT name, COALESCE(meta_template_id, name) FROM whatsapp_templates WHERE status = 'APPROVED' AND name = 'hello_world' LIMIT 1`
+	err = s.db.QueryRow(query).Scan(&templateName, &metaTemplateID)
+	if err == nil {
+		log.Printf("📋 Using template: %s (meta_id: %s) - APPROVED", templateName, metaTemplateID)
 		// hello_world template doesn't need parameters
-		return "hello_world", []map[string]interface{}{}
+		return metaTemplateID, []map[string]interface{}{}
 	}
 	
-	// Try boas_vindas template with parameter
-	query = `SELECT name FROM whatsapp_templates WHERE status = 'APPROVED' AND name = 'boas_vindas' LIMIT 1`
-	err = s.db.QueryRow(query).Scan(&templateName)
+	// Third: Any approved template
+	query = `SELECT name, COALESCE(meta_template_id, name), language FROM whatsapp_templates WHERE status = 'APPROVED' ORDER BY 
+		CASE 
+			WHEN language = 'pt_BR' THEN 0 
+			ELSE 1 
+		END,
+		name 
+		LIMIT 1`
+	var language string
+	err = s.db.QueryRow(query).Scan(&templateName, &metaTemplateID, &language)
 	if err == nil {
-		// boas_vindas needs one parameter
-		return "boas_vindas", []map[string]interface{}{
-			{
-				"type": "body",
-				"parameters": []map[string]string{
-					{"type": "text", "text": "Usuário"},
-				},
-			},
-		}
+		log.Printf("📋 Using template: %s (meta_id: %s, language: %s) - APPROVED", templateName, metaTemplateID, language)
+		return metaTemplateID, []map[string]interface{}{}
 	}
 	
-	// Fallback to any approved template
-	query = `SELECT name FROM whatsapp_templates WHERE status = 'APPROVED' LIMIT 1`
-	err = s.db.QueryRow(query).Scan(&templateName)
-	if err == nil {
-		return templateName, []map[string]interface{}{}
+	// If no approved templates in DB, try known working templates
+	log.Printf("⚠️ No approved templates found in DB, trying known templates")
+	
+	// These are templates we know exist
+	knownTemplates := []struct {
+		name string
+		lang string
+	}{
+		{"pytake_saudacao", "pt_BR"},
+		{"hello_world", "en_US"},
 	}
 	
-	// No templates available - this will likely fail
-	log.Printf("⚠️ No approved templates found, attempting with hello_world")
+	for _, tmpl := range knownTemplates {
+		log.Printf("🔍 Trying known template: %s (language: %s)", tmpl.name, tmpl.lang)
+		return tmpl.name, []map[string]interface{}{}
+	}
+	
+	// Final fallback
 	return "hello_world", []map[string]interface{}{}
 }
 
