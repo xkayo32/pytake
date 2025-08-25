@@ -527,7 +527,7 @@ func generateExecutionID() string {
 	return fmt.Sprintf("exec_%d_%d", time.Now().Unix(), rand.Intn(10000))
 }
 
-// sendWhatsAppMessage sends a real WhatsApp message using the Meta API
+// sendWhatsAppMessage sends a WhatsApp message via template or direct message
 func (s *FlowService) sendWhatsAppMessage(recipient string, message string, whatsappConfig map[string]interface{}) error {
 	// Get WhatsApp configuration
 	phoneNumberID, ok := whatsappConfig["phone_number_id"].(string)
@@ -540,18 +540,49 @@ func (s *FlowService) sendWhatsAppMessage(recipient string, message string, what
 		return fmt.Errorf("access_token not found in config")
 	}
 	
+	// Check if we have a 24-hour window open with this contact
+	hasWindow, err := s.checkConversationWindow(recipient)
+	if err != nil {
+		log.Printf("Warning: could not check conversation window: %v", err)
+		hasWindow = false
+	}
+	
 	// Build WhatsApp API URL
 	url := fmt.Sprintf("https://graph.facebook.com/v21.0/%s/messages", phoneNumberID)
 	
-	// Build message payload
-	payload := map[string]interface{}{
-		"messaging_product": "whatsapp",
-		"to": recipient,
-		"type": "text",
-		"text": map[string]string{
-			"preview_url": "false",
-			"body": message,
-		},
+	var payload map[string]interface{}
+	
+	if hasWindow {
+		// We have a 24-hour window - send direct message
+		log.Printf("📱 24h window open with %s, sending direct message", recipient)
+		payload = map[string]interface{}{
+			"messaging_product": "whatsapp",
+			"to": recipient,
+			"type": "text",
+			"text": map[string]string{
+				"preview_url": "false",
+				"body": message,
+			},
+		}
+	} else {
+		// No 24-hour window - must use template
+		log.Printf("📱 No 24h window with %s, using template", recipient)
+		
+		// Get an approved test template
+		templateName, templateParams := s.getTestTemplate(message)
+		
+		payload = map[string]interface{}{
+			"messaging_product": "whatsapp",
+			"to": recipient,
+			"type": "template",
+			"template": map[string]interface{}{
+				"name": templateName,
+				"language": map[string]string{
+					"code": "pt_BR",
+				},
+				"components": templateParams,
+			},
+		}
 	}
 	
 	// Convert payload to JSON
@@ -559,6 +590,8 @@ func (s *FlowService) sendWhatsAppMessage(recipient string, message string, what
 	if err != nil {
 		return fmt.Errorf("failed to marshal payload: %v", err)
 	}
+	
+	log.Printf("📤 Sending WhatsApp message payload: %s", string(jsonPayload))
 	
 	// Create HTTP request
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
@@ -597,8 +630,126 @@ func (s *FlowService) sendWhatsAppMessage(recipient string, message string, what
 		return fmt.Errorf("WhatsApp API error: status %d, body: %s", resp.StatusCode, string(body))
 	}
 	
+	// Update conversation window
+	if !hasWindow {
+		s.createConversationWindow(recipient)
+	}
+	
 	log.Printf("✅ WhatsApp message sent successfully to %s", recipient)
 	return nil
+}
+
+// checkConversationWindow checks if we have an active 24-hour window with a contact
+func (s *FlowService) checkConversationWindow(phoneNumber string) (bool, error) {
+	query := `
+		SELECT COUNT(*) FROM conversations c
+		JOIN contacts co ON c.contact_id = co.id
+		WHERE co.phone = $1
+		AND c.last_message_time > NOW() - INTERVAL '24 hours'
+	`
+	
+	var count int
+	err := s.db.QueryRow(query, phoneNumber).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	
+	return count > 0, nil
+}
+
+// createConversationWindow creates or updates a conversation window
+func (s *FlowService) createConversationWindow(phoneNumber string) error {
+	// First, ensure contact exists
+	contactID := s.ensureContact(phoneNumber)
+	
+	// Update or create conversation
+	query := `
+		INSERT INTO conversations (tenant_id, contact_id, last_message_time, last_message)
+		VALUES ($1, $2, NOW(), 'Template message sent')
+		ON CONFLICT (tenant_id, contact_id) 
+		DO UPDATE SET 
+			last_message_time = NOW(),
+			last_message = 'Template message sent',
+			updated_at = NOW()
+	`
+	
+	// Use a default tenant ID for now (should come from session in production)
+	tenantID := "00000000-0000-0000-0000-000000000000"
+	
+	_, err := s.db.Exec(query, tenantID, contactID)
+	return err
+}
+
+// ensureContact ensures a contact exists and returns its ID
+func (s *FlowService) ensureContact(phoneNumber string) string {
+	var contactID string
+	
+	// Use a default tenant ID for now (should come from session in production)
+	tenantID := "00000000-0000-0000-0000-000000000000"
+	
+	// Try to find existing contact
+	query := `SELECT id FROM contacts WHERE tenant_id = $1 AND phone = $2 LIMIT 1`
+	err := s.db.QueryRow(query, tenantID, phoneNumber).Scan(&contactID)
+	if err == nil {
+		return contactID
+	}
+	
+	// Create new contact
+	insertQuery := `
+		INSERT INTO contacts (tenant_id, phone, name, created_at, updated_at)
+		VALUES ($1, $2, $3, NOW(), NOW())
+		ON CONFLICT (tenant_id, phone) DO UPDATE SET updated_at = NOW()
+		RETURNING id
+	`
+	
+	err = s.db.QueryRow(insertQuery, tenantID, phoneNumber, "Contact "+phoneNumber).Scan(&contactID)
+	if err != nil {
+		log.Printf("Error creating contact: %v", err)
+		return ""
+	}
+	
+	return contactID
+}
+
+// getTestTemplate returns an appropriate template for testing
+func (s *FlowService) getTestTemplate(message string) (string, []map[string]interface{}) {
+	// Use hello_world template as default for testing
+	// In production, you would select based on the message content
+	
+	// Check if we have the hello_world template
+	var templateName string
+	query := `SELECT name FROM whatsapp_templates WHERE status = 'APPROVED' AND name = 'hello_world' LIMIT 1`
+	err := s.db.QueryRow(query).Scan(&templateName)
+	if err == nil {
+		// hello_world template doesn't need parameters
+		return "hello_world", []map[string]interface{}{}
+	}
+	
+	// Try boas_vindas template with parameter
+	query = `SELECT name FROM whatsapp_templates WHERE status = 'APPROVED' AND name = 'boas_vindas' LIMIT 1`
+	err = s.db.QueryRow(query).Scan(&templateName)
+	if err == nil {
+		// boas_vindas needs one parameter
+		return "boas_vindas", []map[string]interface{}{
+			{
+				"type": "body",
+				"parameters": []map[string]string{
+					{"type": "text", "text": "Usuário"},
+				},
+			},
+		}
+	}
+	
+	// Fallback to any approved template
+	query = `SELECT name FROM whatsapp_templates WHERE status = 'APPROVED' LIMIT 1`
+	err = s.db.QueryRow(query).Scan(&templateName)
+	if err == nil {
+		return templateName, []map[string]interface{}{}
+	}
+	
+	// No templates available - this will likely fail
+	log.Printf("⚠️ No approved templates found, attempting with hello_world")
+	return "hello_world", []map[string]interface{}{}
 }
 
 // GetFlow returns a specific flow by ID
