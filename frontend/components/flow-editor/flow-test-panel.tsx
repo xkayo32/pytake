@@ -38,6 +38,7 @@ interface FlowTestPanelProps {
   flowId: string
   flowStatus: 'draft' | 'active' | 'inactive'
   whatsappNumbers?: string[]
+  whatsappConfigs?: any[]
   flowName?: string
 }
 
@@ -47,6 +48,7 @@ export function FlowTestPanel({
   flowId, 
   flowStatus, 
   whatsappNumbers = [],
+  whatsappConfigs = [],
   flowName = 'Flow'
 }: FlowTestPanelProps) {
   const router = useRouter()
@@ -59,15 +61,15 @@ export function FlowTestPanel({
 
   useEffect(() => {
     console.log('🎯 FlowTestPanel - Status:', flowStatus)
-    console.log('🎯 FlowTestPanel - WhatsApp Numbers:', whatsappNumbers)
-    console.log('🎯 FlowTestPanel - Can use real test:', flowStatus === 'active' && whatsappNumbers.length > 0)
-  }, [flowStatus, whatsappNumbers])
+    console.log('🎯 FlowTestPanel - WhatsApp Configs:', whatsappConfigs)
+    console.log('🎯 FlowTestPanel - Can use real test:', flowStatus === 'active' && whatsappConfigs.length > 0)
+  }, [flowStatus, whatsappConfigs])
 
   useEffect(() => {
-    if (whatsappNumbers.length > 0 && !selectedWhatsApp) {
-      setSelectedWhatsApp(whatsappNumbers[0])
+    if (whatsappConfigs.length > 0 && !selectedWhatsApp) {
+      setSelectedWhatsApp(whatsappConfigs[0].id)
     }
-  }, [whatsappNumbers, selectedWhatsApp])
+  }, [whatsappConfigs, selectedWhatsApp])
 
   const validateNumber = (number: string) => {
     // Remove espaços e caracteres especiais
@@ -138,7 +140,7 @@ export function FlowTestPanel({
     }
   }
 
-  const canUseRealTest = flowStatus === 'active' && whatsappNumbers.length > 0
+  const canUseRealTest = flowStatus === 'active' && whatsappConfigs.length > 0
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -228,9 +230,9 @@ export function FlowTestPanel({
                   value={selectedWhatsApp}
                   onChange={(e) => setSelectedWhatsApp(e.target.value)}
                 >
-                  {whatsappNumbers.map((num, index) => (
-                    <option key={num} value={num}>
-                      +{num} {index === 0 ? '(Principal)' : `(Secundário ${index})`}
+                  {whatsappConfigs.map((config) => (
+                    <option key={config.id} value={config.id}>
+                      {config.name} {config.is_default ? '(Padrão)' : ''}
                     </option>
                   ))}
                 </select>

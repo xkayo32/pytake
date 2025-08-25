@@ -288,28 +288,29 @@ function FlowEditor() {
     }
   }, [flowId])
   
-  // Load available WhatsApp numbers from API
+  // Load available WhatsApp configs from settings
   useEffect(() => {
-    const loadWhatsAppNumbers = async () => {
+    const loadWhatsAppConfigs = async () => {
       try {
-        const response = await fetch('/api/v1/whatsapp/phone-numbers')
+        const response = await fetch('/api/v1/whatsapp-configs')
         if (response.ok) {
-          const numbers = await response.json()
-          console.log('📱 Available WhatsApp numbers:', numbers)
-          setAvailableWhatsAppNumbers(numbers)
+          const configs = await response.json()
+          console.log('📱 Available WhatsApp configs:', configs)
+          setAvailableWhatsAppNumbers(configs)
           
-          // Set selected numbers from available ones
-          if (numbers.length > 0) {
-            const numberIds = numbers.map((n: any) => n.display_phone_number)
-            setSelectedWhatsAppNumbers(numberIds)
+          // Set selected numbers from connected configs
+          const connectedConfigs = configs.filter((c: any) => c.status === 'connected')
+          if (connectedConfigs.length > 0) {
+            const configIds = connectedConfigs.map((c: any) => c.id)
+            setSelectedWhatsAppNumbers(configIds)
           }
         }
       } catch (error) {
-        console.error('Error loading WhatsApp numbers:', error)
+        console.error('Error loading WhatsApp configs:', error)
       }
     }
     
-    loadWhatsAppNumbers()
+    loadWhatsAppConfigs()
   }, [])
 
   // Auto-save no backend a cada mudança (opcional - pode remover se preferir só manual)
@@ -1493,6 +1494,7 @@ function FlowEditor() {
         flowId={flowId}
         flowStatus={flowStatus}
         whatsappNumbers={selectedWhatsAppNumbers}
+        whatsappConfigs={availableWhatsAppNumbers}
         flowName={flow?.name}
       />
     </div>
