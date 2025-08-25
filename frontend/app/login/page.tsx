@@ -60,7 +60,7 @@ export default function LoginPage() {
           <LogoInline className="h-12" />
         </div>
 
-        <Card className="shadow-lg">
+        <Card className={`shadow-lg transition-all duration-300 ${isLoading ? 'opacity-95' : ''}`}>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold">Bem-vindo de volta</CardTitle>
             <CardDescription>
@@ -68,7 +68,17 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="relative">
+            {/* Loading Overlay */}
+            {isLoading && (
+              <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">Autenticando...</span>
+                </div>
+              </div>
+            )}
+            
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               {/* Error Alert */}
               {error && (
@@ -86,7 +96,8 @@ export default function LoginPage() {
                   type="email"
                   placeholder="seu@email.com"
                   {...register('email')}
-                  className={errors.email ? 'border-red-500' : ''}
+                  disabled={isLoading}
+                  className={`${errors.email ? 'border-red-500' : ''} ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
                 />
                 {errors.email && (
                   <p className="text-sm text-red-500">{errors.email.message}</p>
@@ -102,12 +113,14 @@ export default function LoginPage() {
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Sua senha"
                     {...register('password')}
-                    className={errors.password ? 'border-red-500 pr-10' : 'pr-10'}
+                    disabled={isLoading}
+                    className={`${errors.password ? 'border-red-500' : ''} pr-10 ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    disabled={isLoading}
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -134,8 +147,9 @@ export default function LoginPage() {
               {/* Submit Button */}
               <Button
                 type="submit"
-                className="w-full bg-primary hover:bg-primary/90"
+                className="w-full bg-primary hover:bg-primary/90 transition-all duration-200"
                 disabled={isLoading || !isValid}
+                size="lg"
               >
                 {isLoading ? (
                   <>
