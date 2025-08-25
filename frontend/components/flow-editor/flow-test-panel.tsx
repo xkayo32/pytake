@@ -228,10 +228,15 @@ export function FlowTestPanel({
                   value={selectedWhatsApp}
                   onChange={(e) => setSelectedWhatsApp(e.target.value)}
                 >
-                  {whatsappNumbers.map(num => (
-                    <option key={num} value={num}>{num}</option>
+                  {whatsappNumbers.map((num, index) => (
+                    <option key={num} value={num}>
+                      +{num} {index === 0 ? '(Principal)' : `(Secundário ${index})`}
+                    </option>
                   ))}
                 </select>
+                <p className="text-xs text-muted-foreground">
+                  Selecione o número WhatsApp Business que enviará as mensagens
+                </p>
               </div>
 
               <div className="space-y-2">
