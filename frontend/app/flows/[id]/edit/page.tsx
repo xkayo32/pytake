@@ -177,6 +177,8 @@ function FlowEditor() {
           
           if (flowData) {
             console.log('Loading flow from backend:', flowData)
+            console.log('🔍 Flow whatsapp_numbers:', flowData.whatsapp_numbers)
+            console.log('🔍 Flow whatsappNumbers:', flowData.whatsappNumbers)
             
             const correctedNodes = (flowData.flow?.nodes || []).map((node: any) => {
               if (node.data && !node.data.nodeType && node.type) {
@@ -202,6 +204,8 @@ function FlowEditor() {
             if (whatsappNumbers && Array.isArray(whatsappNumbers)) {
               console.log('📱 Loading WhatsApp numbers:', whatsappNumbers)
               setSelectedWhatsAppNumbers(whatsappNumbers)
+            } else {
+              console.log('⚠️ No WhatsApp numbers found in flow data')
             }
             
             return

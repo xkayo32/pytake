@@ -58,6 +58,12 @@ export function FlowTestPanel({
   const [isExecuting, setIsExecuting] = useState(false)
 
   useEffect(() => {
+    console.log('🎯 FlowTestPanel - Status:', flowStatus)
+    console.log('🎯 FlowTestPanel - WhatsApp Numbers:', whatsappNumbers)
+    console.log('🎯 FlowTestPanel - Can use real test:', flowStatus === 'active' && whatsappNumbers.length > 0)
+  }, [flowStatus, whatsappNumbers])
+
+  useEffect(() => {
     if (whatsappNumbers.length > 0 && !selectedWhatsApp) {
       setSelectedWhatsApp(whatsappNumbers[0])
     }
