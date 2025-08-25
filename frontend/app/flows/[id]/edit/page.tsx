@@ -77,6 +77,7 @@ function FlowEditor() {
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   const [flowStatus, setFlowStatus] = useState<'draft' | 'active' | 'inactive'>('draft')
   const [selectedWhatsAppNumbers, setSelectedWhatsAppNumbers] = useState<string[]>([])
+  const [availableWhatsAppNumbers, setAvailableWhatsAppNumbers] = useState<any[]>([])
   const [showWhatsAppSelector, setShowWhatsAppSelector] = useState(false)
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [showTestPanel, setShowTestPanel] = useState(false)
@@ -286,6 +287,30 @@ function FlowEditor() {
       createNewFlow()
     }
   }, [flowId])
+  
+  // Load available WhatsApp numbers from API
+  useEffect(() => {
+    const loadWhatsAppNumbers = async () => {
+      try {
+        const response = await fetch('/api/v1/whatsapp/phone-numbers')
+        if (response.ok) {
+          const numbers = await response.json()
+          console.log('📱 Available WhatsApp numbers:', numbers)
+          setAvailableWhatsAppNumbers(numbers)
+          
+          // Set selected numbers from available ones
+          if (numbers.length > 0) {
+            const numberIds = numbers.map((n: any) => n.display_phone_number)
+            setSelectedWhatsAppNumbers(numberIds)
+          }
+        }
+      } catch (error) {
+        console.error('Error loading WhatsApp numbers:', error)
+      }
+    }
+    
+    loadWhatsAppNumbers()
+  }, [])
 
   // Auto-save no backend a cada mudança (opcional - pode remover se preferir só manual)
   useEffect(() => {
