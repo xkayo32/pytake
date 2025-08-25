@@ -60,6 +60,10 @@ export function FlowTestPanel({
   const [isExecuting, setIsExecuting] = useState(false)
   const [testResult, setTestResult] = useState<any>(null)
   const [showLogs, setShowLogs] = useState(false)
+  const [windowStatus, setWindowStatus] = useState<any>(null)
+  const [availableTemplates, setAvailableTemplates] = useState<any[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('')
+  const [checkingWindow, setCheckingWindow] = useState(false)
 
   useEffect(() => {
     console.log('🎯 FlowTestPanel - Status:', flowStatus)
@@ -94,6 +98,57 @@ export function FlowTestPanel({
     // Se já tem código do país, mantém como está
     return { valid: true, formatted: cleaned }
   }
+
+  const checkConversationWindow = async (phoneNumber: string) => {
+    const validation = validateNumber(phoneNumber)
+    if (!validation.valid) {
+      return
+    }
+    
+    setCheckingWindow(true)
+    try {
+      const response = await fetch(`/api/v1/flows/window-status?phone=${validation.formatted}`)
+      if (response.ok) {
+        const data = await response.json()
+        setWindowStatus(data)
+        console.log('📱 Window status:', data)
+        
+        // Se não tem janela, carrega templates
+        if (!data.has_window) {
+          loadAvailableTemplates()
+        }
+      }
+    } catch (error) {
+      console.error('Error checking window:', error)
+    } finally {
+      setCheckingWindow(false)
+    }
+  }
+
+  const loadAvailableTemplates = async () => {
+    try {
+      const response = await fetch('/api/v1/flows/templates')
+      if (response.ok) {
+        const data = await response.json()
+        setAvailableTemplates(data.templates || [])
+        if (data.templates && data.templates.length > 0) {
+          setSelectedTemplate(data.templates[0].name)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading templates:', error)
+    }
+  }
+
+  // Check window when number changes
+  useEffect(() => {
+    if (recipientNumber && recipientNumber.length >= 10) {
+      const timer = setTimeout(() => {
+        checkConversationWindow(recipientNumber)
+      }, 500) // Debounce
+      return () => clearTimeout(timer)
+    }
+  }, [recipientNumber])
 
   const handleQuickTest = () => {
     // Abre a página de teste completa
@@ -264,14 +319,78 @@ export function FlowTestPanel({
                     }}
                     className={`pl-12 ${validationError ? 'border-red-500' : ''}`}
                   />
+                  {checkingWindow && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
                 </div>
                 {validationError && (
                   <p className="text-xs text-red-500">{validationError}</p>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  Digite DDD + número
-                </p>
+                
+                {/* Status da Janela */}
+                {windowStatus && !checkingWindow && (
+                  <div className={cn(
+                    "p-2 rounded text-xs",
+                    windowStatus.has_window 
+                      ? "bg-green-50 text-green-700 border border-green-200" 
+                      : "bg-yellow-50 text-yellow-700 border border-yellow-200"
+                  )}>
+                    {windowStatus.has_window ? (
+                      <div className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3" />
+                        <span>Janela aberta ({Math.floor(windowStatus.remaining_hours)}h restantes)</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        <span>Sem janela - Template obrigatório</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
+            </div>
+          )}
+
+          {/* Seletor de Template quando não há janela */}
+          {testMode === 'full' && canUseRealTest && windowStatus && !windowStatus.has_window && (
+            <div className="space-y-3 pt-3 border-t">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-yellow-600" />
+                <span className="text-sm font-medium">Template Obrigatório</span>
+              </div>
+              
+              {availableTemplates.length > 0 ? (
+                <div className="space-y-2">
+                  <Label className="text-xs">Selecione o Template</Label>
+                  <select 
+                    className="w-full p-2 border rounded-md text-sm"
+                    value={selectedTemplate}
+                    onChange={(e) => setSelectedTemplate(e.target.value)}
+                  >
+                    {availableTemplates.map((template) => (
+                      <option key={template.id} value={template.name}>
+                        {template.name} - {template.body_text.substring(0, 50)}...
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Como não há janela de 24h aberta, um template aprovado será usado
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>Nenhum template aprovado encontrado</span>
+                  </div>
+                  <p className="mt-1">
+                    Configure templates aprovados em Configurações → Templates
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

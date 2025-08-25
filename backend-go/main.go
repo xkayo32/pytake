@@ -83,6 +83,8 @@ func main() {
 		api.PATCH("/flows/:id/status", flowService.UpdateFlowStatus)
 		api.POST("/flows/:id/test", flowService.TestFlow)
 		api.GET("/flows/:id/test/:execution_id/logs", flowService.GetFlowTestLogs)
+		api.GET("/flows/window-status", flowService.CheckConversationWindow)
+		api.GET("/flows/templates", flowService.GetAvailableTemplates)
 
 		// WhatsApp routes
 		api.GET("/whatsapp/numbers", whatsappService.GetNumbers)

@@ -1267,6 +1267,115 @@ func generateFlowID() string {
 	return uuid.New().String()[:8] // Shortened UUID for readability
 }
 
+// CheckConversationWindow checks if a conversation window is open with a contact
+func (s *FlowService) CheckConversationWindow(c *gin.Context) {
+	phoneNumber := c.Query("phone")
+	if phoneNumber == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Phone number is required"})
+		return
+	}
+	
+	hasWindow, err := s.checkConversationWindow(phoneNumber)
+	if err != nil {
+		log.Printf("Error checking conversation window: %v", err)
+	}
+	
+	// Get last message time if window exists
+	var lastMessageTime *time.Time
+	if hasWindow {
+		query := `
+			SELECT c.last_message_time FROM conversations c
+			JOIN contacts co ON c.contact_id = co.id
+			WHERE co.phone = $1
+			AND c.last_message_time > NOW() - INTERVAL '24 hours'
+			LIMIT 1
+		`
+		var t time.Time
+		err := s.db.QueryRow(query, phoneNumber).Scan(&t)
+		if err == nil {
+			lastMessageTime = &t
+		}
+	}
+	
+	// Calculate remaining time
+	var remainingHours float64
+	if lastMessageTime != nil {
+		remaining := 24 - time.Since(*lastMessageTime).Hours()
+		if remaining > 0 {
+			remainingHours = remaining
+		}
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"has_window": hasWindow,
+		"phone": phoneNumber,
+		"last_message_time": lastMessageTime,
+		"remaining_hours": remainingHours,
+		"window_status": map[string]interface{}{
+			"is_open": hasWindow,
+			"expires_in_hours": remainingHours,
+			"can_send_direct": hasWindow,
+			"needs_template": !hasWindow,
+		},
+	})
+}
+
+// GetAvailableTemplates returns approved WhatsApp templates
+func (s *FlowService) GetAvailableTemplates(c *gin.Context) {
+	query := `
+		SELECT id, name, body_text, category, language, variables
+		FROM whatsapp_templates 
+		WHERE status = 'APPROVED'
+		ORDER BY 
+			CASE WHEN name = 'hello_world' THEN 0 
+			     WHEN name = 'boas_vindas' THEN 1 
+			     ELSE 2 END,
+			name
+	`
+	
+	rows, err := s.db.Query(query)
+	if err != nil {
+		log.Printf("Error getting templates: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get templates"})
+		return
+	}
+	defer rows.Close()
+	
+	var templates []map[string]interface{}
+	for rows.Next() {
+		var id, name, bodyText, category, language string
+		var variables json.RawMessage
+		
+		err := rows.Scan(&id, &name, &bodyText, &category, &language, &variables)
+		if err != nil {
+			continue
+		}
+		
+		template := map[string]interface{}{
+			"id": id,
+			"name": name,
+			"body_text": bodyText,
+			"category": category,
+			"language": language,
+		}
+		
+		// Parse variables if present
+		if len(variables) > 0 {
+			var vars []interface{}
+			if err := json.Unmarshal(variables, &vars); err == nil {
+				template["variables"] = vars
+			}
+		}
+		
+		templates = append(templates, template)
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"templates": templates,
+		"total": len(templates),
+	})
+}
+
 // GetFlowTestLogs returns execution logs for a specific test
 func (s *FlowService) GetFlowTestLogs(c *gin.Context) {
 	flowID := c.Param("id")
