@@ -87,3 +87,10 @@ target/
 # Uploads
 uploads/
 media/certbot/
+
+# Claude AI Assistant
+.claude/
+*.claude
+.claude*
+CLAUDE.md
+*.claude.md
