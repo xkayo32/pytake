@@ -1,0 +1,221 @@
+{
+  "id": "a4ac6fc3-ad2d-4125-81fa-9685b88697fc",
+  "name": "Boas-vindas Automáticas",
+  "description": "Flow automático de boas-vindas para novos contatos",
+  "status": "active",
+  "trigger_type": "keyword",
+  "trigger_config": {
+    "keywords": ["oi", "olá", "hello", "começar"]
+  },
+  "flow_data": {
+    "nodes": [
+      {
+        "id": "trigger_001",
+        "type": "trigger_keyword",
+        "data": {
+          "label": "Trigger - Palavras-chave",
+          "keywords": ["oi", "olá", "hello", "começar"]
+        },
+        "position": { "x": 100, "y": 100 }
+      },
+      {
+        "id": "welcome_001",
+        "type": "message",
+        "data": {
+          "label": "Mensagem de Boas-vindas",
+          "message": "👋 Olá {{contact.name}}! Bem-vindo ao PyTake!\n\nSou o assistente virtual e estou aqui para ajudá-lo."
+        },
+        "position": { "x": 300, "y": 100 }
+      },
+      {
+        "id": "menu_001", 
+        "type": "buttons",
+        "data": {
+          "label": "Menu Principal",
+          "message": "🏠 Menu Principal\n\nEscolha uma das opções abaixo:",
+          "buttons": [
+            {
+              "id": "info",
+              "text": "📋 Informações",
+              "next": "info_001"
+            },
+            {
+              "id": "support", 
+              "text": "🆘 Suporte",
+              "next": "support_001"
+            },
+            {
+              "id": "products",
+              "text": "🛍️ Produtos",
+              "next": "products_001" 
+            }
+          ]
+        },
+        "position": { "x": 500, "y": 100 }
+      },
+      {
+        "id": "info_001",
+        "type": "message",
+        "data": {
+          "label": "Informações da Empresa",
+          "message": "📋 Sobre o PyTake:\n\n✅ Sistema de automação para WhatsApp\n✅ Chatbots inteligentes\n✅ Integração com APIs\n✅ Dashboard completo\n\nVisite: https://pytake.com"
+        },
+        "position": { "x": 400, "y": 250 }
+      },
+      {
+        "id": "support_001",
+        "type": "input",
+        "data": {
+          "label": "Coleta de Problema",
+          "message": "🆘 Suporte Técnico\n\nDescreva seu problema ou dúvida:",
+          "variable": "support_message",
+          "validation": "min:10,max:500"
+        },
+        "position": { "x": 600, "y": 250 }
+      },
+      {
+        "id": "support_002",
+        "type": "message",
+        "data": {
+          "label": "Confirmação Suporte",
+          "message": "✅ Recebemos sua mensagem!\n\n📝 Problema: {{support_message}}\n\n⏱️ Nossa equipe retornará em até 2 horas.\n\nProtocolo: #{{flow.execution_id}}"
+        },
+        "position": { "x": 800, "y": 250 }
+      },
+      {
+        "id": "products_001",
+        "type": "interactive_list", 
+        "data": {
+          "label": "Lista de Produtos",
+          "content": {
+            "header": "🛍️ Nossos Produtos",
+            "body": "Escolha um produto para saber mais:",
+            "footer": "PyTake - Soluções em automação",
+            "sections": [
+              {
+                "title": "Planos Básicos",
+                "rows": [
+                  {
+                    "id": "plan_starter",
+                    "title": "Starter",
+                    "description": "Até 1000 mensagens/mês - R$ 29/mês"
+                  },
+                  {
+                    "id": "plan_basic",
+                    "title": "Basic",
+                    "description": "Até 5000 mensagens/mês - R$ 79/mês"
+                  }
+                ]
+              },
+              {
+                "title": "Planos Avançados",
+                "rows": [
+                  {
+                    "id": "plan_pro",
+                    "title": "Professional",
+                    "description": "Até 15000 mensagens/mês - R$ 199/mês"
+                  },
+                  {
+                    "id": "plan_enterprise",
+                    "title": "Enterprise", 
+                    "description": "Ilimitado - R$ 499/mês"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "position": { "x": 300, "y": 400 }
+      },
+      {
+        "id": "product_details_001",
+        "type": "switch",
+        "data": {
+          "label": "Switch Produtos",
+          "condition": "{{selected_option}}",
+          "cases": {
+            "plan_starter": "starter_details",
+            "plan_basic": "basic_details",
+            "plan_pro": "pro_details", 
+            "plan_enterprise": "enterprise_details",
+            "default": "menu_001"
+          }
+        },
+        "position": { "x": 500, "y": 400 }
+      },
+      {
+        "id": "starter_details",
+        "type": "message",
+        "data": {
+          "label": "Detalhes Starter",
+          "message": "🚀 Plano Starter\n\n📊 Até 1.000 mensagens/mês\n💬 1 número WhatsApp\n🤖 Chatbots básicos\n📈 Relatórios simples\n\n💰 R$ 29/mês\n\n✅ Ideal para pequenos negócios"
+        },
+        "position": { "x": 200, "y": 550 }
+      },
+      {
+        "id": "basic_details",
+        "type": "message",
+        "data": {
+          "label": "Detalhes Basic",
+          "message": "⚡ Plano Basic\n\n📊 Até 5.000 mensagens/mês\n💬 2 números WhatsApp\n🤖 Chatbots avançados\n📈 Relatórios detalhados\n🔗 Integrações básicas\n\n💰 R$ 79/mês"
+        },
+        "position": { "x": 400, "y": 550 }
+      },
+      {
+        "id": "pro_details",
+        "type": "message",
+        "data": {
+          "label": "Detalhes Professional",
+          "message": "💼 Plano Professional\n\n📊 Até 15.000 mensagens/mês\n💬 5 números WhatsApp\n🤖 IA Avançada\n📈 Analytics completos\n🔗 Integrações ilimitadas\n👥 Múltiplos usuários\n\n💰 R$ 199/mês"
+        },
+        "position": { "x": 600, "y": 550 }
+      },
+      {
+        "id": "enterprise_details",
+        "type": "message",
+        "data": {
+          "label": "Detalhes Enterprise",
+          "message": "🏢 Plano Enterprise\n\n📊 Mensagens ilimitadas\n💬 Números ilimitados\n🤖 IA Customizada\n📈 Dashboards personalizados\n🔗 API dedicada\n👥 Usuários ilimitados\n🔒 Segurança avançada\n\n💰 R$ 499/mês"
+        },
+        "position": { "x": 800, "y": 550 }
+      },
+      {
+        "id": "end_001",
+        "type": "message",
+        "data": {
+          "label": "Finalização",
+          "message": "✨ Obrigado por usar o PyTake!\n\n🔄 Digite 'menu' para voltar ao início\n📞 Suporte: (11) 9999-9999\n🌐 Site: https://pytake.com"
+        },
+        "position": { "x": 500, "y": 700 }
+      }
+    ],
+    "edges": [
+      { "id": "e1", "source": "trigger_001", "target": "welcome_001" },
+      { "id": "e2", "source": "welcome_001", "target": "menu_001" },
+      { "id": "e3", "source": "menu_001", "target": "info_001", "condition": "info" },
+      { "id": "e4", "source": "menu_001", "target": "support_001", "condition": "support" },
+      { "id": "e5", "source": "menu_001", "target": "products_001", "condition": "products" },
+      { "id": "e6", "source": "info_001", "target": "end_001" },
+      { "id": "e7", "source": "support_001", "target": "support_002" },
+      { "id": "e8", "source": "support_002", "target": "end_001" },
+      { "id": "e9", "source": "products_001", "target": "product_details_001" },
+      { "id": "e10", "source": "product_details_001", "target": "starter_details", "condition": "plan_starter" },
+      { "id": "e11", "source": "product_details_001", "target": "basic_details", "condition": "plan_basic" },
+      { "id": "e12", "source": "product_details_001", "target": "pro_details", "condition": "plan_pro" },
+      { "id": "e13", "source": "product_details_001", "target": "enterprise_details", "condition": "plan_enterprise" },
+      { "id": "e14", "source": "starter_details", "target": "end_001" },
+      { "id": "e15", "source": "basic_details", "target": "end_001" },
+      { "id": "e16", "source": "pro_details", "target": "end_001" },
+      { "id": "e17", "source": "enterprise_details", "target": "end_001" }
+    ]
+  },
+  "variables": {
+    "contact.name": "Usuário",
+    "flow.execution_id": "{{random_id}}"
+  },
+  "settings": {
+    "timeout_minutes": 30,
+    "max_iterations": 20,
+    "fallback_node": "end_001"
+  }
+}

@@ -40,6 +40,10 @@ target/
 dist/
 build/
 out/
+.next/
+frontend/.next/
+frontend/.next.broken/
+*.next*
 *.exe
 *.dll
 *.so
@@ -86,4 +90,11 @@ target/
 
 # Uploads
 uploads/
-media/
+media/certbot/
+
+# Claude AI Assistant
+.claude/
+*.claude
+.claude*
+CLAUDE.md
+*.claude.md
