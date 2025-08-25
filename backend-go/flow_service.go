@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -425,19 +427,31 @@ func (s *FlowService) executeFlowNode(executionID, nodeType, nodeID string, node
 			message = "Mensagem de teste do PyTake"
 		}
 		
-		// For now, simulate sending message
-		// TODO: Integrate with real WhatsApp API
-		result.MessagesSent++
-		
-		result.Logs = append(result.Logs, ExecutionLog{
-			Timestamp: time.Now().Format(time.RFC3339),
-			StepType:  nodeType,
-			StepID:    nodeID,
-			Action:    "message_sent",
-			Status:    "success",
-			Message:   fmt.Sprintf("Mensagem enviada para %s", recipient),
-			Details:   message,
-		})
+		// Send real WhatsApp message
+		err := s.sendWhatsAppMessage(recipient, message, config)
+		if err != nil {
+			result.Logs = append(result.Logs, ExecutionLog{
+				Timestamp: time.Now().Format(time.RFC3339),
+				StepType:  nodeType,
+				StepID:    nodeID,
+				Action:    "message_send_failed",
+				Status:    "error",
+				Message:   fmt.Sprintf("Erro ao enviar mensagem para %s", recipient),
+				Details:   err.Error(),
+			})
+			// Continue execution even if message fails in test mode
+		} else {
+			result.MessagesSent++
+			result.Logs = append(result.Logs, ExecutionLog{
+				Timestamp: time.Now().Format(time.RFC3339),
+				StepType:  nodeType,
+				StepID:    nodeID,
+				Action:    "message_sent",
+				Status:    "success",
+				Message:   fmt.Sprintf("Mensagem enviada para %s", recipient),
+				Details:   message,
+			})
+		}
 		
 	case "delay":
 		// Delay node - add delay
@@ -511,6 +525,80 @@ func (s *FlowService) storeExecutionLogs(executionID string, logs []ExecutionLog
 // generateExecutionID generates a unique execution ID
 func generateExecutionID() string {
 	return fmt.Sprintf("exec_%d_%d", time.Now().Unix(), rand.Intn(10000))
+}
+
+// sendWhatsAppMessage sends a real WhatsApp message using the Meta API
+func (s *FlowService) sendWhatsAppMessage(recipient string, message string, whatsappConfig map[string]interface{}) error {
+	// Get WhatsApp configuration
+	phoneNumberID, ok := whatsappConfig["phone_number_id"].(string)
+	if !ok {
+		return fmt.Errorf("phone_number_id not found in config")
+	}
+	
+	accessToken, ok := whatsappConfig["access_token"].(string)
+	if !ok {
+		return fmt.Errorf("access_token not found in config")
+	}
+	
+	// Build WhatsApp API URL
+	url := fmt.Sprintf("https://graph.facebook.com/v21.0/%s/messages", phoneNumberID)
+	
+	// Build message payload
+	payload := map[string]interface{}{
+		"messaging_product": "whatsapp",
+		"to": recipient,
+		"type": "text",
+		"text": map[string]string{
+			"preview_url": "false",
+			"body": message,
+		},
+	}
+	
+	// Convert payload to JSON
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %v", err)
+	}
+	
+	// Create HTTP request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+	
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	
+	// Send request
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+	
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %v", err)
+	}
+	
+	// Check response status
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		var errorResp map[string]interface{}
+		if err := json.Unmarshal(body, &errorResp); err == nil {
+			if errData, ok := errorResp["error"].(map[string]interface{}); ok {
+				if msg, ok := errData["message"].(string); ok {
+					return fmt.Errorf("WhatsApp API error: %s", msg)
+				}
+			}
+		}
+		return fmt.Errorf("WhatsApp API error: status %d, body: %s", resp.StatusCode, string(body))
+	}
+	
+	log.Printf("✅ WhatsApp message sent successfully to %s", recipient)
+	return nil
 }
 
 // GetFlow returns a specific flow by ID
