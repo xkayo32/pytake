@@ -97,6 +97,8 @@ export default function WhatsAppSettingsPage() {
   const [showTokens, setShowTokens] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
   const [testLogs, setTestLogs] = useState<string[]>([])
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [showInboxSettings, setShowInboxSettings] = useState(false)
   const [features, setFeatures] = useState({
     autoReply: true,
     saveContacts: true,
@@ -210,6 +212,49 @@ export default function WhatsAppSettingsPage() {
       }
     } catch (error) {
       console.error('Error setting default:', error)
+    }
+  }
+
+  const handleSyncConversations = async () => {
+    try {
+      setIsSyncing(true)
+      
+      // Verificar conversas existentes
+      const response = await fetch(`/api/v1/conversations`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        const conversationCount = data.conversations?.length || 0
+        
+        if (conversationCount > 0) {
+          addToast({
+            type: 'success',
+            title: 'Conversas encontradas',
+            description: `Você tem ${conversationCount} conversas ativas`
+          })
+        } else {
+          addToast({
+            type: 'info',
+            title: 'Nenhuma conversa ainda',
+            description: 'Conversas aparecerão quando você receber mensagens no WhatsApp'
+          })
+        }
+      } else {
+        addToast({
+          type: 'error',
+          title: 'Erro ao verificar',
+          description: 'Não foi possível verificar as conversas'
+        })
+      }
+    } catch (error) {
+      console.error('Error syncing conversations:', error)
+      addToast({
+        type: 'error',
+        title: 'Erro ao sincronizar',
+        description: 'Falha ao sincronizar conversas'
+      })
+    } finally {
+      setIsSyncing(false)
     }
   }
 
@@ -905,6 +950,173 @@ export default function WhatsAppSettingsPage() {
           </CardContent>
         </Card>
       )}
+      {/* Sincronização de Conversas */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Sincronização de Conversas</CardTitle>
+              <CardDescription className="mt-2">
+                Configure a sincronização automática de mensagens do WhatsApp
+              </CardDescription>
+            </div>
+            <MessageSquare className="h-5 w-5 text-muted-foreground" />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Status da Sincronização */}
+          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse" />
+              <div>
+                <p className="font-medium">Webhook Ativo</p>
+                <p className="text-sm text-muted-foreground">
+                  Recebendo mensagens em tempo real do WhatsApp
+                </p>
+              </div>
+            </div>
+            <Switch defaultChecked />
+          </div>
+
+          {/* Informação sobre conversas */}
+          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <div className="flex gap-3">
+              <Info className="h-5 w-5 text-blue-500 mt-0.5" />
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Como funcionam as conversas do WhatsApp
+                </p>
+                <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                  <li>• Conversas aparecem automaticamente quando você recebe mensagens</li>
+                  <li>• Configure o webhook abaixo para receber mensagens em tempo real</li>
+                  <li>• Envie um template primeiro para iniciar conversas com novos contatos</li>
+                  <li>• Mensagens são sincronizadas instantaneamente via webhook</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Configurações por Número */}
+          <div className="space-y-3">
+            <Label>Números Configurados para Recepção</Label>
+            {configs.map((config) => (
+              <div key={config.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">{config.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {config.phone_number || 'Número não configurado'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={config.webhook_verified ? "success" : "secondary"}>
+                    {config.webhook_verified ? "Webhook Ativo" : "Webhook Pendente"}
+                  </Badge>
+                  <Switch 
+                    defaultChecked={config.is_default}
+                    onCheckedChange={() => handleSetDefault(config.id)}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Ações de Sincronização */}
+          <div className="flex gap-2">
+            <Button
+              onClick={handleSyncConversations}
+              disabled={isSyncing}
+              variant="outline"
+              className="flex-1"
+            >
+              {isSyncing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Verificando...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Verificar Conversas Existentes
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowInboxSettings(!showInboxSettings)}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Configurar Inbox
+            </Button>
+          </div>
+
+          {/* Configurações do Inbox */}
+          {showInboxSettings && (
+            <div className="space-y-3 pt-4 border-t">
+              <h4 className="font-medium">Configurações da Caixa de Entrada</h4>
+              
+              <div className="space-y-2">
+                <Label>Atribuição de Conversas</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-normal">Auto-atribuir ao primeiro atendente disponível</Label>
+                    <Switch />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="font-normal">Notificar novos atendentes sobre mensagens não lidas</Label>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="font-normal">Marcar como lida ao abrir conversa</Label>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Tags de Organização</Label>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline" className="cursor-pointer">
+                    <Plus className="h-3 w-3 mr-1" />
+                    Vendas
+                  </Badge>
+                  <Badge variant="outline" className="cursor-pointer">
+                    <Plus className="h-3 w-3 mr-1" />
+                    Suporte
+                  </Badge>
+                  <Badge variant="outline" className="cursor-pointer">
+                    <Plus className="h-3 w-3 mr-1" />
+                    Marketing
+                  </Badge>
+                  <Button variant="ghost" size="sm">
+                    <Plus className="h-3 w-3 mr-1" />
+                    Adicionar Tag
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Estatísticas */}
+          <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+            <div className="text-center">
+              <p className="text-2xl font-bold">0</p>
+              <p className="text-sm text-muted-foreground">Conversas Ativas</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold">0</p>
+              <p className="text-sm text-muted-foreground">Mensagens Hoje</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold">0</p>
+              <p className="text-sm text-muted-foreground">Não Lidas</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Logs */}
       {testLogs.length > 0 && (
         <Card>

@@ -65,6 +65,7 @@ func main() {
 	flowService := NewFlowService(db, redis)
 	whatsappService := NewWhatsAppService(db, redis)
 	authService := NewAuthService(db, redis)
+	conversationService := NewConversationService(db)
 
 	// Setup routes
 	api := router.Group("/api/v1")
@@ -104,6 +105,15 @@ func main() {
 		api.DELETE("/whatsapp/templates/:id", whatsappService.DeleteTemplate)
 		api.POST("/whatsapp/templates/:id/submit", whatsappService.SubmitTemplate)
 		
+		// Conversation routes
+		api.GET("/conversations", conversationService.GetConversations)
+		api.GET("/conversations/unread-count", conversationService.GetUnreadCount)
+		api.POST("/conversations/sync", conversationService.SyncConversations)
+		api.POST("/conversations/update-phone-numbers", conversationService.UpdateConversationsWithPhoneNumbers)
+		api.GET("/conversations/:id/messages", conversationService.GetMessages)
+		api.POST("/conversations/:id/messages", conversationService.SendMessage)
+		api.GET("/conversations/ws", conversationService.WebSocketHandler)
+		
 		// Webhook routes
 		webhookService := NewWebhookService(db, redis)
 		api.POST("/whatsapp-configs/:id/webhook/validate", webhookService.ValidateWebhookConfig)
@@ -112,9 +122,8 @@ func main() {
 	}
 	
 	// Webhook endpoints (outside auth group - Meta needs to access these)
-	webhookService := NewWebhookService(db, redis)
-	router.GET("/webhook/whatsapp", webhookService.WebhookVerification)
-	router.POST("/webhook/whatsapp", webhookService.WebhookReceive)
+	router.GET("/webhook/whatsapp", conversationService.WhatsAppWebhook)
+	router.POST("/webhook/whatsapp", conversationService.WhatsAppWebhook)
 
 	// Start server
 	port := os.Getenv("PORT")

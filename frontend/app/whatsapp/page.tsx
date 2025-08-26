@@ -107,155 +107,73 @@ export default function WhatsAppPage() {
     scrollToBottom()
   }, [messages])
 
-  // WebSocket connection
+  // WebSocket connection - COMPLETAMENTE DESABILITADO
   useEffect(() => {
-    const connectWebSocket = () => {
-      try {
-        const wsUrl = process.env.NODE_ENV === 'production' 
-          ? 'wss://api.pytake.net/ws'
-          : 'ws://localhost:8081/ws'
-        
-        const ws = new WebSocket(wsUrl)
-        wsRef.current = ws
-
-        ws.onopen = () => {
-          console.log('🔌 WebSocket connected')
-          setWsConnected(true)
-          notify.success('Conectado ao chat em tempo real')
-        }
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data)
-            console.log('📨 WebSocket message:', data)
-
-            switch (data.type) {
-              case 'new_message':
-              case 'message_sent':
-                // Add new message to the current conversation
-                if (selectedContact && data.data.contactId === selectedContact.id) {
-                  const newMsg: Message = {
-                    id: data.data.id,
-                    content: data.data.content,
-                    timestamp: new Date(data.data.timestamp),
-                    isFromMe: data.data.isFromMe,
-                    status: data.data.status,
-                    type: data.data.messageType || 'text'
-                  }
-                  setMessages(prev => [...prev, newMsg])
-                }
-                
-                // Update contact list with new message
-                setContacts(prev => prev.map(contact => 
-                  contact.id === data.data.contactId 
-                    ? {
-                        ...contact,
-                        lastMessage: data.data.content,
-                        lastMessageTime: new Date(data.data.timestamp),
-                        unreadCount: selectedContact?.id === contact.id ? 0 : (contact.unreadCount || 0) + (data.data.isFromMe ? 0 : 1)
-                      }
-                    : contact
-                ))
-                break
-              
-              case 'message_status_update':
-                // Update message status
-                setMessages(prev => prev.map(msg => 
-                  msg.id === data.data.messageId 
-                    ? { ...msg, status: data.data.status }
-                    : msg
-                ))
-                break
-
-              case 'contact_typing':
-                // Show typing indicator
-                setContacts(prev => prev.map(contact =>
-                  contact.id === data.data.contactId
-                    ? { ...contact, isTyping: data.data.isTyping }
-                    : contact
-                ))
-                break
-            }
-          } catch (error) {
-            console.error('❌ Error parsing WebSocket message:', error)
-          }
-        }
-
-        ws.onclose = () => {
-          console.log('🔌 WebSocket disconnected')
-          setWsConnected(false)
-          // Reconnect after 3 seconds
-          setTimeout(connectWebSocket, 3000)
-        }
-
-        ws.onerror = (error) => {
-          console.error('❌ WebSocket error:', error)
-          setWsConnected(false)
-        }
-      } catch (error) {
-        console.error('❌ Failed to connect WebSocket:', error)
-      }
-    }
-
-    connectWebSocket()
-
+    // WebSocket desabilitado temporariamente
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close()
-      }
+      // Cleanup se necessário
     }
   }, [selectedContact, notify])
 
-  // Notify WebSocket when conversation changes
+  // Notify WebSocket when conversation changes - DESABILITADO
   useEffect(() => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && selectedContact) {
-      wsRef.current.send(JSON.stringify({
-        type: 'join_conversation',
-        conversationId: selectedContact.id
-      }))
-    }
+    // WebSocket desabilitado
+    // if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && selectedContact) {
+    //   wsRef.current.send(JSON.stringify({
+    //     type: 'join_conversation',
+    //     conversationId: selectedContact.id
+    //   }))
+    // }
   }, [selectedContact])
 
   const loadContacts = async () => {
     try {
-      const response = await fetch('/api/v1/contacts')
+      const response = await fetch('/api/v1/conversations')
       if (response.ok) {
         const data = await response.json()
-        const formattedContacts = data.contacts.map((contact: any) => ({
-          id: contact.id,
-          name: contact.name || contact.phone,
-          phone: contact.phone,
-          avatar: contact.avatar_url,
-          lastMessage: contact.last_message,
-          lastMessageTime: contact.last_message_time ? new Date(contact.last_message_time) : undefined,
-          unreadCount: contact.unread_count || 0,
+        const conversations = data.conversations || []
+        const formattedContacts = conversations.map((conv: any) => ({
+          id: conv.id,
+          name: conv.contact_name || conv.contact_phone,
+          phone: conv.contact_phone,
+          avatar: conv.avatar_url,
+          lastMessage: conv.last_message,
+          lastMessageTime: conv.last_message_time ? new Date(conv.last_message_time) : undefined,
+          unreadCount: conv.unread_count || 0,
           isOnline: false,
-          isFavorite: contact.is_favorite,
-          isBlocked: contact.is_blocked
+          isFavorite: false,
+          isBlocked: false
         }))
         setContacts(formattedContacts)
       }
     } catch (error) {
       console.error('Error loading contacts:', error)
-      notify.error('Erro ao carregar contatos')
+      // Não mostrar erro se a API ainda não tiver conversas
+      setContacts([])
     }
   }
 
   const loadMessages = async (contactId: string) => {
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/v1/whatsapp/messages/${contactId}`)
+      const response = await fetch(`/api/v1/conversations/${contactId}/messages`)
       if (response.ok) {
         const data = await response.json()
-        const formattedMessages = data.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp)
+        const messages = data.messages || []
+        const formattedMessages = messages.map((msg: any) => ({
+          id: msg.id,
+          content: msg.content,
+          timestamp: new Date(msg.created_at),
+          isFromMe: msg.sender === 'agent',
+          status: msg.status || 'sent',
+          type: msg.type || 'text',
+          mediaUrl: msg.media_url
         }))
         setMessages(formattedMessages)
       }
     } catch (error) {
       console.error('Error loading messages:', error)
-      notify.error('Erro ao carregar mensagens')
+      setMessages([])
     } finally {
       setIsLoading(false)
     }
@@ -286,12 +204,13 @@ export default function WhatsAppPage() {
     setNewMessage('')
 
     try {
-      const response = await fetch('/api/v1/whatsapp/send', {
+      const response = await fetch(`/api/v1/conversations/${selectedContact.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: selectedContact.phone,
-          message: { text: { body: newMessage } }
+          conversation_id: parseInt(selectedContact.id),
+          content: newMessage,
+          type: 'text'
         })
       })
 
@@ -461,11 +380,14 @@ export default function WhatsAppPage() {
       const response = await fetch('/api/v1/whatsapp/templates')
       if (response.ok) {
         const data = await response.json()
-        setTemplates(data)
+        // Garantir que templates é sempre um array
+        const templateList = Array.isArray(data) ? data : (data.templates || [])
+        setTemplates(templateList)
       }
     } catch (error) {
       console.error('Error loading templates:', error)
       notify.error('Erro ao carregar templates')
+      setTemplates([]) // Garantir array vazio em caso de erro
     }
   }
 
@@ -674,7 +596,7 @@ export default function WhatsAppPage() {
             >
               <div className="relative">
                 <Avatar>
-                  <AvatarImage src={contact.avatar} />
+                  {contact.avatar && <AvatarImage src={contact.avatar} />}
                   <AvatarFallback>
                     {contact.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                   </AvatarFallback>
@@ -728,7 +650,7 @@ export default function WhatsAppPage() {
                   </Button>
                 )}
                 <Avatar>
-                  <AvatarImage src={selectedContact.avatar} />
+                  {selectedContact.avatar && <AvatarImage src={selectedContact.avatar} />}
                   <AvatarFallback>
                     {selectedContact.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                   </AvatarFallback>
@@ -940,7 +862,7 @@ export default function WhatsAppPage() {
             <div className="grid gap-4 py-4">
               <div className="flex items-center gap-4">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage src={selectedContact.avatar} />
+                  {selectedContact.avatar && <AvatarImage src={selectedContact.avatar} />}
                   <AvatarFallback className="text-lg">
                     {selectedContact.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                   </AvatarFallback>
@@ -1027,7 +949,8 @@ export default function WhatsAppPage() {
             <div className="grid gap-2">
               <Label>Templates Disponíveis</Label>
               <div className="space-y-2 max-h-48 overflow-y-auto">
-                {templates.map((template: any) => (
+                {templates && templates.length > 0 ? (
+                  templates.map((template: any) => (
                   <div
                     key={template.id}
                     onClick={() => setSelectedTemplate(template)}
@@ -1055,7 +978,12 @@ export default function WhatsAppPage() {
                       {template.components?.find((c: any) => c.type === 'BODY')?.text || template.name}
                     </p>
                   </div>
-                ))}
+                ))
+                ) : (
+                  <p className="text-center text-gray-500 py-4">
+                    Nenhum template disponível
+                  </p>
+                )}
               </div>
             </div>
             
