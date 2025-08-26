@@ -323,9 +323,9 @@ func (s *FlowService) executeFlowTest(executionID string, flow Flow, recipient s
 		Message:   fmt.Sprintf("Iniciando execução do flow '%s' para %s", flow.Name, recipient),
 	})
 	
-	// Find start node (can be "start" or trigger nodes)
+	// Find start node (can be "start", trigger nodes, or template as first message)
 	var startNode map[string]interface{}
-	startNodeTypes := []string{"start", "trigger_keyword", "trigger_webhook", "trigger_time", "trigger_manual"}
+	startNodeTypes := []string{"start", "trigger_keyword", "trigger_webhook", "trigger_time", "trigger_manual", "template", "msg_template"}
 	
 	for _, node := range nodes {
 		if nodeType, ok := node["type"].(string); ok {
@@ -512,6 +512,55 @@ func (s *FlowService) executeFlowNode(executionID, nodeType, nodeID string, node
 			Status:    "success",
 			Message:   fmt.Sprintf("Delay de %.0f segundos aplicado", delay),
 		})
+		
+	case "template", "msg_template":
+		// Template node - send WhatsApp template message
+		var templateName string
+		var templateParams []map[string]interface{}
+		
+		if config, ok := nodeData["config"].(map[string]interface{}); ok {
+			templateName, _ = config["template_name"].(string)
+			if params, ok := config["parameters"].([]interface{}); ok {
+				for _, p := range params {
+					if param, ok := p.(map[string]interface{}); ok {
+						templateParams = append(templateParams, param)
+					}
+				}
+			}
+		}
+		
+		// If no template specified, use default test template
+		if templateName == "" {
+			templateName = "pytake_saudacao"
+		}
+		
+		// Send template message directly (bypasses 24h window check)
+		err := s.sendTemplateMessage(recipient, templateName, templateParams, config)
+		if err != nil {
+			result.Logs = append(result.Logs, ExecutionLog{
+				Timestamp: time.Now().Format(time.RFC3339),
+				StepType:  nodeType,
+				StepID:    nodeID,
+				Action:    "template_send_failed",
+				Status:    "error",
+				Message:   fmt.Sprintf("Erro ao enviar template para %s", recipient),
+				Details:   err.Error(),
+			})
+			// Continue execution even if template fails in test mode
+		} else {
+			result.MessagesSent++
+			result.Logs = append(result.Logs, ExecutionLog{
+				Timestamp: time.Now().Format(time.RFC3339),
+				StepType:  nodeType,
+				StepID:    nodeID,
+				Action:    "template_sent",
+				Status:    "success",
+				Message:   fmt.Sprintf("Template '%s' enviado para %s", templateName, recipient),
+			})
+			
+			// Template automatically opens 24h window
+			s.createConversationWindow(recipient)
+		}
 		
 	case "condition":
 		// Condition node - evaluate condition
@@ -715,6 +764,124 @@ func (s *FlowService) sendWhatsAppMessage(recipient string, message string, what
 	}
 	
 	log.Printf("✅ WhatsApp message sent successfully to %s", recipient)
+	return nil
+}
+
+// sendTemplateMessage sends a WhatsApp template message directly
+func (s *FlowService) sendTemplateMessage(recipient string, templateName string, templateParams []map[string]interface{}, whatsappConfig map[string]interface{}) error {
+	// Get WhatsApp config
+	config := whatsappConfig
+	if config == nil {
+		// Get default WhatsApp config from database
+		query := `
+			SELECT id, name, phone_number_id, access_token, webhook_url, webhook_secret, is_default
+			FROM whatsapp_configs
+			WHERE is_default = true
+			LIMIT 1
+		`
+		var configID int
+		var name, phoneNumberID, accessToken sql.NullString
+		var webhookURL, webhookSecret sql.NullString
+		var isDefault bool
+		
+		err := s.db.QueryRow(query).Scan(&configID, &name, &phoneNumberID, &accessToken, &webhookURL, &webhookSecret, &isDefault)
+		if err != nil {
+			return fmt.Errorf("no default WhatsApp configuration found: %v", err)
+		}
+		
+		config = map[string]interface{}{
+			"phone_number_id": phoneNumberID.String,
+			"access_token": accessToken.String,
+		}
+	}
+	
+	// Extract config values
+	phoneNumberID, _ := config["phone_number_id"].(string)
+	accessToken, _ := config["access_token"].(string)
+	
+	if phoneNumberID == "" || accessToken == "" {
+		return fmt.Errorf("WhatsApp configuration incomplete")
+	}
+	
+	// Format recipient number
+	formattedRecipient := recipient
+	if len(recipient) == 13 && recipient[:2] == "55" {
+		// Brazilian number formatting
+		restOfNumber := recipient[4:]
+		if len(restOfNumber) == 9 && restOfNumber[0] == '9' {
+			// Template messages work with both formats
+			log.Printf("📱 Brazilian template recipient: %s", recipient)
+		}
+	}
+	
+	// Build template components
+	var components []map[string]interface{}
+	if len(templateParams) > 0 {
+		components = templateParams
+	} else {
+		// Default empty components
+		components = []map[string]interface{}{}
+	}
+	
+	// Build payload for template message
+	payload := map[string]interface{}{
+		"messaging_product": "whatsapp",
+		"to": formattedRecipient,
+		"type": "template",
+		"template": map[string]interface{}{
+			"name": templateName,
+			"language": map[string]string{
+				"code": "pt_BR",
+			},
+			"components": components,
+		},
+	}
+	
+	// Send the template message
+	url := fmt.Sprintf("https://graph.facebook.com/v21.0/%s/messages", phoneNumberID)
+	
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal template payload: %v", err)
+	}
+	
+	log.Printf("📤 Sending WhatsApp template: %s", string(jsonPayload))
+	
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return fmt.Errorf("failed to create template request: %v", err)
+	}
+	
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send template request: %v", err)
+	}
+	defer resp.Body.Close()
+	
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read template response: %v", err)
+	}
+	
+	log.Printf("📬 WhatsApp Template Response: Status=%d, Body=%s", resp.StatusCode, string(body))
+	
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		var errorResp map[string]interface{}
+		if err := json.Unmarshal(body, &errorResp); err == nil {
+			if errData, ok := errorResp["error"].(map[string]interface{}); ok {
+				if msg, ok := errData["message"].(string); ok {
+					return fmt.Errorf("WhatsApp template error: %s", msg)
+				}
+			}
+		}
+		return fmt.Errorf("WhatsApp template error: status %d", resp.StatusCode)
+	}
+	
+	log.Printf("✅ WhatsApp template '%s' sent successfully to %s", templateName, recipient)
 	return nil
 }
 
