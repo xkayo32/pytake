@@ -247,17 +247,52 @@ export default function FlowsPage() {
       
       // Criar novo flow no backend imediatamente
       const isUniversal = flowType === 'universal'
+      const initialNodes = isUniversal ? [
+        {
+          id: 'start-node',
+          type: 'trigger_universal',
+          position: { x: 100, y: 100 },
+          data: {
+            nodeType: 'trigger_universal',
+            config: {
+              expiration_minutes: 10
+            }
+          }
+        },
+        {
+          id: 'response-node',
+          type: 'action_message',
+          position: { x: 100, y: 300 },
+          data: {
+            nodeType: 'action_message',
+            config: {
+              message: 'Olá! Como posso ajudar você?',
+              delay: 1000
+            }
+          }
+        }
+      ] : []
+      
+      const initialEdges = isUniversal ? [
+        {
+          id: 'edge-1',
+          source: 'start-node',
+          target: 'response-node',
+          type: 'smoothstep'
+        }
+      ] : []
+
       const newFlowData = {
         name: isUniversal ? 'Novo Flow Universal' : 'Novo Flow',
         description: isUniversal ? 'Flow universal que responde a todas as mensagens' : 'Flow criado automaticamente',
         status: 'draft',
         triggerType: flowType,
         triggerValue: isUniversal ? JSON.stringify({ expiration_minutes: 10 }) : null,
-        nodes: [],
-        edges: [],
+        nodes: initialNodes,
+        edges: initialEdges,
         flow: {
-          nodes: [],
-          edges: []
+          nodes: initialNodes,
+          edges: initialEdges
         },
         trigger: {
           type: flowType,
