@@ -104,6 +104,7 @@ export default function WhatsAppSettingsPage() {
     messages_today: 0,
     unread_count: 0
   })
+  const [isClearing, setIsClearing] = useState(false)
   const [features, setFeatures] = useState({
     autoReply: true,
     saveContacts: true,
@@ -139,9 +140,74 @@ export default function WhatsAppSettingsPage() {
   }, [])
 
   useEffect(() => {
-    // Load stats periodically
-    const interval = setInterval(loadStats, 30000) // Every 30 seconds
-    return () => clearInterval(interval)
+    // WebSocket for real-time stats updates
+    let ws: WebSocket | null = null
+
+    const connectWebSocket = () => {
+      try {
+        const wsUrl = process.env.NODE_ENV === 'production' 
+          ? 'wss://api.pytake.net/api/v1/conversations/ws'
+          : 'ws://localhost:8080/api/v1/conversations/ws'
+        
+        ws = new WebSocket(wsUrl)
+
+        ws.onopen = () => {
+          console.log('📡 Settings WebSocket connected')
+        }
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data)
+            console.log('📨 Settings WebSocket message:', data)
+
+            switch (data.type) {
+              case 'stats_update':
+                // Update stats in real-time
+                setStats({
+                  active_conversations: data.data.active_conversations || 0,
+                  messages_today: data.data.messages_today || 0,
+                  unread_count: data.data.unread_count || 0,
+                })
+                break
+              case 'conversations_cleared':
+                // Reset stats when conversations are cleared
+                setStats({
+                  active_conversations: 0,
+                  messages_today: 0,
+                  unread_count: 0,
+                })
+                break
+            }
+          } catch (error) {
+            console.error('❌ Error parsing settings WebSocket message:', error)
+          }
+        }
+
+        ws.onclose = () => {
+          console.log('🔌 Settings WebSocket disconnected, reconnecting...')
+          setTimeout(connectWebSocket, 3000)
+        }
+
+        ws.onerror = (error) => {
+          console.error('❌ Settings WebSocket error:', error)
+        }
+      } catch (error) {
+        console.error('❌ Failed to connect settings WebSocket:', error)
+      }
+    }
+
+    // Connect to WebSocket
+    connectWebSocket()
+    
+    // Fallback polling every 30 seconds
+    const interval = setInterval(loadStats, 30000)
+    
+    return () => {
+      if (ws) {
+        ws.close()
+      }
+      clearInterval(interval)
+    }
   }, [])
 
   const loadConfigs = async () => {
@@ -304,6 +370,48 @@ export default function WhatsAppSettingsPage() {
       })
     } finally {
       setIsSyncing(false)
+    }
+  }
+
+  const handleClearConversations = async () => {
+    if (!confirm('Tem certeza que deseja limpar TODAS as conversas? Esta ação não pode ser desfeita.')) {
+      return
+    }
+
+    try {
+      setIsClearing(true)
+      
+      const response = await fetch('/api/v1/conversations/clear', {
+        method: 'DELETE',
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Reload stats
+        await loadStats()
+        
+        addToast({
+          type: 'success',
+          title: 'Conversas limpas',
+          description: `${data.deleted.conversations} conversas e ${data.deleted.messages} mensagens foram removidas`
+        })
+      } else {
+        addToast({
+          type: 'error',
+          title: 'Erro ao limpar',
+          description: 'Não foi possível limpar as conversas'
+        })
+      }
+    } catch (error) {
+      console.error('Error clearing conversations:', error)
+      addToast({
+        type: 'error',
+        title: 'Erro ao limpar',
+        description: 'Falha ao limpar conversas'
+      })
+    } finally {
+      setIsClearing(false)
     }
   }
 
@@ -1089,6 +1197,24 @@ export default function WhatsAppSettingsPage() {
                 <>
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Verificar Conversas Existentes
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={handleClearConversations}
+              disabled={isClearing}
+              variant="outline"
+              className="text-red-600 hover:text-red-700"
+            >
+              {isClearing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Limpando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Limpar Tudo
                 </>
               )}
             </Button>

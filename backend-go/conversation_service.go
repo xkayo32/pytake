@@ -135,99 +135,12 @@ func (s *ConversationService) syncRealConversations(tenantID, phoneNumberID, acc
 		webhookCount = 0
 	}
 	
-	// Create sample/template conversations for demonstration if none exist
-	if webhookCount == 0 {
-		sampleCount, err := s.createSampleConversationsIfNeeded(tenantID)
-		if err != nil {
-			log.Printf("Error creating sample conversations: %v", err)
-			return webhookCount, nil
-		}
-		return sampleCount, nil
-	}
+	// Return only real webhook-based conversations
+	log.Printf("📊 Found %d real conversations from webhook", webhookCount)
 	
 	return webhookCount, nil
 }
 
-// createSampleConversationsIfNeeded creates sample conversations for demonstration
-func (s *ConversationService) createSampleConversationsIfNeeded(tenantID string) (int, error) {
-	// Check if any conversations exist
-	var existingCount int
-	err := s.db.QueryRow(`
-		SELECT COUNT(*) FROM conversations WHERE tenant_id = $1
-	`, tenantID).Scan(&existingCount)
-	
-	if err != nil {
-		return 0, err
-	}
-	
-	if existingCount > 0 {
-		return existingCount, nil
-	}
-	
-	log.Printf("📝 Creating sample conversations for demonstration...")
-	
-	// Create sample contacts and conversations
-	sampleContacts := []struct {
-		phone string
-		name  string
-		message string
-	}{
-		{"+5561981287787", "Usuário Teste", "Olá, gostaria de saber mais sobre os seus serviços"},
-		{"+5561987654321", "Cliente Demo", "Boa tarde! Preciso de ajuda com meu pedido"},
-		{"+5561912345678", "Contato Exemplo", "Primeira mensagem recebida via WhatsApp"},
-	}
-	
-	createdCount := 0
-	
-	for _, contact := range sampleContacts {
-		// Create contact
-		var contactID string
-		err := s.db.QueryRow(`
-			INSERT INTO contacts (tenant_id, phone, name, created_at, updated_at)
-			VALUES ($1, $2, $3, NOW(), NOW())
-			ON CONFLICT (tenant_id, phone) DO UPDATE SET name = $3
-			RETURNING id
-		`, tenantID, contact.phone, contact.name).Scan(&contactID)
-		
-		if err != nil {
-			log.Printf("Error creating contact %s: %v", contact.name, err)
-			continue
-		}
-		
-		// Create conversation
-		var conversationID string
-		err = s.db.QueryRow(`
-			INSERT INTO conversations (tenant_id, contact_id, last_message, last_message_time, unread_count, status)
-			VALUES ($1, $2, $3, NOW() - INTERVAL '1 hour', 1, 'active')
-			RETURNING id
-		`, tenantID, contactID, contact.message).Scan(&conversationID)
-		
-		if err != nil {
-			log.Printf("Error creating conversation for %s: %v", contact.name, err)
-			continue
-		}
-		
-		// Create sample message
-		_, err = s.db.Exec(`
-			INSERT INTO messages (conversation_id, is_from_me, content, type, status, created_at, tenant_id, contact_id)
-			VALUES ($1, false, $2, 'text', 'received', NOW() - INTERVAL '1 hour', $3, $4)
-		`, conversationID, contact.message, tenantID, contactID)
-		
-		if err != nil {
-			log.Printf("Error creating message for %s: %v", contact.name, err)
-			continue
-		}
-		
-		createdCount++
-		log.Printf("✅ Created sample conversation with %s", contact.name)
-	}
-	
-	if createdCount > 0 {
-		log.Printf("📋 Created %d sample conversations for demonstration", createdCount)
-	}
-	
-	return createdCount, nil
-}
 
 // discoverConversationsFromWebhook counts conversations that came via webhook (real messages)
 func (s *ConversationService) discoverConversationsFromWebhook(tenantID string) (int, error) {
@@ -348,6 +261,97 @@ func (s *ConversationService) GetConversationStats(c *gin.Context) {
 		"active_conversations": activeConversations,
 		"messages_today": messagesToday,
 		"unread_count": unreadCount,
+	})
+}
+
+// ClearAllConversations deletes all conversations and related data
+func (s *ConversationService) ClearAllConversations(c *gin.Context) {
+	// Get first tenant ID (temporary solution)
+	var tenantID string
+	err := s.db.QueryRow("SELECT id FROM tenants LIMIT 1").Scan(&tenantID)
+	if err != nil {
+		log.Printf("Error getting tenant: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Tenant not found"})
+		return
+	}
+
+	// Start transaction
+	tx, err := s.db.Begin()
+	if err != nil {
+		log.Printf("Error starting transaction: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start transaction"})
+		return
+	}
+	defer tx.Rollback()
+
+	// Delete messages first (due to foreign key constraints)
+	messagesResult, err := tx.Exec(`
+		DELETE FROM messages 
+		WHERE conversation_id IN (
+			SELECT id FROM conversations WHERE tenant_id = $1
+		)
+	`, tenantID)
+	if err != nil {
+		log.Printf("Error deleting messages: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete messages"})
+		return
+	}
+	messagesDeleted, _ := messagesResult.RowsAffected()
+
+	// Delete conversations
+	conversationsResult, err := tx.Exec(`
+		DELETE FROM conversations WHERE tenant_id = $1
+	`, tenantID)
+	if err != nil {
+		log.Printf("Error deleting conversations: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete conversations"})
+		return
+	}
+	conversationsDeleted, _ := conversationsResult.RowsAffected()
+
+	// Delete contacts that have no conversations
+	contactsResult, err := tx.Exec(`
+		DELETE FROM contacts 
+		WHERE tenant_id = $1 
+		AND id NOT IN (
+			SELECT DISTINCT contact_id FROM conversations WHERE tenant_id = $1
+		)
+	`, tenantID)
+	if err != nil {
+		log.Printf("Error deleting contacts: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete contacts"})
+		return
+	}
+	contactsDeleted, _ := contactsResult.RowsAffected()
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		log.Printf("Error committing transaction: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit changes"})
+		return
+	}
+
+	log.Printf("🧹 Cleared all conversations: %d conversations, %d messages, %d contacts deleted", 
+		conversationsDeleted, messagesDeleted, contactsDeleted)
+
+	// Broadcast clear event to all WebSocket clients
+	s.broadcastMessage(map[string]interface{}{
+		"type": "conversations_cleared",
+		"data": map[string]interface{}{
+			"conversations_deleted": conversationsDeleted,
+			"messages_deleted": messagesDeleted,
+			"contacts_deleted": contactsDeleted,
+		},
+	})
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "All conversations cleared successfully",
+		"deleted": map[string]interface{}{
+			"conversations": conversationsDeleted,
+			"messages": messagesDeleted,
+			"contacts": contactsDeleted,
+		},
 	})
 }
 
@@ -723,6 +727,39 @@ func (s *ConversationService) broadcastMessage(message map[string]interface{}) {
 	}
 }
 
+// broadcastStatsUpdate sends updated statistics to all WebSocket clients
+func (s *ConversationService) broadcastStatsUpdate(tenantID string) {
+	// Get updated stats
+	var activeConversations, messagesToday, unreadCount int
+	
+	s.db.QueryRow(`
+		SELECT COUNT(*) FROM conversations 
+		WHERE tenant_id = $1 AND status = 'active'
+	`, tenantID).Scan(&activeConversations)
+	
+	s.db.QueryRow(`
+		SELECT COUNT(*) FROM messages m
+		JOIN conversations c ON m.conversation_id = c.id
+		WHERE c.tenant_id = $1 
+		AND m.created_at >= CURRENT_DATE
+	`, tenantID).Scan(&messagesToday)
+	
+	s.db.QueryRow(`
+		SELECT COALESCE(SUM(unread_count), 0) FROM conversations 
+		WHERE tenant_id = $1 AND unread_count > 0
+	`, tenantID).Scan(&unreadCount)
+	
+	// Broadcast stats update
+	s.broadcastMessage(map[string]interface{}{
+		"type": "stats_update",
+		"data": map[string]interface{}{
+			"active_conversations": activeConversations,
+			"messages_today": messagesToday,
+			"unread_count": unreadCount,
+		},
+	})
+}
+
 // WhatsAppWebhook handles incoming WhatsApp webhook events
 func (s *ConversationService) WhatsAppWebhook(c *gin.Context) {
 	// Verify webhook (for GET requests)
@@ -867,6 +904,9 @@ func (s *ConversationService) processIncomingMessage(from, content, wamid, messa
 			"wamid":           wamid,
 		},
 	})
+
+	// Broadcast updated stats in real-time
+	s.broadcastStatsUpdate(tenantID)
 
 	log.Printf("📥 Received message from %s: %s", from, content)
 }
