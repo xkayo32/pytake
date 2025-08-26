@@ -84,7 +84,8 @@ interface WhatsAppConfigData {
   updated_at: string
 }
 
-// Version: 2024-12-30-fix-websocket-errors
+// Version: 2024-12-30-fix-websocket-errors-v2
+// WEBSOCKET COMPLETELY DISABLED - NO WEBSOCKET CODE IN THIS FILE
 export default function WhatsAppSettingsPage() {
   const { user } = useAuth()
   const { addToast } = useToast()
@@ -146,9 +147,16 @@ export default function WhatsAppSettingsPage() {
   useEffect(() => {
     // Real-time stats updates via polling - WebSocket removed to fix console errors
     // Update stats every 15 seconds for near real-time experience
-    const interval = setInterval(loadStats, 15000)
+    console.log('🔄 Settings page: Starting polling interval (NO WebSocket)')
+    const interval = setInterval(() => {
+      console.log('📊 Settings page: Updating stats via polling')
+      loadStats()
+    }, 15000)
     
-    return () => clearInterval(interval)
+    return () => {
+      console.log('🔄 Settings page: Cleaning up polling interval')
+      clearInterval(interval)
+    }
   }, [])
 
   const loadConfigs = async () => {
