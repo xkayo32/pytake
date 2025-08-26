@@ -337,8 +337,11 @@ export default function WhatsAppSettingsPage() {
       if (response.ok) {
         const data = await response.json()
         
-        // Reload stats
+        // Reload stats immediately
         await loadStats()
+        
+        // Force sidebar to update by triggering a window event
+        window.dispatchEvent(new CustomEvent('conversationsCleared'))
         
         addToast({
           type: 'success',
@@ -1102,6 +1105,24 @@ export default function WhatsAppSettingsPage() {
             </div>
           </div>
 
+          {/* Aviso sobre conversas antigas */}
+          {(stats.active_conversations > 0 || stats.unread_count > 0) && (
+            <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+              <div className="flex gap-3">
+                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
+                    Conversas antigas detectadas
+                  </p>
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    Há {stats.active_conversations} conversas ativas e {stats.unread_count} não lidas no sistema. 
+                    Para começar com dados limpos, clique em "Limpar Tudo" abaixo.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Configurações por Número */}
           <div className="space-y-3">
             <Label>Números Configurados para Recepção</Label>
@@ -1152,8 +1173,8 @@ export default function WhatsAppSettingsPage() {
             <Button
               onClick={handleClearConversations}
               disabled={isClearing}
-              variant="outline"
-              className="text-red-600 hover:text-red-700"
+              variant={(stats.active_conversations > 0 || stats.unread_count > 0) ? "destructive" : "outline"}
+              className={`${(stats.active_conversations > 0 || stats.unread_count > 0) ? "" : "text-red-600 hover:text-red-700"}`}
             >
               {isClearing ? (
                 <>
@@ -1163,7 +1184,7 @@ export default function WhatsAppSettingsPage() {
               ) : (
                 <>
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Limpar Tudo
+                  {(stats.active_conversations > 0 || stats.unread_count > 0) ? `Limpar ${stats.active_conversations + stats.unread_count} Conversas` : "Limpar Tudo"}
                 </>
               )}
             </Button>

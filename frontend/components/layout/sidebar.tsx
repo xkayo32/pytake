@@ -114,6 +114,15 @@ export function Sidebar({ className = '' }: SidebarProps) {
       }
     }
 
+    // Listen for conversations cleared event
+    const handleConversationsCleared = () => {
+      console.log('📧 Sidebar: Conversations cleared, updating count to 0')
+      setUnreadCount(0)
+    }
+
+    // Listen for window events from settings page
+    window.addEventListener('conversationsCleared', handleConversationsCleared)
+
     // Initial fetch
     fetchUnreadCount()
 
@@ -121,7 +130,10 @@ export function Sidebar({ className = '' }: SidebarProps) {
     // TODO: Replace with WebSocket when backend WebSocket proxy is configured
     const interval = setInterval(fetchUnreadCount, 10000)
 
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('conversationsCleared', handleConversationsCleared)
+    }
   }, [])
 
   const handleLogout = async () => {
