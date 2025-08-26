@@ -591,6 +591,33 @@ func (s *FlowService) sendWhatsAppMessage(recipient string, message string, what
 		hasWindow = false
 	}
 	
+	// Format recipient number properly for WhatsApp
+	// WhatsApp API normalizes Brazilian numbers - it accepts both formats
+	// but returns wa_id without the extra 9 (e.g., 556194013828 instead of 5561994013828)
+	formattedRecipient := recipient
+	
+	// Try alternate format for Brazilian numbers if messages aren't delivering
+	// Some accounts may need the number without the extra 9
+	alternateFormat := ""
+	if len(recipient) == 13 && recipient[:2] == "55" {
+		// Brazilian number with extra 9
+		areaCode := recipient[2:4]
+		restOfNumber := recipient[4:]
+		if len(restOfNumber) == 9 && restOfNumber[0] == '9' {
+			// Try without the extra 9 as well
+			alternateFormat = "55" + areaCode + restOfNumber[1:]
+			log.Printf("📱 Brazilian mobile: primary=%s, alternate=%s", recipient, alternateFormat)
+			
+			// For now, let's use the format WhatsApp returns (without extra 9)
+			// since that's what the API seems to prefer based on wa_id responses
+			if hasWindow {
+				// When window is open, try the normalized format
+				formattedRecipient = alternateFormat
+				log.Printf("📱 Using normalized format for direct message: %s", formattedRecipient)
+			}
+		}
+	}
+	
 	// Build WhatsApp API URL
 	url := fmt.Sprintf("https://graph.facebook.com/v21.0/%s/messages", phoneNumberID)
 	
@@ -598,10 +625,10 @@ func (s *FlowService) sendWhatsAppMessage(recipient string, message string, what
 	
 	if hasWindow {
 		// We have a 24-hour window - send direct message
-		log.Printf("📱 24h window open with %s, sending direct message", recipient)
+		log.Printf("📱 24h window open with %s, sending direct message", formattedRecipient)
 		payload = map[string]interface{}{
 			"messaging_product": "whatsapp",
-			"to": recipient,
+			"to": formattedRecipient,
 			"type": "text",
 			"text": map[string]string{
 				"preview_url": "false",
@@ -610,14 +637,14 @@ func (s *FlowService) sendWhatsAppMessage(recipient string, message string, what
 		}
 	} else {
 		// No 24-hour window - must use template
-		log.Printf("📱 No 24h window with %s, using template", recipient)
+		log.Printf("📱 No 24h window with %s, using template", formattedRecipient)
 		
 		// Get an approved test template
 		templateName, templateParams := s.getTestTemplate(message)
 		
 		payload = map[string]interface{}{
 			"messaging_product": "whatsapp",
-			"to": recipient,
+			"to": formattedRecipient,
 			"type": "template",
 			"template": map[string]interface{}{
 				"name": templateName,
