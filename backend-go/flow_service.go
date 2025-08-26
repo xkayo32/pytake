@@ -10,6 +10,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -1686,4 +1687,427 @@ func joinStrings(strs []string, sep string) string {
 		result += sep + strs[i]
 	}
 	return result
+}
+
+// GetUniversalFlow retrieves the active universal flow (no trigger/always active)
+func (s *FlowService) GetUniversalFlow(tenantID string) (*Flow, error) {
+	query := `
+		SELECT id, tenant_id, name, description, trigger_type, trigger_value, nodes, edges, is_active, version, created_by, created_at, updated_at, status
+		FROM flows 
+		WHERE is_active = true 
+		AND (trigger_type = 'universal' OR trigger_type = '' OR trigger_type IS NULL)
+		AND ($1::uuid IS NULL OR tenant_id = $1::uuid)
+		ORDER BY updated_at DESC 
+		LIMIT 1
+	`
+	
+	var flow Flow
+	var tenantIDPtr, createdByPtr, statusPtr *string
+	var triggerValuePtr *string
+	
+	err := s.db.QueryRow(query, tenantID).Scan(
+		&flow.ID,
+		&tenantIDPtr,
+		&flow.Name,
+		&flow.Description,
+		&flow.TriggerType,
+		&triggerValuePtr,
+		&flow.Nodes,
+		&flow.Edges,
+		&flow.IsActive,
+		&flow.Version,
+		&createdByPtr,
+		&flow.CreatedAt,
+		&flow.UpdatedAt,
+		&statusPtr,
+	)
+	
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // No universal flow found
+		}
+		return nil, fmt.Errorf("failed to query universal flow: %v", err)
+	}
+	
+	// Handle nullable fields
+	if tenantIDPtr != nil {
+		flow.TenantID = tenantIDPtr
+	}
+	if createdByPtr != nil {
+		flow.CreatedBy = createdByPtr
+	}
+	if triggerValuePtr != nil {
+		flow.TriggerValue = triggerValuePtr
+	}
+	if statusPtr != nil {
+		flow.Status = *statusPtr
+	} else {
+		flow.Status = "active"
+	}
+	
+	log.Printf("🔄 Found universal flow: %s (%s)", flow.Name, flow.ID)
+	return &flow, nil
+}
+
+// ExecuteUniversalFlow executes a universal flow for incoming messages
+func (s *FlowService) ExecuteUniversalFlow(tenantID, contactPhone, messageContent string) error {
+	// Get the universal flow
+	flow, err := s.GetUniversalFlow(tenantID)
+	if err != nil {
+		log.Printf("❌ Error getting universal flow: %v", err)
+		return err
+	}
+	
+	if flow == nil {
+		log.Printf("ℹ️ No universal flow found for tenant %s", tenantID)
+		return nil // No flow to execute
+	}
+	
+	log.Printf("🚀 Executing universal flow '%s' for contact %s", flow.Name, contactPhone)
+	
+	// Generate execution ID
+	executionID := uuid.New().String()
+	
+	// Get WhatsApp config for sending messages
+	config := map[string]interface{}{
+		"phone_number": contactPhone,
+		"message_content": messageContent,
+	}
+	
+	// Execute the flow
+	result, err := s.executeFlowForContact(executionID, *flow, contactPhone, config)
+	if err != nil {
+		log.Printf("❌ Error executing universal flow: %v", err)
+		return err
+	}
+	
+	log.Printf("✅ Universal flow executed successfully for %s. Steps: %d", 
+		contactPhone, result.StepsExecuted)
+	
+	return nil
+}
+
+// executeFlowForContact executes a flow for a specific contact (similar to test but for real execution)
+func (s *FlowService) executeFlowForContact(executionID string, flow Flow, recipient string, config map[string]interface{}) (*FlowExecutionResult, error) {
+	startTime := time.Now()
+	
+	result := &FlowExecutionResult{
+		Logs: []ExecutionLog{},
+	}
+	
+	// Parse flow nodes and edges
+	var nodes []map[string]interface{}
+	var edges []map[string]interface{}
+	
+	if err := json.Unmarshal([]byte(flow.Nodes), &nodes); err != nil {
+		return nil, fmt.Errorf("failed to parse flow nodes: %v", err)
+	}
+	
+	if err := json.Unmarshal([]byte(flow.Edges), &edges); err != nil {
+		return nil, fmt.Errorf("failed to parse flow edges: %v", err)
+	}
+	
+	// Log execution start
+	result.Logs = append(result.Logs, ExecutionLog{
+		Timestamp: time.Now().Format(time.RFC3339),
+		StepType:  "system",
+		Action:    "flow_started",
+		Status:    "success",
+		Message:   fmt.Sprintf("Universal flow execution started for %s", recipient),
+	})
+	
+	// Find start node (trigger node)
+	var startNode map[string]interface{}
+	for _, node := range nodes {
+		if nodeType, ok := node["type"].(string); ok && nodeType == "trigger" {
+			startNode = node
+			break
+		}
+	}
+	
+	// If no trigger node found, use first node
+	if startNode == nil && len(nodes) > 0 {
+		startNode = nodes[0]
+	}
+	
+	if startNode == nil {
+		return nil, fmt.Errorf("no start node found in flow")
+	}
+	
+	// Execute flow starting from trigger node
+	currentNode := startNode
+	stepsExecuted := 0
+	maxSteps := 50 // Prevent infinite loops
+	
+	for currentNode != nil && stepsExecuted < maxSteps {
+		nodeID, _ := currentNode["id"].(string)
+		nodeType, _ := currentNode["type"].(string)
+		nodeData, _ := currentNode["data"].(map[string]interface{})
+		
+		log.Printf("🎯 Executing node: %s (type: %s)", nodeID, nodeType)
+		
+		err := s.executeFlowNode(executionID, nodeType, nodeID, nodeData, recipient, config, result)
+		if err != nil {
+			result.Logs = append(result.Logs, ExecutionLog{
+				Timestamp: time.Now().Format(time.RFC3339),
+				StepType:  nodeType,
+				Action:    "node_error",
+				Status:    "error",
+				Message:   fmt.Sprintf("Error executing node %s: %v", nodeID, err),
+			})
+			break
+		}
+		
+		stepsExecuted++
+		
+		// Find next node based on edges
+		var nextNodeID string
+		for _, edge := range edges {
+			if sourceID, ok := edge["source"].(string); ok && sourceID == nodeID {
+				if targetID, ok := edge["target"].(string); ok {
+					nextNodeID = targetID
+					break
+				}
+			}
+		}
+		
+		// Find next node
+		currentNode = nil
+		if nextNodeID != "" {
+			for _, node := range nodes {
+				if id, ok := node["id"].(string); ok && id == nextNodeID {
+					currentNode = node
+					break
+				}
+			}
+		}
+	}
+	
+	// Calculate execution time
+	duration := time.Since(startTime)
+	
+	// Log execution complete
+	result.Logs = append(result.Logs, ExecutionLog{
+		Timestamp: time.Now().Format(time.RFC3339),
+		StepType:  "system",
+		Action:    "flow_completed",
+		Status:    "success",
+		Message:   fmt.Sprintf("Flow execution completed in %v", duration),
+		Details:   fmt.Sprintf("Executed %d steps", stepsExecuted),
+	})
+	
+	result.StepsExecuted = stepsExecuted
+	result.ExecutionTime = duration.String()
+	
+	return result, nil
+}
+
+// ProcessIncomingMessage processes incoming messages with flow priorities and context management
+func (s *FlowService) ProcessIncomingMessage(tenantID, contactPhone, messageContent string) error {
+	// 1. Check if contact is in an active flow session (not expired)
+	activeFlow, err := s.getActiveFlowSession(tenantID, contactPhone)
+	if err == nil && activeFlow != nil {
+		// Continue existing flow
+		return s.continueFlow(tenantID, contactPhone, messageContent, activeFlow)
+	}
+	
+	// 2. Check for keyword-triggered flows (highest priority)
+	keywordFlow, err := s.findKeywordFlow(tenantID, messageContent)
+	if err == nil && keywordFlow != nil {
+		return s.startFlow(tenantID, contactPhone, keywordFlow)
+	}
+	
+	// 3. Check if message came from template button click (medium priority)
+	templateFlow, err := s.findTemplateFlow(tenantID, contactPhone, messageContent)
+	if err == nil && templateFlow != nil {
+		return s.startFlow(tenantID, contactPhone, templateFlow)
+	}
+	
+	// 4. Use universal flow as fallback (lowest priority)
+	universalFlow, err := s.GetUniversalFlow(tenantID)
+	if err == nil && universalFlow != nil {
+		return s.startFlow(tenantID, contactPhone, universalFlow)
+	}
+	
+	// No flows to execute
+	log.Printf("No applicable flows for tenant %s, contact %s", tenantID, contactPhone)
+	return nil
+}
+
+// getActiveFlowSession checks if contact has an active (non-expired) flow session
+func (s *FlowService) getActiveFlowSession(tenantID, contactPhone string) (*Flow, error) {
+	ctx := context.Background()
+	key := fmt.Sprintf("flow_session:%s:%s", tenantID, contactPhone)
+	
+	sessionData, err := s.redis.Get(ctx, key).Result()
+	if err != nil {
+		return nil, err // No active session
+	}
+	
+	var session map[string]interface{}
+	if err := json.Unmarshal([]byte(sessionData), &session); err != nil {
+		return nil, err
+	}
+	
+	flowID, ok := session["flow_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid session data")
+	}
+	
+	// Get the flow details from database
+	query := `SELECT id, tenant_id, name, description, trigger_type, trigger_value, nodes, edges, is_active, version, created_by, created_at, updated_at FROM flows WHERE id = $1`
+	var flow Flow
+	err = s.db.QueryRow(query, flowID).Scan(&flow.ID, &flow.TenantID, &flow.Name, &flow.Description, &flow.TriggerType, &flow.TriggerValue, &flow.Nodes, &flow.Edges, &flow.IsActive, &flow.Version, &flow.CreatedBy, &flow.CreatedAt, &flow.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &flow, nil
+}
+
+// startFlow starts a new flow for a contact with configurable expiration
+func (s *FlowService) startFlow(tenantID, contactPhone string, flow *Flow) error {
+	ctx := context.Background()
+	
+	// Get flow expiration time (default 10 minutes)
+	expirationMinutes := 10
+	if flow.TriggerValue != nil {
+		// Try to parse expiration from trigger_value JSON
+		var triggerData map[string]interface{}
+		if err := json.Unmarshal([]byte(*flow.TriggerValue), &triggerData); err == nil {
+			if exp, ok := triggerData["expiration_minutes"].(float64); ok {
+				expirationMinutes = int(exp)
+			}
+		}
+	}
+	
+	// Store flow session with expiration
+	sessionKey := fmt.Sprintf("flow_session:%s:%s", tenantID, contactPhone)
+	sessionData := map[string]interface{}{
+		"flow_id":     flow.ID,
+		"started_at":  time.Now().Unix(),
+		"step":        0,
+		"expires_at":  time.Now().Add(time.Duration(expirationMinutes) * time.Minute).Unix(),
+	}
+	
+	sessionJSON, _ := json.Marshal(sessionData)
+	expiration := time.Duration(expirationMinutes) * time.Minute
+	s.redis.Set(ctx, sessionKey, string(sessionJSON), expiration)
+	
+	// Execute the flow
+	return s.ExecuteUniversalFlow(tenantID, contactPhone, flow.ID)
+}
+
+// continueFlow continues an existing flow session
+func (s *FlowService) continueFlow(tenantID, contactPhone, messageContent string, flow *Flow) error {
+	ctx := context.Background()
+	sessionKey := fmt.Sprintf("flow_session:%s:%s", tenantID, contactPhone)
+	
+	// Get current session state
+	sessionData, err := s.redis.Get(ctx, sessionKey).Result()
+	if err != nil {
+		return err
+	}
+	
+	var session map[string]interface{}
+	if err := json.Unmarshal([]byte(sessionData), &session); err != nil {
+		return err
+	}
+	
+	// Update session with user response
+	session["last_message"] = messageContent
+	session["last_message_time"] = time.Now().Unix()
+	
+	// Update session in Redis
+	updatedSessionJSON, _ := json.Marshal(session)
+	s.redis.Set(ctx, sessionKey, string(updatedSessionJSON), time.Hour)
+	
+	// Continue flow execution from current step
+	return s.ExecuteUniversalFlow(tenantID, contactPhone, flow.ID)
+}
+
+// findKeywordFlow finds flows triggered by keywords
+func (s *FlowService) findKeywordFlow(tenantID, messageContent string) (*Flow, error) {
+	query := `
+		SELECT id, tenant_id, name, description, trigger_type, trigger_value, 
+		       nodes, edges, is_active, version, created_by, created_at, updated_at
+		FROM flows 
+		WHERE tenant_id = $1::uuid
+		  AND is_active = true 
+		  AND trigger_type = 'keyword'
+		  AND trigger_value IS NOT NULL
+		ORDER BY created_at DESC
+	`
+	
+	rows, err := s.db.Query(query, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	messageContent = strings.ToLower(strings.TrimSpace(messageContent))
+	
+	for rows.Next() {
+		var flow Flow
+		err := rows.Scan(
+			&flow.ID, &flow.TenantID, &flow.Name, &flow.Description,
+			&flow.TriggerType, &flow.TriggerValue, &flow.Nodes, &flow.Edges,
+			&flow.IsActive, &flow.Version, &flow.CreatedBy, &flow.CreatedAt, &flow.UpdatedAt,
+		)
+		if err != nil {
+			continue
+		}
+		
+		// Check if message matches keyword
+		if flow.TriggerValue != nil {
+			var triggerData map[string]interface{}
+			if err := json.Unmarshal([]byte(*flow.TriggerValue), &triggerData); err == nil {
+				if keyword, ok := triggerData["keyword"].(string); ok {
+					if strings.ToLower(keyword) == messageContent {
+						return &flow, nil
+					}
+				}
+			}
+		}
+	}
+	
+	return nil, nil // No keyword flow found
+}
+
+// findTemplateFlow finds flows triggered by template button interactions
+func (s *FlowService) findTemplateFlow(tenantID, contactPhone, messageContent string) (*Flow, error) {
+	// Check Redis for recent template interactions
+	ctx := context.Background()
+	key := fmt.Sprintf("template_interaction:%s:%s", tenantID, contactPhone)
+	
+	interactionData, err := s.redis.Get(ctx, key).Result()
+	if err != nil {
+		return nil, nil // No recent template interaction
+	}
+	
+	var interaction map[string]interface{}
+	if err := json.Unmarshal([]byte(interactionData), &interaction); err != nil {
+		return nil, err
+	}
+	
+	// Check if interaction is recent (within 5 minutes)
+	if timestamp, ok := interaction["timestamp"].(float64); ok {
+		interactionTime := time.Unix(int64(timestamp), 0)
+		if time.Since(interactionTime) > 5*time.Minute {
+			return nil, nil // Template interaction too old
+		}
+	}
+	
+	// Get flow ID from interaction
+	if flowID, ok := interaction["flow_id"].(string); ok {
+		query := `SELECT id, tenant_id, name, description, trigger_type, trigger_value, nodes, edges, is_active, version, created_by, created_at, updated_at FROM flows WHERE id = $1`
+		var flow Flow
+		err := s.db.QueryRow(query, flowID).Scan(&flow.ID, &flow.TenantID, &flow.Name, &flow.Description, &flow.TriggerType, &flow.TriggerValue, &flow.Nodes, &flow.Edges, &flow.IsActive, &flow.Version, &flow.CreatedBy, &flow.CreatedAt, &flow.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		return &flow, nil
+	}
+	
+	return nil, nil
 }

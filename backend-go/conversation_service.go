@@ -17,14 +17,16 @@ import (
 )
 
 type ConversationService struct {
-	db       *sql.DB
-	upgrader websocket.Upgrader
-	clients  map[*websocket.Conn]bool
+	db          *sql.DB
+	flowService *FlowService
+	upgrader    websocket.Upgrader
+	clients     map[*websocket.Conn]bool
 }
 
-func NewConversationService(db *sql.DB) *ConversationService {
+func NewConversationService(db *sql.DB, flowService *FlowService) *ConversationService {
 	return &ConversationService{
-		db: db,
+		db:          db,
+		flowService: flowService,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Allow all origins for now
@@ -922,6 +924,19 @@ func (s *ConversationService) processIncomingMessage(from, content, wamid, messa
 	s.broadcastStatsUpdate(tenantID)
 
 	log.Printf("📥 Received message from %s: %s", from, content)
+	
+	// Execute flow system with priorities
+	if s.flowService != nil {
+		go func() {
+			// Normalize phone number for flow execution
+			normalizedPhone := s.normalizeBrazilianPhone(from)
+			
+			err := s.flowService.ProcessIncomingMessage(tenantID, normalizedPhone, content)
+			if err != nil {
+				log.Printf("⚠️ Error processing flows for %s: %v", from, err)
+			}
+		}()
+	}
 }
 
 // processStatusUpdate processes a WhatsApp message status update

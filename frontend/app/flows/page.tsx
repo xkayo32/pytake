@@ -166,6 +166,11 @@ const formatDate = (dateString: string | undefined) => {
 }
 
 const getTriggerFromFlow = (flow: any): string => {
+  // Check for universal flow first
+  if (flow.triggerType === 'universal') {
+    return 'Universal - Todas as mensagens'
+  }
+  
   // Extrair trigger dos nodes
   const nodes = flow.nodes || flow.flow?.nodes || []
   const triggerNode = nodes.find((n: any) => 
@@ -210,6 +215,7 @@ export default function FlowsPage() {
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false)
   const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null)
   const [selectedWhatsAppNumbers, setSelectedWhatsAppNumbers] = useState<string[]>([])
+  const [isCreateFlowDialogOpen, setIsCreateFlowDialogOpen] = useState(false)
   const { isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
 
@@ -235,22 +241,27 @@ export default function FlowsPage() {
   //   }
   // }, [isAuthenticated])
 
-  const handleCreateNewFlow = async () => {
+  const handleCreateNewFlow = async (flowType: 'keyword' | 'universal' = 'keyword') => {
     try {
       setLoading(true)
       
       // Criar novo flow no backend imediatamente
+      const isUniversal = flowType === 'universal'
       const newFlowData = {
-        name: 'Novo Flow',
-        description: 'Flow criado automaticamente',
+        name: isUniversal ? 'Novo Flow Universal' : 'Novo Flow',
+        description: isUniversal ? 'Flow universal que responde a todas as mensagens' : 'Flow criado automaticamente',
         status: 'draft',
+        triggerType: flowType,
+        triggerValue: isUniversal ? JSON.stringify({ expiration_minutes: 10 }) : null,
+        nodes: [],
+        edges: [],
         flow: {
           nodes: [],
           edges: []
         },
         trigger: {
-          type: 'keyword',
-          config: {}
+          type: flowType,
+          config: isUniversal ? { expiration_minutes: 10 } : {}
         }
       }
       
@@ -525,7 +536,7 @@ export default function FlowsPage() {
                 Gerencie seus fluxos automatizados do WhatsApp
               </p>
             </div>
-            <Button onClick={handleCreateNewFlow} disabled={loading}>
+            <Button onClick={() => setIsCreateFlowDialogOpen(true)} disabled={loading}>
               <Plus className="h-4 w-4 mr-2" />
               Novo Flow
             </Button>
@@ -685,7 +696,7 @@ export default function FlowsPage() {
                   }
                 </p>
                 {!searchTerm && (
-                  <Button onClick={handleCreateNewFlow} disabled={loading}>
+                  <Button onClick={() => setIsCreateFlowDialogOpen(true)} disabled={loading}>
                     <Plus className="h-4 w-4 mr-2" />
                     Criar Primeiro Flow
                   </Button>
@@ -1005,6 +1016,74 @@ export default function FlowsPage() {
             </Card>
           )}
         </main>
+
+        {/* Modal de Criação de Flow */}
+        <Dialog open={isCreateFlowDialogOpen} onOpenChange={setIsCreateFlowDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Plus className="h-5 w-5" />
+                Criar Novo Flow
+              </DialogTitle>
+              <DialogDescription>
+                Escolha o tipo de flow que deseja criar
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="py-6 space-y-4">
+              <div 
+                className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => {
+                  setIsCreateFlowDialogOpen(false)
+                  handleCreateNewFlow('keyword')
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <MessageCircle className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Flow com Palavras-chave</h3>
+                    <p className="text-sm text-gray-600">
+                      Acionado por palavras específicas como "oi", "ajuda", etc.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div 
+                className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => {
+                  setIsCreateFlowDialogOpen(false)
+                  handleCreateNewFlow('universal')
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <Zap className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Flow Universal</h3>
+                    <p className="text-sm text-gray-600">
+                      Responde a todas as mensagens quando não há outros flows ativos
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
+                <strong>Dica:</strong> Flows universais têm menor prioridade que flows com palavras-chave.
+                Configure o tempo de expiração (padrão: 10 minutos) na edição do flow.
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateFlowDialogOpen(false)}>
+                Cancelar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Modal de Vinculação WhatsApp */}
         <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>

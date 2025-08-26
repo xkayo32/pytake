@@ -65,7 +65,7 @@ func main() {
 	flowService := NewFlowService(db, redis)
 	whatsappService := NewWhatsAppService(db, redis)
 	authService := NewAuthService(db, redis)
-	conversationService := NewConversationService(db)
+	conversationService := NewConversationService(db, flowService)
 
 	// Setup routes
 	api := router.Group("/api/v1")
