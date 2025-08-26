@@ -140,74 +140,11 @@ export default function WhatsAppSettingsPage() {
   }, [])
 
   useEffect(() => {
-    // WebSocket for real-time stats updates
-    let ws: WebSocket | null = null
-
-    const connectWebSocket = () => {
-      try {
-        const wsUrl = process.env.NODE_ENV === 'production' 
-          ? 'wss://api.pytake.net/api/v1/conversations/ws'
-          : 'ws://localhost:8080/api/v1/conversations/ws'
-        
-        ws = new WebSocket(wsUrl)
-
-        ws.onopen = () => {
-          console.log('📡 Settings WebSocket connected')
-        }
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data)
-            console.log('📨 Settings WebSocket message:', data)
-
-            switch (data.type) {
-              case 'stats_update':
-                // Update stats in real-time
-                setStats({
-                  active_conversations: data.data.active_conversations || 0,
-                  messages_today: data.data.messages_today || 0,
-                  unread_count: data.data.unread_count || 0,
-                })
-                break
-              case 'conversations_cleared':
-                // Reset stats when conversations are cleared
-                setStats({
-                  active_conversations: 0,
-                  messages_today: 0,
-                  unread_count: 0,
-                })
-                break
-            }
-          } catch (error) {
-            console.error('❌ Error parsing settings WebSocket message:', error)
-          }
-        }
-
-        ws.onclose = () => {
-          console.log('🔌 Settings WebSocket disconnected, reconnecting...')
-          setTimeout(connectWebSocket, 3000)
-        }
-
-        ws.onerror = (error) => {
-          console.error('❌ Settings WebSocket error:', error)
-        }
-      } catch (error) {
-        console.error('❌ Failed to connect settings WebSocket:', error)
-      }
-    }
-
-    // Connect to WebSocket
-    connectWebSocket()
+    // Real-time stats updates via polling
+    // TODO: Replace with WebSocket when backend WebSocket proxy is configured
+    const interval = setInterval(loadStats, 15000) // Every 15 seconds
     
-    // Fallback polling every 30 seconds
-    const interval = setInterval(loadStats, 30000)
-    
-    return () => {
-      if (ws) {
-        ws.close()
-      }
-      clearInterval(interval)
-    }
+    return () => clearInterval(interval)
   }, [])
 
   const loadConfigs = async () => {

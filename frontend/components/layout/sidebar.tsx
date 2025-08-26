@@ -100,66 +100,8 @@ export function Sidebar({ className = '' }: SidebarProps) {
   const pathname = usePathname()
   const { user, logout } = useAuth()
 
-  // WebSocket for real-time updates
+  // Real-time updates for unread count
   useEffect(() => {
-    let ws: WebSocket | null = null
-
-    const connectWebSocket = () => {
-      try {
-        const wsUrl = process.env.NODE_ENV === 'production' 
-          ? 'wss://api.pytake.net/api/v1/conversations/ws'
-          : 'ws://localhost:8080/api/v1/conversations/ws'
-        
-        ws = new WebSocket(wsUrl)
-
-        ws.onopen = () => {
-          console.log('📡 Sidebar WebSocket connected')
-        }
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data)
-            console.log('📨 Sidebar WebSocket message:', data)
-
-            switch (data.type) {
-              case 'stats_update':
-                // Update unread count from stats
-                setUnreadCount(data.data.unread_count || 0)
-                break
-              case 'new_message':
-                // Increment unread count for new messages
-                if (!data.data.is_from_me) {
-                  setUnreadCount(prev => prev + 1)
-                }
-                break
-              case 'conversations_cleared':
-                // Reset counter when conversations are cleared
-                setUnreadCount(0)
-                break
-            }
-          } catch (error) {
-            console.error('❌ Error parsing sidebar WebSocket message:', error)
-          }
-        }
-
-        ws.onclose = () => {
-          console.log('🔌 Sidebar WebSocket disconnected, reconnecting...')
-          // Reconnect after 3 seconds
-          setTimeout(connectWebSocket, 3000)
-        }
-
-        ws.onerror = (error) => {
-          console.error('❌ Sidebar WebSocket error:', error)
-        }
-      } catch (error) {
-        console.error('❌ Failed to connect sidebar WebSocket:', error)
-      }
-    }
-
-    // Initial connection
-    connectWebSocket()
-
-    // Fallback: fetch unread count periodically in case WebSocket fails
     const fetchUnreadCount = async () => {
       try {
         const response = await fetch('/api/v1/conversations/unread-count')
@@ -174,16 +116,12 @@ export function Sidebar({ className = '' }: SidebarProps) {
 
     // Initial fetch
     fetchUnreadCount()
-    
-    // Fallback polling every 30 seconds (less frequent since WebSocket should handle updates)
-    const interval = setInterval(fetchUnreadCount, 30000)
 
-    return () => {
-      if (ws) {
-        ws.close()
-      }
-      clearInterval(interval)
-    }
+    // Poll every 10 seconds for real-time updates
+    // TODO: Replace with WebSocket when backend WebSocket proxy is configured
+    const interval = setInterval(fetchUnreadCount, 10000)
+
+    return () => clearInterval(interval)
   }, [])
 
   const handleLogout = async () => {
