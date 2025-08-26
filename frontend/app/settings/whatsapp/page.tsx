@@ -107,6 +107,7 @@ export default function WhatsAppSettingsPage() {
     unread_count: 0
   })
   const [isClearing, setIsClearing] = useState(false)
+  const [apiStatus, setApiStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown')
   
   // Explicitly disable WebSocket to prevent cache issues
   const webSocketEnabled = false
@@ -249,9 +250,26 @@ export default function WhatsAppSettingsPage() {
       if (response.ok) {
         const data = await response.json()
         setStats(data)
+        setApiStatus('connected')
+      } else if (response.status === 404) {
+        console.warn('⚠️ Backend API not available (404). Using fallback stats.')
+        setApiStatus('disconnected')
+        // Backend not available - set stats to 0 but keep interface working
+        setStats({
+          active_conversations: 0,
+          messages_today: 0,
+          unread_count: 0
+        })
       }
     } catch (error) {
-      console.error('Error loading stats:', error)
+      console.warn('⚠️ Backend API not available. Using fallback stats:', error)
+      setApiStatus('disconnected')
+      // Network error or server not running - use fallback
+      setStats({
+        active_conversations: 0,
+        messages_today: 0,
+        unread_count: 0
+      })
     }
   }
 
@@ -348,6 +366,23 @@ export default function WhatsAppSettingsPage() {
           title: 'Conversas limpas',
           description: `${data.deleted.conversations} conversas e ${data.deleted.messages} mensagens foram removidas`
         })
+      } else if (response.status === 404) {
+        console.warn('⚠️ Backend API not available (404). Simulating clear action.')
+        // Backend not available - simulate the clear action
+        setStats({
+          active_conversations: 0,
+          messages_today: 0,
+          unread_count: 0
+        })
+        
+        // Force sidebar to update by triggering a window event
+        window.dispatchEvent(new CustomEvent('conversationsCleared'))
+        
+        addToast({
+          type: 'warning',
+          title: 'Backend não disponível',
+          description: 'API não está rodando. Interface foi limpa localmente.'
+        })
       } else {
         addToast({
           type: 'error',
@@ -357,10 +392,19 @@ export default function WhatsAppSettingsPage() {
       }
     } catch (error) {
       console.error('Error clearing conversations:', error)
+      // Network error - simulate clear locally
+      setStats({
+        active_conversations: 0,
+        messages_today: 0,
+        unread_count: 0
+      })
+      
+      window.dispatchEvent(new CustomEvent('conversationsCleared'))
+      
       addToast({
-        type: 'error',
-        title: 'Erro ao limpar',
-        description: 'Falha ao limpar conversas'
+        type: 'warning',
+        title: 'Backend não disponível',
+        description: 'API não está rodando. Interface foi limpa localmente.'
       })
     } finally {
       setIsClearing(false)
@@ -534,6 +578,28 @@ export default function WhatsAppSettingsPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-6xl mx-auto">
+      {/* API Status Indicator */}
+      {apiStatus === 'disconnected' && (
+        <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+          <div className="flex gap-3">
+            <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-orange-900 dark:text-orange-100">
+                🚨 Backend API não está disponível
+              </p>
+              <p className="text-sm text-orange-800 dark:text-orange-200 mt-1">
+                O servidor backend (Go) não está rodando. A interface funciona em modo demonstração, 
+                mas para funcionalidade completa do WhatsApp, inicie o servidor backend.
+              </p>
+            </div>
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400`}>
+              <div className="h-2 w-2 rounded-full bg-red-500" />
+              API Offline
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
         <div className="flex items-start gap-3">

@@ -108,9 +108,13 @@ export function Sidebar({ className = '' }: SidebarProps) {
         if (response.ok) {
           const data = await response.json()
           setUnreadCount(data.count || 0)
+        } else if (response.status === 404) {
+          console.warn('⚠️ Sidebar: Backend API not available (404). Setting count to 0.')
+          setUnreadCount(0)
         }
       } catch (error) {
-        console.error('Error fetching unread count:', error)
+        console.warn('⚠️ Sidebar: Backend API not available. Setting count to 0:', error)
+        setUnreadCount(0)
       }
     }
 
