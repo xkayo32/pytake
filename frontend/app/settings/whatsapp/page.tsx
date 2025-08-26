@@ -84,6 +84,7 @@ interface WhatsAppConfigData {
   updated_at: string
 }
 
+// Version: 2024-12-30-fix-websocket-errors
 export default function WhatsAppSettingsPage() {
   const { user } = useAuth()
   const { addToast } = useToast()
@@ -105,6 +106,9 @@ export default function WhatsAppSettingsPage() {
     unread_count: 0
   })
   const [isClearing, setIsClearing] = useState(false)
+  
+  // Explicitly disable WebSocket to prevent cache issues
+  const webSocketEnabled = false
   const [features, setFeatures] = useState({
     autoReply: true,
     saveContacts: true,
@@ -140,9 +144,9 @@ export default function WhatsAppSettingsPage() {
   }, [])
 
   useEffect(() => {
-    // Real-time stats updates via polling
-    // TODO: Replace with WebSocket when backend WebSocket proxy is configured
-    const interval = setInterval(loadStats, 15000) // Every 15 seconds
+    // Real-time stats updates via polling - WebSocket removed to fix console errors
+    // Update stats every 15 seconds for near real-time experience
+    const interval = setInterval(loadStats, 15000)
     
     return () => clearInterval(interval)
   }, [])
