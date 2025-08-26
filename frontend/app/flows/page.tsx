@@ -250,23 +250,32 @@ export default function FlowsPage() {
       const initialNodes = isUniversal ? [
         {
           id: 'start-node',
-          type: 'trigger_universal',
+          type: 'trigger',
           position: { x: 100, y: 100 },
           data: {
-            nodeType: 'trigger_universal',
+            label: 'Fluxo Universal',
+            icon: 'Zap',
+            color: 'green',
+            description: 'Responde a todas as mensagens',
+            nodeType: 'trigger_keyword',
             config: {
+              keywords: '', // Vazio para fluxo universal
               expiration_minutes: 10
             }
           }
         },
         {
           id: 'response-node',
-          type: 'action_message',
+          type: 'message',
           position: { x: 100, y: 300 },
           data: {
-            nodeType: 'action_message',
+            label: 'Mensagem de Resposta',
+            icon: 'MessageCircle',
+            color: 'blue',
+            description: 'Envia mensagem de texto',
+            nodeType: 'msg_text',
             config: {
-              message: 'Olá! Como posso ajudar você?',
+              message: 'Olá! Como posso ajudar você?\n\nDigite uma das opções:\n1️⃣ - Atendimento\n2️⃣ - Suporte\n3️⃣ - Informações',
               delay: 1000
             }
           }
