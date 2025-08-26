@@ -99,6 +99,8 @@ export function Sidebar({ className = '' }: SidebarProps) {
   const [unreadCount, setUnreadCount] = useState(0)
   const pathname = usePathname()
   const { user, logout } = useAuth()
+  
+  console.log('🔄 Sidebar: Component rendered, current unreadCount:', unreadCount)
 
   // Real-time updates for unread count
   useEffect(() => {
@@ -107,6 +109,7 @@ export function Sidebar({ className = '' }: SidebarProps) {
         const response = await fetch('/api/v1/conversations/unread-count')
         if (response.ok) {
           const data = await response.json()
+          console.log('📊 Sidebar: Fetched unread count:', data.count)
           setUnreadCount(data.count || 0)
         } else if (response.status === 404) {
           console.warn('⚠️ Sidebar: Backend API not available (404). Setting count to 0.')
@@ -127,6 +130,10 @@ export function Sidebar({ className = '' }: SidebarProps) {
     // Listen for window events from settings page
     window.addEventListener('conversationsCleared', handleConversationsCleared)
 
+    // Force reset counter on component mount
+    console.log('🔄 Sidebar: Forcing unread count reset on mount')
+    setUnreadCount(0)
+    
     // Initial fetch
     fetchUnreadCount()
 

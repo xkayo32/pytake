@@ -542,14 +542,16 @@ func (s *ConversationService) GetMessages(c *gin.Context) {
 
 // SendMessage sends a WhatsApp message
 func (s *ConversationService) SendMessage(c *gin.Context) {
+	conversationID := c.Param("id")
+	
 	var req struct {
-		ConversationID string `json:"conversation_id"`
-		Content        string `json:"content"`
-		Type           string `json:"type"`
+		Content string `json:"content"`
+		Type    string `json:"type"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		log.Printf("Error binding JSON request: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
@@ -560,7 +562,7 @@ func (s *ConversationService) SendMessage(c *gin.Context) {
 		FROM conversations c
 		JOIN contacts co ON c.contact_id = co.id
 		WHERE c.id = $1
-	`, req.ConversationID).Scan(&contactPhone)
+	`, conversationID).Scan(&contactPhone)
 
 	if err != nil {
 		log.Printf("Error getting contact phone: %v", err)
@@ -576,14 +578,25 @@ func (s *ConversationService) SendMessage(c *gin.Context) {
 		return
 	}
 
+	// Get conversation details for inserting message
+	var tenantID, contactID string
+	err = s.db.QueryRow(`
+		SELECT tenant_id, contact_id FROM conversations WHERE id = $1
+	`, conversationID).Scan(&tenantID, &contactID)
+	
+	if err != nil {
+		log.Printf("Error getting conversation details: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Conversation not found"})
+		return
+	}
+
 	// Save message to database
 	var messageID string
 	err = s.db.QueryRow(`
-		INSERT INTO messages (conversation_id, is_from_me, content, type, status, created_at, tenant_id, contact_id)
-		SELECT $1, true, $2, $3, 'sent', NOW(), c.tenant_id, c.contact_id
-		FROM conversations c WHERE c.id = $1
+		INSERT INTO messages (conversation_id, tenant_id, contact_id, is_from_me, content, type, status, created_at)
+		VALUES ($1, $2, $3, true, $4, $5, 'sent', NOW())
 		RETURNING id
-	`, req.ConversationID, req.Content, req.Type).Scan(&messageID)
+	`, conversationID, tenantID, contactID, req.Content, req.Type).Scan(&messageID)
 
 	if err != nil {
 		log.Printf("Error saving message: %v", err)
@@ -596,7 +609,7 @@ func (s *ConversationService) SendMessage(c *gin.Context) {
 		UPDATE conversations 
 		SET last_message = $1, last_message_time = NOW()
 		WHERE id = $2
-	`, req.Content, req.ConversationID)
+	`, req.Content, conversationID)
 
 	if err != nil {
 		log.Printf("Error updating conversation: %v", err)
@@ -607,7 +620,7 @@ func (s *ConversationService) SendMessage(c *gin.Context) {
 		"type": "new_message",
 		"data": map[string]interface{}{
 			"id":              messageID,
-			"conversation_id": req.ConversationID,
+			"conversation_id": conversationID,
 			"sender":          map[string]bool{"agent": true, "customer": false},
 			"is_from_me":      true,
 			"content":         req.Content,

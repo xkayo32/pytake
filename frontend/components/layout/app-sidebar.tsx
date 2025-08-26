@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
@@ -32,56 +32,85 @@ import { LogoInline } from '@/components/ui/logo'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/hooks/useAuth'
 
-const menuItems = [
-  {
-    title: 'Principal',
-    items: [
-      { icon: Home, label: 'Dashboard', href: '/dashboard' },
-      { icon: MessageSquare, label: 'Conversas', href: '/whatsapp', badge: '24' },
-      { icon: Users, label: 'Contatos', href: '/contacts' },
-      { icon: BarChart3, label: 'Analytics', href: '/analytics' },
-    ]
-  },
-  {
-    title: 'Automação',
-    items: [
-      { icon: Bot, label: 'Fluxos', href: '/flows' },
-      { icon: Workflow, label: 'Campanhas', href: '/campaigns' },
-      { icon: Megaphone, label: 'Broadcast', href: '/broadcast' },
-    ]
-  },
-  {
-    title: 'Integrações',
-    items: [
-      { icon: Zap, label: 'ERP', href: '/integrations/erp' },
-      { icon: Webhook, label: 'Webhooks', href: '/webhooks' },
-      { icon: Shield, label: 'API Keys', href: '/api-keys' },
-    ]
-  },
-  {
-    title: 'WhatsApp',
-    items: [
-      { icon: Phone, label: 'Configurações', href: '/settings/whatsapp' },
-      { icon: FileText, label: 'Templates', href: '/templates' },
-      { icon: Send, label: 'Enviar Mensagem', href: '/messages/send' },
-    ]
-  },
-  {
-    title: 'Configurações',
-    items: [
-      { icon: Building2, label: 'Empresa', href: '/settings/company' },
-      { icon: UserCircle, label: 'Perfil', href: '/settings/profile' },
-      { icon: Users, label: 'Equipe', href: '/settings/team' },
-      { icon: CreditCard, label: 'Assinatura', href: '/settings/billing' },
-      { icon: Settings, label: 'Sistema', href: '/settings/system' },
-    ]
-  },
-]
-
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const pathname = usePathname()
   const { user, logout } = useAuth()
+
+  // Real-time updates for unread count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await fetch('/api/v1/conversations/unread-count')
+        if (response.ok) {
+          const data = await response.json()
+          setUnreadCount(data.count || 0)
+        } else {
+          setUnreadCount(0)
+        }
+      } catch (error) {
+        setUnreadCount(0)
+      }
+    }
+
+    // Initial fetch
+    fetchUnreadCount()
+
+    // Poll every 10 seconds for real-time updates
+    const interval = setInterval(fetchUnreadCount, 10000)
+
+    return () => {
+      clearInterval(interval)
+    }
+  }, [])
+
+  // Create menu items with dynamic unread count
+  const menuItems = [
+    {
+      title: 'Principal',
+      items: [
+        { icon: Home, label: 'Dashboard', href: '/dashboard' },
+        { icon: MessageSquare, label: 'Conversas', href: '/whatsapp', badge: unreadCount > 0 ? unreadCount.toString() : undefined },
+        { icon: Users, label: 'Contatos', href: '/contacts' },
+        { icon: BarChart3, label: 'Analytics', href: '/analytics' },
+      ]
+    },
+    {
+      title: 'Automação',
+      items: [
+        { icon: Bot, label: 'Fluxos', href: '/flows' },
+        { icon: Workflow, label: 'Campanhas', href: '/campaigns' },
+        { icon: Megaphone, label: 'Broadcast', href: '/broadcast' },
+      ]
+    },
+    {
+      title: 'Integrações',
+      items: [
+        { icon: Zap, label: 'ERP', href: '/integrations/erp' },
+        { icon: Webhook, label: 'Webhooks', href: '/webhooks' },
+        { icon: Shield, label: 'API Keys', href: '/api-keys' },
+      ]
+    },
+    {
+      title: 'WhatsApp',
+      items: [
+        { icon: Phone, label: 'Configurações', href: '/settings/whatsapp' },
+        { icon: FileText, label: 'Templates', href: '/templates' },
+        { icon: Send, label: 'Enviar Mensagem', href: '/messages/send' },
+      ]
+    },
+    {
+      title: 'Configurações',
+      items: [
+        { icon: Building2, label: 'Empresa', href: '/settings/company' },
+        { icon: UserCircle, label: 'Perfil', href: '/settings/profile' },
+        { icon: Users, label: 'Equipe', href: '/settings/team' },
+        { icon: CreditCard, label: 'Assinatura', href: '/settings/billing' },
+        { icon: Settings, label: 'Sistema', href: '/settings/system' },
+      ]
+    },
+  ]
 
   return (
     <aside className={cn(

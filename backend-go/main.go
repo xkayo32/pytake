@@ -126,6 +126,10 @@ func main() {
 	// Webhook endpoints (outside auth group - Meta needs to access these)
 	router.GET("/webhook/whatsapp", conversationService.WhatsAppWebhook)
 	router.POST("/webhook/whatsapp", conversationService.WhatsAppWebhook)
+	
+	// Alternative webhook routes for backwards compatibility
+	api.GET("/whatsapp/webhook", conversationService.WhatsAppWebhook)
+	api.POST("/whatsapp/webhook", conversationService.WhatsAppWebhook)
 
 	// Start server
 	port := os.Getenv("PORT")
