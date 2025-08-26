@@ -18,7 +18,9 @@ import {
   Plus,
   X,
   UserPlus,
-  MessageCircle
+  MessageCircle,
+  ExternalLink,
+  Trash2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,6 +40,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 
 interface Contact {
@@ -688,9 +697,34 @@ export default function WhatsAppPage() {
                 >
                   <Info className="h-5 w-5" />
                 </Button>
-                <Button variant="ghost" size="icon" title="Mais opções">
-                  <MoreVertical className="h-5 w-5" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" title="Mais opções">
+                      <MoreVertical className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setShowContactInfo(true)}>
+                      <Info className="h-4 w-4 mr-2" />
+                      Informações do contato
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => window.open(`https://wa.me/${selectedConversation?.phone}`, '_blank')}>
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Abrir no WhatsApp
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        // TODO: Implementar função de limpar conversa
+                        console.log('Limpar conversa')
+                      }}
+                      className="text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Limpar conversa
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </div>

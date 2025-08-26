@@ -257,9 +257,8 @@ export default function FlowsPage() {
             icon: 'Zap',
             color: 'green',
             description: 'Responde a todas as mensagens',
-            nodeType: 'trigger_keyword',
+            nodeType: 'trigger_universal',
             config: {
-              keywords: '', // Vazio para fluxo universal
               expiration_minutes: 10
             }
           }

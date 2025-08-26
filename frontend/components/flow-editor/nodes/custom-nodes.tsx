@@ -61,6 +61,18 @@ const renderNodePreview = (data: CustomNodeData) => {
   
   // Renderizar preview baseado no tipo de nó
   switch(data.nodeType) {
+    case 'trigger_universal':
+      return (
+        <>
+          <div className="truncate text-[10px]">
+            ⚡ Universal
+          </div>
+          <div className="text-[9px] truncate">
+            ⏱️ {data.config?.expiration_minutes || 10} min
+          </div>
+        </>
+      )
+      
     case 'trigger_keyword':
       if (data.config.keywords) {
         const keywords = data.config.keywords.split('\n').filter((k: string) => k).slice(0, 2)

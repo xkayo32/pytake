@@ -218,6 +218,34 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
       }
     }
   },
+
+  'trigger_universal': {
+    id: 'trigger_universal',
+    name: 'Fluxo Universal',
+    category: 'trigger',
+    icon: 'Zap',
+    color: '#10b981',
+    description: 'Responde a todas as mensagens quando não há outros fluxos ativos',
+    inputs: 0,
+    outputs: 1,
+    configSchema: {
+      expiration_minutes: {
+        type: 'number',
+        label: 'Tempo de Expiração (minutos)',
+        placeholder: '10',
+        defaultValue: 10,
+        min: 1,
+        max: 1440,
+        required: false,
+        helpText: 'Tempo em minutos que o fluxo permanece ativo para o mesmo contato'
+      },
+      priority_note: {
+        type: 'info',
+        label: 'Prioridade',
+        content: 'Este fluxo tem a menor prioridade e só é executado quando nenhum outro fluxo (template, palavra-chave) está ativo.'
+      }
+    }
+  },
   
   // ========== MESSAGES ==========
   'msg_text': {

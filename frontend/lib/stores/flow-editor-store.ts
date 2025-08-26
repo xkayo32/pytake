@@ -164,6 +164,8 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
       console.log('Creating TemplateButtonNode with type:', nodeTypeForReactFlow)
     } else if (nodeType.id === 'trigger_qrcode') {
       nodeTypeForReactFlow = 'trigger_qrcode'
+    } else if (nodeType.id === 'trigger_universal') {
+      nodeTypeForReactFlow = 'trigger_universal'
     // MESSAGES  
     } else if (nodeType.id === 'msg_negotiation_template') {
       nodeTypeForReactFlow = 'msg_negotiation_template'
