@@ -107,6 +107,7 @@ func main() {
 		
 		// Conversation routes
 		api.GET("/conversations", conversationService.GetConversations)
+		api.GET("/conversations/stats", conversationService.GetConversationStats)
 		api.GET("/conversations/unread-count", conversationService.GetUnreadCount)
 		api.POST("/conversations/sync", conversationService.SyncConversations)
 		api.POST("/conversations/update-phone-numbers", conversationService.UpdateConversationsWithPhoneNumbers)

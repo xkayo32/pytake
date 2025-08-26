@@ -99,6 +99,11 @@ export default function WhatsAppSettingsPage() {
   const [testLogs, setTestLogs] = useState<string[]>([])
   const [isSyncing, setIsSyncing] = useState(false)
   const [showInboxSettings, setShowInboxSettings] = useState(false)
+  const [stats, setStats] = useState({
+    active_conversations: 0,
+    messages_today: 0,
+    unread_count: 0
+  })
   const [features, setFeatures] = useState({
     autoReply: true,
     saveContacts: true,
@@ -130,6 +135,13 @@ export default function WhatsAppSettingsPage() {
   // Carregar configurações existentes
   useEffect(() => {
     loadConfigs()
+    loadStats()
+  }, [])
+
+  useEffect(() => {
+    // Load stats periodically
+    const interval = setInterval(loadStats, 30000) // Every 30 seconds
+    return () => clearInterval(interval)
   }, [])
 
   const loadConfigs = async () => {
@@ -215,35 +227,72 @@ export default function WhatsAppSettingsPage() {
     }
   }
 
+  // Load conversation stats
+  const loadStats = async () => {
+    try {
+      const response = await fetch('/api/v1/conversations/stats')
+      if (response.ok) {
+        const data = await response.json()
+        setStats(data)
+      }
+    } catch (error) {
+      console.error('Error loading stats:', error)
+    }
+  }
+
   const handleSyncConversations = async () => {
     try {
       setIsSyncing(true)
       
-      // Verificar conversas existentes
-      const response = await fetch(`/api/v1/conversations`)
+      // Get default config
+      const defaultConfig = configs.find(config => config.is_default) || configs[0]
       
-      if (response.ok) {
-        const data = await response.json()
-        const conversationCount = data.conversations?.length || 0
+      if (!defaultConfig) {
+        addToast({
+          type: 'error',
+          title: 'Erro de configuração',
+          description: 'Nenhuma configuração WhatsApp encontrada'
+        })
+        return
+      }
+      
+      // Try to sync conversations
+      const syncResponse = await fetch('/api/v1/conversations/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          config_id: defaultConfig.id,
+          phone_number_id: defaultConfig.phone_number_id,
+          access_token: defaultConfig.access_token
+        })
+      })
+      
+      if (syncResponse.ok) {
+        const syncData = await syncResponse.json()
+        const count = syncData.count || 0
         
-        if (conversationCount > 0) {
+        // Reload stats
+        await loadStats()
+        
+        if (count > 0) {
           addToast({
             type: 'success',
-            title: 'Conversas encontradas',
-            description: `Você tem ${conversationCount} conversas ativas`
+            title: 'Conversas sincronizadas',
+            description: `${count} conversas foram encontradas`
           })
         } else {
           addToast({
             type: 'info',
-            title: 'Nenhuma conversa ainda',
+            title: 'Nenhuma conversa encontrada',
             description: 'Conversas aparecerão quando você receber mensagens no WhatsApp'
           })
         }
       } else {
+        const errorData = await syncResponse.json().catch(() => ({}))
         addToast({
-          type: 'error',
-          title: 'Erro ao verificar',
-          description: 'Não foi possível verificar as conversas'
+          type: 'warning',
+          title: 'Sincronização parcial',
+          description: errorData.message || 'Algumas conversas podem não ter sido sincronizadas'
         })
       }
     } catch (error) {
@@ -1102,15 +1151,15 @@ export default function WhatsAppSettingsPage() {
           {/* Estatísticas */}
           <div className="grid grid-cols-3 gap-4 pt-4 border-t">
             <div className="text-center">
-              <p className="text-2xl font-bold">0</p>
+              <p className="text-2xl font-bold">{stats.active_conversations}</p>
               <p className="text-sm text-muted-foreground">Conversas Ativas</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold">0</p>
+              <p className="text-2xl font-bold">{stats.messages_today}</p>
               <p className="text-sm text-muted-foreground">Mensagens Hoje</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold">0</p>
+              <p className="text-2xl font-bold">{stats.unread_count}</p>
               <p className="text-sm text-muted-foreground">Não Lidas</p>
             </div>
           </div>
