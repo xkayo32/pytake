@@ -70,6 +70,25 @@ const renderNodePreview = (data: CustomNodeData) => {
           <div className="text-[9px] truncate">
             ⏱️ {data.config?.expiration_minutes || 10} min
           </div>
+          {data.config?.welcome_template && (
+            <div className="text-[9px] truncate">
+              📄 {data.config.welcome_template}
+            </div>
+          )}
+        </>
+      )
+      
+    case 'logic_window_check':
+      return (
+        <>
+          <div className="truncate text-[10px]">
+            🕐 Janela 24h
+          </div>
+          {data.config?.fallback_template && (
+            <div className="text-[9px] truncate">
+              📄 {data.config.fallback_template}
+            </div>
+          )}
         </>
       )
       

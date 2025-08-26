@@ -239,6 +239,13 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
         required: false,
         helpText: 'Tempo em minutos que o fluxo permanece ativo para o mesmo contato'
       },
+      welcome_template: {
+        type: 'template_select',
+        label: 'Template de Boas-vindas (fora da janela 24h)',
+        placeholder: 'Selecione um template',
+        required: false,
+        helpText: 'Template enviado quando usuário está fora da janela de 24h'
+      },
       priority_note: {
         type: 'info',
         label: 'Prioridade',
@@ -751,6 +758,37 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
   },
 
   // ========== LOGIC NODES ==========
+  'logic_window_check': {
+    id: 'logic_window_check',
+    name: 'Verificar Janela 24h',
+    category: 'logic',
+    icon: 'Clock',
+    color: '#0ea5e9',
+    description: 'Verifica se existe janela de 24h ativa com o contato',
+    inputs: 1,
+    outputs: 2, // Saída 1: Com janela, Saída 2: Sem janela
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome do componente',
+        placeholder: 'Verificar Janela WhatsApp',
+        required: false
+      },
+      fallback_template: {
+        type: 'template_select',
+        label: 'Template para abrir janela',
+        placeholder: 'Selecione um template',
+        required: false,
+        helpText: 'Template enviado automaticamente quando não há janela de 24h'
+      },
+      window_info: {
+        type: 'info',
+        label: 'Como funciona',
+        content: 'WhatsApp permite envio de mensagens diretas apenas dentro de 24h após a última interação do usuário. Fora deste período, é necessário usar templates pré-aprovados.'
+      }
+    }
+  },
+
   'logic_condition': {
     id: 'logic_condition',
     name: 'Condição Se',

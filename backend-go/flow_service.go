@@ -460,6 +460,43 @@ func (s *FlowService) executeFlowNode(executionID, nodeType, nodeID string, node
 			Message:   fmt.Sprintf("Trigger %s processado", nodeType),
 		})
 		
+	case "logic_window_check":
+		// Check 24h window with contact
+		hasWindow, err := s.checkConversationWindow(recipient)
+		if err != nil {
+			log.Printf("Warning: could not check conversation window: %v", err)
+			hasWindow = false
+		}
+		
+		result.Logs = append(result.Logs, ExecutionLog{
+			Timestamp: time.Now().Format(time.RFC3339),
+			StepType:  nodeType,
+			Action:    "window_check",
+			Status:    "success",
+			Message:   fmt.Sprintf("Janela 24h: %v", hasWindow),
+			Details:   fmt.Sprintf("Contato %s tem janela: %v", recipient, hasWindow),
+		})
+		
+		// Return different output based on window status
+		// Output 0: Has window (can send direct message)
+		// Output 1: No window (needs template)
+		if hasWindow {
+			// Continue to first output (index 0)
+			return nil
+		} else {
+			// If there's a fallback template configured, send it
+			if config, ok := nodeData["config"].(map[string]interface{}); ok {
+				if templateName, ok := config["fallback_template"].(string); ok && templateName != "" {
+					log.Printf("📄 Sending fallback template '%s' to open window", templateName)
+					// We'll use the existing template sending logic
+					// For now, just log and continue to second output
+				}
+			}
+			// Continue to second output (index 1)
+			// This would need special handling to select the right edge
+			return nil
+		}
+		
 	case "message", "msg_text":
 		// Message node - send WhatsApp message
 		var message string

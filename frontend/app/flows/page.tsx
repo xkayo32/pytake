@@ -251,7 +251,7 @@ export default function FlowsPage() {
         {
           id: 'start-node',
           type: 'trigger',
-          position: { x: 100, y: 100 },
+          position: { x: 250, y: 50 },
           data: {
             label: 'Fluxo Universal',
             icon: 'Zap',
@@ -259,16 +259,32 @@ export default function FlowsPage() {
             description: 'Responde a todas as mensagens',
             nodeType: 'trigger_universal',
             config: {
-              expiration_minutes: 10
+              expiration_minutes: 10,
+              welcome_template: 'hello_world'
             }
           }
         },
         {
-          id: 'response-node',
-          type: 'message',
-          position: { x: 100, y: 300 },
+          id: 'window-check',
+          type: 'logic',
+          position: { x: 250, y: 200 },
           data: {
-            label: 'Mensagem de Resposta',
+            label: 'Verificar Janela 24h',
+            icon: 'Clock',
+            color: 'sky',
+            description: 'Verifica se há janela ativa',
+            nodeType: 'logic_window_check',
+            config: {
+              fallback_template: 'hello_world'
+            }
+          }
+        },
+        {
+          id: 'direct-message',
+          type: 'message',
+          position: { x: 100, y: 350 },
+          data: {
+            label: 'Mensagem Direta',
             icon: 'MessageCircle',
             color: 'blue',
             description: 'Envia mensagem de texto',
@@ -278,6 +294,23 @@ export default function FlowsPage() {
               delay: 1000
             }
           }
+        },
+        {
+          id: 'template-message',
+          type: 'message',
+          position: { x: 400, y: 350 },
+          data: {
+            label: 'Template de Boas-vindas',
+            icon: 'FileText',
+            color: 'purple',
+            description: 'Envia template aprovado',
+            nodeType: 'msg_template',
+            config: {
+              templateName: 'hello_world',
+              language: 'pt_BR',
+              variables: []
+            }
+          }
         }
       ] : []
       
@@ -285,8 +318,24 @@ export default function FlowsPage() {
         {
           id: 'edge-1',
           source: 'start-node',
-          target: 'response-node',
+          target: 'window-check',
           type: 'smoothstep'
+        },
+        {
+          id: 'edge-2',
+          source: 'window-check',
+          sourceHandle: 'source-0', // Com janela
+          target: 'direct-message',
+          type: 'smoothstep',
+          label: 'Com janela'
+        },
+        {
+          id: 'edge-3',
+          source: 'window-check',
+          sourceHandle: 'source-1', // Sem janela
+          target: 'template-message',
+          type: 'smoothstep',
+          label: 'Sem janela'
         }
       ] : []
 
