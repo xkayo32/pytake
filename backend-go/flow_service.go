@@ -417,6 +417,9 @@ func (s *FlowService) executeFlowTest(executionID string, flow Flow, recipient s
 
 // executeFlowNode executes a single flow node
 func (s *FlowService) executeFlowNode(executionID, nodeType, nodeID string, nodeData map[string]interface{}, recipient string, config map[string]interface{}, result *FlowExecutionResult) error {
+	// Debug log to see what nodeType we're getting
+	log.Printf("🐛 executeFlowNode called with nodeType: '%s'", nodeType)
+	
 	result.Logs = append(result.Logs, ExecutionLog{
 		Timestamp: time.Now().Format(time.RFC3339),
 		StepType:  nodeType,
@@ -499,19 +502,30 @@ func (s *FlowService) executeFlowNode(executionID, nodeType, nodeID string, node
 		
 	case "message", "msg_text":
 		// Message node - send WhatsApp message
+		log.Printf("📩 Processing message node for %s", recipient)
 		var message string
 		if config, ok := nodeData["config"].(map[string]interface{}); ok {
 			if msg, ok := config["message"].(string); ok {
 				message = msg
+				log.Printf("📝 Message content: %s", message)
 			}
 		}
 		if message == "" {
 			message = "Mensagem de teste do PyTake"
 		}
 		
+		// Log WhatsApp config
+		if phoneNumberID, ok := config["phone_number_id"].(string); ok {
+			log.Printf("📞 Using phone_number_id: %s", phoneNumberID)
+		} else {
+			log.Printf("⚠️ No phone_number_id in config")
+		}
+		
 		// Send real WhatsApp message
+		log.Printf("📤 Sending WhatsApp message to %s", recipient)
 		err := s.sendWhatsAppMessage(recipient, message, config)
 		if err != nil {
+			log.Printf("❌ Error sending message: %v", err)
 			result.Logs = append(result.Logs, ExecutionLog{
 				Timestamp: time.Now().Format(time.RFC3339),
 				StepType:  nodeType,
@@ -1732,8 +1746,8 @@ func (s *FlowService) GetUniversalFlow(tenantID string) (*Flow, error) {
 		SELECT id, tenant_id, name, description, trigger_type, trigger_value, nodes, edges, is_active, version, created_by, created_at, updated_at, status
 		FROM flows 
 		WHERE is_active = true 
-		AND (trigger_type = 'universal' OR trigger_type = '' OR trigger_type IS NULL)
-		AND ($1::uuid IS NULL OR tenant_id = $1::uuid)
+		AND trigger_type = 'universal'
+		AND tenant_id = $1::uuid
 		ORDER BY updated_at DESC 
 		LIMIT 1
 	`
@@ -1806,9 +1820,23 @@ func (s *FlowService) ExecuteUniversalFlow(tenantID, contactPhone, messageConten
 	executionID := uuid.New().String()
 	
 	// Get WhatsApp config for sending messages
+	var phoneNumberID, accessToken string
+	err = s.db.QueryRow(`
+		SELECT phone_number_id, access_token
+		FROM whatsapp_configs
+		WHERE is_default = true
+		LIMIT 1
+	`).Scan(&phoneNumberID, &accessToken)
+	
+	if err != nil {
+		log.Printf("⚠️ Warning: No WhatsApp config found: %v", err)
+	}
+	
 	config := map[string]interface{}{
 		"phone_number": contactPhone,
 		"message_content": messageContent,
+		"phone_number_id": phoneNumberID,
+		"access_token": accessToken,
 	}
 	
 	// Execute the flow
@@ -1881,9 +1909,17 @@ func (s *FlowService) executeFlowForContact(executionID string, flow Flow, recip
 		nodeType, _ := currentNode["type"].(string)
 		nodeData, _ := currentNode["data"].(map[string]interface{})
 		
-		log.Printf("🎯 Executing node: %s (type: %s)", nodeID, nodeType)
+		// Get the actual node type from data.nodeType
+		actualNodeType := nodeType
+		if nodeData != nil {
+			if nt, ok := nodeData["nodeType"].(string); ok {
+				actualNodeType = nt
+			}
+		}
 		
-		err := s.executeFlowNode(executionID, nodeType, nodeID, nodeData, recipient, config, result)
+		log.Printf("🎯 Executing node: %s (type: %s, nodeType: %s)", nodeID, nodeType, actualNodeType)
+		
+		err := s.executeFlowNode(executionID, actualNodeType, nodeID, nodeData, recipient, config, result)
 		if err != nil {
 			result.Logs = append(result.Logs, ExecutionLog{
 				Timestamp: time.Now().Format(time.RFC3339),
