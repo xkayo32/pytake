@@ -7,7 +7,10 @@ PyTake é uma plataforma completa para automação de WhatsApp Business API, per
 ### ✨ Funcionalidades Principais
 
 - **Editor Visual de Flows**: Interface drag-and-drop para criar automações
-- **WhatsApp Business API**: Integração completa com envio de mensagens
+- **Fluxos Universais**: Automação que responde a qualquer mensagem automaticamente
+- **Sistema de Prioridades**: Template direto > Palavra-chave > Fluxo universal
+- **Verificação Janela 24h**: Detecção inteligente de janela de mensagem ativa
+- **WhatsApp Business API**: Integração completa com envio de mensagens e templates
 - **Gestão de Conversas**: Dashboard para acompanhar todas as conversas
 - **Templates**: Criação e gestão de templates aprovados
 - **Analytics**: Relatórios e métricas de desempenho
@@ -97,6 +100,45 @@ docker exec pytake-postgres psql -U pytake_user -d pytake -f /migrations/script.
 docker exec pytake-postgres pg_dump -U pytake_user pytake > backup.sql
 ```
 
+## 🔄 Fluxos Universais
+
+### Como Funcionam
+
+Os **Fluxos Universais** são uma funcionalidade avançada que permite resposta automática a qualquer mensagem recebida no WhatsApp, seguindo uma hierarquia de prioridades:
+
+#### Sistema de Prioridades
+1. **Templates Diretos** (Prioridade Máxima)
+   - Fluxos iniciados por templates enviados diretamente
+   - Têm precedência sobre todos os outros tipos
+
+2. **Fluxos por Palavra-chave** (Prioridade Alta)  
+   - Ativados quando mensagem contém palavras-chave específicas
+   - Exemplo: "ajuda", "suporte", "vendas"
+
+3. **Fluxos Universais** (Fallback)
+   - Executados quando não há template ativo nem palavra-chave
+   - Resposta padrão para qualquer mensagem
+
+#### Recursos Avançados
+
+- **Verificação de Janela 24h**: Sistema detecta automaticamente se há janela ativa para envio direto
+- **Fallback para Templates**: Usuários fora da janela recebem templates aprovados
+- **Configuração de Expiração**: Tempo configurável (padrão: 10 minutos)
+- **Logs Detalhados**: Rastreamento completo da execução dos fluxos
+
+### Configuração
+
+1. **Criar Fluxo Universal**
+   - Acesse o editor de flows
+   - Selecione "Fluxo Universal" como tipo
+   - Configure nós: Trigger Universal → Verificação Janela → Mensagem/Template
+
+2. **Componentes Disponíveis**
+   - `trigger_universal`: Gatilho para qualquer mensagem
+   - `logic_window_check`: Verificação da janela 24h
+   - `msg_text`: Envio de mensagem direta
+   - `msg_template`: Envio de template aprovado
+
 ## 📡 API Endpoints
 
 ### Flows
@@ -108,6 +150,7 @@ docker exec pytake-postgres pg_dump -U pytake_user pytake > backup.sql
 ### WhatsApp
 - `GET /api/v1/whatsapp/numbers` - Listar números
 - `GET /api/v1/whatsapp/templates` - Listar templates
+- `POST /api/v1/whatsapp/webhook` - Receber mensagens (interno)
 
 ## 🔒 Configuração WhatsApp
 
