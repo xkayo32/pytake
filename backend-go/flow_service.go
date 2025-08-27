@@ -377,8 +377,18 @@ func (s *FlowService) executeFlowTest(executionID string, flow Flow, recipient s
 		nodeType, _ := currentNode["type"].(string)
 		nodeData, _ := currentNode["data"].(map[string]interface{})
 		
+		// Get the actual nodeType from data.nodeType if available
+		actualNodeType := nodeType
+		if nodeData != nil {
+			if dataNodeType, ok := nodeData["nodeType"].(string); ok {
+				actualNodeType = dataNodeType
+			}
+		}
+		
+		log.Printf("🎯 Executing node: %s (type: %s, nodeType: %s)", nodeID, nodeType, actualNodeType)
+		
 		// Execute current node
-		err := s.executeFlowNode(executionID, nodeType, nodeID, nodeData, recipient, config, result)
+		err := s.executeFlowNode(executionID, actualNodeType, nodeID, nodeData, recipient, config, result)
 		if err != nil {
 			result.Logs = append(result.Logs, ExecutionLog{
 				Timestamp: time.Now().Format(time.RFC3339),
@@ -430,6 +440,66 @@ func (s *FlowService) executeFlowNode(executionID, nodeType, nodeID string, node
 	})
 	
 	switch nodeType {
+	case "trigger_universal":
+		// Universal trigger node
+		result.Logs = append(result.Logs, ExecutionLog{
+			Timestamp: time.Now().Format(time.RFC3339),
+			StepType:  nodeType,
+			Action:    "trigger_processed",
+			Status:    "success",
+			Message:   "Trigger universal processado",
+		})
+		
+	case "msg_text", "message":
+		// Text message node - send WhatsApp message
+		log.Printf("📩 Processing text message node for %s", recipient)
+		var message string
+		if nodeData != nil {
+			if config, ok := nodeData["config"].(map[string]interface{}); ok {
+				if msg, ok := config["message"].(string); ok {
+					message = msg
+					log.Printf("📝 Message content: %s", message)
+				}
+			}
+		}
+		if message == "" {
+			message = "Mensagem de teste do PyTake"
+		}
+		
+		// Log WhatsApp config
+		if phoneNumberID, ok := config["phone_number_id"].(string); ok {
+			log.Printf("📞 Using phone_number_id: %s", phoneNumberID)
+		} else {
+			log.Printf("⚠️ No phone_number_id in config")
+		}
+		
+		// Send real WhatsApp message
+		log.Printf("📤 Sending WhatsApp message to %s", recipient)
+		err := s.sendWhatsAppMessage(recipient, message, config)
+		if err != nil {
+			log.Printf("❌ Error sending message: %v", err)
+			result.Logs = append(result.Logs, ExecutionLog{
+				Timestamp: time.Now().Format(time.RFC3339),
+				StepType:  nodeType,
+				StepID:    nodeID,
+				Action:    "message_send_failed",
+				Status:    "error",
+				Message:   fmt.Sprintf("Erro ao enviar mensagem para %s", recipient),
+				Details:   err.Error(),
+			})
+		} else {
+			result.MessagesSent++
+			result.Logs = append(result.Logs, ExecutionLog{
+				Timestamp: time.Now().Format(time.RFC3339),
+				StepType:  nodeType,
+				StepID:    nodeID,
+				Action:    "message_sent",
+				Status:    "success",
+				Message:   fmt.Sprintf("Mensagem enviada para %s", recipient),
+				Details:   message,
+			})
+		}
+		
 	case "start":
 		// Start node - just log
 		result.Logs = append(result.Logs, ExecutionLog{
@@ -498,55 +568,6 @@ func (s *FlowService) executeFlowNode(executionID, nodeType, nodeID string, node
 			// Continue to second output (index 1)
 			// This would need special handling to select the right edge
 			return nil
-		}
-		
-	case "message", "msg_text":
-		// Message node - send WhatsApp message
-		log.Printf("📩 Processing message node for %s", recipient)
-		var message string
-		if config, ok := nodeData["config"].(map[string]interface{}); ok {
-			if msg, ok := config["message"].(string); ok {
-				message = msg
-				log.Printf("📝 Message content: %s", message)
-			}
-		}
-		if message == "" {
-			message = "Mensagem de teste do PyTake"
-		}
-		
-		// Log WhatsApp config
-		if phoneNumberID, ok := config["phone_number_id"].(string); ok {
-			log.Printf("📞 Using phone_number_id: %s", phoneNumberID)
-		} else {
-			log.Printf("⚠️ No phone_number_id in config")
-		}
-		
-		// Send real WhatsApp message
-		log.Printf("📤 Sending WhatsApp message to %s", recipient)
-		err := s.sendWhatsAppMessage(recipient, message, config)
-		if err != nil {
-			log.Printf("❌ Error sending message: %v", err)
-			result.Logs = append(result.Logs, ExecutionLog{
-				Timestamp: time.Now().Format(time.RFC3339),
-				StepType:  nodeType,
-				StepID:    nodeID,
-				Action:    "message_send_failed",
-				Status:    "error",
-				Message:   fmt.Sprintf("Erro ao enviar mensagem para %s", recipient),
-				Details:   err.Error(),
-			})
-			// Continue execution even if message fails in test mode
-		} else {
-			result.MessagesSent++
-			result.Logs = append(result.Logs, ExecutionLog{
-				Timestamp: time.Now().Format(time.RFC3339),
-				StepType:  nodeType,
-				StepID:    nodeID,
-				Action:    "message_sent",
-				Status:    "success",
-				Message:   fmt.Sprintf("Mensagem enviada para %s", recipient),
-				Details:   message,
-			})
 		}
 		
 	case "delay":
