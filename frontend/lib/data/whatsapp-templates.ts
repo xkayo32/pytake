@@ -49,7 +49,10 @@ export async function getWhatsAppTemplates(): Promise<WhatsAppTemplate[]> {
     // Usar o endpoint /templates que retorna apenas os ativados
     const response = await fetch('/api/v1/whatsapp/templates')
     if (response.ok) {
-      const templates = await response.json()
+      const data = await response.json()
+      
+      // Garantir que temos um array
+      const templates = Array.isArray(data) ? data : []
       
       // Filtrar apenas templates aprovados E ativados
       const formattedTemplates = templates
