@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -66,6 +67,20 @@ func main() {
 	whatsappService := NewWhatsAppService(db, redis)
 	authService := NewAuthService(db, redis)
 	conversationService := NewConversationService(db, flowService)
+	
+	// Start periodic template validation (every 30 minutes)
+	go func() {
+		ticker := time.NewTicker(30 * time.Minute)
+		defer ticker.Stop()
+		
+		// Initial validation after 1 minute
+		time.Sleep(1 * time.Minute)
+		whatsappService.ValidateAllTemplates()
+		
+		for range ticker.C {
+			whatsappService.ValidateAllTemplates()
+		}
+	}()
 
 	// Setup routes
 	api := router.Group("/api/v1")

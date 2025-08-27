@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -781,51 +782,89 @@ func (s *WhatsAppService) SyncTemplates(c *gin.Context) {
 	
 	// Update database with Meta templates
 	var syncedTemplates []map[string]interface{}
+	var deletedTemplates []string
 	defaultTenantID := "00000000-0000-0000-0000-000000000000"
 	
+	// First, mark all existing templates as pending_sync
+	updateQuery := `UPDATE whatsapp_templates SET sync_status = 'pending_sync' 
+	                WHERE whatsapp_config_id = $1 AND sync_status != 'deleted_from_meta'`
+	_, err = s.db.Exec(updateQuery, configID)
+	if err != nil {
+		log.Printf("Warning: Could not update sync status: %v", err)
+	}
+	
 	for _, template := range metaResponse.Data {
-		// Extract body text
+		// Extract components
 		bodyText := ""
+		headerText := ""
+		footerText := ""
+		
 		for _, component := range template.Components {
-			if component.Type == "BODY" {
+			switch component.Type {
+			case "BODY":
 				bodyText = component.Text
-				break
+			case "HEADER":
+				headerText = component.Text
+			case "FOOTER":
+				footerText = component.Text
 			}
 		}
 		
-		// Update or insert template
+		// Create hash of template content for change detection
+		templateContent := fmt.Sprintf("%s|%s|%s|%s|%s", 
+			template.Name, template.Status, bodyText, headerText, footerText)
+		templateHash := fmt.Sprintf("%x", sha256.Sum256([]byte(templateContent)))
+		
+		// Update or insert template with enhanced sync info
 		query := `
 			INSERT INTO whatsapp_templates (
-				tenant_id, name, meta_template_id, status, category, language, body_text, whatsapp_config_id
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			ON CONFLICT (tenant_id, name) 
+				tenant_id, name, meta_template_id, status, category, language, 
+				body_text, header_text, footer_text, whatsapp_config_id,
+				meta_template_hash, last_synced_at, sync_status
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), 'synced')
+			ON CONFLICT (tenant_id, name, language) 
 			DO UPDATE SET 
-				meta_template_id = $3,
-				status = $4,
-				category = $5,
-				language = $6,
-				body_text = $7,
-				whatsapp_config_id = $8,
+				meta_template_id = EXCLUDED.meta_template_id,
+				status = EXCLUDED.status,
+				category = EXCLUDED.category,
+				body_text = EXCLUDED.body_text,
+				header_text = EXCLUDED.header_text,
+				footer_text = EXCLUDED.footer_text,
+				whatsapp_config_id = EXCLUDED.whatsapp_config_id,
+				meta_template_hash = EXCLUDED.meta_template_hash,
+				last_synced_at = NOW(),
+				sync_status = 'synced',
 				updated_at = NOW()
-			RETURNING id
+			RETURNING id, 
+				(meta_template_hash IS DISTINCT FROM $11) as content_changed
 		`
 		
 		var templateID string
+		var contentChanged bool
 		err := s.db.QueryRow(query, 
 			defaultTenantID,
 			template.Name,
-			template.Name, // Use same name as meta_template_id
+			template.ID, // Use actual Meta template ID
 			template.Status,
 			template.Category,
 			template.Language,
 			bodyText,
+			headerText,
+			footerText,
 			configID,
-		).Scan(&templateID)
+			templateHash,
+		).Scan(&templateID, &contentChanged)
 		
 		if err != nil {
 			log.Printf("Error syncing template %s: %v", template.Name, err)
 		} else {
-			log.Printf("✅ Synced template: %s (status: %s, language: %s)", template.Name, template.Status, template.Language)
+			statusIcon := "✅"
+			if contentChanged {
+				statusIcon = "🔄"
+			}
+			log.Printf("%s Synced template: %s (status: %s, language: %s, changed: %v)", 
+				statusIcon, template.Name, template.Status, template.Language, contentChanged)
+			
 			syncedTemplates = append(syncedTemplates, map[string]interface{}{
 				"id": templateID,
 				"name": template.Name,
@@ -833,7 +872,30 @@ func (s *WhatsAppService) SyncTemplates(c *gin.Context) {
 				"category": template.Category,
 				"language": template.Language,
 				"body_text": bodyText,
+				"content_changed": contentChanged,
 			})
+		}
+	}
+	
+	// Mark templates that weren't found in Meta as deleted
+	deleteQuery := `
+		UPDATE whatsapp_templates 
+		SET sync_status = 'deleted_from_meta', 
+		    is_enabled = false,
+		    updated_at = NOW()
+		WHERE whatsapp_config_id = $1 
+		  AND sync_status = 'pending_sync'
+		RETURNING name
+	`
+	rows, err := s.db.Query(deleteQuery, configID)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var templateName string
+			if err := rows.Scan(&templateName); err == nil {
+				deletedTemplates = append(deletedTemplates, templateName)
+				log.Printf("❌ Template '%s' not found in Meta, marked as deleted", templateName)
+			}
 		}
 	}
 	
@@ -842,7 +904,9 @@ func (s *WhatsAppService) SyncTemplates(c *gin.Context) {
 		"message": "Templates synced successfully",
 		"total_from_meta": len(metaResponse.Data),
 		"synced_to_db": len(syncedTemplates),
+		"deleted_from_meta": len(deletedTemplates),
 		"templates": syncedTemplates,
+		"deleted_templates": deletedTemplates,
 		"waba_id": wabaID,
 	})
 }
@@ -1231,4 +1295,183 @@ func (s *WhatsAppService) ToggleTemplateStatus(c *gin.Context) {
 		"template_id": templateID,
 		"is_enabled": requestData.IsEnabled,
 	})
+}
+
+// ValidateTemplateWithMeta validates a single template against Meta API
+func (s *WhatsAppService) ValidateTemplateWithMeta(templateID string) error {
+	// Get template details
+	var name, metaTemplateID, configID, language string
+	query := `SELECT name, meta_template_id, whatsapp_config_id, language 
+	          FROM whatsapp_templates WHERE id = $1`
+	err := s.db.QueryRow(query, templateID).Scan(&name, &metaTemplateID, &configID, &language)
+	if err != nil {
+		return fmt.Errorf("template not found: %v", err)
+	}
+	
+	// Get config details  
+	var businessAccountID, accessToken string
+	configQuery := `SELECT business_account_id, access_token FROM whatsapp_configs WHERE id = $1`
+	err = s.db.QueryRow(configQuery, configID).Scan(&businessAccountID, &accessToken)
+	if err != nil {
+		return fmt.Errorf("config not found: %v", err)
+	}
+	
+	// Fetch template from Meta
+	wabaID := businessAccountID
+	if wabaID == "" || wabaID == "YOUR_WABA_ID" {
+		wabaID = "130291356831385"
+	}
+	
+	url := fmt.Sprintf("https://graph.facebook.com/v21.0/%s/message_templates?fields=name,status,category,language,components&name=%s", 
+		wabaID, name)
+	
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+	
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to fetch from Meta: %v", err)
+	}
+	defer resp.Body.Close()
+	
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %v", err)
+	}
+	
+	var metaResponse struct {
+		Data []struct {
+			Name       string `json:"name"`
+			Status     string `json:"status"`
+			Category   string `json:"category"`
+			Language   string `json:"language"`
+			Components []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"components"`
+		} `json:"data"`
+	}
+	
+	if err := json.Unmarshal(body, &metaResponse); err != nil {
+		return fmt.Errorf("failed to parse response: %v", err)
+	}
+	
+	// Check if template exists in Meta
+	templateFound := false
+	for _, metaTemplate := range metaResponse.Data {
+		if metaTemplate.Name == name && metaTemplate.Language == language {
+			templateFound = true
+			
+			// Extract content
+			bodyText := ""
+			headerText := ""
+			footerText := ""
+			for _, component := range metaTemplate.Components {
+				switch component.Type {
+				case "BODY":
+					bodyText = component.Text
+				case "HEADER":
+					headerText = component.Text  
+				case "FOOTER":
+					footerText = component.Text
+				}
+			}
+			
+			// Create hash
+			templateContent := fmt.Sprintf("%s|%s|%s|%s|%s", 
+				name, metaTemplate.Status, bodyText, headerText, footerText)
+			templateHash := fmt.Sprintf("%x", sha256.Sum256([]byte(templateContent)))
+			
+			// Update template with validation info
+			updateQuery := `
+				UPDATE whatsapp_templates 
+				SET status = $1, 
+				    meta_template_hash = $2,
+				    last_synced_at = NOW(),
+				    sync_status = 'synced',
+				    body_text = $3,
+				    header_text = $4,
+				    footer_text = $5
+				WHERE id = $6`
+			
+			_, err = s.db.Exec(updateQuery, 
+				metaTemplate.Status, templateHash, 
+				bodyText, headerText, footerText, templateID)
+			
+			if err != nil {
+				return fmt.Errorf("failed to update template: %v", err)
+			}
+			
+			log.Printf("✅ Template %s validated: status=%s", name, metaTemplate.Status)
+			break
+		}
+	}
+	
+	if !templateFound {
+		// Mark as deleted from Meta
+		updateQuery := `
+			UPDATE whatsapp_templates 
+			SET sync_status = 'deleted_from_meta',
+			    is_enabled = false,
+			    last_synced_at = NOW()
+			WHERE id = $1`
+		
+		_, err = s.db.Exec(updateQuery, templateID)
+		if err != nil {
+			return fmt.Errorf("failed to mark as deleted: %v", err)
+		}
+		
+		return fmt.Errorf("template not found in Meta")
+	}
+	
+	return nil
+}
+
+// ValidateAllTemplates validates all templates periodically
+func (s *WhatsAppService) ValidateAllTemplates() {
+	log.Println("🔄 Starting periodic template validation...")
+	
+	// Get templates that need validation (not synced in last hour)
+	query := `
+		SELECT id, name 
+		FROM whatsapp_templates 
+		WHERE sync_status != 'deleted_from_meta'
+		  AND (last_synced_at IS NULL OR last_synced_at < NOW() - INTERVAL '1 hour')
+		  AND whatsapp_config_id IS NOT NULL
+		LIMIT 50`
+	
+	rows, err := s.db.Query(query)
+	if err != nil {
+		log.Printf("Error fetching templates for validation: %v", err)
+		return
+	}
+	defer rows.Close()
+	
+	validatedCount := 0
+	errorCount := 0
+	
+	for rows.Next() {
+		var templateID, name string
+		if err := rows.Scan(&templateID, &name); err != nil {
+			continue
+		}
+		
+		if err := s.ValidateTemplateWithMeta(templateID); err != nil {
+			log.Printf("❌ Failed to validate template %s: %v", name, err)
+			errorCount++
+		} else {
+			validatedCount++
+		}
+		
+		// Small delay to avoid rate limiting
+		time.Sleep(100 * time.Millisecond)
+	}
+	
+	log.Printf("✅ Template validation completed: %d validated, %d errors", 
+		validatedCount, errorCount)
 }
