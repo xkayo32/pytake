@@ -31,6 +31,8 @@ import { Input } from '@/components/ui/input'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { WhatsAppNumberSelector } from '@/components/whatsapp/whatsapp-number-selector'
+import { useConfirmation } from '@/hooks/useConfirmation'
+import { NotificationToast } from '@/components/ui/notification-toast'
 import {
   Dialog,
   DialogContent,
@@ -216,6 +218,8 @@ export default function FlowsPage() {
   const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null)
   const [selectedWhatsAppNumbers, setSelectedWhatsAppNumbers] = useState<string[]>([])
   const [isCreateFlowDialogOpen, setIsCreateFlowDialogOpen] = useState(false)
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null)
+  const { confirm, ConfirmationDialog } = useConfirmation()
   const { isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
 
@@ -372,7 +376,10 @@ export default function FlowsPage() {
         
         if (!flowId) {
           console.error('❌ Backend não retornou ID do flow:', createdFlow)
-          alert('Erro: Flow criado mas sem ID. Verifique o backend.')
+          setNotification({ 
+            message: 'Erro: Flow criado mas sem ID. Verifique o backend.',
+            type: 'error'
+          })
           return
         }
         
@@ -394,11 +401,17 @@ export default function FlowsPage() {
         router.push(`/flows/${flowId}/edit`)
       } else {
         console.error('❌ Erro ao criar flow:', response.status)
-        alert('Erro ao criar novo flow. Tente novamente.')
+        setNotification({ 
+          message: 'Erro ao criar novo flow. Tente novamente.',
+          type: 'error'
+        })
       }
     } catch (error) {
       console.error('Erro ao criar flow:', error)
-      alert('Erro ao criar novo flow. Tente novamente.')
+      setNotification({ 
+        message: 'Erro ao criar novo flow. Tente novamente.',
+        type: 'error'
+      })
     } finally {
       setLoading(false)
     }
@@ -555,9 +568,17 @@ export default function FlowsPage() {
   }
 
   const handleDelete = async (flowId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este flow?')) return
-    
     const flow = flows.find(f => f.id === flowId)
+    
+    const confirmed = await confirm({
+      title: 'Excluir Flow',
+      description: `Tem certeza que deseja excluir o flow "${flow?.name || 'este flow'}"? Esta ação não pode ser desfeita.`,
+      confirmText: 'Excluir',
+      cancelText: 'Cancelar',
+      variant: 'destructive'
+    })
+    
+    if (!confirmed) return
     if (!flow) return
     
     try {
@@ -1211,6 +1232,18 @@ export default function FlowsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        
+        {/* Notification Toast */}
+        {notification && (
+          <NotificationToast
+            message={notification.message}
+            type={notification.type}
+            onClose={() => setNotification(null)}
+          />
+        )}
+        
+        {/* Confirmation Dialog */}
+        <ConfirmationDialog />
       </div>
     </AppLayout>
   )

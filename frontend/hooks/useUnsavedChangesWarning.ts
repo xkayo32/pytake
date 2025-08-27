@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useConfirmation } from '@/hooks/useConfirmation'
 
 interface UseUnsavedChangesWarningProps {
   hasUnsavedChanges: boolean
@@ -8,9 +9,10 @@ interface UseUnsavedChangesWarningProps {
 
 export function useUnsavedChangesWarning({
   hasUnsavedChanges,
-  message = 'Você tem alterações não salvas. Deseja sair sem salvar?'
+  message = 'Você tem alterações não salvas. Deseja descartar as alterações e sair?'
 }: UseUnsavedChangesWarningProps) {
   const router = useRouter()
+  const { confirm, ConfirmationDialog } = useConfirmation()
 
   useEffect(() => {
     // Prevenir navegação do browser (F5, fechar aba, etc)
@@ -33,10 +35,16 @@ export function useUnsavedChangesWarning({
     }
   }, [hasUnsavedChanges, message])
 
-  // Função para navegar com confirmação
-  const navigateWithConfirmation = (url: string) => {
+  // Função para navegar com confirmação usando modal
+  const navigateWithConfirmation = async (url: string) => {
     if (hasUnsavedChanges) {
-      const confirmed = window.confirm(message)
+      const confirmed = await confirm({
+        title: 'Alterações não salvas',
+        description: message,
+        confirmText: 'Descartar alterações',
+        cancelText: 'Continuar editando',
+        variant: 'warning'
+      })
       if (confirmed) {
         // Limpar o estado dirty antes de navegar
         return true
@@ -46,5 +54,5 @@ export function useUnsavedChangesWarning({
     return true
   }
 
-  return { navigateWithConfirmation }
+  return { navigateWithConfirmation, ConfirmationDialog }
 }

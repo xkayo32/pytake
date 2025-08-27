@@ -30,6 +30,7 @@ import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { NodeType } from '@/lib/types/flow'
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
+import { useConfirmation } from '@/hooks/useConfirmation'
 import { 
   Save, 
   Play, 
@@ -115,9 +116,10 @@ function FlowEditor() {
   } = useFlowEditorStore()
 
   const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const { confirm: confirmDialog, ConfirmationDialog } = useConfirmation()
   
   // Hook para prevenir perda de dados
-  const { navigateWithConfirmation } = useUnsavedChangesWarning({
+  const { navigateWithConfirmation, ConfirmationDialog: UnsavedChangesDialog } = useUnsavedChangesWarning({
     hasUnsavedChanges: isDirty,
     message: 'Você tem alterações não salvas. Deseja descartar as alterações e sair?'
   })
@@ -406,8 +408,8 @@ function FlowEditor() {
     // Node drag started from palette
   }, [])
 
-  const handleBack = useCallback(() => {
-    const shouldNavigate = navigateWithConfirmation('/flows')
+  const handleBack = useCallback(async () => {
+    const shouldNavigate = await navigateWithConfirmation('/flows')
     if (shouldNavigate) {
       // Limpar o store antes de navegar
       resetStore()
@@ -1035,10 +1037,18 @@ function FlowEditor() {
         // Confirmar deleção para nós importantes
         const node = nodes.find(n => n.id === selectedNode)
         if (node && node.type === 'trigger') {
-          if (confirm(`Deseja realmente excluir o gatilho "${node.data.config?.customName || node.data.label}"?`)) {
-            deleteNode(selectedNode)
-            setShowProperties(false)
-          }
+          confirmDialog({
+            title: 'Excluir Gatilho',
+            description: `Deseja realmente excluir o gatilho "${node.data.config?.customName || node.data.label}"?`,
+            confirmText: 'Excluir',
+            cancelText: 'Cancelar',
+            variant: 'destructive'
+          }).then(confirmed => {
+            if (confirmed) {
+              deleteNode(selectedNode)
+              setShowProperties(false)
+            }
+          })
         } else {
           const nodeName = node?.data.config?.customName || node?.data.label || 'nó'
           deleteNode(selectedNode)
@@ -1518,6 +1528,12 @@ function FlowEditor() {
         whatsappConfigs={availableWhatsAppNumbers}
         flowName={flow?.name}
       />
+      
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog />
+      
+      {/* Unsaved Changes Dialog */}
+      <UnsavedChangesDialog />
     </div>
   )
 }
