@@ -376,7 +376,7 @@ export default function TemplatesPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {filteredTemplates.map((template) => (
-                <Card key={template.id} className={`hover:shadow-md transition-shadow ${!template.is_enabled ? 'opacity-60 border-dashed' : ''}`}>
+                <Card key={template.id} className={`hover:shadow-md transition-shadow flex flex-col h-full ${!template.is_enabled ? 'opacity-60 border-dashed' : ''}`}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -405,7 +405,8 @@ export default function TemplatesPage() {
                       )}
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  
+                  <CardContent className="flex-1 space-y-4 pb-2">
                     <div className="text-sm">
                       <p className="line-clamp-3">{template.body_text}</p>
                     </div>
@@ -419,13 +420,28 @@ export default function TemplatesPage() {
                         ))}
                       </div>
                     )}
+                  </CardContent>
 
-                    {template.usage_count !== undefined && (
-                      <div className="text-xs text-muted-foreground">
-                        {template.usage_count} envios
+                  {/* Footer sempre fixo no final do card */}
+                  <div className="border-t px-6 py-3 mt-auto bg-muted/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-xs text-muted-foreground font-medium">
+                        {template.usage_count !== undefined ? (
+                          <span className="flex items-center gap-1">
+                            <Send className="h-3 w-3" />
+                            {template.usage_count} {template.usage_count === 1 ? 'envio' : 'envios'}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Sem envios</span>
+                        )}
                       </div>
-                    )}
-
+                      {template.last_used_at && (
+                        <div className="text-xs text-muted-foreground">
+                          Último uso: {new Date(template.last_used_at).toLocaleDateString('pt-BR')}
+                        </div>
+                      )}
+                    </div>
+                    
                     <div className="flex gap-2">
                       {template.status === 'DRAFT' && (
                         <Button
@@ -478,8 +494,8 @@ export default function TemplatesPage() {
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
-                  </CardContent>
-                  </Card>
+                  </div>
+                </Card>
                 ))}
                 
                 {filteredTemplates.length === 0 && (
