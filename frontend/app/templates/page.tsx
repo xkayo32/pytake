@@ -16,7 +16,10 @@ import {
   XCircle,
   Clock,
   AlertCircle,
-  Send
+  Send,
+  Toggle,
+  Power,
+  PowerOff
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -66,6 +69,7 @@ interface Template {
   description?: string
   created_at: string
   updated_at: string
+  is_enabled: boolean
 }
 
 export default function TemplatesPage() {
@@ -186,6 +190,28 @@ export default function TemplatesPage() {
     } catch (error) {
       console.error('Error deleting template:', error)
       notify.error('Erro ao remover template')
+    }
+  }
+
+  const handleToggleTemplate = async (templateId: string, isEnabled: boolean) => {
+    try {
+      const response = await fetch(`/api/v1/whatsapp/templates/${templateId}/toggle`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_enabled: isEnabled })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        notify.success(data.message)
+        loadTemplates() // Recarregar lista
+      } else {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to toggle template')
+      }
+    } catch (error) {
+      console.error('Error toggling template:', error)
+      notify.error('Erro ao alterar status do template')
     }
   }
 
@@ -350,16 +376,33 @@ export default function TemplatesPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {filteredTemplates.map((template) => (
-                <Card key={template.id} className="hover:shadow-md transition-shadow">
+                <Card key={template.id} className={`hover:shadow-md transition-shadow ${!template.is_enabled ? 'opacity-60 border-dashed' : ''}`}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{template.name}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-lg">{template.name}</CardTitle>
+                        {!template.is_enabled && (
+                          <Badge variant="secondary" className="text-xs">
+                            <PowerOff className="h-3 w-3 mr-1" />
+                            Desabilitado
+                          </Badge>
+                        )}
+                      </div>
                       {getStatusBadge(template.status)}
                     </div>
                     <div className="flex gap-2 text-sm text-muted-foreground">
                       <span>{template.category}</span>
                       <span>•</span>
                       <span>{template.language}</span>
+                      {template.is_enabled && (
+                        <>
+                          <span>•</span>
+                          <span className="text-green-600 flex items-center gap-1">
+                            <Power className="h-3 w-3" />
+                            Ativo
+                          </span>
+                        </>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -406,6 +449,22 @@ export default function TemplatesPage() {
                           Editar
                         </Button>
                       )}
+                      
+                      {/* Toggle Button */}
+                      <Button
+                        size="sm"
+                        variant={template.is_enabled ? "outline" : "default"}
+                        onClick={() => handleToggleTemplate(template.id, !template.is_enabled)}
+                        className={`gap-2 ${template.is_enabled ? 'text-orange-600 hover:text-orange-700' : 'text-green-600 hover:text-green-700'}`}
+                        title={template.is_enabled ? 'Desabilitar template' : 'Habilitar template'}
+                      >
+                        {template.is_enabled ? (
+                          <PowerOff className="h-3 w-3" />
+                        ) : (
+                          <Power className="h-3 w-3" />
+                        )}
+                      </Button>
+
                       <Button
                         size="sm"
                         variant="outline"

@@ -98,12 +98,13 @@ func main() {
 		api.POST("/whatsapp-configs/:id/test", whatsappService.TestConfig)
 		api.PUT("/whatsapp-configs/:id/default", whatsappService.SetDefaultConfig)
 		api.GET("/whatsapp/templates", whatsappService.GetTemplates)
-		api.GET("/whatsapp/templates/manage", whatsappService.GetTemplates) // Alias for frontend compatibility
+		api.GET("/whatsapp/templates/manage", whatsappService.GetAllTemplates) // All templates for management
 		api.POST("/whatsapp/templates/sync", whatsappService.SyncTemplates)
 		api.POST("/whatsapp/templates", whatsappService.CreateTemplate)
 		api.PUT("/whatsapp/templates/:id", whatsappService.UpdateTemplate)
 		api.DELETE("/whatsapp/templates/:id", whatsappService.DeleteTemplate)
 		api.POST("/whatsapp/templates/:id/submit", whatsappService.SubmitTemplate)
+		api.PUT("/whatsapp/templates/:id/toggle", whatsappService.ToggleTemplateStatus)
 		
 		// Conversation routes
 		api.GET("/conversations", conversationService.GetConversations)

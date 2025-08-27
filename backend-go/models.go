@@ -116,12 +116,33 @@ type WhatsAppPhoneNumber struct {
 
 // WhatsAppTemplate represents a WhatsApp message template
 type WhatsAppTemplate struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Category string `json:"category"`
-	Language string `json:"language"`
-	Status   string `json:"status"`
-	Components []WhatsAppTemplateComponent `json:"components"`
+	ID              string                      `json:"id"`
+	TenantID        string                      `json:"tenant_id,omitempty"`
+	WhatsAppConfigID string                     `json:"whatsapp_config_id,omitempty"`
+	MetaTemplateID  string                      `json:"meta_template_id,omitempty"`
+	Name            string                      `json:"name"`
+	Status          string                      `json:"status"`
+	Category        string                      `json:"category"`
+	Language        string                      `json:"language"`
+	HeaderType      string                      `json:"header_type,omitempty"`
+	HeaderText      string                      `json:"header_text,omitempty"`
+	HeaderMediaURL  string                      `json:"header_media_url,omitempty"`
+	BodyText        string                      `json:"body_text"`
+	FooterText      string                      `json:"footer_text,omitempty"`
+	Buttons         []map[string]interface{}    `json:"buttons"`
+	Variables       []string                    `json:"variables"`
+	Components      []WhatsAppTemplateComponent `json:"components"`
+	UsageCount      int                         `json:"usage_count"`
+	LastUsedAt      *string                     `json:"last_used_at,omitempty"`
+	QualityScore    string                      `json:"quality_score,omitempty"`
+	RejectionReason string                      `json:"rejection_reason,omitempty"`
+	ApprovedAt      *string                     `json:"approved_at,omitempty"`
+	IsCustom        bool                        `json:"is_custom"`
+	Tags            []string                    `json:"tags"`
+	Description     string                      `json:"description,omitempty"`
+	CreatedAt       *string                     `json:"created_at,omitempty"`
+	UpdatedAt       *string                     `json:"updated_at,omitempty"`
+	IsEnabled       bool                        `json:"is_enabled"`
 }
 
 // WhatsAppTemplateComponent represents a component of a WhatsApp template

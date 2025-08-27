@@ -212,6 +212,13 @@ func (s *WhatsAppService) GetTemplates(c *gin.Context) {
 	c.JSON(http.StatusOK, templates)
 }
 
+// GetAllTemplates returns all templates including disabled ones for management
+func (s *WhatsAppService) GetAllTemplates(c *gin.Context) {
+	templates := s.getAllTemplatesFromDB()
+	log.Printf("✅ Returning %d WhatsApp templates (including disabled)", len(templates))
+	c.JSON(http.StatusOK, templates)
+}
+
 // getPhoneNumbersFromDB retrieves phone numbers from database
 func (s *WhatsAppService) getPhoneNumbersFromDB() []WhatsAppPhoneNumber {
 	query := `
@@ -311,9 +318,14 @@ func (s *WhatsAppService) getConfigsFromDB() []WhatsAppConfig {
 // getTemplatesFromDB retrieves WhatsApp templates from database
 func (s *WhatsAppService) getTemplatesFromDB() []WhatsAppTemplate {
 	query := `
-		SELECT id, name, category, language, status, components
+		SELECT 
+			id, tenant_id, whatsapp_config_id, meta_template_id, name, status, category, language,
+			header_type, header_text, header_media_url, body_text, footer_text,
+			buttons, variables, components, usage_count, last_used_at, quality_score,
+			rejection_reason, approved_at, is_custom, tags, description,
+			created_at, updated_at, COALESCE(is_enabled, true) as is_enabled
 		FROM whatsapp_templates 
-		WHERE status = 'APPROVED'
+		WHERE status = 'APPROVED' AND COALESCE(is_enabled, true) = true
 		ORDER BY created_at DESC
 	`
 
@@ -328,26 +340,245 @@ func (s *WhatsAppService) getTemplatesFromDB() []WhatsAppTemplate {
 
 	for rows.Next() {
 		var template WhatsAppTemplate
-		var componentsJSON sql.NullString
+		var componentsJSON, buttonsJSON, variablesJSON, tagsJSON sql.NullString
+		var tenantID, whatsappConfigID, metaTemplateID sql.NullString
+		var headerType, headerText, headerMediaURL, footerText sql.NullString
+		var lastUsedAt, qualityScore, rejectionReason, approvedAt sql.NullString
+		var description, createdAt, updatedAt sql.NullString
 
 		err := rows.Scan(
 			&template.ID,
+			&tenantID,
+			&whatsappConfigID,
+			&metaTemplateID,
 			&template.Name,
+			&template.Status,
 			&template.Category,
 			&template.Language,
-			&template.Status,
+			&headerType,
+			&headerText,
+			&headerMediaURL,
+			&template.BodyText,
+			&footerText,
+			&buttonsJSON,
+			&variablesJSON,
 			&componentsJSON,
+			&template.UsageCount,
+			&lastUsedAt,
+			&qualityScore,
+			&rejectionReason,
+			&approvedAt,
+			&template.IsCustom,
+			&tagsJSON,
+			&description,
+			&createdAt,
+			&updatedAt,
+			&template.IsEnabled,
 		)
 		if err != nil {
 			log.Printf("Error scanning WhatsApp template: %v", err)
 			continue
 		}
 
-		// Parse components JSON if available
-		if componentsJSON.Valid {
-			// You can implement JSON parsing here if needed
-			// For now, we'll leave it empty
-			template.Components = []WhatsAppTemplateComponent{}
+		// Set optional string fields
+		if tenantID.Valid {
+			template.TenantID = tenantID.String
+		}
+		if whatsappConfigID.Valid {
+			template.WhatsAppConfigID = whatsappConfigID.String
+		}
+		if metaTemplateID.Valid {
+			template.MetaTemplateID = metaTemplateID.String
+		}
+		if headerType.Valid {
+			template.HeaderType = headerType.String
+		}
+		if headerText.Valid {
+			template.HeaderText = headerText.String
+		}
+		if headerMediaURL.Valid {
+			template.HeaderMediaURL = headerMediaURL.String
+		}
+		if footerText.Valid {
+			template.FooterText = footerText.String
+		}
+		if lastUsedAt.Valid {
+			template.LastUsedAt = &lastUsedAt.String
+		}
+		if qualityScore.Valid {
+			template.QualityScore = qualityScore.String
+		}
+		if rejectionReason.Valid {
+			template.RejectionReason = rejectionReason.String
+		}
+		if approvedAt.Valid {
+			template.ApprovedAt = &approvedAt.String
+		}
+		if description.Valid {
+			template.Description = description.String
+		}
+		if createdAt.Valid {
+			template.CreatedAt = &createdAt.String
+		}
+		if updatedAt.Valid {
+			template.UpdatedAt = &updatedAt.String
+		}
+
+		// Parse JSON fields
+		template.Buttons = []map[string]interface{}{}
+		if buttonsJSON.Valid && buttonsJSON.String != "" {
+			json.Unmarshal([]byte(buttonsJSON.String), &template.Buttons)
+		}
+
+		template.Variables = []string{}
+		if variablesJSON.Valid && variablesJSON.String != "" {
+			json.Unmarshal([]byte(variablesJSON.String), &template.Variables)
+		}
+
+		template.Tags = []string{}
+		if tagsJSON.Valid && tagsJSON.String != "" {
+			json.Unmarshal([]byte(tagsJSON.String), &template.Tags)
+		}
+
+		template.Components = []WhatsAppTemplateComponent{}
+		if componentsJSON.Valid && componentsJSON.String != "" {
+			json.Unmarshal([]byte(componentsJSON.String), &template.Components)
+		}
+
+		templates = append(templates, template)
+	}
+
+	return templates
+}
+
+// getAllTemplatesFromDB retrieves all WhatsApp templates from database (including disabled)
+func (s *WhatsAppService) getAllTemplatesFromDB() []WhatsAppTemplate {
+	query := `
+		SELECT 
+			id, tenant_id, whatsapp_config_id, meta_template_id, name, status, category, language,
+			header_type, header_text, header_media_url, body_text, footer_text,
+			buttons, variables, components, usage_count, last_used_at, quality_score,
+			rejection_reason, approved_at, is_custom, tags, description,
+			created_at, updated_at, COALESCE(is_enabled, true) as is_enabled
+		FROM whatsapp_templates 
+		WHERE status = 'APPROVED'
+		ORDER BY name ASC
+	`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		log.Printf("Error querying all WhatsApp templates: %v", err)
+		return []WhatsAppTemplate{}
+	}
+	defer rows.Close()
+
+	var templates []WhatsAppTemplate
+
+	for rows.Next() {
+		var template WhatsAppTemplate
+		var componentsJSON, buttonsJSON, variablesJSON, tagsJSON sql.NullString
+		var tenantID, whatsappConfigID, metaTemplateID sql.NullString
+		var headerType, headerText, headerMediaURL, footerText sql.NullString
+		var lastUsedAt, qualityScore, rejectionReason, approvedAt sql.NullString
+		var description, createdAt, updatedAt sql.NullString
+
+		err := rows.Scan(
+			&template.ID,
+			&tenantID,
+			&whatsappConfigID,
+			&metaTemplateID,
+			&template.Name,
+			&template.Status,
+			&template.Category,
+			&template.Language,
+			&headerType,
+			&headerText,
+			&headerMediaURL,
+			&template.BodyText,
+			&footerText,
+			&buttonsJSON,
+			&variablesJSON,
+			&componentsJSON,
+			&template.UsageCount,
+			&lastUsedAt,
+			&qualityScore,
+			&rejectionReason,
+			&approvedAt,
+			&template.IsCustom,
+			&tagsJSON,
+			&description,
+			&createdAt,
+			&updatedAt,
+			&template.IsEnabled,
+		)
+		if err != nil {
+			log.Printf("Error scanning WhatsApp template: %v", err)
+			continue
+		}
+
+		// Set optional string fields (same logic as getTemplatesFromDB)
+		if tenantID.Valid {
+			template.TenantID = tenantID.String
+		}
+		if whatsappConfigID.Valid {
+			template.WhatsAppConfigID = whatsappConfigID.String
+		}
+		if metaTemplateID.Valid {
+			template.MetaTemplateID = metaTemplateID.String
+		}
+		if headerType.Valid {
+			template.HeaderType = headerType.String
+		}
+		if headerText.Valid {
+			template.HeaderText = headerText.String
+		}
+		if headerMediaURL.Valid {
+			template.HeaderMediaURL = headerMediaURL.String
+		}
+		if footerText.Valid {
+			template.FooterText = footerText.String
+		}
+		if lastUsedAt.Valid {
+			template.LastUsedAt = &lastUsedAt.String
+		}
+		if qualityScore.Valid {
+			template.QualityScore = qualityScore.String
+		}
+		if rejectionReason.Valid {
+			template.RejectionReason = rejectionReason.String
+		}
+		if approvedAt.Valid {
+			template.ApprovedAt = &approvedAt.String
+		}
+		if description.Valid {
+			template.Description = description.String
+		}
+		if createdAt.Valid {
+			template.CreatedAt = &createdAt.String
+		}
+		if updatedAt.Valid {
+			template.UpdatedAt = &updatedAt.String
+		}
+
+		// Parse JSON fields
+		template.Buttons = []map[string]interface{}{}
+		if buttonsJSON.Valid && buttonsJSON.String != "" {
+			json.Unmarshal([]byte(buttonsJSON.String), &template.Buttons)
+		}
+
+		template.Variables = []string{}
+		if variablesJSON.Valid && variablesJSON.String != "" {
+			json.Unmarshal([]byte(variablesJSON.String), &template.Variables)
+		}
+
+		template.Tags = []string{}
+		if tagsJSON.Valid && tagsJSON.String != "" {
+			json.Unmarshal([]byte(tagsJSON.String), &template.Tags)
+		}
+
+		template.Components = []WhatsAppTemplateComponent{}
+		if componentsJSON.Valid && componentsJSON.String != "" {
+			json.Unmarshal([]byte(componentsJSON.String), &template.Components)
 		}
 
 		templates = append(templates, template)
@@ -955,4 +1186,49 @@ func (s *WhatsAppService) GetConfigByID(configID string) (map[string]interface{}
 	config["updated_at"] = updatedAt
 	
 	return config, nil
+}
+
+// ToggleTemplateStatus toggles the enabled status of a WhatsApp template
+func (s *WhatsAppService) ToggleTemplateStatus(c *gin.Context) {
+	templateID := c.Param("id")
+	if templateID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Template ID is required"})
+		return
+	}
+
+	var requestData struct {
+		IsEnabled bool `json:"is_enabled"`
+	}
+
+	if err := c.ShouldBindJSON(&requestData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
+		return
+	}
+
+	// Update template status
+	query := `
+		UPDATE whatsapp_templates 
+		SET is_enabled = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+	`
+
+	_, err := s.db.Exec(query, requestData.IsEnabled, templateID)
+	if err != nil {
+		log.Printf("Error updating template status: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update template status"})
+		return
+	}
+
+	status := "disabled"
+	if requestData.IsEnabled {
+		status = "enabled"
+	}
+
+	log.Printf("✅ Template %s %s successfully", templateID, status)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Template %s successfully", status),
+		"template_id": templateID,
+		"is_enabled": requestData.IsEnabled,
+	})
 }
