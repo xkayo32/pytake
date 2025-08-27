@@ -19,8 +19,9 @@ import (
 )
 
 type FlowService struct {
-	db    *sql.DB
-	redis *redis.Client
+	db             *sql.DB
+	redis          *redis.Client
+	sessionManager *FlowSessionManager
 }
 
 func NewFlowService(db *sql.DB, redis *redis.Client) *FlowService {
@@ -28,6 +29,11 @@ func NewFlowService(db *sql.DB, redis *redis.Client) *FlowService {
 		db:    db,
 		redis: redis,
 	}
+}
+
+// SetSessionManager sets the flow session manager
+func (s *FlowService) SetSessionManager(manager *FlowSessionManager) {
+	s.sessionManager = manager
 }
 
 // GetFlows returns all flows with their statistics
@@ -1418,6 +1424,41 @@ func (s *FlowService) UpdateFlow(c *gin.Context) {
 		}
 	}
 
+	// Add expiration configuration fields
+	if req.ExpirationMinutes != nil {
+		setParts = append(setParts, fmt.Sprintf("expiration_minutes = $%d", argIndex))
+		args = append(args, *req.ExpirationMinutes)
+		argIndex++
+	}
+	
+	if req.SendWarningAfterMinutes != nil {
+		setParts = append(setParts, fmt.Sprintf("send_warning_after_minutes = $%d", argIndex))
+		args = append(args, *req.SendWarningAfterMinutes)
+		argIndex++
+	}
+	
+	if req.InactivityWarningMessage != nil {
+		setParts = append(setParts, fmt.Sprintf("inactivity_warning_message = $%d", argIndex))
+		args = append(args, *req.InactivityWarningMessage)
+		argIndex++
+	}
+	
+	if req.ExpirationMessage != nil {
+		setParts = append(setParts, fmt.Sprintf("expiration_message = $%d", argIndex))
+		args = append(args, *req.ExpirationMessage)
+		argIndex++
+	}
+	
+	if req.RedirectFlowID != nil {
+		if *req.RedirectFlowID == "" {
+			setParts = append(setParts, fmt.Sprintf("redirect_flow_id = NULL"))
+		} else {
+			setParts = append(setParts, fmt.Sprintf("redirect_flow_id = $%d", argIndex))
+			args = append(args, *req.RedirectFlowID)
+			argIndex++
+		}
+	}
+	
 	if len(setParts) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
 		return
@@ -1881,6 +1922,14 @@ func (s *FlowService) executeFlowForContact(executionID string, flow Flow, recip
 		Logs: []ExecutionLog{},
 	}
 	
+	// Update flow session activity
+	if s.sessionManager != nil {
+		err := s.sessionManager.UpdateActivity(flow.ID, recipient, "start")
+		if err != nil {
+			log.Printf("Warning: could not update session activity: %v", err)
+		}
+	}
+	
 	// Parse flow nodes and edges
 	var nodes []map[string]interface{}
 	var edges []map[string]interface{}
@@ -1939,6 +1988,14 @@ func (s *FlowService) executeFlowForContact(executionID string, flow Flow, recip
 		}
 		
 		log.Printf("🎯 Executing node: %s (type: %s, nodeType: %s)", nodeID, nodeType, actualNodeType)
+		
+		// Update session with current node
+		if s.sessionManager != nil {
+			err := s.sessionManager.UpdateActivity(flow.ID, recipient, nodeID)
+			if err != nil {
+				log.Printf("Warning: could not update session node: %v", err)
+			}
+		}
 		
 		err := s.executeFlowNode(executionID, actualNodeType, nodeID, nodeData, recipient, config, result)
 		if err != nil {

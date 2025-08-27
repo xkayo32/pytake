@@ -30,7 +30,9 @@ import {
   Lock,
   Archive,
   History,
-  Phone
+  Phone,
+  Clock,
+  MessageCircle
 } from 'lucide-react'
 import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
 import { WhatsAppNumberSelector } from '@/components/whatsapp/whatsapp-number-selector'
@@ -95,7 +97,12 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
     category: 'vendas',
     tags: '',
     version: '1.0.0',
-    isPublic: false
+    isPublic: false,
+    expirationMinutes: 10,
+    sendWarningAfterMinutes: 7,
+    inactivityWarningMessage: 'Você ainda está aí? Digite qualquer coisa para continuar.',
+    expirationMessage: 'Atendimento finalizado por inatividade. Digite oi para iniciar um novo atendimento.',
+    redirectFlowId: ''
   })
   
   const [selectedWhatsAppNumbers, setSelectedWhatsAppNumbers] = useState<string[]>([])
@@ -174,6 +181,11 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
         name: formData.name,
         description: formData.description,
         status: 'draft',
+        expiration_minutes: formData.expirationMinutes,
+        send_warning_after_minutes: formData.sendWarningAfterMinutes,
+        inactivity_warning_message: formData.inactivityWarningMessage,
+        expiration_message: formData.expirationMessage,
+        redirect_flow_id: formData.redirectFlowId || null,
         flow: {
           nodes: nodes.map(node => ({
             ...node,
@@ -381,6 +393,99 @@ export function FlowSaveModal({ isOpen, onClose, onSave, mode = 'create' }: Flow
             </div>
 
             {/* Seção de WhatsApp removida - agora controlada pelos botões no builder */}
+            
+            {/* Configurações de Expiração */}
+            <div className="space-y-4 border-t pt-4">
+              <h4 className="font-medium flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Configurações de Expiração
+              </h4>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="expirationMinutes">
+                    Tempo de expiração (minutos)
+                  </Label>
+                  <Input
+                    id="expirationMinutes"
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={formData.expirationMinutes}
+                    onChange={(e) => setFormData({ ...formData, expirationMinutes: parseInt(e.target.value) || 10 })}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Tempo sem atividade até expirar o flow
+                  </p>
+                </div>
+                
+                <div>
+                  <Label htmlFor="sendWarningAfterMinutes">
+                    Avisar após (minutos)
+                  </Label>
+                  <Input
+                    id="sendWarningAfterMinutes"
+                    type="number"
+                    min="1"
+                    max="59"
+                    value={formData.sendWarningAfterMinutes}
+                    onChange={(e) => setFormData({ ...formData, sendWarningAfterMinutes: parseInt(e.target.value) || 7 })}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Quando enviar aviso de inatividade
+                  </p>
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="inactivityWarningMessage" className="flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4" />
+                  Mensagem de aviso de inatividade
+                </Label>
+                <Textarea
+                  id="inactivityWarningMessage"
+                  value={formData.inactivityWarningMessage}
+                  onChange={(e) => setFormData({ ...formData, inactivityWarningMessage: e.target.value })}
+                  rows={2}
+                  placeholder="Mensagem enviada quando detectar inatividade..."
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="expirationMessage" className="flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4" />
+                  Mensagem de expiração
+                </Label>
+                <Textarea
+                  id="expirationMessage"
+                  value={formData.expirationMessage}
+                  onChange={(e) => setFormData({ ...formData, expirationMessage: e.target.value })}
+                  rows={2}
+                  placeholder="Mensagem enviada quando o flow expirar..."
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="redirectFlowId">
+                  Flow de redirecionamento (opcional)
+                </Label>
+                <Select 
+                  value={formData.redirectFlowId} 
+                  onValueChange={(value) => setFormData({ ...formData, redirectFlowId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um flow para redirecionar após expiração" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nenhum</SelectItem>
+                    {/* Aqui seria ideal carregar os flows disponíveis */}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Flow para executar automaticamente após expiração
+                </p>
+              </div>
+            </div>
           </div>
           
           {errors.save && (

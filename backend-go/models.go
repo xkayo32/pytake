@@ -57,16 +57,28 @@ type CreateFlowRequest struct {
 	Flow            json.RawMessage `json:"flow"`
 	Trigger         json.RawMessage `json:"trigger"`
 	WhatsappNumbers []string        `json:"whatsappNumbers,omitempty"`
+	
+	// Expiration configuration
+	ExpirationMinutes        int    `json:"expiration_minutes,omitempty"`
+	SendWarningAfterMinutes  int    `json:"send_warning_after_minutes,omitempty"`
+	InactivityWarningMessage string `json:"inactivity_warning_message,omitempty"`
+	ExpirationMessage        string `json:"expiration_message,omitempty"`
+	RedirectFlowID           string `json:"redirect_flow_id,omitempty"`
 }
 
 // UpdateFlowRequest represents the request to update a flow
 type UpdateFlowRequest struct {
-	Name        *string         `json:"name,omitempty"`
-	Description *string         `json:"description,omitempty"`
-	Status      *string         `json:"status,omitempty"`
-	Flow        json.RawMessage `json:"flow,omitempty"`
-	Trigger     json.RawMessage `json:"trigger,omitempty"`
-	WhatsappNumbers []string    `json:"whatsappNumbers,omitempty"`
+	Name                       *string         `json:"name,omitempty"`
+	Description                *string         `json:"description,omitempty"`
+	Status                     *string         `json:"status,omitempty"`
+	Flow                       json.RawMessage `json:"flow,omitempty"`
+	Trigger                    json.RawMessage `json:"trigger,omitempty"`
+	WhatsappNumbers            []string        `json:"whatsappNumbers,omitempty"`
+	ExpirationMinutes          *int            `json:"expiration_minutes,omitempty"`
+	SendWarningAfterMinutes    *int            `json:"send_warning_after_minutes,omitempty"`
+	InactivityWarningMessage   *string         `json:"inactivity_warning_message,omitempty"`
+	ExpirationMessage          *string         `json:"expiration_message,omitempty"`
+	RedirectFlowID             *string         `json:"redirect_flow_id,omitempty"`
 }
 
 // WhatsAppNumber represents a WhatsApp Business number

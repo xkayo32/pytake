@@ -68,6 +68,13 @@ func main() {
 	authService := NewAuthService(db, redis)
 	conversationService := NewConversationService(db, flowService)
 	
+	// Create and configure FlowSessionManager
+	sessionManager := NewFlowSessionManager(db, redis, whatsappService)
+	flowService.SetSessionManager(sessionManager)
+	
+	// Start flow expiration monitor
+	sessionManager.StartExpirationMonitor()
+	
 	// Start periodic template validation (every 30 minutes)
 	go func() {
 		ticker := time.NewTicker(30 * time.Minute)

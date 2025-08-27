@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
@@ -1474,4 +1475,65 @@ func (s *WhatsAppService) ValidateAllTemplates() {
 	
 	log.Printf("✅ Template validation completed: %d validated, %d errors", 
 		validatedCount, errorCount)
+}
+
+// SendTextMessage sends a text message via WhatsApp
+func (s *WhatsAppService) SendTextMessage(phoneNumberID, accessToken, recipient, message string) error {
+	// Format recipient number
+	formattedRecipient := recipient
+	
+	// Build WhatsApp API URL
+	url := fmt.Sprintf("https://graph.facebook.com/v21.0/%s/messages", phoneNumberID)
+	
+	// Create message payload (assumes window is open for flow expiration messages)
+	payload := map[string]interface{}{
+		"messaging_product": "whatsapp",
+		"to": formattedRecipient,
+		"type": "text",
+		"text": map[string]string{
+			"preview_url": "false",
+			"body": message,
+		},
+	}
+	
+	// Convert payload to JSON
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %v", err)
+	}
+	
+	log.Printf("📤 Sending expiration message to %s: %s", recipient, message)
+	
+	// Create HTTP request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+	
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	
+	// Send request
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+	
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %v", err)
+	}
+	
+	// Check response status
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("❌ WhatsApp API error: %s", string(body))
+		return fmt.Errorf("WhatsApp API error (status %d): %s", resp.StatusCode, string(body))
+	}
+	
+	log.Printf("✅ Message sent successfully to %s", recipient)
+	return nil
 }
