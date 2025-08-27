@@ -52,6 +52,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
   const [activeTab, setActiveTab] = useState('config')
   const [showTemplateManager, setShowTemplateManager] = useState(false)
   const [templatesLoaded, setTemplatesLoaded] = useState(false)
+  const [hasLocalChanges, setHasLocalChanges] = useState(false)
 
   const selectedNodeData = selectedNode 
     ? nodes.find(node => node.id === selectedNode)
@@ -93,9 +94,11 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
       
       setFormData(configWithDefaults)
       setCustomName(configWithDefaults.customName || '')
+      setHasLocalChanges(false) // Reset flag quando mudar de nó
     } else {
       setFormData({})
       setCustomName('')
+      setHasLocalChanges(false) // Reset flag
     }
   }, [selectedNodeData, nodeType])
   
@@ -139,18 +142,12 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
       newFormData.selectedButtons = []
     }
     
+    // Apenas atualizar o estado local, NÃO o store diretamente
     setFormData(newFormData)
+    setHasLocalChanges(true) // Marcar que há mudanças não salvas
     
-    // Sempre atualizar o nó em tempo real para não perder dados
-    if (selectedNode) {
-      const updatedConfig = { 
-        ...newFormData,
-        customName: customName 
-      }
-      updateNodeData(selectedNode, { 
-        config: updatedConfig 
-      })
-    }
+    // REMOVIDO: Atualização automática do nó
+    // As mudanças só serão salvas quando o usuário clicar em "Aplicar"
   }
 
   const handleSave = () => {
@@ -162,6 +159,7 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
     }
     
     updateNodeData(selectedNode, { config: fullConfig })
+    setHasLocalChanges(false) // Limpar flag de mudanças
     
     // Mostrar feedback visual
     const button = document.querySelector('[data-save-button]')
@@ -277,18 +275,10 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
             <Select
               value={currentValue}
               onValueChange={(newValue) => {
-                // Atualizar diretamente no formData E no nó
+                // Apenas atualizar o estado local
                 setFormData(prev => ({ ...prev, [key]: newValue }))
-                if (selectedNode) {
-                  const updatedConfig = { 
-                    ...formData,
-                    [key]: newValue,
-                    customName: customName 
-                  }
-                  updateNodeData(selectedNode, { 
-                    config: updatedConfig 
-                  })
-                }
+                setHasLocalChanges(true) // Marcar mudanças
+                // REMOVIDO: Atualização automática do nó
                 // Limpar botões selecionados quando mudar o template
                 if (formData.selectedButtons) {
                   setFormData(prev => ({ ...prev, selectedButtons: [] }))
@@ -472,15 +462,9 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
                 value={customName}
                 onChange={(e) => {
                   setCustomName(e.target.value)
-                  // Salvar em tempo real
-                  if (selectedNode) {
-                    updateNodeData(selectedNode, { 
-                      config: { 
-                        ...formData, 
-                        customName: e.target.value || selectedNodeData.data.label 
-                      } 
-                    })
-                  }
+                  setHasLocalChanges(true) // Marcar mudanças
+                  // REMOVIDO: Salvamento em tempo real
+                  // Apenas atualiza o estado local
                 }}
                 placeholder={`Nome do ${selectedNodeData.data.label}`}
                 className="h-8 text-sm font-medium"
@@ -492,15 +476,15 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
         {/* Actions */}
         <div className="flex gap-2">
           <Button
-            variant="outline"
+            variant={hasLocalChanges ? "default" : "outline"}
             size="sm"
             onClick={handleSave}
-            disabled={!isValid}
-            className="flex-1 transition-colors"
+            disabled={!isValid || !hasLocalChanges}
+            className={`flex-1 transition-colors ${hasLocalChanges ? 'animate-pulse' : ''}`}
             data-save-button
           >
             <Save className="h-4 w-4 mr-1" />
-            Salvar
+            {hasLocalChanges ? 'Aplicar Mudanças' : 'Sem Mudanças'}
           </Button>
           <Button
             variant="outline"
