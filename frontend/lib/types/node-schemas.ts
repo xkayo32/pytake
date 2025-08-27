@@ -766,7 +766,8 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
     color: '#0ea5e9',
     description: 'Verifica se existe janela de 24h ativa com o contato',
     inputs: 1,
-    outputs: 2, // Saída 1: Com janela, Saída 2: Sem janela
+    outputs: 2,
+    outputLabels: ['Com Janela (pode enviar)', 'Sem Janela (precisa template)'],
     configSchema: {
       customName: {
         type: 'text',
@@ -777,14 +778,19 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
       fallback_template: {
         type: 'template_select',
         label: 'Template para abrir janela',
-        placeholder: 'Selecione um template',
+        placeholder: 'Selecione um template aprovado',
         required: false,
-        helpText: 'Template enviado automaticamente quando não há janela de 24h'
+        helpText: 'Template enviado automaticamente quando não há janela de 24h ativa'
       },
       window_info: {
         type: 'info',
         label: 'Como funciona',
-        content: 'WhatsApp permite envio de mensagens diretas apenas dentro de 24h após a última interação do usuário. Fora deste período, é necessário usar templates pré-aprovados.'
+        content: 'WhatsApp permite envio de mensagens diretas apenas dentro de 24h após a última interação do usuário. Fora deste período, é necessário usar templates pré-aprovados pelo Meta.'
+      },
+      output_info: {
+        type: 'info',
+        label: 'Saídas',
+        content: '👉 Saída 1 (Superior): Janela ativa - pode enviar mensagens diretas\n👉 Saída 2 (Inferior): Sem janela - precisa usar template aprovado'
       }
     }
   },
@@ -798,6 +804,7 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
     description: 'Executa ações baseadas em condições',
     inputs: 1,
     outputs: 2,
+    outputLabels: ['Verdadeiro (Sim)', 'Falso (Não)'],
     configSchema: {
       customName: {
         type: 'text',

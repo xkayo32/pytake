@@ -1141,6 +1141,7 @@ export const nodeTypes = {
   storage_ftp: BaseNode,
   // Logic nodes
   logic_condition: LogicNode,
+  logic_window_check: LogicNode,
   logic_switch: BaseNode,
   logic_loop: BaseNode,
   logic_wait: BaseNode,

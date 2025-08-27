@@ -224,7 +224,8 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
         icon: nodeType.icon,
         color: nodeType.color,
         nodeType: nodeType.id,
-        config: initialConfig
+        config: initialConfig,
+        outputLabels: nodeConfig?.outputLabels
       }
     }
     

@@ -32,6 +32,9 @@ interface BaseNodeProps extends NodeProps {
 export const BaseNode = memo(({ data, selected, category }: BaseNodeProps) => {
   const IconComponent = iconMap[data.icon as keyof typeof iconMap] || Settings
   
+  // Get output labels from node config if available
+  const outputLabels = data.outputLabels || ['SIM', 'NÃO']
+  
   const categoryColors = {
     trigger: {
       bg: 'bg-green-50 border-green-200',
@@ -181,8 +184,12 @@ export const BaseNode = memo(({ data, selected, category }: BaseNodeProps) => {
           
           {/* Labels for condition outputs */}
           <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-xs">
-            <div className="text-green-600 mb-1">SIM</div>
-            <div className="text-red-600">NÃO</div>
+            <div className="text-green-600 mb-1" title={outputLabels[0]}>
+              {outputLabels[0]?.length > 10 ? outputLabels[0].substring(0, 10) + '...' : outputLabels[0]}
+            </div>
+            <div className="text-red-600" title={outputLabels[1]}>
+              {outputLabels[1]?.length > 10 ? outputLabels[1].substring(0, 10) + '...' : outputLabels[1]}
+            </div>
           </div>
         </>
       )}

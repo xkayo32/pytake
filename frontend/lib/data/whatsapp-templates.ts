@@ -45,14 +45,18 @@ export async function getWhatsAppTemplates(): Promise<WhatsAppTemplate[]> {
       }
     }
     
-    // Cache expirado ou não existe, buscar da API real de gerenciamento
-    const response = await fetch('/api/v1/whatsapp/templates/manage')
+    // Cache expirado ou não existe, buscar da API real
+    // Usar o endpoint /templates que retorna apenas os ativados
+    const response = await fetch('/api/v1/whatsapp/templates')
     if (response.ok) {
       const templates = await response.json()
       
-      // Filtrar apenas templates aprovados e formatar para o padrão esperado
+      // Filtrar apenas templates aprovados E ativados
       const formattedTemplates = templates
-        .filter((t: any) => t.status === 'APPROVED' || t.status === 'approved')
+        .filter((t: any) => 
+          (t.status === 'APPROVED' || t.status === 'approved') && 
+          t.is_enabled !== false
+        )
         .map((t: any) => ({
           id: t.id,
           name: t.name,
