@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge'
 import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { NodeType } from '@/lib/types/flow'
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
 import { 
   Save, 
   Play, 
@@ -108,16 +109,37 @@ function FlowEditor() {
     undo,
     redo,
     canUndo,
-    canRedo
+    canRedo,
+    resetStore,
+    clearDirtyState
   } = useFlowEditorStore()
 
   const { isAuthenticated, isLoading: authLoading } = useAuth()
+  
+  // Hook para prevenir perda de dados
+  const { navigateWithConfirmation } = useUnsavedChangesWarning({
+    hasUnsavedChanges: isDirty,
+    message: 'Você tem alterações não salvas. Deseja descartar as alterações e sair?'
+  })
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push('/login')
     }
   }, [authLoading, isAuthenticated, router])
+  
+  // Limpar store ao desmontar se houver mudanças não salvas
+  useEffect(() => {
+    return () => {
+      // Ao desmontar o componente, se houver mudanças não salvas e o usuário não salvou
+      // Não persiste as mudanças (descarta)
+      const state = useFlowEditorStore.getState()
+      if (state.isDirty) {
+        console.log('🗑️ Descartando mudanças não salvas ao sair da tela')
+        // Não fazemos nada aqui - as mudanças são perdidas naturalmente
+      }
+    }
+  }, [])
 
   useEffect(() => {
     // Load flow by ID from backend or sessionStorage
@@ -385,14 +407,13 @@ function FlowEditor() {
   }, [])
 
   const handleBack = useCallback(() => {
-    if (isDirty) {
-      if (confirm('Você tem alterações não salvas. Deseja sair mesmo assim?')) {
-        router.push('/flows')
-      }
-    } else {
+    const shouldNavigate = navigateWithConfirmation('/flows')
+    if (shouldNavigate) {
+      // Limpar o store antes de navegar
+      resetStore()
       router.push('/flows')
     }
-  }, [isDirty, router])
+  }, [navigateWithConfirmation, router, resetStore])
 
   const handleSave = useCallback(async () => {
     if (!flow) return

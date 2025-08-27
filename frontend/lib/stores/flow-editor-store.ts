@@ -55,6 +55,8 @@ interface FlowEditorStore {
   saveFlow: () => Promise<void>
   loadFlow: (flowId: string) => Promise<void>
   createNewFlow: () => void
+  resetStore: () => void
+  clearDirtyState: () => void
   
   
   // Validation
@@ -576,6 +578,25 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
       selectedEdge: null,
       isDirty: false
     })
+  },
+  
+  resetStore: () => {
+    set({
+      flow: null,
+      nodes: [],
+      edges: [],
+      selectedNode: null,
+      selectedEdge: null,
+      isDirty: false,
+      showProperties: false,
+      history: [],
+      currentHistoryIndex: -1,
+      isLoading: false
+    })
+  },
+  
+  clearDirtyState: () => {
+    set({ isDirty: false })
   },
   
   // Local storage
