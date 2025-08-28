@@ -110,8 +110,6 @@ export function ContactSelector({
           className={`w-[400px] p-0 ${inModal ? 'max-h-[400px] z-[200]' : 'max-h-[500px] z-[100]'}`}
           align={inModal ? "center" : "start"} 
           sideOffset={inModal ? -40 : 5}
-          alignOffset={inModal ? 0 : -20}
-          collisionPadding={20}
         >
           <div className="p-4 border-b">
             {/* Busca */}
