@@ -678,22 +678,22 @@ export default function SendMessagesPage() {
 
                     <div>
                       <Label>Segmentação</Label>
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox id="seg1" />
-                          <label htmlFor="seg1" className="text-sm">
+                      <div className="space-y-2 max-w-full">
+                        <div className="flex items-start space-x-2">
+                          <Checkbox id="seg1" className="mt-0.5" />
+                          <label htmlFor="seg1" className="text-sm leading-relaxed cursor-pointer select-none">
                             Clientes que compraram nos últimos 30 dias
                           </label>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox id="seg2" />
-                          <label htmlFor="seg2" className="text-sm">
+                        <div className="flex items-start space-x-2">
+                          <Checkbox id="seg2" className="mt-0.5" />
+                          <label htmlFor="seg2" className="text-sm leading-relaxed cursor-pointer select-none">
                             Leads com score acima de 70
                           </label>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox id="seg3" />
-                          <label htmlFor="seg3" className="text-sm">
+                        <div className="flex items-start space-x-2">
+                          <Checkbox id="seg3" className="mt-0.5" />
+                          <label htmlFor="seg3" className="text-sm leading-relaxed cursor-pointer select-none">
                             Contatos da região Sul
                           </label>
                         </div>
@@ -723,13 +723,13 @@ export default function SendMessagesPage() {
 
                 {/* Send Button */}
                 <Separator />
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <Button variant="outline" size="sm">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button variant="outline" size="sm" className="w-auto">
                       <Calendar className="h-4 w-4 mr-2" />
                       Agendar
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" className="w-auto">
                       <Users className="h-4 w-4 mr-2" />
                       Teste A/B
                     </Button>
@@ -738,7 +738,7 @@ export default function SendMessagesPage() {
                   <Button
                     onClick={handlePreSend}
                     disabled={isSending}
-                    className="min-w-[120px]"
+                    className="min-w-[120px] w-full sm:w-auto"
                   >
                     {isSending ? (
                       <>Enviando...</>
