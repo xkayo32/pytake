@@ -43,6 +43,12 @@ const navigation = [
     description: 'Monitoramento'
   },
   {
+    name: 'Enviar',
+    href: '/whatsapp',
+    icon: Send,
+    description: 'Mensagens'
+  },
+  {
     name: 'Flows',
     href: '/flows',
     icon: Zap,
