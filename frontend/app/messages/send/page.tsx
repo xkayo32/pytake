@@ -146,32 +146,7 @@ export default function SendMessagesPage() {
   }
   
   const getDefaultTemplates = (): Template[] => {
-    return [
-      {
-        id: 'welcome_default',
-        name: 'Boas-vindas',
-        content: 'Olá {{1}}! Bem-vindo ao nosso serviço. Como posso ajudar?',
-        category: 'MARKETING',
-        status: 'approved',
-        variables: ['Nome']
-      },
-      {
-        id: 'order_confirmation',
-        name: 'Confirmação de Pedido',
-        content: 'Seu pedido {{1}} foi confirmado! Valor: R$ {{2}}. Acompanhe em nosso site.',
-        category: 'TRANSACTIONAL',
-        status: 'approved',
-        variables: ['Número do Pedido', 'Valor']
-      },
-      {
-        id: 'promotion',
-        name: 'Promoção',
-        content: 'Olá {{1}}! Temos uma oferta especial para você: {{2}}% de desconto!',
-        category: 'MARKETING',
-        status: 'approved',
-        variables: ['Nome', 'Desconto']
-      }
-    ]
+    return [] // Sem dados mock - usar apenas dados reais
   }
 
   const loadContacts = async () => {
@@ -198,39 +173,29 @@ export default function SendMessagesPage() {
     return uniqueNumbers.map(num => `Variável ${num}`)
   }
 
-  const recentCampaigns: Campaign[] = [
-    {
-      id: '1',
-      name: 'Black Friday 2024',
-      status: 'completed',
-      recipients: 5420,
-      sent: 5420,
-      delivered: 5380,
-      read: 4250,
-      replied: 380
-    },
-    {
-      id: '2',
-      name: 'Lançamento Produto X',
-      status: 'sending',
-      recipients: 2000,
-      sent: 1450,
-      delivered: 1430,
-      read: 980,
-      replied: 45
-    },
-    {
-      id: '3',
-      name: 'Newsletter Dezembro',
-      status: 'scheduled',
-      recipients: 3500,
-      sent: 0,
-      delivered: 0,
-      read: 0,
-      replied: 0,
-      scheduledAt: '2024-12-01T09:00:00'
+  const [recentCampaigns, setRecentCampaigns] = useState<Campaign[]>([])
+  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false)
+  
+  // Carregar campanhas reais
+  useEffect(() => {
+    loadCampaigns()
+  }, [])
+  
+  const loadCampaigns = async () => {
+    setIsLoadingCampaigns(true)
+    try {
+      const response = await fetch('/api/v1/campaigns')
+      if (response.ok) {
+        const data = await response.json()
+        setRecentCampaigns(Array.isArray(data) ? data : [])
+      }
+    } catch (error) {
+      console.error('Error loading campaigns:', error)
+      setRecentCampaigns([])
+    } finally {
+      setIsLoadingCampaigns(false)
     }
-  ]
+  }
 
   const handleSendMessage = async () => {
     if (!message.trim() && !selectedTemplate) {
@@ -427,10 +392,21 @@ export default function SendMessagesPage() {
                           <SelectValue placeholder="Selecione contatos ou grupos" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">Todos os contatos</SelectItem>
-                          <SelectItem value="group1">Clientes VIP</SelectItem>
-                          <SelectItem value="group2">Leads Novos</SelectItem>
-                          <SelectItem value="group3">Inativos 30 dias</SelectItem>
+                          {isLoadingContacts ? (
+                            <div className="p-2 text-center text-sm text-muted-foreground">
+                              Carregando contatos...
+                            </div>
+                          ) : contacts.length > 0 ? (
+                            contacts.map((contact) => (
+                              <SelectItem key={contact.id} value={contact.id}>
+                                {contact.name} - {contact.phone}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="p-2 text-center text-sm text-muted-foreground">
+                              Nenhum contato disponível
+                            </div>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -459,16 +435,26 @@ export default function SendMessagesPage() {
                           <SelectValue placeholder="Selecione um template" />
                         </SelectTrigger>
                         <SelectContent>
-                          {templates.filter(t => t.status === 'approved').map(template => (
-                            <SelectItem key={template.id} value={template.id}>
-                              <div className="flex items-center justify-between w-full">
-                                <span>{template.name}</span>
-                                <Badge variant="secondary" className="ml-2 text-xs">
-                                  {template.category}
-                                </Badge>
-                              </div>
-                            </SelectItem>
-                          ))}
+                          {isLoadingTemplates ? (
+                            <div className="p-2 text-center text-sm text-muted-foreground">
+                              Carregando templates...
+                            </div>
+                          ) : templates.filter(t => t.status === 'approved').length > 0 ? (
+                            templates.filter(t => t.status === 'approved').map(template => (
+                              <SelectItem key={template.id} value={template.id}>
+                                <div className="flex items-center justify-between w-full">
+                                  <span>{template.name}</span>
+                                  <Badge variant="secondary" className="ml-2 text-xs">
+                                    {template.category}
+                                  </Badge>
+                                </div>
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="p-2 text-center text-sm text-muted-foreground">
+                              Nenhum template aprovado disponível
+                            </div>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -591,7 +577,15 @@ export default function SendMessagesPage() {
               <CardContent>
                 <ScrollArea className="h-[600px]">
                   <div className="space-y-4">
-                    {recentCampaigns.map((campaign) => (
+                    {isLoadingCampaigns ? (
+                      <div className="flex items-center justify-center h-32">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                          <p className="text-sm text-muted-foreground">Carregando campanhas...</p>
+                        </div>
+                      </div>
+                    ) : recentCampaigns.length > 0 ? (
+                      recentCampaigns.map((campaign) => (
                       <div
                         key={campaign.id}
                         className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
@@ -641,7 +635,18 @@ export default function SendMessagesPage() {
                           </div>
                         )}
                       </div>
-                    ))}
+                    ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-32 text-center">
+                        <MessageCircle className="h-12 w-12 text-muted-foreground mb-2" />
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Nenhuma campanha encontrada
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          As campanhas enviadas aparecerão aqui
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </ScrollArea>
               </CardContent>
