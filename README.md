@@ -7,6 +7,8 @@ PyTake é uma plataforma completa para automação de WhatsApp Business API, per
 ### ✨ Funcionalidades Principais
 
 - **Editor Visual de Flows**: Interface drag-and-drop para criar automações
+- **Sistema de Filas de Atendimento**: Gerenciamento completo de filas e agentes
+- **Transfer to Queue**: Componente para transferir conversas para atendimento humano
 - **Fluxos Universais**: Automação que responde a qualquer mensagem automaticamente
 - **Sistema de Prioridades**: Template direto > Palavra-chave > Fluxo universal
 - **Verificação Janela 24h**: Detecção inteligente de janela de mensagem ativa
@@ -138,6 +140,41 @@ Os **Fluxos Universais** são uma funcionalidade avançada que permite resposta 
    - `logic_window_check`: Verificação da janela 24h
    - `msg_text`: Envio de mensagem direta
    - `msg_template`: Envio de template aprovado
+   - `action_transfer_to_queue`: Transferência para fila de atendimento
+
+## 🗄️ Estrutura do Banco de Dados
+
+### Tabelas do Sistema de Filas
+
+#### `queues`
+Armazena configurações das filas de atendimento
+- Configurações de tempo máximo e tamanho
+- Horário de funcionamento
+- Mensagens personalizadas
+
+#### `agents`
+Informações dos agentes/atendentes
+- Status (online/offline/busy/away/break)
+- Capacidade de atendimento simultâneo
+- Skills e departamentos
+
+#### `queue_items`
+Itens aguardando ou em atendimento
+- Posição na fila
+- Prioridade e status
+- Tempos de espera e atendimento
+
+#### `queue_history`
+Histórico completo de atendimentos
+- Ações realizadas (entered/assigned/completed/abandoned)
+- Métricas de tempo
+- Avaliações e feedback
+
+#### `queue_metrics`
+Métricas agregadas por hora
+- Total de entradas/saídas
+- Tempos médios
+- Taxa de abandono
 
 ## 📡 API Endpoints
 
@@ -151,6 +188,79 @@ Os **Fluxos Universais** são uma funcionalidade avançada que permite resposta 
 - `GET /api/v1/whatsapp/numbers` - Listar números
 - `GET /api/v1/whatsapp/templates` - Listar templates
 - `POST /api/v1/whatsapp/webhook` - Receber mensagens (interno)
+
+### Filas de Atendimento
+- `GET /api/v1/queues` - Listar todas as filas
+- `POST /api/v1/queues` - Criar nova fila
+- `GET /api/v1/queues/{id}` - Detalhes da fila
+- `PUT /api/v1/queues/{id}` - Atualizar fila
+- `GET /api/v1/queues/{id}/items` - Listar itens na fila
+- `POST /api/v1/queues/{id}/assign` - Atribuir item a agente
+- `GET /api/v1/queues/dashboard` - Métricas do dashboard
+
+### Agentes
+- `GET /api/v1/agents` - Listar agentes
+- `PUT /api/v1/agents/{id}/status` - Atualizar status do agente
+- `GET /api/v1/agents/{id}/queues` - Filas do agente
+
+## 🎯 Sistema de Filas de Atendimento
+
+### Visão Geral
+O sistema de filas permite gerenciar atendimento humano integrado com automações WhatsApp.
+
+### Funcionalidades
+
+#### 📊 Dashboard de Filas
+- **Visão em tempo real**: Monitor com métricas atualizadas
+- **Gerenciamento de agentes**: Status online/offline/ocupado
+- **Distribuição automática**: Algoritmo inteligente de distribuição
+- **Priorização**: Suporte a níveis de prioridade (Normal, Alta, Urgente)
+
+#### 🔄 Transfer to Queue
+Componente no editor de fluxos para transferir conversas automaticamente:
+
+1. **Configurações disponíveis**:
+   - Seleção de fila de destino
+   - Nível de prioridade
+   - Mensagem personalizada ao transferir
+   - Timeout e ações de fallback
+   - Metadata adicional
+
+2. **Uso no Flow**:
+```javascript
+// Exemplo de configuração do nó Transfer to Queue
+{
+  type: "action_transfer_to_queue",
+  config: {
+    queueId: "uuid-da-fila",
+    queueName: "Suporte Técnico",
+    priority: 1, // 0=Normal, 1=Alta, 2=Urgente
+    message: "Você está sendo transferido para nosso suporte...",
+    waitTimeoutMinutes: 30,
+    fallbackAction: "abandon"
+  }
+}
+```
+
+#### 🎮 Monitor de Filas
+Interface de 3 colunas para gerenciar atendimentos:
+- **Coluna 1**: Lista de espera com posições
+- **Coluna 2**: Atendimentos em andamento
+- **Coluna 3**: Histórico recente
+
+### Fluxo de Atendimento
+
+```mermaid
+graph LR
+    A[Conversa WhatsApp] --> B[Flow Automático]
+    B --> C{Precisa Humano?}
+    C -->|Sim| D[Transfer to Queue]
+    D --> E[Fila de Espera]
+    E --> F[Distribuição Automática]
+    F --> G[Agente Disponível]
+    G --> H[Atendimento]
+    C -->|Não| I[Continua Automação]
+```
 
 ## 🔒 Configuração WhatsApp
 
