@@ -1481,6 +1481,85 @@ export const NODE_CONFIGS: Record<string, NodeConfig> = {
         required: true
       }
     }
+  },
+
+  // ========== ACTION NODES ==========
+  'action_transfer_to_queue': {
+    id: 'action_transfer_to_queue',
+    name: 'Transfer to Queue',
+    category: 'action',
+    icon: 'UserCheck',
+    color: '#3b82f6',
+    description: 'Transfere a conversa para uma fila de atendimento humano',
+    inputs: 1,
+    outputs: 1,
+    configSchema: {
+      customName: {
+        type: 'text',
+        label: 'Nome personalizado',
+        placeholder: 'Ex: Transferir para Suporte',
+        supportsVariables: false
+      },
+      queueId: {
+        type: 'text',
+        label: 'ID da Fila',
+        placeholder: 'ID da fila de destino',
+        required: true
+      },
+      queueName: {
+        type: 'text',
+        label: 'Nome da Fila',
+        placeholder: 'Nome da fila de destino',
+        required: true
+      },
+      priority: {
+        type: 'select',
+        label: 'Prioridade',
+        options: [
+          { value: '0', label: 'Normal' },
+          { value: '1', label: 'Alta' },
+          { value: '2', label: 'Urgente' }
+        ],
+        defaultValue: '0'
+      },
+      message: {
+        type: 'textarea',
+        label: 'Mensagem ao transferir',
+        placeholder: 'Você está sendo transferido para nossa equipe...',
+        supportsVariables: true
+      },
+      transferReason: {
+        type: 'text',
+        label: 'Motivo da transferência',
+        placeholder: 'Ex: Solicitação técnica complexa',
+        supportsVariables: true
+      },
+      department: {
+        type: 'text',
+        label: 'Departamento',
+        placeholder: 'Ex: Suporte, Vendas, Financeiro'
+      },
+      waitTimeoutMinutes: {
+        type: 'number',
+        label: 'Timeout (minutos)',
+        placeholder: '30',
+        defaultValue: 30,
+        validation: {
+          min: 1,
+          max: 120
+        }
+      },
+      fallbackAction: {
+        type: 'select',
+        label: 'Ação quando timeout',
+        options: [
+          { value: 'abandon', label: 'Abandonar conversa' },
+          { value: 'callback', label: 'Agendar callback' },
+          { value: 'voicemail', label: 'Deixar mensagem' }
+        ],
+        defaultValue: 'abandon'
+      }
+    }
   }
 }
 

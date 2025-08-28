@@ -36,6 +36,114 @@ func (s *FlowService) SetSessionManager(manager *FlowSessionManager) {
 	s.sessionManager = manager
 }
 
+// ProcessTransferToQueue processes transfer to queue node and adds user to specified queue
+func (s *FlowService) ProcessTransferToQueue(conversationID, contactID, phoneNumber string, nodeConfig map[string]interface{}) error {
+	log.Printf("Processing transfer to queue for conversation %s", conversationID)
+	
+	// Extract config values
+	queueID, _ := nodeConfig["queueId"].(string)
+	if queueID == "" {
+		return fmt.Errorf("queue ID is required")
+	}
+	
+	priority, _ := nodeConfig["priority"].(float64)
+	message, _ := nodeConfig["message"].(string)
+	transferReason, _ := nodeConfig["transferReason"].(string)
+	waitTimeoutMinutes, _ := nodeConfig["waitTimeoutMinutes"].(float64)
+	if waitTimeoutMinutes == 0 {
+		waitTimeoutMinutes = 30
+	}
+	
+	// Get contact information
+	contactName := ""
+	if contactID != "" {
+		var name sql.NullString
+		err := s.db.QueryRow("SELECT name FROM contacts WHERE id = $1", contactID).Scan(&name)
+		if err == nil && name.Valid {
+			contactName = name.String
+		}
+	}
+	
+	// Calculate queue position
+	var nextPosition int
+	err := s.db.QueryRow(`
+		SELECT COALESCE(MAX(position), 0) + 1
+		FROM queue_items
+		WHERE queue_id = $1 AND status = 'waiting'
+	`, queueID).Scan(&nextPosition)
+	if err != nil {
+		log.Printf("Error calculating queue position: %v", err)
+		return err
+	}
+	
+	// Add item to queue
+	queueItemID := uuid.New().String()
+	metadataBytes, _ := json.Marshal(map[string]interface{}{
+		"transfer_reason": transferReason,
+		"source":         "flow",
+		"timeout_minutes": int(waitTimeoutMinutes),
+	})
+	
+	_, err = s.db.Exec(`
+		INSERT INTO queue_items (
+			id, queue_id, conversation_id, contact_id, phone_number, 
+			contact_name, position, status, priority, wait_start_time,
+			wait_time_seconds, metadata
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, 'waiting', $8, NOW(), 0, $9)
+	`, queueItemID, queueID, conversationID, contactID, phoneNumber, 
+		contactName, nextPosition, int(priority), string(metadataBytes))
+	
+	if err != nil {
+		log.Printf("Error adding item to queue: %v", err)
+		return err
+	}
+	
+	// Send transfer message if configured
+	if message != "" && s.sessionManager != nil {
+		// Get WhatsApp service to send message
+		whatsappService := s.sessionManager.whatsapp
+		if whatsappService != nil {
+			messageData := map[string]interface{}{
+				"type":    "text",
+				"content": message,
+			}
+			
+			// Try to send the message (non-blocking)
+			go func() {
+				err := whatsappService.SendMessage(phoneNumber, messageData)
+				if err != nil {
+					log.Printf("Error sending transfer message: %v", err)
+				}
+			}()
+		}
+	}
+	
+	// Add to queue history
+	historyMetadataBytes, _ := json.Marshal(map[string]interface{}{
+		"transfer_reason": transferReason,
+		"source":         "flow",
+		"priority":       int(priority),
+	})
+	
+	_, err = s.db.Exec(`
+		INSERT INTO queue_history (
+			id, queue_id, queue_item_id, contact_id, phone_number,
+			action, metadata
+		) VALUES ($1, $2, $3, $4, $5, 'entered_queue', $6)
+	`, uuid.New().String(), queueID, queueItemID, contactID, phoneNumber,
+		string(historyMetadataBytes))
+	
+	if err != nil {
+		log.Printf("Error adding queue history: %v", err)
+		// Don't return error as the main operation succeeded
+	}
+	
+	log.Printf("Successfully added conversation %s to queue %s at position %d", 
+		conversationID, queueID, nextPosition)
+	
+	return nil
+}
+
 // GetFlows returns all flows with their statistics
 func (s *FlowService) GetFlows(c *gin.Context) {
 	query := `
@@ -651,6 +759,67 @@ func (s *FlowService) executeFlowNode(executionID, nodeType, nodeID string, node
 			Status:    "success",
 			Message:   "Condição avaliada (teste sempre verdadeiro)",
 		})
+		
+	case "action_transfer_to_queue":
+		// Transfer to queue node - add user to queue
+		log.Printf("🏢 Processing transfer to queue node for %s", recipient)
+		
+		var queueConfig map[string]interface{}
+		if nodeData != nil {
+			if config, ok := nodeData["config"].(map[string]interface{}); ok {
+				queueConfig = config
+			}
+		}
+		
+		if queueConfig == nil {
+			log.Printf("❌ No queue config found in node data")
+			result.Logs = append(result.Logs, ExecutionLog{
+				Timestamp: time.Now().Format(time.RFC3339),
+				StepType:  nodeType,
+				StepID:    nodeID,
+				Action:    "transfer_failed",
+				Status:    "error",
+				Message:   "Configuração de fila não encontrada",
+			})
+		} else {
+			// Get conversation and contact info
+			conversationID := "generated-" + recipient // This should come from actual conversation
+			contactID := s.ensureContact(recipient)
+			
+			// Call ProcessTransferToQueue
+			err := s.ProcessTransferToQueue(conversationID, contactID, recipient, queueConfig)
+			if err != nil {
+				log.Printf("❌ Error transferring to queue: %v", err)
+				result.Logs = append(result.Logs, ExecutionLog{
+					Timestamp: time.Now().Format(time.RFC3339),
+					StepType:  nodeType,
+					StepID:    nodeID,
+					Action:    "transfer_failed",
+					Status:    "error",
+					Message:   fmt.Sprintf("Erro ao transferir para fila: %v", err),
+				})
+			} else {
+				queueName, _ := queueConfig["queueName"].(string)
+				if queueName == "" {
+					queueName = "Fila"
+				}
+				
+				result.Logs = append(result.Logs, ExecutionLog{
+					Timestamp: time.Now().Format(time.RFC3339),
+					StepType:  nodeType,
+					StepID:    nodeID,
+					Action:    "transfer_completed",
+					Status:    "success",
+					Message:   fmt.Sprintf("Contato transferido para %s", queueName),
+					Details:   fmt.Sprintf("Posição na fila calculada automaticamente"),
+				})
+				
+				log.Printf("✅ Successfully transferred %s to queue %s", recipient, queueName)
+				// Stop flow execution after transfer - user is now in queue
+				result.Status = "transferred_to_queue"
+				return result, nil
+			}
+		}
 		
 	default:
 		result.Logs = append(result.Logs, ExecutionLog{

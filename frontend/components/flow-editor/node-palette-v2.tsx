@@ -51,7 +51,8 @@ import {
   Calendar,
   Table2,
   CreditCard,
-  QrCode
+  QrCode,
+  UserCheck
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -106,7 +107,8 @@ const iconMap: Record<string, any> = {
   MessageSquare,
   Calendar,
   CreditCard,
-  QrCode
+  QrCode,
+  UserCheck
 }
 
 const categoryIcons: Record<string, any> = {
@@ -119,7 +121,8 @@ const categoryIcons: Record<string, any> = {
   logic: GitBranch,
   flow: Package,
   transform: Code,
-  integration: Plug
+  integration: Plug,
+  action: UserCheck
 }
 
 interface NodePaletteProps {

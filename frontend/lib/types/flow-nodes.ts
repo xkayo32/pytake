@@ -19,7 +19,8 @@ export const NODE_CATEGORIES = {
   LOGIC: 'logic',
   FLOW: 'flow',
   TRANSFORM: 'transform',
-  INTEGRATION: 'integration'
+  INTEGRATION: 'integration',
+  ACTION: 'action'
 } as const
 
 export const FLOW_NODES: NodeType[] = [
@@ -596,12 +597,24 @@ export const FLOW_NODES: NodeType[] = [
     color: '#5469d4',
     inputs: ['amount'],
     outputs: ['paid']
+  },
+
+  // ========== ACTIONS ==========
+  {
+    id: 'action_transfer_to_queue',
+    category: NODE_CATEGORIES.ACTION,
+    name: 'Transfer to Queue',
+    icon: 'UserCheck',
+    color: '#3b82f6',
+    inputs: ['trigger'],
+    outputs: ['transferred']
   }
 ]
 
 export const CATEGORY_LABELS: Record<string, string> = {
   trigger: 'Gatilhos',
   message: 'Mensagens',
+  action: 'Ações',
   ai: 'Inteligência Artificial',
   api: 'APIs',
   database: 'Banco de Dados',

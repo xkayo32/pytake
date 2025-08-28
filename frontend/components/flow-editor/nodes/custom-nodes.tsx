@@ -22,6 +22,7 @@ import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
 import { NegotiationTemplateNode } from './negotiation-template-node'
 import { NegotiationQueueNode } from './negotiation-queue-node'
 import { TemplateButtonNode } from './template-button-node'
+import { TransferToQueueNode } from './transfer-to-queue-node'
 
 const iconMap: Record<string, any> = {
   MessageCircle,
@@ -271,6 +272,37 @@ const renderNodePreview = (data: CustomNodeData) => {
               <div className="truncate">👤 {data.config.customerName}</div>
             )}
           </>
+        )
+      }
+      break
+      
+    case 'action_transfer_to_queue':
+      if (data.config?.queueName) {
+        const priorityLabels = { 0: 'Normal', 1: 'Alta', 2: 'Urgente' }
+        const priority = data.config.priority || 0
+        return (
+          <>
+            <div className="truncate text-[10px] max-w-full">
+              🏢 {data.config.queueName}
+            </div>
+            {data.config.department && (
+              <div className="text-[9px] truncate">📋 {data.config.department}</div>
+            )}
+            {priority > 0 && (
+              <div className="text-[9px] truncate">
+                🔥 {priorityLabels[priority as keyof typeof priorityLabels]}
+              </div>
+            )}
+            {data.config.waitTimeoutMinutes && (
+              <div className="text-[9px] truncate">⏱️ {data.config.waitTimeoutMinutes}min</div>
+            )}
+          </>
+        )
+      } else {
+        return (
+          <div className="text-[9px] text-orange-600">
+            ⚠️ Configurar fila
+          </div>
         )
       }
       break
@@ -1169,6 +1201,8 @@ export const nodeTypes = {
   int_calendar: BaseNode,
   int_sheets: BaseNode,
   int_payment: BaseNode,
+  // Action nodes
+  action_transfer_to_queue: TransferToQueueNode,
 }
 
 GroupNode.displayName = 'GroupNode'
