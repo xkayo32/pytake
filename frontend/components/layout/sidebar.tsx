@@ -67,6 +67,12 @@ const navigation = [
     description: 'CRM'
   },
   {
+    name: 'Grupos',
+    href: '/contact-groups',
+    icon: Users,
+    description: 'Grupos de Contatos'
+  },
+  {
     name: 'Filas',
     href: '/queues',
     icon: UserCheck,
