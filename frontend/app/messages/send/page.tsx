@@ -357,7 +357,7 @@ export default function SendMessagesPage() {
           to: selectedContacts,
           message: message,
           type: 'text'
-        })
+        }
       )
       
       const response = await fetch(endpoint, {
