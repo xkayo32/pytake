@@ -40,7 +40,7 @@ const navigation = [
     name: 'Conversas',
     href: '/conversations',
     icon: MessageSquare,
-    description: 'Chat WhatsApp'
+    description: 'Monitoramento'
   },
   {
     name: 'Flows',
