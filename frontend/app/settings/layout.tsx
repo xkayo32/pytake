@@ -13,7 +13,9 @@ import {
   Bell,
   Database,
   Key,
-  Webhook
+  Webhook,
+  UserCheck,
+  Clock
 } from 'lucide-react'
 
 import { AppLayout } from '@/components/layout/app-layout'
@@ -41,6 +43,12 @@ const settingsNavigation = [
     href: '/settings/team',
     icon: Users,
     description: 'Gerenciar usuários e permissões'
+  },
+  {
+    name: 'Filas',
+    href: '/settings/queues',
+    icon: UserCheck,
+    description: 'Configurar filas e agentes'
   },
   {
     name: 'Integrações',
