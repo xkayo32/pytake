@@ -88,34 +88,90 @@ export default function SendMessagesPage() {
       const response = await fetch('/api/v1/whatsapp/templates')
       if (response.ok) {
         const data = await response.json()
+        console.log('Templates API response:', data)
+        
+        // Verificar se data é um array ou tem uma propriedade que é array
+        let templatesArray = []
+        if (Array.isArray(data)) {
+          templatesArray = data
+        } else if (data.templates && Array.isArray(data.templates)) {
+          templatesArray = data.templates
+        } else if (data.data && Array.isArray(data.data)) {
+          templatesArray = data.data
+        } else {
+          console.warn('Unexpected template response format:', data)
+          templatesArray = []
+        }
+        
         // Transformar dados da API para o formato esperado
-        const formattedTemplates = data.map((template: any) => ({
-          id: template.id || template.name,
-          name: template.name,
-          content: template.components?.[0]?.text || template.body || '',
+        const formattedTemplates = templatesArray.map((template: any) => ({
+          id: template.id || template.name || Math.random().toString(),
+          name: template.name || 'Template sem nome',
+          content: template.components?.[0]?.text || 
+                  template.body || 
+                  template.text || 
+                  template.content || 
+                  'Conteúdo não disponível',
           category: template.category || 'MARKETING',
-          status: template.status === 'APPROVED' ? 'approved' : 
-                 template.status === 'PENDING' ? 'pending' : 'rejected',
-          variables: extractVariables(template.components?.[0]?.text || template.body || '')
+          status: (template.status === 'APPROVED' || template.status === 'approved') ? 'approved' : 
+                 (template.status === 'PENDING' || template.status === 'pending') ? 'pending' : 
+                 (template.status === 'REJECTED' || template.status === 'rejected') ? 'rejected' : 
+                 'approved', // Default para approved se não tiver status
+          variables: extractVariables(
+            template.components?.[0]?.text || 
+            template.body || 
+            template.text || 
+            template.content || 
+            ''
+          )
         }))
-        setTemplates(formattedTemplates)
+        
+        // Se não houver templates, usar exemplos
+        if (formattedTemplates.length === 0) {
+          setTemplates(getDefaultTemplates())
+        } else {
+          setTemplates(formattedTemplates)
+        }
+      } else {
+        console.warn('Templates API returned non-OK status:', response.status)
+        setTemplates(getDefaultTemplates())
       }
     } catch (error) {
       console.error('Error loading templates:', error)
       // Usar templates de exemplo se a API falhar
-      setTemplates([
-        {
-          id: 'welcome_default',
-          name: 'Boas-vindas',
-          content: 'Olá {{1}}! Bem-vindo ao nosso serviço. Como posso ajudar?',
-          category: 'MARKETING',
-          status: 'approved',
-          variables: ['Nome']
-        }
-      ])
+      setTemplates(getDefaultTemplates())
     } finally {
       setIsLoadingTemplates(false)
     }
+  }
+  
+  const getDefaultTemplates = (): Template[] => {
+    return [
+      {
+        id: 'welcome_default',
+        name: 'Boas-vindas',
+        content: 'Olá {{1}}! Bem-vindo ao nosso serviço. Como posso ajudar?',
+        category: 'MARKETING',
+        status: 'approved',
+        variables: ['Nome']
+      },
+      {
+        id: 'order_confirmation',
+        name: 'Confirmação de Pedido',
+        content: 'Seu pedido {{1}} foi confirmado! Valor: R$ {{2}}. Acompanhe em nosso site.',
+        category: 'TRANSACTIONAL',
+        status: 'approved',
+        variables: ['Número do Pedido', 'Valor']
+      },
+      {
+        id: 'promotion',
+        name: 'Promoção',
+        content: 'Olá {{1}}! Temos uma oferta especial para você: {{2}}% de desconto!',
+        category: 'MARKETING',
+        status: 'approved',
+        variables: ['Nome', 'Desconto']
+      }
+    ]
   }
 
   const loadContacts = async () => {
