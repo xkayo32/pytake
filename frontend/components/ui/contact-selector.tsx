@@ -104,7 +104,7 @@ export function ContactSelector({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[400px] p-0" align="start">
+        <PopoverContent className="w-[400px] max-h-[500px] p-0" align="start" sideOffset={5}>
           <div className="p-4 border-b">
             {/* Busca */}
             <div className="relative">
@@ -167,7 +167,7 @@ export function ContactSelector({
           </div>
 
           {/* Lista de contatos */}
-          <ScrollArea className="h-[300px]">
+          <ScrollArea className="h-[250px]">
             {isLoading ? (
               <div className="p-4 text-center text-sm text-muted-foreground">
                 Carregando contatos...

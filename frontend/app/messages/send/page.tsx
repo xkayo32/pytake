@@ -62,6 +62,9 @@ import {
 import { WhatsAppPreview } from '@/components/ui/whatsapp-preview'
 import { ContactSelector } from '@/components/ui/contact-selector'
 import { EmojiPicker } from '@/components/ui/emoji-picker'
+import { ContactGroups } from '@/components/ui/contact-groups'
+import { ImportContacts } from '@/components/ui/import-contacts'
+import { ScheduleConfigComponent } from '@/components/ui/schedule-config'
 
 interface Contact {
   id: string
@@ -119,6 +122,20 @@ export default function SendMessagesPage() {
   const [isLoadingContacts, setIsLoadingContacts] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [scheduleConfig, setScheduleConfig] = useState({
+    enabled: false,
+    startDate: '',
+    endDate: '',
+    time: '',
+    weekdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+    dailyStartTime: '09:00',
+    dailyEndTime: '18:00',
+    skipHolidays: true,
+    holidays: [],
+    timezone: 'America/Sao_Paulo',
+    pauseBetweenMessages: 2,
+    messagesPerBatch: 10
+  })
   const [templateVariables, setTemplateVariables] = useState<Record<string, string>>({})
   const [has24hWindow, setHas24hWindow] = useState<boolean | null>(null)
   const [checkingWindow, setCheckingWindow] = useState(false)
@@ -141,7 +158,7 @@ export default function SendMessagesPage() {
   const loadTemplates = async () => {
     setIsLoadingTemplates(true)
     try {
-      const response = await fetch('/api/v1/whatsapp/templates')
+      const response = await fetch('/api/v1/whatsapp/templates?status=approved')
       if (response.ok) {
         const data = await response.json()
         
@@ -175,7 +192,11 @@ export default function SendMessagesPage() {
           )
         }))
         
-        setTemplates(formattedTemplates)
+        // Filtrar apenas templates aprovados
+        const approvedTemplates = formattedTemplates.filter(t => 
+          t.status === 'approved'
+        )
+        setTemplates(approvedTemplates)
       }
     } catch (error) {
       console.error('Error loading templates:', error)
@@ -313,48 +334,58 @@ export default function SendMessagesPage() {
     setIsSending(true)
     
     try {
-      if (messageType === 'template' && selectedTemplate) {
-        const template = templates.find(t => t.id === selectedTemplate)
-        if (template) {
-          const response = await fetch('/api/v1/whatsapp/send-template', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              to: selectedContacts,
-              template_name: template.name,
-              template_params: Object.values(templateVariables)
-            })
-          })
-          
-          if (response.ok) {
-            notify.success(`Template enviado para ${selectedContacts.length} contatos`)
-          } else {
-            notify.error('Erro ao enviar template')
-          }
-        }
-      } else {
-        const response = await fetch('/api/v1/whatsapp/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: selectedContacts,
-            message: message,
-            type: 'text'
-          })
-        })
-        
-        if (response.ok) {
-          notify.success(`Mensagem enviada para ${selectedContacts.length} contatos`)
-        } else {
-          notify.error('Erro ao enviar mensagem')
-        }
+      const payload = {
+        message,
+        templateId: selectedTemplate,
+        templateVariables,
+        contactIds: selectedContacts,
+        messageType,
+        campaignName,
+        schedule: scheduleConfig.enabled ? scheduleConfig : null
       }
+
+      const endpoint = scheduleConfig.enabled 
+        ? '/api/v1/messages/schedule-bulk' 
+        : (messageType === 'template' ? '/api/v1/whatsapp/send-template' : '/api/v1/whatsapp/send')
+
+      const requestBody = scheduleConfig.enabled ? payload : (
+        messageType === 'template' ? {
+          to: selectedContacts,
+          template_name: templates.find(t => t.id === selectedTemplate)?.name,
+          template_params: Object.values(templateVariables)
+        } : {
+          to: selectedContacts,
+          message: message,
+          type: 'text'
+        })
+      )
       
-      // Limpar formulário
-      setMessage('')
-      setSelectedContacts([])
-      setSelectedTemplate('')
-      setTemplateVariables({})
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      })
+      
+      if (response.ok) {
+        if (scheduleConfig.enabled) {
+          notify.success(`Envio agendado para ${selectedContacts.length} contatos!`)
+        } else {
+          notify.success(`Mensagem enviada para ${selectedContacts.length} contatos!`)
+        }
+        
+        // Limpar formulário
+        setMessage('')
+        setSelectedContacts([])
+        setSelectedTemplate('')
+        setTemplateVariables({})
+        setCampaignName('')
+        setScheduleConfig({
+          ...scheduleConfig,
+          enabled: false
+        })
+      } else {
+        notify.error('Erro ao enviar mensagem')
+      }
     } catch (error) {
       console.error('Error sending message:', error)
       notify.error('Erro ao enviar mensagem')
@@ -409,10 +440,24 @@ export default function SendMessagesPage() {
               <Eye className="h-4 w-4 mr-2" />
               {showPreview ? 'Ocultar' : 'Mostrar'} Preview
             </Button>
-            <Button variant="outline">
-              <Upload className="h-4 w-4 mr-2" />
-              Importar Lista
-            </Button>
+            <ImportContacts 
+              onImport={(importedContacts) => {
+                // Converter contatos importados para o formato esperado
+                const newContacts = importedContacts.map((c, index) => ({
+                  id: `imported-${Date.now()}-${index}`,
+                  name: c.name,
+                  phone: c.phone,
+                  email: c.email,
+                  tags: c.tags ? [c.tags] : [],
+                  hasWhatsApp: true
+                }))
+                setContacts([...contacts, ...newContacts])
+                // Selecionar automaticamente os contatos importados
+                const importedIds = newContacts.map(c => c.id)
+                setSelectedContacts([...selectedContacts, ...importedIds])
+                notify.success(`${newContacts.length} contatos importados com sucesso!`)
+              }}
+            />
           </div>
         </div>
 
@@ -547,6 +592,17 @@ export default function SendMessagesPage() {
                         </AlertDescription>
                       </Alert>
                     )}
+
+                    {/* Grupos de Contatos */}
+                    <div>
+                      <ContactGroups
+                        contacts={contacts}
+                        onSelectGroup={(contactIds) => {
+                          setSelectedContacts(contactIds)
+                          notify.success(`${contactIds.length} contatos selecionados do grupo`)
+                        }}
+                      />
+                    </div>
 
                     <div>
                       <Label>Destinatários</Label>
@@ -721,14 +777,18 @@ export default function SendMessagesPage() {
                   </TabsContent>
                 </Tabs>
 
+                {/* Schedule Configuration */}
+                <div className="border-t pt-4">
+                  <ScheduleConfigComponent
+                    value={scheduleConfig}
+                    onChange={setScheduleConfig}
+                  />
+                </div>
+
                 {/* Send Button */}
                 <Separator />
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="outline" size="sm" className="w-auto">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Agendar
-                    </Button>
                     <Button variant="outline" size="sm" className="w-auto">
                       <Users className="h-4 w-4 mr-2" />
                       Teste A/B
