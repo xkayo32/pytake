@@ -15,7 +15,8 @@ import {
   Key,
   Webhook,
   UserCheck,
-  Clock
+  Clock,
+  MessageCircle
 } from 'lucide-react'
 
 import { AppLayout } from '@/components/layout/app-layout'
@@ -31,6 +32,12 @@ const settingsNavigation = [
     href: '/settings/whatsapp',
     icon: MessageSquare,
     description: 'Configurações da API do WhatsApp'
+  },
+  {
+    name: 'Conversas',
+    href: '/settings/conversations',
+    icon: MessageCircle,
+    description: 'Gerenciar e responder mensagens'
   },
   {
     name: 'Perfil',
