@@ -18,7 +18,8 @@ import {
   Brain,
   Database,
   UserCheck,
-  Clock
+  Clock,
+  UsersRound
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -69,7 +70,7 @@ const navigation = [
   {
     name: 'Grupos',
     href: '/contact-groups',
-    icon: Users,
+    icon: UsersRound,
     description: 'Grupos de Contatos'
   },
   {
