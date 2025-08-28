@@ -21,7 +21,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { notify } from '@/lib/toast'
+import { notify } from '@/lib/utils'
 
 interface ImportedContact {
   name: string

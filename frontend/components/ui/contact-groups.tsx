@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ContactSelector } from '@/components/ui/contact-selector'
-import { notify } from '@/lib/toast'
+import { notify } from '@/lib/utils'
 
 interface Contact {
   id: string
