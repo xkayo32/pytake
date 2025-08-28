@@ -67,6 +67,7 @@ func main() {
 	whatsappService := NewWhatsAppService(db, redis)
 	authService := NewAuthService(db, redis)
 	conversationService := NewConversationService(db, flowService)
+	queueService := NewQueueService(db, redis)
 	
 	// Create and configure FlowSessionManager
 	sessionManager := NewFlowSessionManager(db, redis, whatsappService)
@@ -74,6 +75,9 @@ func main() {
 	
 	// Start flow expiration monitor
 	sessionManager.StartExpirationMonitor()
+	
+	// Start automatic queue distribution
+	queueService.manager.StartAutoDistribution()
 	
 	// Start periodic template validation (every 30 minutes)
 	go func() {
@@ -138,6 +142,19 @@ func main() {
 		api.GET("/conversations/:id/messages", conversationService.GetMessages)
 		api.POST("/conversations/:id/messages", conversationService.SendMessage)
 		api.GET("/conversations/ws", conversationService.WebSocketHandler)
+		
+		// Queue routes
+		api.GET("/queues", queueService.GetQueues)
+		api.POST("/queues", queueService.CreateQueue)
+		api.GET("/queues/:id/items", queueService.GetQueueItems)
+		api.POST("/queues/:id/add", queueService.AddToQueue)
+		api.POST("/queues/items/:itemId/assign", queueService.AssignItem)
+		api.POST("/queues/items/:itemId/complete", queueService.CompleteItem)
+		api.GET("/queues/:id/metrics", queueService.GetQueueMetrics)
+		api.GET("/queues/history", queueService.GetQueueHistory)
+		api.GET("/queues/dashboard", queueService.GetDashboardStats)
+		api.GET("/agents", queueService.GetAgents)
+		api.PUT("/agents/:id/status", queueService.UpdateAgentStatus)
 		
 		// Webhook routes
 		webhookService := NewWebhookService(db, redis)
