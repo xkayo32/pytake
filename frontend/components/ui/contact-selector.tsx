@@ -27,6 +27,7 @@ interface ContactSelectorProps {
   onSelectionChange: (contacts: string[]) => void
   isLoading?: boolean
   placeholder?: string
+  inModal?: boolean
 }
 
 export function ContactSelector({
@@ -34,7 +35,8 @@ export function ContactSelector({
   selectedContacts,
   onSelectionChange,
   isLoading = false,
-  placeholder = 'Selecionar contatos'
+  placeholder = 'Selecionar contatos',
+  inModal = false
 }: ContactSelectorProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterTag, setFilterTag] = useState<string | null>(null)
@@ -104,7 +106,13 @@ export function ContactSelector({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[400px] max-h-[500px] p-0" align="start" sideOffset={5}>
+        <PopoverContent 
+          className={`w-[400px] p-0 ${inModal ? 'max-h-[400px] z-[200]' : 'max-h-[500px] z-[100]'}`}
+          align={inModal ? "center" : "start"} 
+          sideOffset={inModal ? -40 : 5}
+          alignOffset={inModal ? 0 : -20}
+          collisionPadding={20}
+        >
           <div className="p-4 border-b">
             {/* Busca */}
             <div className="relative">

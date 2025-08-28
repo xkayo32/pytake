@@ -196,7 +196,7 @@ export function ContactGroups({ contacts, onSelectGroup }: ContactGroupsProps) {
               Novo Grupo
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle>{editingGroup ? 'Editar Grupo' : 'Criar Novo Grupo'}</DialogTitle>
               <DialogDescription>
@@ -205,7 +205,7 @@ export function ContactGroups({ contacts, onSelectGroup }: ContactGroupsProps) {
                   : 'Crie um grupo para facilitar o envio em massa'}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4 flex-1 overflow-y-auto">
               <div>
                 <Label htmlFor="group-name">Nome do Grupo</Label>
                 <Input
@@ -231,6 +231,7 @@ export function ContactGroups({ contacts, onSelectGroup }: ContactGroupsProps) {
                   selectedContacts={selectedContacts}
                   onSelectionChange={setSelectedContacts}
                   placeholder="Selecione os contatos para o grupo"
+                  inModal={true}
                 />
               </div>
             </div>
