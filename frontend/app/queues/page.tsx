@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -165,14 +166,27 @@ export default function QueuesPage() {
   return (
     <div className=\"p-6 space-y-6\">
       {/* Header */}
-      <div className=\"flex justify-between items-center\">
+      <div className=\"flex justify-between items-start\">
         <div>
           <h1 className=\"text-3xl font-bold\">Central de Filas</h1>
           <p className=\"text-muted-foreground\">
             Gerencie filas de atendimento e monitore performance
           </p>
         </div>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <div className=\"flex space-x-2\">
+          <Button variant=\"outline\" asChild>
+            <Link href=\"/queues/agents\">
+              <Users className=\"h-4 w-4 mr-2\" />
+              Agentes
+            </Link>
+          </Button>
+          <Button variant=\"outline\" asChild>
+            <Link href=\"/queues/reports\">
+              <BarChart3 className=\"h-4 w-4 mr-2\" />
+              Relatórios
+            </Link>
+          </Button>
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogTrigger asChild>
             <Button>
               <Plus className=\"h-4 w-4 mr-2\" />
@@ -355,9 +369,11 @@ export default function QueuesPage() {
               </div>
 
               <div className=\"flex space-x-2 pt-2\">
-                <Button size=\"sm\" variant=\"outline\" className=\"flex-1\">
-                  <BarChart3 className=\"h-4 w-4 mr-1\" />
-                  Métricas
+                <Button size=\"sm\" variant=\"outline\" className=\"flex-1\" asChild>
+                  <Link href={`/queues/${queue.id}/monitor`}>
+                    <CheckCircle className=\"h-4 w-4 mr-1\" />
+                    Monitor
+                  </Link>
                 </Button>
                 <Button size=\"sm\" variant=\"outline\" className=\"flex-1\">
                   <Settings className=\"h-4 w-4 mr-1\" />

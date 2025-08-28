@@ -16,7 +16,9 @@ import {
   LogOut,
   User,
   Brain,
-  Database
+  Database,
+  UserCheck,
+  Clock
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -57,6 +59,12 @@ const navigation = [
     href: '/contacts',
     icon: Users,
     description: 'CRM'
+  },
+  {
+    name: 'Filas',
+    href: '/queues',
+    icon: UserCheck,
+    description: 'Atendimento'
   },
   {
     name: 'Templates',
