@@ -11,7 +11,14 @@ import {
   MessageSquare,
   Mail,
   Calendar,
-  Filter
+  Filter,
+  UserPlus,
+  Upload,
+  UsersRound,
+  Eye,
+  Copy,
+  Download,
+  MoreVertical
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,6 +48,19 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Separator } from '@/components/ui/separator'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 interface Contact {
   id: string
@@ -52,6 +72,19 @@ interface Contact {
   unread_count?: number
   last_message?: string
   last_message_time?: string
+  tags?: string[]
+  hasWhatsApp?: boolean
+}
+
+interface ContactGroup {
+  id: string
+  name: string
+  description?: string
+  contacts: string[]
+  contactsDetails?: Contact[]
+  contactsCount: number
+  createdAt: string
+  updatedAt: string
 }
 
 export default function ContactsPage() {
@@ -216,8 +249,16 @@ export default function ContactsPage() {
               Contatos
             </h1>
             <p className="text-muted-foreground">
-              Gerencie seus contatos do WhatsApp
+              Gerencie seus contatos e organize em grupos
             </p>
+            <div className="mt-2">
+              <Button variant="outline" asChild>
+                <a href="/contact-groups" className="flex items-center gap-2">
+                  <UsersRound className="h-4 w-4" />
+                  Gerenciar Grupos
+                </a>
+              </Button>
+            </div>
           </div>
           
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
