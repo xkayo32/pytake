@@ -109,28 +109,15 @@ export default function ContactGroupsPage() {
       const response = await fetch('/api/v1/contact-groups')
       if (response.ok) {
         const data = await response.json()
-        setGroups(Array.isArray(data) ? data : [])
+        const groupsArray = Array.isArray(data) ? data : (data.groups || [])
+        setGroups(groupsArray)
       } else {
-        // Fallback para localStorage
-        const savedGroups = localStorage.getItem('contactGroups')
-        if (savedGroups) {
-          const parsedGroups = JSON.parse(savedGroups)
-          // Enriquecer com detalhes dos contatos
-          const enrichedGroups = parsedGroups.map((group: ContactGroup) => ({
-            ...group,
-            contactsDetails: group.contacts.map(id => 
-              contacts.find(c => c.id === id) || { id, name: 'Contato Removido', phone: '' }
-            )
-          }))
-          setGroups(enrichedGroups)
-        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
     } catch (error) {
       console.error('Error loading groups:', error)
-      const savedGroups = localStorage.getItem('contactGroups')
-      if (savedGroups) {
-        setGroups(JSON.parse(savedGroups))
-      }
+      notify.error('Erro ao carregar grupos. Verifique se o servidor está funcionando.')
+      setGroups([])
     } finally {
       setIsLoading(false)
     }
@@ -156,23 +143,12 @@ export default function ContactGroupsPage() {
         
         setContacts(enrichedContacts)
       } else {
-        // Dados de exemplo para teste
-        setContacts([
-          { id: '1', name: 'João Silva', phone: '11987654321', email: 'joao@email.com', tags: ['Cliente', 'VIP'] },
-          { id: '2', name: 'Maria Santos', phone: '21987654321', email: 'maria@email.com', tags: ['Lead'] },
-          { id: '3', name: 'Pedro Costa', phone: '31987654321', email: 'pedro@email.com', tags: ['Cliente'] },
-          { id: '4', name: 'Ana Paula', phone: '41987654321', email: 'ana@email.com', tags: ['Lead', 'Novo'] },
-          { id: '5', name: 'Carlos Lima', phone: '51987654321', email: 'carlos@email.com', tags: ['Cliente'] },
-        ])
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
     } catch (error) {
       console.error('Error loading contacts:', error)
-      // Usar dados de exemplo em caso de erro
-      setContacts([
-        { id: '1', name: 'João Silva', phone: '11987654321', email: 'joao@email.com', tags: ['Cliente', 'VIP'] },
-        { id: '2', name: 'Maria Santos', phone: '21987654321', email: 'maria@email.com', tags: ['Lead'] },
-        { id: '3', name: 'Pedro Costa', phone: '31987654321', email: 'pedro@email.com', tags: ['Cliente'] },
-      ])
+      notify.error('Erro ao carregar contatos para grupos.')
+      setContacts([])
     }
   }
 
