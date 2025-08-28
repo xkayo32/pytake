@@ -44,7 +44,7 @@ const navigation = [
   },
   {
     name: 'Enviar',
-    href: '/whatsapp',
+    href: '/messages/send',
     icon: Send,
     description: 'Mensagens'
   },
