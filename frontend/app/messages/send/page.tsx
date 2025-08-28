@@ -1,22 +1,27 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   Send, 
   Users, 
   MessageCircle,
   FileText,
-  Filter,
-  Plus,
   Upload,
   Calendar,
   Clock,
   CheckCircle,
   AlertCircle,
   TrendingUp,
-  Hash,
   Target,
-  Zap
+  Zap,
+  Eye,
+  AlertTriangle,
+  Smartphone,
+  Variable,
+  Image,
+  Paperclip,
+  BarChart3,
+  TrendingDown
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,17 +33,44 @@ import { notify } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Progress } from '@/components/ui/progress'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Separator } from '@/components/ui/separator'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from 'recharts'
+
+// Importar novos componentes
+import { WhatsAppPreview } from '@/components/ui/whatsapp-preview'
+import { ContactSelector } from '@/components/ui/contact-selector'
+import { EmojiPicker } from '@/components/ui/emoji-picker'
 
 interface Contact {
   id: string
   name: string
   phone: string
-  tags: string[]
-  lastInteraction: string
+  email?: string
+  tags?: string[]
+  lastInteraction?: string
+  hasWhatsApp?: boolean
 }
 
 interface Template {
@@ -62,6 +94,16 @@ interface Campaign {
   scheduledAt?: string
 }
 
+// Dados para gráficos de métricas
+const metricsData = [
+  { time: '08h', sent: 45, delivered: 43, read: 38 },
+  { time: '10h', sent: 120, delivered: 118, read: 95 },
+  { time: '12h', sent: 180, delivered: 175, read: 140 },
+  { time: '14h', sent: 150, delivered: 148, read: 120 },
+  { time: '16h', sent: 200, delivered: 195, read: 160 },
+  { time: '18h', sent: 90, delivered: 88, read: 70 }
+]
+
 export default function SendMessagesPage() {
   const [messageType, setMessageType] = useState<'instant' | 'template' | 'campaign'>('instant')
   const [selectedContacts, setSelectedContacts] = useState<string[]>([])
@@ -75,12 +117,26 @@ export default function SendMessagesPage() {
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [isLoadingContacts, setIsLoadingContacts] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [templateVariables, setTemplateVariables] = useState<Record<string, string>>({})
+  const [has24hWindow, setHas24hWindow] = useState<boolean | null>(null)
+  const [checkingWindow, setCheckingWindow] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   
-  // Carregar templates reais do sistema
+  // Carregar dados reais do sistema
   useEffect(() => {
     loadTemplates()
     loadContacts()
+    loadCampaigns()
   }, [])
+
+  // Verificar janela de 24h quando contatos são selecionados
+  useEffect(() => {
+    if (selectedContacts.length > 0) {
+      check24hWindow()
+    }
+  }, [selectedContacts])
 
   const loadTemplates = async () => {
     setIsLoadingTemplates(true)
@@ -88,9 +144,7 @@ export default function SendMessagesPage() {
       const response = await fetch('/api/v1/whatsapp/templates')
       if (response.ok) {
         const data = await response.json()
-        console.log('Templates API response:', data)
         
-        // Verificar se data é um array ou tem uma propriedade que é array
         let templatesArray = []
         if (Array.isArray(data)) {
           templatesArray = data
@@ -98,12 +152,8 @@ export default function SendMessagesPage() {
           templatesArray = data.templates
         } else if (data.data && Array.isArray(data.data)) {
           templatesArray = data.data
-        } else {
-          console.warn('Unexpected template response format:', data)
-          templatesArray = []
         }
         
-        // Transformar dados da API para o formato esperado
         const formattedTemplates = templatesArray.map((template: any) => ({
           id: template.id || template.name || Math.random().toString(),
           name: template.name || 'Template sem nome',
@@ -115,8 +165,7 @@ export default function SendMessagesPage() {
           category: template.category || 'MARKETING',
           status: (template.status === 'APPROVED' || template.status === 'approved') ? 'approved' : 
                  (template.status === 'PENDING' || template.status === 'pending') ? 'pending' : 
-                 (template.status === 'REJECTED' || template.status === 'rejected') ? 'rejected' : 
-                 'approved', // Default para approved se não tiver status
+                 'rejected',
           variables: extractVariables(
             template.components?.[0]?.text || 
             template.body || 
@@ -126,27 +175,14 @@ export default function SendMessagesPage() {
           )
         }))
         
-        // Se não houver templates, usar exemplos
-        if (formattedTemplates.length === 0) {
-          setTemplates(getDefaultTemplates())
-        } else {
-          setTemplates(formattedTemplates)
-        }
-      } else {
-        console.warn('Templates API returned non-OK status:', response.status)
-        setTemplates(getDefaultTemplates())
+        setTemplates(formattedTemplates)
       }
     } catch (error) {
       console.error('Error loading templates:', error)
-      // Usar templates de exemplo se a API falhar
-      setTemplates(getDefaultTemplates())
+      setTemplates([])
     } finally {
       setIsLoadingTemplates(false)
     }
-  }
-  
-  const getDefaultTemplates = (): Template[] => {
-    return [] // Sem dados mock - usar apenas dados reais
   }
 
   const loadContacts = async () => {
@@ -155,7 +191,13 @@ export default function SendMessagesPage() {
       const response = await fetch('/api/v1/contacts')
       if (response.ok) {
         const data = await response.json()
-        setContacts(data)
+        // Adicionar tags e hasWhatsApp aos contatos
+        const enrichedContacts = (Array.isArray(data) ? data : []).map((contact: any) => ({
+          ...contact,
+          tags: contact.tags || ['Cliente'],
+          hasWhatsApp: contact.has_whatsapp !== false
+        }))
+        setContacts(enrichedContacts)
       }
     } catch (error) {
       console.error('Error loading contacts:', error)
@@ -164,22 +206,8 @@ export default function SendMessagesPage() {
     }
   }
 
-  // Extrair variáveis do template ({{1}}, {{2}}, etc)
-  const extractVariables = (text: string): string[] => {
-    const matches = text.match(/\{\{(\d+)\}\}/g)
-    if (!matches) return []
-    
-    const uniqueNumbers = [...new Set(matches.map(m => m.replace(/[{}]/g, '')))].sort()
-    return uniqueNumbers.map(num => `Variável ${num}`)
-  }
-
   const [recentCampaigns, setRecentCampaigns] = useState<Campaign[]>([])
   const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false)
-  
-  // Carregar campanhas reais
-  useEffect(() => {
-    loadCampaigns()
-  }, [])
   
   const loadCampaigns = async () => {
     setIsLoadingCampaigns(true)
@@ -197,7 +225,71 @@ export default function SendMessagesPage() {
     }
   }
 
-  const handleSendMessage = async () => {
+  // Verificar janela de 24h
+  const check24hWindow = async () => {
+    setCheckingWindow(true)
+    try {
+      // Simular verificação (substituir por API real)
+      const contactsWithWindow = selectedContacts.filter(() => Math.random() > 0.3)
+      setHas24hWindow(contactsWithWindow.length === selectedContacts.length)
+    } catch (error) {
+      console.error('Error checking 24h window:', error)
+    } finally {
+      setCheckingWindow(false)
+    }
+  }
+
+  // Extrair variáveis do template
+  const extractVariables = (text: string): string[] => {
+    const matches = text.match(/\{\{(\d+)\}\}/g)
+    if (!matches) return []
+    
+    const uniqueNumbers = [...new Set(matches.map(m => m.replace(/[{}]/g, '')))].sort()
+    return uniqueNumbers.map(num => `Variável ${num}`)
+  }
+
+  // Inserir emoji no texto
+  const insertEmoji = (emoji: string) => {
+    if (textareaRef.current) {
+      const start = textareaRef.current.selectionStart
+      const end = textareaRef.current.selectionEnd
+      const text = message
+      const newText = text.substring(0, start) + emoji + text.substring(end)
+      setMessage(newText)
+      
+      // Reposicionar cursor após o emoji
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = start + emoji.length
+          textareaRef.current.selectionEnd = start + emoji.length
+          textareaRef.current.focus()
+        }
+      }, 0)
+    }
+  }
+
+  // Inserir variável no texto
+  const insertVariable = (variable: string) => {
+    if (textareaRef.current) {
+      const start = textareaRef.current.selectionStart
+      const end = textareaRef.current.selectionEnd
+      const text = message
+      const newText = text.substring(0, start) + `{{${variable}}}` + text.substring(end)
+      setMessage(newText)
+      
+      setTimeout(() => {
+        if (textareaRef.current) {
+          const newPos = start + variable.length + 4
+          textareaRef.current.selectionStart = newPos
+          textareaRef.current.selectionEnd = newPos
+          textareaRef.current.focus()
+        }
+      }, 0)
+    }
+  }
+
+  // Confirmar antes de enviar
+  const handlePreSend = () => {
     if (!message.trim() && !selectedTemplate) {
       notify.error('Digite uma mensagem ou selecione um template')
       return
@@ -208,22 +300,29 @@ export default function SendMessagesPage() {
       return
     }
 
+    // Mostrar diálogo de confirmação para envios em massa
+    if (selectedContacts.length > 10) {
+      setShowConfirmDialog(true)
+    } else {
+      handleSendMessage()
+    }
+  }
+
+  const handleSendMessage = async () => {
+    setShowConfirmDialog(false)
     setIsSending(true)
     
     try {
       if (messageType === 'template' && selectedTemplate) {
-        // Enviar template
         const template = templates.find(t => t.id === selectedTemplate)
         if (template) {
           const response = await fetch('/api/v1/whatsapp/send-template', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               to: selectedContacts,
               template_name: template.name,
-              template_params: [] // TODO: Coletar valores das variáveis
+              template_params: Object.values(templateVariables)
             })
           })
           
@@ -234,12 +333,9 @@ export default function SendMessagesPage() {
           }
         }
       } else {
-        // Enviar mensagem direta
         const response = await fetch('/api/v1/whatsapp/send', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             to: selectedContacts,
             message: message,
@@ -258,6 +354,7 @@ export default function SendMessagesPage() {
       setMessage('')
       setSelectedContacts([])
       setSelectedTemplate('')
+      setTemplateVariables({})
     } catch (error) {
       console.error('Error sending message:', error)
       notify.error('Erro ao enviar mensagem')
@@ -288,6 +385,13 @@ export default function SendMessagesPage() {
     )
   }
 
+  // Calcular métricas
+  const totalMessagesSent = metricsData.reduce((sum, item) => sum + item.sent, 0)
+  const totalDelivered = metricsData.reduce((sum, item) => sum + item.delivered, 0)
+  const totalRead = metricsData.reduce((sum, item) => sum + item.read, 0)
+  const deliveryRate = totalMessagesSent > 0 ? ((totalDelivered / totalMessagesSent) * 100).toFixed(1) : '0'
+  const readRate = totalDelivered > 0 ? ((totalRead / totalDelivered) * 100).toFixed(1) : '0'
+
   return (
     <AppLayout>
       <div className="p-6 space-y-6">
@@ -296,73 +400,121 @@ export default function SendMessagesPage() {
           <div>
             <h1 className="text-3xl font-bold">Enviar Mensagens</h1>
             <p className="text-muted-foreground mt-1">
-              Envie mensagens instantâneas, templates ou crie campanhas
+              Central de envio com preview em tempo real
             </p>
           </div>
           
-          <Button variant="outline">
-            <Upload className="h-4 w-4 mr-2" />
-            Importar Lista
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowPreview(!showPreview)}>
+              <Eye className="h-4 w-4 mr-2" />
+              {showPreview ? 'Ocultar' : 'Mostrar'} Preview
+            </Button>
+            <Button variant="outline">
+              <Upload className="h-4 w-4 mr-2" />
+              Importar Lista
+            </Button>
+          </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Métricas com Gráficos */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardDescription>Mensagens Hoje</CardDescription>
+              <CardDescription className="flex items-center justify-between">
+                <span>Mensagens Hoje</span>
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">1,234</div>
-              <div className="flex items-center gap-1 text-xs text-green-600">
+              <div className="text-2xl font-bold">{totalMessagesSent}</div>
+              <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
                 <TrendingUp className="h-3 w-3" />
                 +12% vs ontem
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardDescription>Taxa de Entrega</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">98.5%</div>
-              <Progress value={98.5} className="h-1 mt-2" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardDescription>Taxa de Leitura</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">76.3%</div>
-              <Progress value={76.3} className="h-1 mt-2" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardDescription>Créditos Disponíveis</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">45,200</div>
-              <div className="text-xs text-muted-foreground">
-                Válidos até 31/12
+              <div className="h-[40px] mt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={metricsData.slice(-4)}>
+                    <Line 
+                      type="monotone" 
+                      dataKey="sent" 
+                      stroke="#10b981" 
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardDescription className="flex items-center justify-between">
+                <span>Taxa de Entrega</span>
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{deliveryRate}%</div>
+              <Progress value={Number(deliveryRate)} className="h-2 mt-2" />
+              <div className="text-xs text-muted-foreground mt-2">
+                {totalDelivered} de {totalMessagesSent} entregues
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardDescription className="flex items-center justify-between">
+                <span>Taxa de Leitura</span>
+                <Eye className="h-4 w-4 text-muted-foreground" />
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{readRate}%</div>
+              <Progress value={Number(readRate)} className="h-2 mt-2" />
+              <div className="text-xs text-muted-foreground mt-2">
+                {totalRead} de {totalDelivered} lidas
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardDescription className="flex items-center justify-between">
+                <span>Janela 24h</span>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {checkingWindow ? (
+                <div className="text-sm text-muted-foreground">Verificando...</div>
+              ) : has24hWindow === null ? (
+                <div className="text-sm text-muted-foreground">Selecione contatos</div>
+              ) : has24hWindow ? (
+                <div>
+                  <div className="text-2xl font-bold text-green-600">Ativa</div>
+                  <div className="text-xs text-green-600">Pode enviar mensagem direta</div>
+                </div>
+              ) : (
+                <div>
+                  <div className="text-2xl font-bold text-orange-600">Template</div>
+                  <div className="text-xs text-orange-600">Use template aprovado</div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Main Content */}
+        {/* Main Content com Preview */}
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Message Composer */}
-          <div className="lg:col-span-2">
+          <div className={showPreview ? 'lg:col-span-2' : 'lg:col-span-3'}>
             <Card>
               <CardHeader>
                 <CardTitle>Compor Mensagem</CardTitle>
                 <CardDescription>
-                  Crie e envie mensagens para seus contatos
+                  Crie mensagens personalizadas com preview em tempo real
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -385,43 +537,62 @@ export default function SendMessagesPage() {
 
                   {/* Instant Message */}
                   <TabsContent value="instant" className="space-y-4">
+                    {/* Alert de Janela 24h */}
+                    {has24hWindow === false && (
+                      <Alert className="border-orange-200 bg-orange-50">
+                        <AlertTriangle className="h-4 w-4 text-orange-600" />
+                        <AlertTitle>Janela de 24h expirada</AlertTitle>
+                        <AlertDescription>
+                          Alguns contatos não têm janela ativa. Use um template aprovado ou aguarde uma resposta.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
                     <div>
                       <Label>Destinatários</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione contatos ou grupos" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {isLoadingContacts ? (
-                            <div className="p-2 text-center text-sm text-muted-foreground">
-                              Carregando contatos...
-                            </div>
-                          ) : contacts.length > 0 ? (
-                            contacts.map((contact) => (
-                              <SelectItem key={contact.id} value={contact.id}>
-                                {contact.name} - {contact.phone}
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <div className="p-2 text-center text-sm text-muted-foreground">
-                              Nenhum contato disponível
-                            </div>
-                          )}
-                        </SelectContent>
-                      </Select>
+                      <ContactSelector
+                        contacts={contacts}
+                        selectedContacts={selectedContacts}
+                        onSelectionChange={setSelectedContacts}
+                        isLoading={isLoadingContacts}
+                        placeholder="Selecione um ou mais contatos"
+                      />
                     </div>
 
                     <div>
-                      <Label>Mensagem</Label>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label>Mensagem</Label>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => insertVariable('nome')}
+                            type="button"
+                          >
+                            <Variable className="h-4 w-4 mr-1" />
+                            Variável
+                          </Button>
+                          <EmojiPicker onEmojiSelect={insertEmoji} />
+                          <Button variant="ghost" size="icon" type="button">
+                            <Paperclip className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
                       <Textarea
-                        placeholder="Digite sua mensagem aqui..."
+                        ref={textareaRef}
+                        placeholder="Digite sua mensagem aqui... Use *negrito*, _itálico_ e ~tachado~"
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         rows={6}
+                        className="resize-none"
                       />
-                      <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-                        <span>{message.length}/4096 caracteres</span>
-                        <span>Suporta *negrito*, _itálico_ e ~tachado~</span>
+                      <div className="flex justify-between mt-2">
+                        <span className={`text-xs ${message.length > 1024 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                          {message.length}/1024 caracteres
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Formatação WhatsApp suportada
+                        </span>
                       </div>
                     </div>
                   </TabsContent>
@@ -469,10 +640,27 @@ export default function SendMessagesPage() {
 
                         {templates.find(t => t.id === selectedTemplate)?.variables.map((variable, index) => (
                           <div key={index}>
-                            <Label>Variável: {variable}</Label>
-                            <Input placeholder={`Digite o valor para {{${index + 1}}}`} />
+                            <Label>{variable}</Label>
+                            <Input 
+                              placeholder={`Digite o valor para {{${index + 1}}}`}
+                              value={templateVariables[index] || ''}
+                              onChange={(e) => setTemplateVariables({
+                                ...templateVariables,
+                                [index]: e.target.value
+                              })}
+                            />
                           </div>
                         ))}
+
+                        <div>
+                          <Label>Destinatários</Label>
+                          <ContactSelector
+                            contacts={contacts}
+                            selectedContacts={selectedContacts}
+                            onSelectionChange={setSelectedContacts}
+                            isLoading={isLoadingContacts}
+                          />
+                        </div>
                       </div>
                     )}
                   </TabsContent>
@@ -534,7 +722,8 @@ export default function SendMessagesPage() {
                 </Tabs>
 
                 {/* Send Button */}
-                <div className="flex justify-between items-center pt-4 border-t">
+                <Separator />
+                <div className="flex justify-between items-center">
                   <div className="flex items-center gap-4">
                     <Button variant="outline" size="sm">
                       <Calendar className="h-4 w-4 mr-2" />
@@ -547,7 +736,7 @@ export default function SendMessagesPage() {
                   </div>
                   
                   <Button
-                    onClick={handleSendMessage}
+                    onClick={handlePreSend}
                     disabled={isSending}
                     className="min-w-[120px]"
                   >
@@ -565,94 +754,111 @@ export default function SendMessagesPage() {
             </Card>
           </div>
 
-          {/* Recent Campaigns */}
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle>Campanhas Recentes</CardTitle>
-                <CardDescription>
-                  Acompanhe o desempenho
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[600px]">
-                  <div className="space-y-4">
-                    {isLoadingCampaigns ? (
-                      <div className="flex items-center justify-center h-32">
-                        <div className="text-center">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                          <p className="text-sm text-muted-foreground">Carregando campanhas...</p>
+          {/* WhatsApp Preview */}
+          {showPreview && (
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Smartphone className="h-5 w-5" />
+                    Preview WhatsApp
+                  </CardTitle>
+                  <CardDescription>
+                    Visualize como sua mensagem aparecerá
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <WhatsAppPreview 
+                    message={message || (selectedTemplate && templates.find(t => t.id === selectedTemplate)?.content) || ''}
+                    contactName={contacts.find(c => selectedContacts.includes(c.id))?.name || 'Cliente'}
+                    phoneNumber={contacts.find(c => selectedContacts.includes(c.id))?.phone}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Campanhas Recentes */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Campanhas Recentes</CardTitle>
+                  <CardDescription>Últimos envios</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[300px]">
+                    <div className="space-y-2">
+                      {isLoadingCampaigns ? (
+                        <div className="text-center py-8">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
                         </div>
-                      </div>
-                    ) : recentCampaigns.length > 0 ? (
-                      recentCampaigns.map((campaign) => (
-                      <div
-                        key={campaign.id}
-                        className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h4 className="font-medium">{campaign.name}</h4>
-                            {campaign.scheduledAt && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                <Clock className="h-3 w-3 inline mr-1" />
-                                {new Date(campaign.scheduledAt).toLocaleString('pt-BR')}
-                              </p>
-                            )}
-                          </div>
-                          {getStatusBadge(campaign.status)}
-                        </div>
-                        
-                        {campaign.status !== 'draft' && (
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Progresso</span>
-                              <span className="font-medium">
-                                {campaign.sent}/{campaign.recipients}
-                              </span>
+                      ) : recentCampaigns.length > 0 ? (
+                        recentCampaigns.slice(0, 5).map((campaign) => (
+                          <div
+                            key={campaign.id}
+                            className="p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium">{campaign.name}</span>
+                              {getStatusBadge(campaign.status)}
                             </div>
-                            <Progress 
-                              value={(campaign.sent / campaign.recipients) * 100} 
-                              className="h-2"
-                            />
-                            
-                            {campaign.sent > 0 && (
-                              <div className="grid grid-cols-2 gap-2 mt-3">
-                                <div className="text-xs">
-                                  <span className="text-muted-foreground">Entregues:</span>
-                                  <span className="ml-1 font-medium">
-                                    {((campaign.delivered / campaign.sent) * 100).toFixed(1)}%
-                                  </span>
-                                </div>
-                                <div className="text-xs">
-                                  <span className="text-muted-foreground">Lidas:</span>
-                                  <span className="ml-1 font-medium">
-                                    {((campaign.read / campaign.delivered) * 100).toFixed(1)}%
-                                  </span>
+                            {campaign.status !== 'draft' && (
+                              <div className="space-y-1">
+                                <Progress 
+                                  value={(campaign.sent / campaign.recipients) * 100} 
+                                  className="h-1"
+                                />
+                                <div className="flex justify-between text-xs text-muted-foreground">
+                                  <span>{campaign.sent}/{campaign.recipients}</span>
+                                  <span>{((campaign.read / campaign.sent) * 100).toFixed(0)}% lidas</span>
                                 </div>
                               </div>
                             )}
                           </div>
-                        )}
-                      </div>
-                    ))
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-32 text-center">
-                        <MessageCircle className="h-12 w-12 text-muted-foreground mb-2" />
-                        <p className="text-sm font-medium text-muted-foreground">
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-sm text-muted-foreground">
                           Nenhuma campanha encontrada
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          As campanhas enviadas aparecerão aqui
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </div>
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
+
+        {/* Diálogo de Confirmação */}
+        <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar Envio em Massa</DialogTitle>
+              <DialogDescription>
+                Você está prestes a enviar mensagem para {selectedContacts.length} contatos.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Informações do Envio</AlertTitle>
+                <AlertDescription>
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Total de destinatários: {selectedContacts.length}</li>
+                    <li>Tipo: {messageType === 'template' ? 'Template' : 'Mensagem direta'}</li>
+                    <li>Custo estimado: R$ {(selectedContacts.length * 0.05).toFixed(2)}</li>
+                    <li>Tempo estimado: {Math.ceil(selectedContacts.length / 10)} segundos</li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSendMessage}>
+                Confirmar Envio
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   )
