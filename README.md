@@ -13,6 +13,7 @@ PyTake é uma plataforma completa para automação de WhatsApp Business API, per
 - **Sistema de Prioridades**: Template direto > Palavra-chave > Fluxo universal
 - **Verificação Janela 24h**: Detecção inteligente de janela de mensagem ativa
 - **WhatsApp Business API**: Integração completa com envio de mensagens e templates
+- **Conversas em Tempo Real**: Sistema completo de chat com WebSocket
 - **Gestão de Conversas**: Dashboard para acompanhar todas as conversas
 - **Templates**: Criação e gestão de templates aprovados
 - **Analytics**: Relatórios e métricas de desempenho
@@ -21,7 +22,8 @@ PyTake é uma plataforma completa para automação de WhatsApp Business API, per
 ## 🛠 Stack Tecnológica
 
 - **Backend**: Go com Gin framework
-- **Frontend**: Next.js 15.4.6 com React Flow
+- **Frontend**: Next.js 15.4.6 com React Flow + TypeScript
+- **Real-time**: WebSocket para comunicação bidirecional
 - **Database**: PostgreSQL 15 com JSONB
 - **Cache**: Redis 7
 - **Proxy**: Nginx com SSL
@@ -178,6 +180,16 @@ Métricas agregadas por hora
 
 ## 📡 API Endpoints
 
+### Conversas
+- `GET /api/v1/conversations` - Listar conversas com filtros
+- `GET /api/v1/conversations/{id}` - Obter conversa específica
+- `GET /api/v1/conversations/{id}/messages` - Listar mensagens da conversa
+- `POST /api/v1/conversations/{id}/messages` - Enviar mensagem
+- `PATCH /api/v1/conversations/{id}/read` - Marcar como lida
+- `PATCH /api/v1/conversations/{id}/status` - Atualizar status
+- `GET /api/v1/conversations/stats` - Estatísticas de conversas
+- `WS /api/v1/conversations/ws` - WebSocket para tempo real
+
 ### Flows
 - `GET /api/v1/flows` - Listar flows
 - `POST /api/v1/flows` - Criar flow
@@ -202,6 +214,58 @@ Métricas agregadas por hora
 - `GET /api/v1/agents` - Listar agentes
 - `PUT /api/v1/agents/{id}/status` - Atualizar status do agente
 - `GET /api/v1/agents/{id}/queues` - Filas do agente
+
+## 💬 Sistema de Conversas em Tempo Real
+
+### Visão Geral
+Sistema completo de chat em tempo real com WebSocket para comunicação bidirecional entre agentes e clientes WhatsApp.
+
+### Funcionalidades
+
+#### 🔄 WebSocket Integration
+- **Conexão Persistente**: Mantém conexão ativa com auto-reconexão
+- **Autenticação Automática**: Token JWT enviado na conexão
+- **Eventos em Tempo Real**: Mensagens, status e notificações instantâneas
+- **Fallback Inteligente**: Atualização via polling quando WebSocket falha
+
+#### 📱 Interface de Conversas
+- **Lista de Conversas**: Visão geral com filtros e busca
+- **Chat Individual**: Interface completa de mensagens
+- **Indicadores Visuais**: Status de conexão, entrega e leitura
+- **Sincronização**: Estado consistente entre múltiplas abas/dispositivos
+
+#### 🚀 Recursos Avançados
+- **Filtros Inteligentes**: Por status, agente, período
+- **Busca Rápida**: Nome, telefone ou conteúdo das mensagens  
+- **Contadores**: Mensagens não lidas em tempo real
+- **Auto-scroll**: Scroll automático para novas mensagens
+- **Estados de Mensagem**: Pending → Sent → Delivered → Read
+
+### Arquitetura WebSocket
+
+```javascript
+// Eventos suportados pelo WebSocket
+{
+  "message_received": "Nova mensagem do cliente",
+  "message_sent": "Mensagem enviada pelo agente",
+  "message_status_updated": "Atualização de status da mensagem",
+  "conversation_updated": "Mudança no status da conversa",
+  "typing_start": "Cliente começou a digitar",
+  "typing_stop": "Cliente parou de digitar"
+}
+```
+
+### Fluxo de Mensagens
+
+```mermaid
+graph LR
+    A[Cliente WhatsApp] --> B[Webhook Backend]
+    B --> C[WebSocket Server]
+    C --> D[Frontend Agent]
+    D --> E[API Send Message]
+    E --> F[WhatsApp API]
+    F --> A
+```
 
 ## 🎯 Sistema de Filas de Atendimento
 
