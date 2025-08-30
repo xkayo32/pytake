@@ -74,10 +74,10 @@ export function AppSidebar() {
       items: [
         { icon: Home, label: 'Dashboard', href: '/dashboard' },
         { icon: UserCheck, label: 'Meu Dashboard', href: '/agent/dashboard' },
+        { icon: BarChart3, label: 'Dashboard Gerencial', href: '/dashboard/manager' },
         { icon: MessageSquare, label: 'Conversas', href: '/conversations', badge: unreadCount > 0 ? unreadCount.toString() : undefined },
         { icon: Users, label: 'Contatos', href: '/contacts' },
         { icon: UserCheck, label: 'Filas', href: '/queues' },
-        { icon: BarChart3, label: 'Analytics', href: '/analytics' },
       ]
     },
     {

@@ -173,6 +173,11 @@ func main() {
 		api.PUT("/contact-groups/:id", UpdateContactGroup)
 		api.DELETE("/contact-groups/:id", DeleteContactGroup)
 		
+		// Reports routes
+		api.GET("/reports/dashboard-metrics", GetDashboardMetrics)
+		api.GET("/reports/agent-comparison", GetAgentComparison)
+		api.GET("/reports/export", ExportReport)
+		
 		// Webhook routes
 		webhookService := NewWebhookService(db, redis)
 		api.POST("/whatsapp-configs/:id/webhook/validate", webhookService.ValidateWebhookConfig)
