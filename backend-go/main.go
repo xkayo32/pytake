@@ -178,6 +178,13 @@ func main() {
 		api.GET("/reports/agent-comparison", GetAgentComparison)
 		api.GET("/reports/export", ExportReport)
 		
+		// Gamification routes
+		api.GET("/gamification/profile/:id", GetGamificationProfile)
+		api.GET("/gamification/leaderboard", GetLeaderboard)
+		api.GET("/gamification/stats", GetGameStats)
+		api.POST("/gamification/achievements/award", AwardAchievement)
+		api.PUT("/gamification/agents/:id/score", UpdateAgentScore)
+		
 		// Webhook routes
 		webhookService := NewWebhookService(db, redis)
 		api.POST("/whatsapp-configs/:id/webhook/validate", webhookService.ValidateWebhookConfig)

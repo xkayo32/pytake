@@ -12,6 +12,7 @@ import { useAuthContext } from '@/contexts/auth-context'
 import { useConversations } from '@/lib/hooks/useConversations'
 import { useNotifications } from '@/lib/hooks/useNotifications'
 import { useAgentMetrics } from '@/lib/hooks/useAgentMetrics'
+import { GamificationWidget } from '@/components/gamification/gamification-widget'
 import { 
   MessageSquare, 
   Clock, 
@@ -307,6 +308,16 @@ export default function AgentDashboardPage() {
               </p>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Widget de Gamificação */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            {/* Conteúdo principal continuará aqui nas tabs */}
+          </div>
+          <div>
+            <GamificationWidget showLeaderboard={true} />
+          </div>
         </div>
 
         {/* Tabs Principais */}

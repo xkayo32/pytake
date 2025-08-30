@@ -26,7 +26,9 @@ import {
   Webhook,
   Phone,
   Send,
-  UserCheck
+  UserCheck,
+  Trophy,
+  Award
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { LogoInline } from '@/components/ui/logo'
@@ -78,6 +80,13 @@ export function AppSidebar() {
         { icon: MessageSquare, label: 'Conversas', href: '/conversations', badge: unreadCount > 0 ? unreadCount.toString() : undefined },
         { icon: Users, label: 'Contatos', href: '/contacts' },
         { icon: UserCheck, label: 'Filas', href: '/queues' },
+      ]
+    },
+    {
+      title: 'Gamificação',
+      items: [
+        { icon: Trophy, label: 'Ranking', href: '/leaderboard' },
+        { icon: Award, label: 'Conquistas', href: '/achievements' },
       ]
     },
     {
