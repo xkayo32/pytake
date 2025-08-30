@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { AppLayout } from '@/components/layout/app-layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -75,55 +74,13 @@ export default function QueuesPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/v1/queues/dashboard')
+      const response = await fetch('/api/v1/queues/stats')
       if (response.ok) {
         const data = await response.json()
-        console.log('Dashboard stats received:', data)
-        
-        // Validate and sanitize the data
-        const sanitizedData = {
-          active_queues: data?.active_queues || 0,
-          total_waiting: data?.total_waiting || 0,
-          agents_online: data?.agents_online || 0,
-          today_total: data?.today_total || 0,
-          today_completed: data?.today_completed || 0,
-          avg_wait_time_today: (!isNaN(data?.avg_wait_time_today) && data?.avg_wait_time_today !== null) 
-            ? data.avg_wait_time_today : 0,
-          abandonment_rate: (!isNaN(data?.abandonment_rate) && data?.abandonment_rate !== null) 
-            ? data.abandonment_rate : 0,
-          avg_rating: (!isNaN(data?.avg_rating) && data?.avg_rating !== null) 
-            ? data.avg_rating : 0
-        }
-        
-        console.log('Sanitized dashboard stats:', sanitizedData)
-        setStats(sanitizedData)
-      } else {
-        console.error('Dashboard API returned error:', response.status, response.statusText)
-        // Set default values if API fails
-        setStats({
-          active_queues: 0,
-          total_waiting: 0,
-          agents_online: 0,
-          today_total: 0,
-          today_completed: 0,
-          avg_wait_time_today: 0,
-          abandonment_rate: 0,
-          avg_rating: 0
-        })
+        setStats(data)
       }
     } catch (error) {
       console.error('Error fetching stats:', error)
-      // Set default values on error
-      setStats({
-        active_queues: 0,
-        total_waiting: 0,
-        agents_online: 0,
-        today_total: 0,
-        today_completed: 0,
-        avg_wait_time_today: 0,
-        abandonment_rate: 0,
-        avg_rating: 0
-      })
     }
   }
 
@@ -134,30 +91,27 @@ export default function QueuesPage() {
   }
 
   const getQueueStatusColor = (queue: Queue) => {
-    if (!queue.is_active) return 'bg-foreground-tertiary'
-    if (queue.current_size > queue.max_queue_size * 0.8) return 'bg-destructive'
-    if (queue.current_size > queue.max_queue_size * 0.5) return 'bg-warning'
-    return 'bg-success'
+    if (!queue.is_active) return 'bg-gray-400'
+    if (queue.current_size > queue.max_queue_size * 0.8) return 'bg-red-500'
+    if (queue.current_size > queue.max_queue_size * 0.5) return 'bg-yellow-500'
+    return 'bg-green-500'
   }
 
   if (isLoading) {
     return (
-      <AppLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </AppLayout>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
     )
   }
 
   return (
-    <AppLayout>
-      <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold">Central de Filas</h1>
-          <p className="text-foreground-secondary">
+          <p className="text-muted-foreground">
             Monitore e gerencie todas as filas de atendimento
           </p>
         </div>
@@ -183,9 +137,9 @@ export default function QueuesPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center space-x-2">
-                <Users className="h-4 w-4 text-primary" />
+                <Users className="h-4 w-4 text-blue-600" />
                 <div>
-                  <p className="text-sm font-medium text-foreground-secondary">Na Fila</p>
+                  <p className="text-sm font-medium text-muted-foreground">Na Fila</p>
                   <p className="text-2xl font-bold">{stats.total_waiting}</p>
                 </div>
               </div>
@@ -194,9 +148,9 @@ export default function QueuesPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center space-x-2">
-                <UserCheck className="h-4 w-4 text-success" />
+                <UserCheck className="h-4 w-4 text-green-600" />
                 <div>
-                  <p className="text-sm font-medium text-foreground-secondary">Agentes Online</p>
+                  <p className="text-sm font-medium text-muted-foreground">Agentes Online</p>
                   <p className="text-2xl font-bold">{stats.agents_online}</p>
                 </div>
               </div>
@@ -205,10 +159,10 @@ export default function QueuesPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center space-x-2">
-                <Timer className="h-4 w-4 text-warning" />
+                <Timer className="h-4 w-4 text-yellow-600" />
                 <div>
-                  <p className="text-sm font-medium text-foreground-secondary">Tempo Médio</p>
-                  <p className="text-2xl font-bold">{formatWaitTime(stats?.avg_wait_time_today || 0)}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Tempo Médio</p>
+                  <p className="text-2xl font-bold">{formatWaitTime(stats.avg_wait_time_today)}</p>
                 </div>
               </div>
             </CardContent>
@@ -216,9 +170,9 @@ export default function QueuesPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center space-x-2">
-                <TrendingUp className="h-4 w-4 text-info" />
+                <TrendingUp className="h-4 w-4 text-purple-600" />
                 <div>
-                  <p className="text-sm font-medium text-foreground-secondary">Hoje</p>
+                  <p className="text-sm font-medium text-muted-foreground">Hoje</p>
                   <p className="text-2xl font-bold">{stats.today_completed}/{stats.today_total}</p>
                 </div>
               </div>
@@ -239,24 +193,24 @@ export default function QueuesPage() {
                   {queue.is_active ? "Ativa" : "Inativa"}
                 </Badge>
               </div>
-              <p className="text-sm text-foreground-secondary">{queue.description}</p>
+              <p className="text-sm text-muted-foreground">{queue.description}</p>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="flex items-center space-x-2">
-                  <Users className="h-4 w-4 text-foreground-secondary" />
+                  <Users className="h-4 w-4 text-muted-foreground" />
                   <span>{queue.current_size} na fila</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <UserCheck className="h-4 w-4 text-foreground-secondary" />
+                  <UserCheck className="h-4 w-4 text-muted-foreground" />
                   <span>{queue.agents_online} agentes</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Clock className="h-4 w-4 text-foreground-secondary" />
+                  <Clock className="h-4 w-4 text-muted-foreground" />
                   <span>{formatWaitTime(queue.avg_wait_time)}</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Activity className="h-4 w-4 text-foreground-secondary" />
+                  <Activity className="h-4 w-4 text-muted-foreground" />
                   <span>{queue.department}</span>
                 </div>
               </div>
@@ -280,9 +234,9 @@ export default function QueuesPage() {
 
       {queues.length === 0 && (
         <Card className="p-12 text-center">
-          <Users className="h-12 w-12 text-foreground-secondary mx-auto mb-4" />
+          <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">Nenhuma fila encontrada</h3>
-          <p className="text-foreground-secondary mb-4">
+          <p className="text-muted-foreground mb-4">
             Crie sua primeira fila de atendimento para começar
           </p>
           <Button>
@@ -291,7 +245,6 @@ export default function QueuesPage() {
           </Button>
         </Card>
       )}
-      </div>
-    </AppLayout>
+    </div>
   )
 }

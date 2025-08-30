@@ -25,12 +25,14 @@ import {
   Shield,
   Webhook,
   Phone,
-  Send
+  Send,
+  UserCheck
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { LogoInline } from '@/components/ui/logo'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { NotificationStatus } from '@/components/ui/notification-status'
 
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false)
@@ -71,8 +73,10 @@ export function AppSidebar() {
       title: 'Principal',
       items: [
         { icon: Home, label: 'Dashboard', href: '/dashboard' },
-        { icon: MessageSquare, label: 'Conversas', href: '/whatsapp', badge: unreadCount > 0 ? unreadCount.toString() : undefined },
+        { icon: UserCheck, label: 'Meu Dashboard', href: '/agent/dashboard' },
+        { icon: MessageSquare, label: 'Conversas', href: '/conversations', badge: unreadCount > 0 ? unreadCount.toString() : undefined },
         { icon: Users, label: 'Contatos', href: '/contacts' },
+        { icon: UserCheck, label: 'Filas', href: '/queues' },
         { icon: BarChart3, label: 'Analytics', href: '/analytics' },
       ]
     },
@@ -186,10 +190,10 @@ export function AppSidebar() {
       {/* Footer */}
       <div className="border-t p-4 space-y-2">
         {/* Notifications */}
-        <Button variant="ghost" className={cn("w-full", collapsed ? "px-0" : "justify-start")}>
-          <Bell className="h-4 w-4" />
-          {!collapsed && <span className="ml-3 text-sm">Notificações</span>}
-        </Button>
+        <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between px-2")}>
+          {!collapsed && <span className="text-sm font-medium">Notificações</span>}
+          <NotificationStatus showUnreadCount={true} />
+        </div>
         
         {/* Help */}
         <Button variant="ghost" className={cn("w-full", collapsed ? "px-0" : "justify-start")}>

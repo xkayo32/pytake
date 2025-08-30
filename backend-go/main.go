@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"os"
 	"time"
@@ -8,6 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
+
+var db *sql.DB
 
 func main() {
 	// Load environment variables
@@ -21,7 +24,8 @@ func main() {
 	}
 
 	// Initialize database
-	db, err := InitDB()
+	var err error
+	db, err = InitDB()
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
@@ -156,6 +160,19 @@ func main() {
 		api.GET("/agents", queueService.GetAgents)
 		api.PUT("/agents/:id/status", queueService.UpdateAgentStatus)
 		
+		// Contact routes
+		api.GET("/contacts", GetContacts)
+		api.POST("/contacts", CreateContact)
+		api.PUT("/contacts/:id", UpdateContact)
+		api.DELETE("/contacts/:id", DeleteContact)
+		
+		// Contact Groups routes
+		api.GET("/contact-groups", GetContactGroups)
+		api.POST("/contact-groups", CreateContactGroup)
+		api.GET("/contact-groups/:id", GetContactGroup)
+		api.PUT("/contact-groups/:id", UpdateContactGroup)
+		api.DELETE("/contact-groups/:id", DeleteContactGroup)
+		
 		// Webhook routes
 		webhookService := NewWebhookService(db, redis)
 		api.POST("/whatsapp-configs/:id/webhook/validate", webhookService.ValidateWebhookConfig)
@@ -179,4 +196,25 @@ func main() {
 
 	log.Printf("🚀 Server starting on port %s", port)
 	log.Fatal(router.Run(":" + port))
+}
+
+// Helper functions for contact and group handlers
+func getDB() *sql.DB {
+	return db
+}
+
+func getTenantID(c *gin.Context) string {
+	// Por enquanto, usar tenant ID padrão
+	// TODO: Implementar autenticação e extrair tenant do JWT
+	return "00000000-0000-0000-0000-000000000000"
+}
+
+func extractEmailFromCustomFields(customFields string) string {
+	// Implementação simples para extrair email do JSON custom_fields
+	// Em um sistema real, você usaria json.Unmarshal
+	if customFields == "" {
+		return ""
+	}
+	// Para o exemplo, retornar vazio
+	return ""
 }

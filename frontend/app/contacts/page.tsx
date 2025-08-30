@@ -359,7 +359,7 @@ export default function ContactsPage() {
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-blue-500" />
                 <div>
-                  <p className="text-2xl font-bold">{contacts.length}</p>
+                  <p className="text-2xl font-bold">{contacts?.length || 0}</p>
                   <p className="text-muted-foreground text-sm">Total de contatos</p>
                 </div>
               </div>

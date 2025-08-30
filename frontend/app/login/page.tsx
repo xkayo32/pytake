@@ -13,7 +13,7 @@ import { LogoInline } from '@/components/ui/logo'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useAuth } from '@/lib/hooks/useAuth'
+import { useAuthContext } from '@/contexts/auth-context'
 import { loginSchema, type LoginFormData } from '@/lib/validators/auth'
 
 export default function LoginPage() {
@@ -21,7 +21,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
-  const { login } = useAuth()
+  const { login } = useAuthContext()
 
   const {
     register,
@@ -39,7 +39,12 @@ export default function LoginPage() {
     const result = await login(data.email, data.password)
 
     if (result.success) {
-      router.push('/dashboard')
+      // Check if there's a redirect URL stored
+      const redirectUrl = sessionStorage.getItem('redirectAfterLogin')
+      sessionStorage.removeItem('redirectAfterLogin')
+      
+      // Redirect to stored URL or dashboard as fallback
+      router.push(redirectUrl || '/dashboard')
     } else {
       setError(result.error || 'Erro no login')
     }

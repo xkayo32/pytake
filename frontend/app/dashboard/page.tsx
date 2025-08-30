@@ -19,7 +19,8 @@ import {
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AppLayout } from '@/components/layout/app-layout'
-import { useAuth } from '@/lib/hooks/useAuth'
+import { useAuthContext } from '@/contexts/auth-context'
+import { useDashboard } from '@/lib/hooks/useDashboard'
 import { 
   LineChart, 
   Line, 
@@ -38,8 +39,8 @@ import {
   ResponsiveContainer 
 } from 'recharts'
 
-// Dados de exemplo para os gráficos
-const conversationData = [
+// Fallback data for when API is loading or fails
+const fallbackConversationData = [
   { date: 'Dom', total: 245, resolvidas: 210, pendentes: 35 },
   { date: 'Seg', total: 312, resolvidas: 285, pendentes: 27 },
   { date: 'Ter', total: 428, resolvidas: 390, pendentes: 38 },
@@ -49,7 +50,7 @@ const conversationData = [
   { date: 'Sáb', total: 289, resolvidas: 260, pendentes: 29 },
 ]
 
-const messageVolumeData = [
+const fallbackMessageVolumeData = [
   { hora: '00h', enviadas: 45, recebidas: 38 },
   { hora: '04h', enviadas: 22, recebidas: 18 },
   { hora: '08h', enviadas: 178, recebidas: 165 },
@@ -58,7 +59,7 @@ const messageVolumeData = [
   { hora: '20h', enviadas: 195, recebidas: 180 },
 ]
 
-const flowPerformanceData = [
+const fallbackFlowPerformanceData = [
   { name: 'Boas-vindas', value: 1250, color: '#25D366' },
   { name: 'Suporte', value: 890, color: '#128C7E' },
   { name: 'Vendas', value: 670, color: '#075E54' },
@@ -66,7 +67,7 @@ const flowPerformanceData = [
   { name: 'Outros', value: 180, color: '#00A884' },
 ]
 
-const responseTimeData = [
+const fallbackResponseTimeData = [
   { range: '< 1min', count: 450 },
   { range: '1-5min', count: 280 },
   { range: '5-15min', count: 150 },
@@ -74,17 +75,40 @@ const responseTimeData = [
   { range: '> 30min', count: 40 },
 ]
 
+// Helper function to format wait time
+function formatWaitTime(seconds: number | null | undefined): string {
+  if (!seconds || isNaN(seconds) || seconds < 0) return '0s'
+  
+  if (seconds < 60) return `${Math.round(seconds)}s`
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`
+  
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.round((seconds % 3600) / 60)
+  return `${hours}h ${minutes}m`
+}
+
 export default function DashboardPage() {
-  const { user, isLoading, isAuthenticated } = useAuth()
+  const { user, isLoading: authLoading, isAuthenticated } = useAuthContext()
+  const { 
+    stats, 
+    conversationVolume, 
+    messageVolume, 
+    flowPerformance, 
+    responseTimes,
+    isLoading: dashboardLoading, 
+    error,
+    lastUpdated,
+    refresh 
+  } = useDashboard()
   const router = useRouter()
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!authLoading && !isAuthenticated) {
       router.push('/login')
     }
-  }, [isLoading, isAuthenticated, router])
+  }, [authLoading, isAuthenticated, router])
 
-  if (isLoading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -100,40 +124,58 @@ export default function DashboardPage() {
     <AppLayout>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-foreground-secondary mt-1">
-            Visão geral do sistema - Última atualização: {new Date().toLocaleTimeString('pt-BR')}
-          </p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <p className="text-foreground-secondary mt-1">
+              {dashboardLoading ? 'Carregando dados...' : 
+               error ? 'Erro ao carregar dados' :
+               lastUpdated ? `Última atualização: ${lastUpdated.toLocaleTimeString('pt-BR')}` :
+               'Visão geral do sistema'
+              }
+            </p>
+          </div>
+          {error && (
+            <button
+              onClick={refresh}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Tentar novamente
+            </button>
+          )}
         </div>
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard
             title="Conversas Ativas"
-            value="248"
+            value={dashboardLoading ? "..." : (stats?.active_conversations?.toString() || "0")}
             change={12.5}
             icon={<MessageSquare className="h-5 w-5" />}
             trend="up"
           />
           <MetricCard
             title="Taxa de Resolução"
-            value="94.2%"
+            value={dashboardLoading ? "..." : 
+              stats ? `${Math.round((stats.today_completed / Math.max(stats.today_total, 1)) * 100)}%` : "0%"
+            }
             change={2.4}
             icon={<CheckCircle className="h-5 w-5" />}
             trend="up"
           />
           <MetricCard
             title="Tempo Médio"
-            value="2m 34s"
+            value={dashboardLoading ? "..." : 
+              stats ? formatWaitTime(stats.avg_wait_time_today) : "0s"
+            }
             change={-8.3}
             icon={<Clock className="h-5 w-5" />}
             trend="down"
             positive={true}
           />
           <MetricCard
-            title="Novos Contatos"
-            value="1,284"
+            title="Total Hoje"
+            value={dashboardLoading ? "..." : (stats?.today_total?.toString() || "0")}
             change={18.2}
             icon={<UserPlus className="h-5 w-5" />}
             trend="up"
@@ -152,7 +194,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={conversationData}>
+                <AreaChart data={conversationVolume.length > 0 ? conversationVolume : fallbackConversationData}>
                   <defs>
                     <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#25D366" stopOpacity={0.3}/>
@@ -196,7 +238,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={messageVolumeData}>
+                <BarChart data={messageVolume.length > 0 ? messageVolume : fallbackMessageVolumeData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="hora" className="text-xs" />
                   <YAxis className="text-xs" />
@@ -221,7 +263,7 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={flowPerformanceData}
+                    data={flowPerformance.length > 0 ? flowPerformance : fallbackFlowPerformanceData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -230,7 +272,7 @@ export default function DashboardPage() {
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {flowPerformanceData.map((entry, index) => (
+                    {(flowPerformance.length > 0 ? flowPerformance : fallbackFlowPerformanceData).map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
@@ -250,7 +292,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={responseTimeData} layout="horizontal">
+                <BarChart data={responseTimes.length > 0 ? responseTimes : fallbackResponseTimeData} layout="horizontal">
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis type="number" className="text-xs" />
                   <YAxis dataKey="range" type="category" className="text-xs" />

@@ -326,7 +326,7 @@ export default function ContactGroupsPage() {
               <CardDescription>Total de Grupos</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{groups.length}</div>
+              <div className="text-2xl font-bold">{groups?.length || 0}</div>
             </CardContent>
           </Card>
           
@@ -335,7 +335,7 @@ export default function ContactGroupsPage() {
               <CardDescription>Total de Contatos</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{contacts.length}</div>
+              <div className="text-2xl font-bold">{contacts?.length || 0}</div>
             </CardContent>
           </Card>
           
@@ -356,8 +356,8 @@ export default function ContactGroupsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {groups.length > 0 
-                  ? Math.round(groups.reduce((sum, g) => sum + g.contactsCount, 0) / groups.length)
+                {groups && groups.length > 0 
+                  ? Math.round(groups.reduce((sum, g) => sum + (g.contactsCount || 0), 0) / groups.length)
                   : 0}
               </div>
             </CardContent>
@@ -445,7 +445,7 @@ export default function ContactGroupsPage() {
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm">
-                          {group.contactsCount} {group.contactsCount === 1 ? 'contato' : 'contatos'}
+                          {group.contactsCount || 0} {(group.contactsCount || 0) === 1 ? 'contato' : 'contatos'}
                         </span>
                       </div>
                       
@@ -494,7 +494,7 @@ export default function ContactGroupsPage() {
                       <TableCell>{group.description || '-'}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">
-                          {group.contactsCount} contatos
+                          {group.contactsCount || 0} contatos
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -651,9 +651,9 @@ export default function ContactGroupsPage() {
                               {contact.phone}
                               {contact.email && ` • ${contact.email}`}
                             </div>
-                            {contact.tags && contact.tags.length > 0 && (
+                            {contact.tags && typeof contact.tags === 'string' && contact.tags !== '{}' && (
                               <div className="flex gap-1 mt-1">
-                                {contact.tags.map(tag => (
+                                {contact.tags.replace(/[{}]/g, '').split(',').filter(tag => tag).map(tag => (
                                   <Badge key={tag} variant="outline" className="text-xs">
                                     {tag}
                                   </Badge>
@@ -698,7 +698,7 @@ export default function ContactGroupsPage() {
             <div className="py-4">
               <div className="flex justify-between items-center mb-4">
                 <span className="text-sm text-muted-foreground">
-                  {selectedGroup?.contactsCount} membros
+                  {selectedGroup?.contactsCount || 0} membros
                 </span>
                 <Button 
                   size="sm" 
@@ -728,9 +728,9 @@ export default function ContactGroupsPage() {
                           {contact.phone}
                           {contact.email && ` • ${contact.email}`}
                         </div>
-                        {contact.tags && contact.tags.length > 0 && (
+                        {contact.tags && typeof contact.tags === 'string' && contact.tags !== '{}' && (
                           <div className="flex gap-1 mt-1">
-                            {contact.tags.map(tag => (
+                            {contact.tags.replace(/[{}]/g, '').split(',').filter(tag => tag).map(tag => (
                               <Badge key={tag} variant="outline" className="text-xs">
                                 {tag}
                               </Badge>

@@ -172,3 +172,51 @@ type WhatsAppTemplateButton struct {
 	Text string `json:"text"`
 	URL  string `json:"url,omitempty"`
 }
+
+// Contact represents a contact in the system
+type Contact struct {
+	ID             string         `json:"id" db:"id"`
+	TenantID       string         `json:"tenant_id" db:"tenant_id"`
+	Phone          string         `json:"phone" db:"phone"`
+	Name           string         `json:"name" db:"name"`
+	Email          string         `json:"email,omitempty"`
+	AvatarURL      *string        `json:"avatar_url,omitempty" db:"avatar_url"`
+	IsBlocked      bool           `json:"is_blocked" db:"is_blocked"`
+	IsFavorite     bool           `json:"is_favorite" db:"is_favorite"`
+	Tags           *string        `json:"tags,omitempty" db:"tags"`
+	CustomFields   *string        `json:"custom_fields,omitempty" db:"custom_fields"`
+	LastMessageAt  *time.Time     `json:"last_message_at,omitempty" db:"last_message_at"`
+	HasWhatsApp    bool           `json:"has_whatsapp"`
+	CreatedAt      time.Time      `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at" db:"updated_at"`
+}
+
+// CreateContactRequest represents the request to create a contact
+type CreateContactRequest struct {
+	Name         string            `json:"name" binding:"required"`
+	Phone        string            `json:"phone" binding:"required"`
+	Email        string            `json:"email,omitempty"`
+	Tags         []string          `json:"tags,omitempty"`
+	CustomFields map[string]string `json:"custom_fields,omitempty"`
+	IsFavorite   bool              `json:"is_favorite,omitempty"`
+}
+
+// ContactGroup represents a group of contacts
+type ContactGroup struct {
+	ID              string    `json:"id" db:"id"`
+	TenantID        string    `json:"tenant_id" db:"tenant_id"`
+	Name            string    `json:"name" db:"name"`
+	Description     string    `json:"description" db:"description"`
+	ContactsCount   int       `json:"contacts_count"`
+	Contacts        []string  `json:"contacts"`
+	ContactsDetails []Contact `json:"contacts_details,omitempty"`
+	CreatedAt       time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// CreateContactGroupRequest represents the request to create a contact group
+type CreateContactGroupRequest struct {
+	Name        string   `json:"name" binding:"required"`
+	Description string   `json:"description,omitempty"`
+	Contacts    []string `json:"contacts" binding:"required,min=1"`
+}

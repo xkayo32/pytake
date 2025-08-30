@@ -242,40 +242,40 @@ export default function QueueReportsPage() {
 
   if (isLoading) {
     return (
-      <div className=\"flex items-center justify-center h-64\">
-        <div className=\"animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600\"></div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     )
   }
 
   return (
-    <div className=\"p-6 space-y-6\">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className=\"flex justify-between items-start\">
+      <div className="flex justify-between items-start">
         <div>
-          <h1 className=\"text-3xl font-bold\">Relatórios de Filas</h1>
-          <p className=\"text-muted-foreground\">
+          <h1 className="text-3xl font-bold">Relatórios de Filas</h1>
+          <p className="text-muted-foreground">
             Análise detalhada de performance e métricas
           </p>
         </div>
-        <Button className=\"flex items-center space-x-2\">
-          <Download className=\"h-4 w-4\" />
+        <Button className="flex items-center space-x-2">
+          <Download className="h-4 w-4" />
           <span>Exportar PDF</span>
         </Button>
       </div>
 
       {/* Filters */}
       <Card>
-        <CardContent className=\"p-6\">
-          <div className=\"grid grid-cols-1 md:grid-cols-4 gap-4\">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className=\"text-sm font-medium mb-1 block\">Fila</label>
+              <label className="text-sm font-medium mb-1 block">Fila</label>
               <Select value={selectedQueue} onValueChange={setSelectedQueue}>
                 <SelectTrigger>
-                  <SelectValue placeholder=\"Todas as filas\" />
+                  <SelectValue placeholder="Todas as filas" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value=\"\">Todas as filas</SelectItem>
+                  <SelectItem value="">Todas as filas</SelectItem>
                   {queues.map((queue) => (
                     <SelectItem key={queue.id} value={queue.id}>
                       {queue.name}
@@ -285,26 +285,26 @@ export default function QueueReportsPage() {
               </Select>
             </div>
             <div>
-              <label className=\"text-sm font-medium mb-1 block\">Data Inicial</label>
+              <label className="text-sm font-medium mb-1 block">Data Inicial</label>
               <input
-                type=\"date\"
+                type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className=\"flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm\"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
             <div>
-              <label className=\"text-sm font-medium mb-1 block\">Data Final</label>
+              <label className="text-sm font-medium mb-1 block">Data Final</label>
               <input
-                type=\"date\"
+                type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className=\"flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm\"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
-            <div className=\"flex items-end\">
-              <Button className=\"w-full\">
-                <Filter className=\"h-4 w-4 mr-2\" />
+            <div className="flex items-end">
+              <Button className="w-full">
+                <Filter className="h-4 w-4 mr-2" />
                 Aplicar Filtros
               </Button>
             </div>
@@ -314,47 +314,47 @@ export default function QueueReportsPage() {
 
       {/* Summary Metrics */}
       {metrics && (
-        <div className=\"grid grid-cols-1 md:grid-cols-4 gap-4\">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
-            <CardContent className=\"p-6\">
-              <div className=\"flex items-center space-x-2\">
-                <Users className=\"h-4 w-4 text-blue-600\" />
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <Users className="h-4 w-4 text-blue-600" />
                 <div>
-                  <p className=\"text-sm font-medium text-muted-foreground\">Total de Interações</p>
-                  <p className=\"text-2xl font-bold\">{metrics.total_interactions}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Total de Interações</p>
+                  <p className="text-2xl font-bold">{metrics.total_interactions}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className=\"p-6\">
-              <div className=\"flex items-center space-x-2\">
-                <Clock className=\"h-4 w-4 text-yellow-600\" />
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <Clock className="h-4 w-4 text-yellow-600" />
                 <div>
-                  <p className=\"text-sm font-medium text-muted-foreground\">Tempo Médio de Espera</p>
-                  <p className=\"text-2xl font-bold\">{formatTime(metrics.avg_wait_time)}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Tempo Médio de Espera</p>
+                  <p className="text-2xl font-bold">{formatTime(metrics.avg_wait_time)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className=\"p-6\">
-              <div className=\"flex items-center space-x-2\">
-                <CheckCircle className=\"h-4 w-4 text-green-600\" />
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4 text-green-600" />
                 <div>
-                  <p className=\"text-sm font-medium text-muted-foreground\">Taxa de Conclusão</p>
-                  <p className=\"text-2xl font-bold\">{metrics.completion_rate.toFixed(1)}%</p>
+                  <p className="text-sm font-medium text-muted-foreground">Taxa de Conclusão</p>
+                  <p className="text-2xl font-bold">{metrics.completion_rate.toFixed(1)}%</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className=\"p-6\">
-              <div className=\"flex items-center space-x-2\">
-                <Star className=\"h-4 w-4 text-purple-600\" />
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <Star className="h-4 w-4 text-purple-600" />
                 <div>
-                  <p className=\"text-sm font-medium text-muted-foreground\">Avaliação Média</p>
-                  <p className=\"text-2xl font-bold\">{metrics.avg_rating.toFixed(1)}/5</p>
+                  <p className="text-sm font-medium text-muted-foreground">Avaliação Média</p>
+                  <p className="text-2xl font-bold">{metrics.avg_rating.toFixed(1)}/5</p>
                 </div>
               </div>
             </CardContent>
@@ -363,21 +363,21 @@ export default function QueueReportsPage() {
       )}
 
       {/* Charts */}
-      <div className=\"grid grid-cols-1 lg:grid-cols-2 gap-6\">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Daily Volume Chart */}
         <Card>
           <CardHeader>
             <CardTitle>Volume Diário de Atendimentos</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width=\"100%\" height={300}>
+            <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={chartData}>
-                <CartesianGrid strokeDasharray=\"3 3\" />
-                <XAxis dataKey=\"date\" />
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
                 <YAxis />
                 <Tooltip />
-                <Area type=\"monotone\" dataKey=\"completed\" stackId=\"1\" stroke=\"#10b981\" fill=\"#10b981\" />
-                <Area type=\"monotone\" dataKey=\"abandoned\" stackId=\"1\" stroke=\"#f59e0b\" fill=\"#f59e0b\" />
+                <Area type="monotone" dataKey="completed" stackId="1" stroke="#10b981" fill="#10b981" />
+                <Area type="monotone" dataKey="abandoned" stackId="1" stroke="#f59e0b" fill="#f59e0b" />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -389,13 +389,13 @@ export default function QueueReportsPage() {
             <CardTitle>Tendência do Tempo de Espera</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width=\"100%\" height={300}>
+            <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray=\"3 3\" />
-                <XAxis dataKey=\"date\" />
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
                 <YAxis />
                 <Tooltip formatter={(value) => [formatTime(Number(value)), 'Tempo Médio']} />
-                <Line type=\"monotone\" dataKey=\"avg_wait_time\" stroke=\"#3b82f6\" strokeWidth={2} />
+                <Line type="monotone" dataKey="avg_wait_time" stroke="#3b82f6" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -407,13 +407,13 @@ export default function QueueReportsPage() {
             <CardTitle>Distribuição de Avaliações</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width=\"100%\" height={300}>
+            <ResponsiveContainer width="100%" height={300}>
               <BarChart data={ratingData}>
-                <CartesianGrid strokeDasharray=\"3 3\" />
-                <XAxis dataKey=\"rating\" />
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="rating" />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey=\"count\" fill=\"#8884d8\" />
+                <Bar dataKey="count" fill="#8884d8" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -425,17 +425,17 @@ export default function QueueReportsPage() {
             <CardTitle>Distribuição por Fila</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width=\"100%\" height={300}>
+            <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
                   data={queueData}
-                  cx=\"50%\"
-                  cy=\"50%\"
+                  cx="50%"
+                  cy="50%"
                   labelLine={false}
                   label={({ name, percentage }) => `${name}: ${percentage.toFixed(1)}%`}
                   outerRadius={80}
-                  fill=\"#8884d8\"
-                  dataKey=\"value\"
+                  fill="#8884d8"
+                  dataKey="value"
                 >
                   {queueData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -450,29 +450,29 @@ export default function QueueReportsPage() {
 
       {/* Detailed Performance Metrics */}
       {metrics && (
-        <div className=\"grid grid-cols-1 md:grid-cols-2 gap-6\">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
               <CardTitle>Métricas de Performance</CardTitle>
             </CardHeader>
-            <CardContent className=\"space-y-4\">
-              <div className=\"flex justify-between items-center\">
-                <span className=\"text-sm font-medium\">Nível de Serviço (≤5min)</span>
-                <span className=\"text-sm font-bold\">{metrics.service_level.toFixed(1)}%</span>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Nível de Serviço (≤5min)</span>
+                <span className="text-sm font-bold">{metrics.service_level.toFixed(1)}%</span>
               </div>
-              <Progress value={metrics.service_level} className=\"w-full\" />
+              <Progress value={metrics.service_level} className="w-full" />
               
-              <div className=\"flex justify-between items-center\">
-                <span className=\"text-sm font-medium\">Taxa de Conclusão</span>
-                <span className=\"text-sm font-bold\">{metrics.completion_rate.toFixed(1)}%</span>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Taxa de Conclusão</span>
+                <span className="text-sm font-bold">{metrics.completion_rate.toFixed(1)}%</span>
               </div>
-              <Progress value={metrics.completion_rate} className=\"w-full\" />
+              <Progress value={metrics.completion_rate} className="w-full" />
               
-              <div className=\"flex justify-between items-center\">
-                <span className=\"text-sm font-medium\">Taxa de Abandono</span>
-                <span className=\"text-sm font-bold text-red-600\">{metrics.abandonment_rate.toFixed(1)}%</span>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Taxa de Abandono</span>
+                <span className="text-sm font-bold text-red-600">{metrics.abandonment_rate.toFixed(1)}%</span>
               </div>
-              <Progress value={metrics.abandonment_rate} className=\"w-full\" />
+              <Progress value={metrics.abandonment_rate} className="w-full" />
             </CardContent>
           </Card>
 
@@ -480,24 +480,24 @@ export default function QueueReportsPage() {
             <CardHeader>
               <CardTitle>Resumo de Tempos</CardTitle>
             </CardHeader>
-            <CardContent className=\"space-y-4\">
-              <div className=\"grid grid-cols-2 gap-4\">
-                <div className=\"text-center p-4 bg-blue-50 rounded-lg\">
-                  <Clock className=\"h-6 w-6 text-blue-600 mx-auto mb-2\" />
-                  <p className=\"text-2xl font-bold text-blue-600\">{formatTime(metrics.avg_wait_time)}</p>
-                  <p className=\"text-sm text-muted-foreground\">Tempo Médio de Espera</p>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <Clock className="h-6 w-6 text-blue-600 mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-blue-600">{formatTime(metrics.avg_wait_time)}</p>
+                  <p className="text-sm text-muted-foreground">Tempo Médio de Espera</p>
                 </div>
-                <div className=\"text-center p-4 bg-green-50 rounded-lg\">
-                  <Users className=\"h-6 w-6 text-green-600 mx-auto mb-2\" />
-                  <p className=\"text-2xl font-bold text-green-600\">{formatTime(metrics.avg_handling_time)}</p>
-                  <p className=\"text-sm text-muted-foreground\">Tempo Médio de Atendimento</p>
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <Users className="h-6 w-6 text-green-600 mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-green-600">{formatTime(metrics.avg_handling_time)}</p>
+                  <p className="text-sm text-muted-foreground">Tempo Médio de Atendimento</p>
                 </div>
               </div>
               
-              <div className=\"text-center p-4 bg-purple-50 rounded-lg\">
-                <Star className=\"h-6 w-6 text-purple-600 mx-auto mb-2\" />
-                <p className=\"text-2xl font-bold text-purple-600\">{metrics.avg_rating.toFixed(1)}/5.0</p>
-                <p className=\"text-sm text-muted-foreground\">Satisfação do Cliente</p>
+              <div className="text-center p-4 bg-purple-50 rounded-lg">
+                <Star className="h-6 w-6 text-purple-600 mx-auto mb-2" />
+                <p className="text-2xl font-bold text-purple-600">{metrics.avg_rating.toFixed(1)}/5.0</p>
+                <p className="text-sm text-muted-foreground">Satisfação do Cliente</p>
               </div>
             </CardContent>
           </Card>
@@ -505,10 +505,10 @@ export default function QueueReportsPage() {
       )}
 
       {history.length === 0 && (
-        <Card className=\"p-12 text-center\">
-          <BarChart className=\"h-12 w-12 text-muted-foreground mx-auto mb-4\" />
-          <h3 className=\"text-lg font-semibold mb-2\">Nenhum dado encontrado</h3>
-          <p className=\"text-muted-foreground\">
+        <Card className="p-12 text-center">
+          <BarChart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Nenhum dado encontrado</h3>
+          <p className="text-muted-foreground">
             Não há dados disponíveis para o período e filtros selecionados
           </p>
         </Card>

@@ -3,6 +3,9 @@ import { Inter } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
+import { AuthProvider } from "@/contexts/auth-context";
+import { RouteGuard } from "@/components/auth/protected-route";
+import { NotificationsProvider } from "@/components/providers/notifications-provider";
 import "./globals.css";
 
 const inter = Inter({
@@ -100,9 +103,15 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ToastProvider>
-            {children}
-          </ToastProvider>
+          <AuthProvider>
+            <NotificationsProvider>
+              <RouteGuard>
+                <ToastProvider>
+                  {children}
+                </ToastProvider>
+              </RouteGuard>
+            </NotificationsProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

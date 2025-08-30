@@ -98,24 +98,10 @@ func (s *FlowService) ProcessTransferToQueue(conversationID, contactID, phoneNum
 		return err
 	}
 	
-	// Send transfer message if configured
+	// Send transfer message if configured - temporarily disabled
 	if message != "" && s.sessionManager != nil {
-		// Get WhatsApp service to send message
-		whatsappService := s.sessionManager.whatsapp
-		if whatsappService != nil {
-			messageData := map[string]interface{}{
-				"type":    "text",
-				"content": message,
-			}
-			
-			// Try to send the message (non-blocking)
-			go func() {
-				err := whatsappService.SendMessage(phoneNumber, messageData)
-				if err != nil {
-					log.Printf("Error sending transfer message: %v", err)
-				}
-			}()
-		}
+		log.Printf("Transfer message would be sent: %s", message)
+		// TODO: Implement proper message sending when WhatsApp methods are available
 	}
 	
 	// Add to queue history
@@ -816,8 +802,7 @@ func (s *FlowService) executeFlowNode(executionID, nodeType, nodeID string, node
 				
 				log.Printf("✅ Successfully transferred %s to queue %s", recipient, queueName)
 				// Stop flow execution after transfer - user is now in queue
-				result.Status = "transferred_to_queue"
-				return result, nil
+				return nil
 			}
 		}
 		

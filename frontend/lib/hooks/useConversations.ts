@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { conversationsApi, type Conversation, type Message, type MessageInput } from '@/lib/api/conversations'
 import { useWebSocket, type WebSocketMessage } from './useWebSocket'
 import { useAuthContext } from '@/contexts/auth-context'
+import { useNotifications } from './useNotifications'
 
 interface ConversationsState {
   conversations: Conversation[]
@@ -16,7 +17,7 @@ interface ConversationsState {
 }
 
 export function useConversations() {
-  const { isAuthenticated } = useAuthContext()
+  const { isAuthenticated, user } = useAuthContext()
   const [state, setState] = useState<ConversationsState>({
     conversations: [],
     currentConversation: null,
@@ -30,6 +31,16 @@ export function useConversations() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
+  // Notifications integration
+  const {
+    notifyNewMessage,
+    notifyAssignment,
+    notifyPriority,
+    notifyLongWait,
+    notifyConnectionLost,
+    updateBadge
+  } = useNotifications()
+
   // WebSocket connection
   const { isConnected, sendMessage: wsSendMessage } = useWebSocket({
     onMessage: handleWebSocketMessage,
@@ -38,6 +49,7 @@ export function useConversations() {
     },
     onDisconnect: () => {
       console.log('Conversations WebSocket disconnected')
+      notifyConnectionLost()
     }
   })
 
@@ -79,6 +91,8 @@ export function useConversations() {
       const existingIndex = conversationMessages.findIndex(m => m.id === message.id)
       
       let updatedMessages: Message[]
+      let isNewMessage = false
+      
       if (existingIndex >= 0) {
         // Update existing message
         updatedMessages = [...conversationMessages]
@@ -88,6 +102,7 @@ export function useConversations() {
         updatedMessages = [...conversationMessages, message].sort(
           (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         )
+        isNewMessage = true
       }
 
       // Update conversation's last message
@@ -103,6 +118,31 @@ export function useConversations() {
         return conv
       })
 
+      const newUnreadCount = message.sender_type === 'contact' ? prev.unreadCount + 1 : prev.unreadCount
+
+      // Trigger notifications for new contact messages
+      if (isNewMessage && message.sender_type === 'contact') {
+        const conversation = prev.conversations.find(c => c.id === message.conversation_id)
+        const senderName = conversation?.contact?.name || conversation?.contact?.phone || 'Cliente'
+        
+        // Check if message is assigned to current user or if it's a priority
+        const isAssignedToUser = conversation?.assigned_to === user?.id
+        const isPriority = conversation?.tags?.includes('priority') || message.metadata?.priority === 'high'
+        
+        if (isPriority) {
+          notifyPriority(
+            `Mensagem Prioritária de ${senderName}`,
+            message.content,
+            message.conversation_id
+          )
+        } else if (isAssignedToUser || !conversation?.assigned_to) {
+          notifyNewMessage(senderName, message.content, message.conversation_id)
+        }
+        
+        // Update badge count
+        updateBadge(newUnreadCount)
+      }
+
       return {
         ...prev,
         messages: {
@@ -110,10 +150,10 @@ export function useConversations() {
           [message.conversation_id]: updatedMessages
         },
         conversations: updatedConversations,
-        unreadCount: message.sender_type === 'contact' ? prev.unreadCount + 1 : prev.unreadCount
+        unreadCount: newUnreadCount
       }
     })
-  }, [])
+  }, [notifyNewMessage, notifyPriority, updateBadge, user?.id])
 
   // Handle message status updates
   const handleMessageStatusUpdate = useCallback((data: { message_id: string; status: string; conversation_id: string }) => {
@@ -136,6 +176,18 @@ export function useConversations() {
   // Handle conversation updates
   const handleConversationUpdate = useCallback((conversation: Conversation) => {
     setState(prev => {
+      const oldConversation = prev.conversations.find(c => c.id === conversation.id)
+      
+      // Check if this is a new assignment to current user
+      const wasAssigned = oldConversation?.assigned_to === user?.id
+      const isNowAssigned = conversation.assigned_to === user?.id
+      
+      if (!wasAssigned && isNowAssigned) {
+        // Notify about new assignment
+        const customerName = conversation.contact?.name || conversation.contact?.phone || 'Cliente'
+        notifyAssignment(conversation.id, customerName)
+      }
+      
       const updatedConversations = prev.conversations.map(conv => 
         conv.id === conversation.id ? { ...conversation, ...conv } : conv
       )
@@ -148,7 +200,7 @@ export function useConversations() {
           : prev.currentConversation
       }
     })
-  }, [])
+  }, [notifyAssignment, user?.id])
 
   // Handle typing indicators
   const handleTypingStart = useCallback((data: { conversation_id: string; contact_id: string }) => {
@@ -196,6 +248,12 @@ export function useConversations() {
         isLoading: false,
         lastUpdated: new Date()
       }))
+      
+      // Update badge count
+      updateBadge(totalUnread)
+      
+      // Check for long waiting conversations and notify
+      checkLongWaitingConversations(conversations)
     } catch (error: any) {
       setState(prev => ({
         ...prev,
@@ -203,7 +261,32 @@ export function useConversations() {
         isLoading: false
       }))
     }
-  }, [isAuthenticated, statusFilter, searchTerm])
+  }, [isAuthenticated, statusFilter, searchTerm, updateBadge])
+
+  // Check for long waiting conversations
+  const checkLongWaitingConversations = useCallback((conversations: Conversation[]) => {
+    const now = new Date()
+    const LONG_WAIT_THRESHOLD = 30 * 60 * 1000 // 30 minutes in milliseconds
+    
+    conversations.forEach(conv => {
+      if (conv.status === 'waiting' && conv.assigned_to === user?.id) {
+        const lastMessageTime = conv.last_message_time ? new Date(conv.last_message_time) : new Date(conv.updated_at)
+        const waitTime = now.getTime() - lastMessageTime.getTime()
+        
+        if (waitTime > LONG_WAIT_THRESHOLD) {
+          const customerName = conv.contact?.name || conv.contact?.phone || 'Cliente'
+          const waitTimeFormatted = Math.floor(waitTime / (60 * 1000)) + ' minutos'
+          
+          // Only notify once per conversation per session (could be stored in localStorage)
+          const notificationKey = `long-wait-notified-${conv.id}`
+          if (!sessionStorage.getItem(notificationKey)) {
+            notifyLongWait(conv.id, customerName, waitTimeFormatted)
+            sessionStorage.setItem(notificationKey, 'true')
+          }
+        }
+      }
+    })
+  }, [user?.id, notifyLongWait])
 
   // Load messages for specific conversation
   const loadMessages = useCallback(async (conversationId: string) => {
@@ -249,17 +332,21 @@ export function useConversations() {
         
         const conversation = prev.conversations.find(c => c.id === conversationId)
         const prevUnread = conversation?.unread_count || 0
+        const newUnreadCount = Math.max(0, prev.unreadCount - prevUnread)
+        
+        // Update badge count
+        updateBadge(newUnreadCount)
         
         return {
           ...prev,
           conversations: updatedConversations,
-          unreadCount: Math.max(0, prev.unreadCount - prevUnread)
+          unreadCount: newUnreadCount
         }
       })
     } catch (error) {
       console.error('Error marking as read:', error)
     }
-  }, [])
+  }, [updateBadge])
 
   // Select conversation
   const selectConversation = useCallback(async (conversationId: string) => {

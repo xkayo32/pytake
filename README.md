@@ -8,6 +8,8 @@ PyTake é uma plataforma completa para automação de WhatsApp Business API, per
 
 - **Editor Visual de Flows**: Interface drag-and-drop para criar automações
 - **Sistema de Filas de Atendimento**: Gerenciamento completo de filas e agentes
+- **Dashboard Individual de Agentes**: Interface personalizada para cada agente
+- **Sistema de Notificações**: Notificações em tempo real com Web API e Service Worker
 - **Transfer to Queue**: Componente para transferir conversas para atendimento humano
 - **Fluxos Universais**: Automação que responde a qualquer mensagem automaticamente
 - **Sistema de Prioridades**: Template direto > Palavra-chave > Fluxo universal
@@ -214,6 +216,89 @@ Métricas agregadas por hora
 - `GET /api/v1/agents` - Listar agentes
 - `PUT /api/v1/agents/{id}/status` - Atualizar status do agente
 - `GET /api/v1/agents/{id}/queues` - Filas do agente
+
+## 👨‍💼 Dashboard Individual de Agentes
+
+### Visão Geral
+Dashboard personalizado para cada agente de atendimento, fornecendo métricas individuais, gestão de metas e acompanhamento de desempenho em tempo real.
+
+### Funcionalidades
+
+#### 📊 Métricas Pessoais
+- **Estatísticas do Dia**: Conversas atendidas, mensagens respondidas, tempo médio de resposta
+- **Visão Semanal**: Totais acumulados, taxa de resolução, retenção de clientes
+- **Relatório Mensal**: Performance geral, melhor dia, áreas de melhoria
+- **Status em Tempo Real**: Carga atual, capacidade máxima, última atividade
+
+#### 🎯 Gestão de Metas
+- **Metas Configuráveis**: Conversas diárias, satisfação do cliente, tempo de resposta
+- **Progresso Visual**: Barras de progresso com cálculos inteligentes
+- **Categorias**: Conversas, satisfação, tempo de resposta, eficiência, qualidade
+- **Acompanhamento**: Status de conclusão e deadlines
+
+#### 📈 Linha do Tempo de Atividades
+- **Eventos Rastreados**: Conversas iniciadas/finalizadas, metas alcançadas, feedback recebido
+- **Mudanças de Status**: Histórico de alterações (online/ocupado/ausente/pausa)
+- **Integração**: Conectado com sistema de conversas e notificações
+
+#### 🔄 Gestão de Status
+- **Estados Disponíveis**: Online, Ocupado, Ausente, Pausa, Offline
+- **Atualização em Tempo Real**: Sincronização automática com backend
+- **Horário de Trabalho**: Configuração de horários e fuso horário
+
+### Arquitetura Técnica
+
+```typescript
+// Hook principal useAgentMetrics
+interface AgentMetrics {
+  todayStats: { conversationsHandled, messagesResponded, avgResponseTime, ... }
+  weekStats: { totalConversations, avgSatisfaction, resolutionRate, ... }
+  monthStats: { totalConversations, bestDay, achievements, ... }
+  realTimeStats: { status, currentLoad, queuePosition, ... }
+}
+```
+
+### Integração com APIs
+
+- `GET /api/v1/agents/{id}/metrics` - Métricas do agente
+- `GET /api/v1/agents/{id}/goals` - Metas configuradas
+- `GET /api/v1/agents/{id}/activities` - Linha do tempo de atividades
+- `PUT /api/v1/agents/{id}/status` - Atualização de status
+
+## 🔔 Sistema de Notificações
+
+### Visão Geral
+Sistema completo de notificações em tempo real usando Web API, Service Worker e integração com WebSocket.
+
+### Funcionalidades
+
+#### 🌐 Web Notifications API
+- **Permissões Automáticas**: Solicitação inteligente de permissões
+- **Notificações Push**: Alertas mesmo com aba inativa
+- **Configuração Granular**: Som, vibração, duração personalizáveis
+- **Fallback Visual**: Notifications in-app quando permissão negada
+
+#### 🔊 Service Worker
+- **Background Processing**: Processamento em segundo plano
+- **Offline Support**: Cache de notificações importantes
+- **Sincronização**: Atualização quando conectividade retorna
+
+#### ⚙️ Configurações Personalizáveis
+- **Tipos de Notificação**: Novas mensagens, transferências de fila, metas alcançadas
+- **Preferências de Som**: Diferentes sons por tipo de evento
+- **Controle de Frequência**: Limites para evitar spam
+- **Horários**: Modo silencioso em períodos específicos
+
+### Integração com Sistema
+```typescript
+// Hook useNotifications
+const { 
+  showNotification,     // Exibir notificação
+  requestPermission,    // Solicitar permissão
+  isSupported,         // Verificar suporte
+  config              // Configurações atuais
+} = useNotifications()
+```
 
 ## 💬 Sistema de Conversas em Tempo Real
 

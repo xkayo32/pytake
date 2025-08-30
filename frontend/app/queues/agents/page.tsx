@@ -169,29 +169,29 @@ export default function AgentsPage() {
 
   if (isLoading) {
     return (
-      <div className=\"flex items-center justify-center h-64\">
-        <div className=\"animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600\"></div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     )
   }
 
   return (
-    <div className=\"p-6 space-y-6\">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className=\"flex justify-between items-center\">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className=\"text-3xl font-bold\">Agentes</h1>
-          <p className=\"text-muted-foreground\">
+          <h1 className="text-3xl font-bold">Agentes</h1>
+          <p className="text-muted-foreground">
             Monitore e gerencie agentes de atendimento
           </p>
         </div>
-        <div className=\"flex items-center space-x-4\">
+        <div className="flex items-center space-x-4">
           <Select value={selectedQueue} onValueChange={setSelectedQueue}>
-            <SelectTrigger className=\"w-48\">
-              <SelectValue placeholder=\"Filtrar por fila\" />
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filtrar por fila" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value=\"\">Todas as filas</SelectItem>
+              <SelectItem value="">Todas as filas</SelectItem>
               {queues.map((queue) => (
                 <SelectItem key={queue.id} value={queue.id}>
                   {queue.name}
@@ -203,47 +203,47 @@ export default function AgentsPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className=\"grid grid-cols-1 md:grid-cols-4 gap-4\">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className=\"p-6\">
-            <div className=\"flex items-center space-x-2\">
-              <UserCheck className=\"h-4 w-4 text-green-600\" />
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <UserCheck className="h-4 w-4 text-green-600" />
               <div>
-                <p className=\"text-sm font-medium text-muted-foreground\">Online</p>
-                <p className=\"text-2xl font-bold\">{onlineAgents.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Online</p>
+                <p className="text-2xl font-bold">{onlineAgents.length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className=\"p-6\">
-            <div className=\"flex items-center space-x-2\">
-              <MessageSquare className=\"h-4 w-4 text-red-600\" />
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <MessageSquare className="h-4 w-4 text-red-600" />
               <div>
-                <p className=\"text-sm font-medium text-muted-foreground\">Ocupados</p>
-                <p className=\"text-2xl font-bold\">{busyAgents.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Ocupados</p>
+                <p className="text-2xl font-bold">{busyAgents.length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className=\"p-6\">
-            <div className=\"flex items-center space-x-2\">
-              <Clock className=\"h-4 w-4 text-yellow-600\" />
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <Clock className="h-4 w-4 text-yellow-600" />
               <div>
-                <p className=\"text-sm font-medium text-muted-foreground\">Ausentes</p>
-                <p className=\"text-2xl font-bold\">{awayAgents.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Ausentes</p>
+                <p className="text-2xl font-bold">{awayAgents.length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className=\"p-6\">
-            <div className=\"flex items-center space-x-2\">
-              <UserX className=\"h-4 w-4 text-gray-600\" />
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <UserX className="h-4 w-4 text-gray-600" />
               <div>
-                <p className=\"text-sm font-medium text-muted-foreground\">Offline</p>
-                <p className=\"text-2xl font-bold\">{offlineAgents.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Offline</p>
+                <p className="text-2xl font-bold">{offlineAgents.length}</p>
               </div>
             </div>
           </CardContent>
@@ -251,43 +251,43 @@ export default function AgentsPage() {
       </div>
 
       {/* Agents Grid */}
-      <div className=\"grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6\">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {agents.map((agent) => {
           const StatusIcon = getStatusIcon(agent.status)
           return (
-            <Card key={agent.id} className=\"relative overflow-hidden\">
+            <Card key={agent.id} className="relative overflow-hidden">
               <div className={`absolute top-0 left-0 w-1 h-full ${getStatusColor(agent.status)}`} />
-              <CardHeader className=\"pb-3\">
-                <div className=\"flex items-center space-x-3\">
+              <CardHeader className="pb-3">
+                <div className="flex items-center space-x-3">
                   <Avatar>
                     <AvatarImage src={agent.avatar_url} />
                     <AvatarFallback>
                       {agent.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                     </AvatarFallback>
                   </Avatar>
-                  <div className=\"flex-1 min-w-0\">
-                    <h3 className=\"font-semibold truncate\">{agent.name}</h3>
-                    <p className=\"text-sm text-muted-foreground truncate\">{agent.email}</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold truncate">{agent.name}</h3>
+                    <p className="text-sm text-muted-foreground truncate">{agent.email}</p>
                   </div>
                   <Badge 
-                    variant=\"outline\" 
+                    variant="outline" 
                     className={`${getStatusColor(agent.status)} text-white border-0`}
                   >
-                    <StatusIcon className=\"h-3 w-3 mr-1\" />
+                    <StatusIcon className="h-3 w-3 mr-1" />
                     {getStatusLabel(agent.status)}
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className=\"space-y-4\">
+              <CardContent className="space-y-4">
                 {/* Capacity */}
-                <div className=\"space-y-2\">
-                  <div className=\"flex justify-between text-sm\">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
                     <span>Capacidade</span>
                     <span className={`px-2 py-1 rounded text-xs font-medium ${getCapacityColor(agent.capacity_percentage)}`}>
                       {agent.current_chats}/{agent.max_simultaneous_chats} ({Math.round(agent.capacity_percentage)}%)
                     </span>
                   </div>
-                  <div className=\"w-full bg-gray-200 rounded-full h-2\">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className={`h-2 rounded-full transition-all duration-300 ${
                         agent.capacity_percentage >= 90 ? 'bg-red-500' :
@@ -300,45 +300,45 @@ export default function AgentsPage() {
                 </div>
 
                 {/* Last Activity */}
-                <div className=\"flex items-center justify-between text-sm text-muted-foreground\">
-                  <div className=\"flex items-center space-x-1\">
-                    <Activity className=\"h-4 w-4\" />
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <div className="flex items-center space-x-1">
+                    <Activity className="h-4 w-4" />
                     <span>Última atividade</span>
                   </div>
                   <span>{formatLastActivity(agent.last_activity_at)}</span>
                 </div>
 
                 {/* Actions */}
-                <div className=\"flex space-x-2 pt-2\">
+                <div className="flex space-x-2 pt-2">
                   <Select 
                     value={agent.status} 
                     onValueChange={(value) => updateAgentStatus(agent.id, value)}
                   >
-                    <SelectTrigger className=\"flex-1\">
+                    <SelectTrigger className="flex-1">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value=\"online\">
-                        <div className=\"flex items-center space-x-2\">
-                          <UserCheck className=\"h-4 w-4 text-green-600\" />
+                      <SelectItem value="online">
+                        <div className="flex items-center space-x-2">
+                          <UserCheck className="h-4 w-4 text-green-600" />
                           <span>Online</span>
                         </div>
                       </SelectItem>
-                      <SelectItem value=\"away\">
-                        <div className=\"flex items-center space-x-2\">
-                          <Clock className=\"h-4 w-4 text-yellow-600\" />
+                      <SelectItem value="away">
+                        <div className="flex items-center space-x-2">
+                          <Clock className="h-4 w-4 text-yellow-600" />
                           <span>Ausente</span>
                         </div>
                       </SelectItem>
-                      <SelectItem value=\"break\">
-                        <div className=\"flex items-center space-x-2\">
-                          <Coffee className=\"h-4 w-4 text-blue-600\" />
+                      <SelectItem value="break">
+                        <div className="flex items-center space-x-2">
+                          <Coffee className="h-4 w-4 text-blue-600" />
                           <span>Pausa</span>
                         </div>
                       </SelectItem>
-                      <SelectItem value=\"offline\">
-                        <div className=\"flex items-center space-x-2\">
-                          <UserX className=\"h-4 w-4 text-gray-600\" />
+                      <SelectItem value="offline">
+                        <div className="flex items-center space-x-2">
+                          <UserX className="h-4 w-4 text-gray-600" />
                           <span>Offline</span>
                         </div>
                       </SelectItem>
@@ -347,11 +347,11 @@ export default function AgentsPage() {
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button 
-                        size=\"sm\" 
-                        variant=\"outline\"
+                        size="sm" 
+                        variant="outline"
                         onClick={() => setSelectedAgent(agent)}
                       >
-                        <Settings className=\"h-4 w-4\" />
+                        <Settings className="h-4 w-4" />
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
@@ -362,23 +362,23 @@ export default function AgentsPage() {
                         </DialogDescription>
                       </DialogHeader>
                       {selectedAgent && (
-                        <div className=\"space-y-4\">
-                          <div className=\"grid grid-cols-2 gap-4\">
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <label className=\"text-sm font-medium text-muted-foreground\">Email</label>
-                              <p className=\"text-sm\">{selectedAgent.email}</p>
+                              <label className="text-sm font-medium text-muted-foreground">Email</label>
+                              <p className="text-sm">{selectedAgent.email}</p>
                             </div>
                             <div>
-                              <label className=\"text-sm font-medium text-muted-foreground\">Status</label>
-                              <p className=\"text-sm\">{getStatusLabel(selectedAgent.status)}</p>
+                              <label className="text-sm font-medium text-muted-foreground">Status</label>
+                              <p className="text-sm">{getStatusLabel(selectedAgent.status)}</p>
                             </div>
                             <div>
-                              <label className=\"text-sm font-medium text-muted-foreground\">Chats Atuais</label>
-                              <p className=\"text-sm\">{selectedAgent.current_chats}</p>
+                              <label className="text-sm font-medium text-muted-foreground">Chats Atuais</label>
+                              <p className="text-sm">{selectedAgent.current_chats}</p>
                             </div>
                             <div>
-                              <label className=\"text-sm font-medium text-muted-foreground\">Capacidade Máxima</label>
-                              <p className=\"text-sm\">{selectedAgent.max_simultaneous_chats}</p>
+                              <label className="text-sm font-medium text-muted-foreground">Capacidade Máxima</label>
+                              <p className="text-sm">{selectedAgent.max_simultaneous_chats}</p>
                             </div>
                           </div>
                         </div>
@@ -393,10 +393,10 @@ export default function AgentsPage() {
       </div>
 
       {agents.length === 0 && (
-        <Card className=\"p-12 text-center\">
-          <Users className=\"h-12 w-12 text-muted-foreground mx-auto mb-4\" />
-          <h3 className=\"text-lg font-semibold mb-2\">Nenhum agente encontrado</h3>
-          <p className=\"text-muted-foreground\">
+        <Card className="p-12 text-center">
+          <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Nenhum agente encontrado</h3>
+          <p className="text-muted-foreground">
             {selectedQueue 
               ? 'Nenhum agente encontrado para a fila selecionada'
               : 'Cadastre agentes para começar a usar o sistema de filas'
