@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AppLayout } from '@/components/layout/app-layout'
 import { NotificationsSettings } from '@/components/settings/notifications-settings'
+import { BackupSettings } from '@/components/settings/backup-settings'
 import { 
   Bell, 
   User, 
@@ -200,19 +201,7 @@ export default function SettingsPage() {
 
           {/* Data Settings */}
           <TabsContent value="data">
-            <Card>
-              <CardHeader>
-                <CardTitle>Gerenciamento de Dados</CardTitle>
-                <CardDescription>
-                  Backup, exportação e gerenciamento dos seus dados
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  As configurações de dados estarão disponíveis em breve.
-                </p>
-              </CardContent>
-            </Card>
+            <BackupSettings />
           </TabsContent>
 
           {/* Automations Settings */}
