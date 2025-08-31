@@ -116,6 +116,7 @@ export function AppSidebar() {
     {
       title: 'Configurações',
       items: [
+        { icon: Shield, label: 'Auditoria', href: '/audit' },
         { icon: Building2, label: 'Empresa', href: '/settings/company' },
         { icon: UserCircle, label: 'Perfil', href: '/settings/profile' },
         { icon: Users, label: 'Equipe', href: '/settings/team' },

@@ -6,6 +6,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import { AuthProvider } from "@/contexts/auth-context";
 import { RouteGuard } from "@/components/auth/protected-route";
 import { NotificationsProvider } from "@/components/providers/notifications-provider";
+import { AuditProvider } from "@/contexts/audit-context";
 import "./globals.css";
 
 const inter = Inter({
@@ -104,13 +105,15 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <NotificationsProvider>
-              <RouteGuard>
-                <ToastProvider>
-                  {children}
-                </ToastProvider>
-              </RouteGuard>
-            </NotificationsProvider>
+            <AuditProvider>
+              <NotificationsProvider>
+                <RouteGuard>
+                  <ToastProvider>
+                    {children}
+                  </ToastProvider>
+                </RouteGuard>
+              </NotificationsProvider>
+            </AuditProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

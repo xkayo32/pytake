@@ -26,6 +26,7 @@ import { useSuggestions } from '@/lib/hooks/useSuggestions'
 import { useIntentClassification } from '@/lib/hooks/useIntentClassification'
 import { AIInsightsDashboard } from '@/components/ai/ai-insights-dashboard'
 import { BackupStatusWidget } from '@/components/dashboard/backup-status-widget'
+import { AuditWidget } from '@/components/dashboard/audit-widget'
 import { 
   LineChart, 
   Line, 
@@ -448,6 +449,9 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Audit Widget */}
+          <AuditWidget />
         </div>
       </div>
     </AppLayout>
