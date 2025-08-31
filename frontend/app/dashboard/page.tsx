@@ -27,6 +27,7 @@ import { useIntentClassification } from '@/lib/hooks/useIntentClassification'
 import { AIInsightsDashboard } from '@/components/ai/ai-insights-dashboard'
 import { BackupStatusWidget } from '@/components/dashboard/backup-status-widget'
 import { AuditWidget } from '@/components/dashboard/audit-widget'
+import { SystemStatusWidget } from '@/components/dashboard/system-status-widget'
 import { 
   LineChart, 
   Line, 
@@ -452,6 +453,9 @@ export default function DashboardPage() {
 
           {/* Audit Widget */}
           <AuditWidget />
+          
+          {/* System Status Widget */}
+          <SystemStatusWidget />
         </div>
       </div>
     </AppLayout>
