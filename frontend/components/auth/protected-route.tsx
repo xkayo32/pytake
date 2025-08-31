@@ -16,10 +16,15 @@ export function ProtectedRoute({ children, requireAuth = true }: ProtectedRouteP
   const pathname = usePathname()
 
   useEffect(() => {
-    if (!isLoading && requireAuth && !isAuthenticated) {
-      // Store the attempted URL to redirect after login
-      sessionStorage.setItem('redirectAfterLogin', pathname)
-      router.push('/login')
+    if (!isLoading) {
+      if (requireAuth && !isAuthenticated) {
+        // Store the attempted URL to redirect after login
+        sessionStorage.setItem('redirectAfterLogin', pathname)
+        router.push('/login')
+      } else if (isAuthenticated && (pathname === '/login' || pathname === '/register')) {
+        // If user is authenticated and trying to access login/register, redirect to dashboard
+        router.push('/dashboard')
+      }
     }
   }, [isAuthenticated, isLoading, requireAuth, router, pathname])
 
@@ -35,15 +40,28 @@ export function ProtectedRoute({ children, requireAuth = true }: ProtectedRouteP
     )
   }
 
-  // If auth is required and user is not authenticated, return null (redirect will happen)
+  // If auth is required and user is not authenticated, show loading while redirect happens
   if (requireAuth && !isAuthenticated) {
-    return null
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Redirecionando...</p>
+        </div>
+      </div>
+    )
   }
 
-  // If user is authenticated and trying to access login/register, redirect to dashboard
+  // If user is authenticated and trying to access login/register, show loading while redirect happens
   if (isAuthenticated && (pathname === '/login' || pathname === '/register')) {
-    router.push('/dashboard')
-    return null
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Redirecionando para dashboard...</p>
+        </div>
+      </div>
+    )
   }
 
   return <>{children}</>
