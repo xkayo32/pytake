@@ -417,7 +417,7 @@ export function AIInsightsDashboard({
           <TabsTrigger value="sentiment">Sentimento</TabsTrigger>
           <TabsTrigger value="intents">Intenções</TabsTrigger>
           <TabsTrigger value="chatbot">Chatbot</TabsTrigger>
-        </Tabs>
+        </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
           {/* Insights Feed */}

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { useNotifications } from '@/lib/hooks/useNotifications'
+import { NotificationProvider } from '@/contexts/notification-context'
 import { soundGenerator } from '@/lib/utils/soundGenerator'
 
 interface NotificationsProviderProps {
@@ -117,7 +118,11 @@ export function NotificationsProvider({ children }: NotificationsProviderProps) 
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
 
-  return <>{children}</>
+  return (
+    <NotificationProvider>
+      {children}
+    </NotificationProvider>
+  )
 }
 
 // Hook to send messages to service worker

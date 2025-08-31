@@ -8,6 +8,10 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useConversations } from '@/lib/hooks/useConversations'
+import { useSentimentAnalysis } from '@/lib/hooks/useSentimentAnalysis'
+import { useIntentClassification } from '@/lib/hooks/useIntentClassification'
+import { SentimentIndicator } from '@/components/ai/sentiment-indicator'
+import { IntentDisplay } from '@/components/ai/intent-display'
 import { 
   MessageCircle, 
   Search, 
@@ -44,6 +48,19 @@ export default function ConversationsViewPage() {
     selectConversation,
     loadConversations
   } = useConversations()
+
+  // Mock data for AI analysis per conversation
+  const getConversationAnalysis = (conversation: any) => {
+    const mockMessages = [
+      { 
+        id: `msg-${conversation.id}-1`, 
+        content: conversation.last_message || 'Olá, preciso de ajuda!', 
+        sender: 'customer' as const, 
+        timestamp: new Date(conversation.last_message_time || Date.now()) 
+      }
+    ]
+    return { messages: mockMessages }
+  }
 
   // Helper functions
   const getStatusColor = (status: string) => {
@@ -214,37 +231,43 @@ export default function ConversationsViewPage() {
               </p>
             </Card>
           ) : (
-            conversations.map((conversation) => (
-              <Card 
-                key={conversation.id} 
-                className="hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => selectConversation(conversation.id)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    {/* Avatar */}
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback>
-                        {getContactInitials(conversation.contact?.name, conversation.contact?.phone)}
-                      </AvatarFallback>
-                    </Avatar>
+            conversations.map((conversation) => {
+              const analysisData = getConversationAnalysis(conversation)
+              
+              return (
+                <Card 
+                  key={conversation.id} 
+                  className="hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => selectConversation(conversation.id)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      {/* Avatar */}
+                      <Avatar className="h-12 w-12">
+                        <AvatarFallback>
+                          {getContactInitials(conversation.contact?.name, conversation.contact?.phone)}
+                        </AvatarFallback>
+                      </Avatar>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold truncate">
-                            {conversation.contact?.name || conversation.contact?.phone || 'Contato'}
-                          </h3>
-                          <div className={`w-2 h-2 rounded-full ${getStatusColor(conversation.status)}`} />
-                          <Badge variant="outline" className="text-xs">
-                            {getStatusLabel(conversation.status)}
-                          </Badge>
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold truncate">
+                              {conversation.contact?.name || conversation.contact?.phone || 'Contato'}
+                            </h3>
+                            <div className={`w-2 h-2 rounded-full ${getStatusColor(conversation.status)}`} />
+                            <Badge variant="outline" className="text-xs">
+                              {getStatusLabel(conversation.status)}
+                            </Badge>
+                            
+                            {/* AI Analysis Components */}
+                            <ConversationAIInsights conversation={conversation} messages={analysisData.messages} />
+                          </div>
+                          <span className="text-xs text-foreground-secondary">
+                            {formatLastSeen(conversation.last_message_time || conversation.updated_at)}
+                          </span>
                         </div>
-                        <span className="text-xs text-foreground-secondary">
-                          {formatLastSeen(conversation.last_message_time || conversation.updated_at)}
-                        </span>
-                      </div>
                       
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-sm text-foreground-secondary truncate flex-1">
@@ -283,7 +306,7 @@ export default function ConversationsViewPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))
+            )})
           )}
         </div>
 
@@ -315,5 +338,35 @@ export default function ConversationsViewPage() {
         </div>
       </div>
     </AppLayout>
+  )
+}
+
+// AI Insights Component for each conversation
+function ConversationAIInsights({ conversation, messages }: { conversation: any; messages: any[] }) {
+  const sentimentAnalysis = useSentimentAnalysis(messages)
+  const intentClassification = useIntentClassification(messages)
+
+  if (!sentimentAnalysis.hasCurrentAnalysis && !intentClassification.currentIntent) {
+    return null
+  }
+
+  return (
+    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+      {sentimentAnalysis.hasCurrentAnalysis && sentimentAnalysis.currentSentiment && (
+        <SentimentIndicator 
+          result={sentimentAnalysis.currentSentiment}
+          size="sm"
+          showLabel={false}
+        />
+      )}
+      {intentClassification.currentIntent && (
+        <IntentDisplay 
+          result={intentClassification.currentIntent}
+          confidence={intentClassification.recentConfidence}
+          size="sm"
+          showLabel={false}
+        />
+      )}
+    </div>
   )
 }

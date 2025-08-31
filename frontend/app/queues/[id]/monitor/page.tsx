@@ -24,6 +24,10 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { useSentimentAnalysis } from '@/lib/hooks/useSentimentAnalysis'
+import { useIntentClassification } from '@/lib/hooks/useIntentClassification'
+import { SentimentIndicator } from '@/components/ai/sentiment-indicator'
+import { IntentDisplay } from '@/components/ai/intent-display'
 import {
   Users,
   Clock,
@@ -396,6 +400,7 @@ export default function QueueMonitorPage() {
                     <Badge variant={isCriticalWait ? "destructive" : "outline"} className="text-xs">
                       {getPriorityLabel(item.priority)}
                     </Badge>
+                    <QueueItemAIAnalysis item={item} />
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
@@ -600,5 +605,43 @@ export default function QueueMonitorPage() {
       </div>
       </div>
     </AppLayout>
+  )
+}
+
+// AI Analysis Component for queue items
+function QueueItemAIAnalysis({ item }: { item: QueueItem }) {
+  // Mock message based on queue context - customer likely expressed frustration about waiting
+  const mockMessages = [
+    { 
+      id: `queue-msg-${item.id}`, 
+      content: item.priority === 2 ? 'Preciso de ajuda urgente! Já estou esperando há muito tempo!' : 
+               item.priority === 1 ? 'Olá, preciso de suporte, por favor' : 
+               'Oi, gostaria de atendimento', 
+      sender: 'customer' as const, 
+      timestamp: new Date(item.wait_start_time) 
+    }
+  ]
+  
+  const sentimentAnalysis = useSentimentAnalysis(mockMessages)
+  const intentClassification = useIntentClassification(mockMessages)
+
+  return (
+    <div className="flex items-center gap-1">
+      {sentimentAnalysis.hasCurrentAnalysis && sentimentAnalysis.needsImmediateAttention && sentimentAnalysis.currentSentiment && (
+        <SentimentIndicator 
+          result={sentimentAnalysis.currentSentiment}
+          size="xs"
+          showLabel={false}
+        />
+      )}
+      {intentClassification.currentIntent && intentClassification.currentIntent.intent === 'urgent' && (
+        <IntentDisplay 
+          result={intentClassification.currentIntent}
+          confidence={intentClassification.recentConfidence}
+          size="xs"
+          showLabel={false}
+        />
+      )}
+    </div>
   )
 }

@@ -2,6 +2,7 @@
 
 import { AppSidebar } from './app-sidebar'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { NotificationCenter } from '@/components/notifications/notification-center'
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -10,7 +11,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
         <header className="h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center justify-end px-6">
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <NotificationCenter />
+            <ThemeToggle />
+          </div>
         </header>
         
         {/* Main Content */}

@@ -21,6 +21,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AppLayout } from '@/components/layout/app-layout'
 import { useAuthContext } from '@/contexts/auth-context'
 import { useDashboard } from '@/lib/hooks/useDashboard'
+import { useSentimentAnalysis } from '@/lib/hooks/useSentimentAnalysis'
+import { useSuggestions } from '@/lib/hooks/useSuggestions'
+import { useIntentClassification } from '@/lib/hooks/useIntentClassification'
+import { AIInsightsDashboard } from '@/components/ai/ai-insights-dashboard'
 import { 
   LineChart, 
   Line, 
@@ -87,6 +91,25 @@ function formatWaitTime(seconds: number | null | undefined): string {
   return `${hours}h ${minutes}m`
 }
 
+// Mock conversation data for AI analysis
+const mockMessages = [
+  { id: '1', content: 'Olá, preciso de ajuda urgente com meu pedido!', sender: 'customer' as const, timestamp: new Date() },
+  { id: '2', content: 'Claro! Posso ajudar. Qual é o número do seu pedido?', sender: 'agent' as const, timestamp: new Date() },
+  { id: '3', content: 'É o pedido #12345. Já faz uma semana que está em processamento.', sender: 'customer' as const, timestamp: new Date() },
+]
+
+const mockConversation = {
+  id: 'conv-1',
+  customerId: 'customer-1',
+  messages: mockMessages,
+  customer: { id: 'customer-1', name: 'João Silva', phone: '+5511999999999' },
+  agent: { id: 'agent-1', name: 'Maria' },
+  status: 'active' as const,
+  tags: [],
+  createdAt: new Date(),
+  updatedAt: new Date()
+}
+
 export default function DashboardPage() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuthContext()
   const { 
@@ -100,6 +123,12 @@ export default function DashboardPage() {
     lastUpdated,
     refresh 
   } = useDashboard()
+  
+  // AI hooks for dashboard insights
+  const sentimentAnalysis = useSentimentAnalysis(mockMessages)
+  const suggestions = useSuggestions(mockConversation)
+  const intentClassification = useIntentClassification(mockMessages)
+  
   const router = useRouter()
 
   useEffect(() => {
@@ -302,6 +331,44 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
+        </div>
+
+        {/* AI Insights Section */}
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold">Insights de IA</h2>
+              <p className="text-foreground-secondary">
+                Análise inteligente de conversas e sugestões em tempo real
+              </p>
+            </div>
+          </div>
+          
+          <AIInsightsDashboard 
+            sentiment={{
+              current: sentimentAnalysis.currentSentiment,
+              trend: sentimentAnalysis.sentimentTrend,
+              average: sentimentAnalysis.averageSentiment,
+              needsAttention: sentimentAnalysis.needsImmediateAttention
+            }}
+            suggestions={{
+              total: suggestions.suggestions.length,
+              top: suggestions.topSuggestion,
+              averageConfidence: suggestions.averageConfidence,
+              categories: suggestions.suggestionCategories
+            }}
+            intents={{
+              current: intentClassification.currentIntent,
+              confidence: intentClassification.recentConfidence,
+              recent: intentClassification.intentHistory.slice(0, 5)
+            }}
+            stats={{
+              totalAnalyses: sentimentAnalysis.totalAnalyses,
+              activeConversations: stats?.active_conversations || 0,
+              avgResponseTime: stats?.avg_wait_time_today || 0,
+              satisfactionScore: sentimentAnalysis.averageSentiment
+            }}
+          />
         </div>
 
         {/* Additional Stats */}
