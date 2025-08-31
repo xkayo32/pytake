@@ -28,6 +28,7 @@ import { AIInsightsDashboard } from '@/components/ai/ai-insights-dashboard'
 import { BackupStatusWidget } from '@/components/dashboard/backup-status-widget'
 import { AuditWidget } from '@/components/dashboard/audit-widget'
 import { SystemStatusWidget } from '@/components/dashboard/system-status-widget'
+import { OnboardingWidget } from '@/components/dashboard/onboarding-widget'
 import { 
   LineChart, 
   Line, 
@@ -456,6 +457,9 @@ export default function DashboardPage() {
           
           {/* System Status Widget */}
           <SystemStatusWidget />
+          
+          {/* Onboarding Widget */}
+          <OnboardingWidget />
         </div>
       </div>
     </AppLayout>
