@@ -28,6 +28,7 @@ interface UseWebSocketOptions {
   onError?: (error: Event) => void
   autoReconnect?: boolean
   reconnectInterval?: number
+  enableInDevelopment?: boolean
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
@@ -47,7 +48,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     onDisconnect,
     onError,
     autoReconnect = true,
-    reconnectInterval = 3000
+    reconnectInterval = 3000,
+    enableInDevelopment = false
   } = options
 
   const getWebSocketUrl = useCallback(() => {
@@ -57,6 +59,13 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   }, [])
 
   const connect = useCallback(() => {
+    // Skip WebSocket connection in development unless explicitly enabled
+    if (process.env.NODE_ENV === 'development' && !enableInDevelopment) {
+      console.log('WebSocket: Skipped in development mode (enableInDevelopment=false)')
+      setConnectionStatus('disconnected')
+      return
+    }
+
     if (!isAuthenticated || !user) {
       console.log('WebSocket: Not authenticated, skipping connection')
       return
@@ -124,16 +133,25 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       }
 
       ws.onerror = (error) => {
-        console.error('WebSocket: Error', error)
+        // Only log WebSocket errors in production or when explicitly needed
+        if (process.env.NODE_ENV === 'production') {
+          console.error('WebSocket: Error', error)
+        } else {
+          console.warn('WebSocket: Connection failed (expected in development without WS server)')
+        }
         setConnectionStatus('error')
         onError?.(error)
       }
 
     } catch (error) {
-      console.error('WebSocket: Connection failed', error)
+      if (process.env.NODE_ENV === 'production') {
+        console.error('WebSocket: Connection failed', error)
+      } else {
+        console.warn('WebSocket: Connection failed (expected in development)', error)
+      }
       setConnectionStatus('error')
     }
-  }, [isAuthenticated, user, getWebSocketUrl, onConnect, onMessage, onDisconnect, onError, autoReconnect, reconnectInterval])
+  }, [isAuthenticated, user, getWebSocketUrl, onConnect, onMessage, onDisconnect, onError, autoReconnect, reconnectInterval, enableInDevelopment])
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
