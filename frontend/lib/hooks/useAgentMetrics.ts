@@ -155,17 +155,17 @@ export function useAgentMetrics(options: UseAgentMetricsOptions = {}) {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         }
-      })
+      }).catch(() => null)
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      if (response?.ok) {
+        const data = await response.json()
+        setMetrics(data)
+        return
       }
 
-      const data = await response.json()
-      setMetrics(data)
-    } catch (error: any) {
-      console.error('Error fetching agent metrics:', error)
-      // Use mock data as fallback
+      // Backend Go não tem APIs específicas de agent metrics ainda
+      // Usando dados simulados baseados no usuário logado  
+      console.log('Usando métricas simuladas para o agente:', user.name)
       setMetrics({
         todayStats: {
           conversationsHandled: Math.floor(Math.random() * 20) + 5,

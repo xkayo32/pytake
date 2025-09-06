@@ -185,6 +185,23 @@ func main() {
 		api.POST("/gamification/achievements/award", AwardAchievement)
 		api.PUT("/gamification/agents/:id/score", UpdateAgentScore)
 		
+		// Analytics routes
+		analyticsService := NewAnalyticsService(db, redis)
+		api.GET("/conversations/history", analyticsService.GetConversationHistory)
+		api.GET("/messages/volume", analyticsService.GetMessageVolume)
+		api.GET("/queues/response-times", analyticsService.GetResponseTimes)
+		api.GET("/flows/stats", analyticsService.GetFlowStats)
+		
+		// AI routes
+		api.POST("/ai/sentiment", AnalyzeSentiment)
+		api.GET("/ai/sentiment/stats", GetSentimentStats)
+		api.POST("/ai/intent", ClassifyIntent)
+		api.GET("/ai/intent/stats", GetIntentStats)
+		api.GET("/ai/intent/custom", CustomIntent)
+		api.POST("/ai/intent/custom", CustomIntent)
+		api.POST("/ai/suggestions", GenerateSuggestions)
+		api.GET("/ai/stats", GetAIStats)
+		
 		// Webhook routes
 		webhookService := NewWebhookService(db, redis)
 		api.POST("/whatsapp-configs/:id/webhook/validate", webhookService.ValidateWebhookConfig)

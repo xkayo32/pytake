@@ -27,8 +27,10 @@ services:
     container_name: pytake-redis
     restart: unless-stopped
     command: redis-server --requirepass ${REDIS_PASSWORD:-gOe7JRn+i8iWY5UAvYt3mJxBFJnAf9+jo/VZM3UN4xw=}
-    ports:
-      - "6380:6379"
+    # Removido ports para evitar exposição externa
+    # Redis agora só é acessível dentro da rede Docker
+    expose:
+      - "6379"
     volumes:
       - redis_data:/data
     networks:
@@ -149,17 +151,17 @@ services:
       timeout: 3s
       retries: 3
 
-  # Let's Encrypt SSL Certificate Management
-  certbot:
-    image: certbot/certbot
-    container_name: pytake-certbot
-    restart: unless-stopped
-    volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    command: /bin/sh -c "trap exit TERM; while :; do certbot renew; sleep 12h & wait $!; done;"
-    networks:
-      - pytake-network
+  # Let's Encrypt SSL Certificate Management (Disabled for local development)
+  # certbot:
+  #   image: certbot/certbot
+  #   container_name: pytake-certbot
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./certbot/conf:/etc/letsencrypt
+  #     - ./certbot/www:/var/www/certbot
+  #   command: /bin/sh -c "trap exit TERM; while :; do certbot renew; sleep 12h & wait $!; done;"
+  #   networks:
+  #     - pytake-network
 
 volumes:
   postgres_data:
