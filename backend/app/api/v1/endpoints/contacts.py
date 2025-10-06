@@ -1,0 +1,285 @@
+"""
+Contact Endpoints
+"""
+
+from typing import List, Optional
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Query, status
+
+from app.api.deps import get_current_user, get_db
+from app.models.user import User
+from app.schemas.contact import (
+    Contact,
+    ContactCreate,
+    ContactUpdate,
+    Tag,
+    TagCreate,
+    TagUpdate,
+)
+from app.services.contact_service import ContactService, TagService
+from sqlalchemy.ext.asyncio import AsyncSession
+
+router = APIRouter()
+
+
+# ============= Contacts =============
+
+@router.get("/", response_model=List[Contact])
+async def list_contacts(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+    query: Optional[str] = Query(None, description="Search query (name, email, phone, company)"),
+    assigned_agent_id: Optional[UUID] = None,
+    is_blocked: Optional[bool] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List contacts with optional filters
+    """
+    service = ContactService(db)
+    return await service.list_contacts(
+        organization_id=current_user.organization_id,
+        query=query,
+        assigned_agent_id=assigned_agent_id,
+        is_blocked=is_blocked,
+        skip=skip,
+        limit=limit,
+    )
+
+
+@router.post("/", response_model=Contact, status_code=status.HTTP_201_CREATED)
+async def create_contact(
+    data: ContactCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Create new contact
+    """
+    service = ContactService(db)
+    return await service.create_contact(
+        data=data,
+        organization_id=current_user.organization_id,
+    )
+
+
+@router.get("/{contact_id}", response_model=Contact)
+async def get_contact(
+    contact_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get contact by ID
+    """
+    service = ContactService(db)
+    return await service.get_by_id(
+        contact_id=contact_id,
+        organization_id=current_user.organization_id,
+    )
+
+
+@router.get("/{contact_id}/stats", response_model=dict)
+async def get_contact_stats(
+    contact_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get contact statistics
+    """
+    service = ContactService(db)
+    return await service.get_stats(
+        contact_id=contact_id,
+        organization_id=current_user.organization_id,
+    )
+
+
+@router.put("/{contact_id}", response_model=Contact)
+async def update_contact(
+    contact_id: UUID,
+    data: ContactUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Update contact
+    """
+    service = ContactService(db)
+    return await service.update_contact(
+        contact_id=contact_id,
+        data=data,
+        organization_id=current_user.organization_id,
+    )
+
+
+@router.delete("/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_contact(
+    contact_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delete contact (soft delete)
+    """
+    service = ContactService(db)
+    await service.delete_contact(
+        contact_id=contact_id,
+        organization_id=current_user.organization_id,
+    )
+    return None
+
+
+@router.post("/{contact_id}/block", response_model=Contact)
+async def block_contact(
+    contact_id: UUID,
+    reason: Optional[str] = Query(None, description="Reason for blocking"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Block a contact
+    """
+    service = ContactService(db)
+    return await service.block_contact(
+        contact_id=contact_id,
+        organization_id=current_user.organization_id,
+        reason=reason,
+    )
+
+
+@router.post("/{contact_id}/unblock", response_model=Contact)
+async def unblock_contact(
+    contact_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Unblock a contact
+    """
+    service = ContactService(db)
+    return await service.unblock_contact(
+        contact_id=contact_id,
+        organization_id=current_user.organization_id,
+    )
+
+
+@router.post("/{contact_id}/tags", response_model=Contact)
+async def add_contact_tags(
+    contact_id: UUID,
+    tag_ids: List[UUID],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Add tags to contact
+    """
+    service = ContactService(db)
+    return await service.add_tags(
+        contact_id=contact_id,
+        tag_ids=tag_ids,
+        organization_id=current_user.organization_id,
+    )
+
+
+@router.delete("/{contact_id}/tags", response_model=Contact)
+async def remove_contact_tags(
+    contact_id: UUID,
+    tag_ids: List[UUID],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Remove tags from contact
+    """
+    service = ContactService(db)
+    return await service.remove_tags(
+        contact_id=contact_id,
+        tag_ids=tag_ids,
+        organization_id=current_user.organization_id,
+    )
+
+
+# ============= Tags =============
+
+@router.get("/tags/", response_model=List[Tag])
+async def list_tags(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List all tags
+    """
+    service = TagService(db)
+    return await service.list_tags(
+        organization_id=current_user.organization_id,
+    )
+
+
+@router.post("/tags/", response_model=Tag, status_code=status.HTTP_201_CREATED)
+async def create_tag(
+    data: TagCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Create new tag
+    """
+    service = TagService(db)
+    return await service.create_tag(
+        data=data,
+        organization_id=current_user.organization_id,
+    )
+
+
+@router.get("/tags/{tag_id}", response_model=Tag)
+async def get_tag(
+    tag_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get tag by ID
+    """
+    service = TagService(db)
+    return await service.get_by_id(
+        tag_id=tag_id,
+        organization_id=current_user.organization_id,
+    )
+
+
+@router.put("/tags/{tag_id}", response_model=Tag)
+async def update_tag(
+    tag_id: UUID,
+    data: TagUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Update tag
+    """
+    service = TagService(db)
+    return await service.update_tag(
+        tag_id=tag_id,
+        data=data,
+        organization_id=current_user.organization_id,
+    )
+
+
+@router.delete("/tags/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_tag(
+    tag_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delete tag
+    """
+    service = TagService(db)
+    await service.delete_tag(
+        tag_id=tag_id,
+        organization_id=current_user.organization_id,
+    )
+    return None
