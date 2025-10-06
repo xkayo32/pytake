@@ -9,6 +9,7 @@
 
 # Security - NEVER commit these files
 SECURITY_CREDENTIALS.md
+CREDENTIALS.md
 **/credentials.*
 **/secrets.*
 *.key

@@ -1,24 +1,30 @@
-# Node modules
-node_modules/
-**/node_modules/
+# Git
+.git
+.gitignore
 
-# Build outputs
+# Documentation
+*.md
+docs/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
 dist/
 build/
-.next/
-out/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Environment files
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Virtual environments
+venv/
+env/
+ENV/
 
 # IDE
 .vscode/
@@ -27,23 +33,25 @@ yarn-error.log*
 *.swo
 *~
 
-# OS
-.DS_Store
-Thumbs.db
+# Environment
+.env.local
+.env.*.local
 
-# Test coverage
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js
+.next/
+out/
+
+# Testing
 coverage/
 .nyc_output/
 
-# Git
-.git/
-.gitignore
-
-# Documentation
-*.md
-docs/
-
-# Temporary files
-tmp/
-temp/
-*.tmp
+# Misc
+.DS_Store
+*.log
