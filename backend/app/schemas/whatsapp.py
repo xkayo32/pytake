@@ -46,10 +46,8 @@ class WhatsAppNumberCreate(WhatsAppNumberBase):
 class WhatsAppNumberUpdate(BaseModel):
     """Schema for updating a WhatsApp number"""
     display_name: Optional[str] = Field(None, max_length=255)
-    business_profile: Optional[Dict] = None
     webhook_url: Optional[str] = None
     is_active: Optional[bool] = None
-    auto_reply_enabled: Optional[bool] = None
     away_message: Optional[str] = None
 
 
