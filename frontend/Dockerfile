@@ -4,9 +4,6 @@ FROM node:20-alpine
 ARG NEXT_PUBLIC_API_URL=https://api.pytake.net/api/v1
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-# Install Next.js globally to avoid symlink issues
-RUN npm install -g next
-
 # Set working directory
 WORKDIR /app
 
@@ -19,11 +16,11 @@ RUN npm install
 # Copy application code
 COPY . .
 
-# Create .env.local with API URL for development
-RUN echo "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}" > .env.local
+# Build the application with environment variables
+RUN npm run build
 
 # Expose port
 EXPOSE 3000
 
-# Use globally installed Next.js
-CMD ["next", "dev", "--turbopack"]
+# Start production server
+CMD ["npm", "start"]
