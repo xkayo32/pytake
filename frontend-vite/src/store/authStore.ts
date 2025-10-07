@@ -25,14 +25,22 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   login: async (email: string, password: string) => {
     try {
+      console.log('🔐 Iniciando login...');
       const response = await authAPI.login({ email, password });
-      const { access_token, refresh_token, user } = response.data;
+      console.log('✅ Resposta do login:', response.data);
+
+      // Backend retorna { user: {...}, token: { access_token, refresh_token } }
+      const { user, token } = response.data;
+      const { access_token, refresh_token } = token;
 
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
+      console.log('💾 Tokens salvos no localStorage');
 
       set({ user, isAuthenticated: true });
+      console.log('✅ Estado atualizado: isAuthenticated = true, user =', user);
     } catch (error) {
+      console.error('❌ Erro no login:', error);
       set({ user: null, isAuthenticated: false });
       throw error;
     }
@@ -46,16 +54,21 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   checkAuth: async () => {
     try {
+      console.log('🔍 Verificando autenticação...');
       const token = localStorage.getItem('access_token');
 
       if (!token) {
+        console.log('❌ Sem token, usuário não autenticado');
         set({ isLoading: false, isAuthenticated: false });
         return;
       }
 
+      console.log('🔑 Token encontrado, validando com servidor...');
       const response = await authAPI.me();
+      console.log('✅ Autenticação válida, user =', response.data);
       set({ user: response.data, isAuthenticated: true, isLoading: false });
     } catch (error) {
+      console.error('❌ Erro ao verificar auth:', error);
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       set({ user: null, isAuthenticated: false, isLoading: false });

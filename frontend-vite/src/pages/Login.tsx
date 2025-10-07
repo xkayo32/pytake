@@ -13,7 +13,9 @@ export default function Login() {
 
   // Redirect if already authenticated
   useEffect(() => {
+    console.log('🔄 Login useEffect - isAuthenticated:', isAuthenticated);
     if (isAuthenticated) {
+      console.log('✅ Usuário autenticado, redirecionando para /admin...');
       navigate('/admin', { replace: true });
     }
   }, [isAuthenticated, navigate]);

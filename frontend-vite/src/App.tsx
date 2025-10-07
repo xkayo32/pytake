@@ -23,7 +23,13 @@ function App() {
   }
 
   const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-    return isAuthenticated ? <AdminLayout>{children}</AdminLayout> : <Navigate to="/login" />;
+    console.log('🛡️ ProtectedRoute - isAuthenticated:', isAuthenticated);
+    if (!isAuthenticated) {
+      console.log('❌ Não autenticado, redirecionando para /login');
+      return <Navigate to="/login" replace />;
+    }
+    console.log('✅ Autenticado, renderizando conteúdo protegido');
+    return <AdminLayout>{children}</AdminLayout>;
   };
 
   return (
