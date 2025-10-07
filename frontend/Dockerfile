@@ -3,6 +3,9 @@ FROM node:20-alpine
 # Accept build arguments
 ARG NEXT_PUBLIC_API_URL=https://api.pytake.net/api/v1
 
+# Set as environment variable (crucial for Next.js build)
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 # Set working directory
 WORKDIR /app
 
@@ -15,10 +18,7 @@ RUN npm install
 # Copy application code
 COPY . .
 
-# Create .env.local BEFORE build to ensure variable is available
-RUN echo "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}" > .env.local && cat .env.local
-
-# Build the application (will read from .env.local)
+# Build the application (ENV var will be embedded)
 RUN npm run build
 
 # Expose port
