@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { ArrowLeft } from 'lucide-react';
@@ -8,8 +8,15 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuthStore();
+  const { login, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/admin', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleGoogleLogin = () => {
     alert('Login com Google será implementado em breve');
@@ -26,7 +33,7 @@ export default function Login() {
 
     try {
       await login(email, password);
-      navigate('/admin/whatsapp');
+      // Navigate will happen via useEffect when isAuthenticated changes
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login');
     } finally {
