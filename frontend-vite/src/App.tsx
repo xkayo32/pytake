@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Home from './pages/Home';
 import Login from './pages/Login';
 import WhatsApp from './pages/WhatsApp';
 import AdminLayout from './components/layouts/AdminLayout';
@@ -27,13 +28,13 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Public routes */}
+        <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
 
         {/* Admin routes with layout */}
         <Route path="/admin/whatsapp" element={<ProtectedRoute><WhatsApp /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><WhatsApp /></ProtectedRoute>} />
-
-        <Route path="/" element={<Navigate to="/admin" />} />
       </Routes>
     </BrowserRouter>
   );
