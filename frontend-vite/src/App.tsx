@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import WhatsApp from './pages/WhatsApp';
 import AdminLayout from './components/layouts/AdminLayout';
 import { useAuthStore } from './store/authStore';
@@ -31,6 +32,7 @@ function App() {
         {/* Public routes */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
         {/* Admin routes with layout */}
         <Route path="/admin/whatsapp" element={<ProtectedRoute><WhatsApp /></ProtectedRoute>} />
