@@ -32,6 +32,7 @@ export default function RootLayout({
         <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
         <meta httpEquiv="Pragma" content="no-cache" />
         <meta httpEquiv="Expires" content="0" />
+        <Script src="/config.js" strategy="beforeInteractive" />
         <Script src="https://cdn.tailwindcss.com" strategy="beforeInteractive" />
         <Script id="clear-cache" strategy="beforeInteractive">
           {`

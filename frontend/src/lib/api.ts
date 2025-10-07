@@ -1,6 +1,17 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+// Runtime configuration - reads from window.__APP_CONFIG__ if available
+// Falls back to build-time env var, then localhost
+const getApiUrl = () => {
+  // Check if running in browser and config is loaded
+  if (typeof window !== 'undefined' && (window as any).__APP_CONFIG__) {
+    return (window as any).__APP_CONFIG__.API_URL;
+  }
+  // Fallback to build-time environment variable
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+};
+
+const API_URL = getApiUrl();
 
 export const api = axios.create({
   baseURL: API_URL,
