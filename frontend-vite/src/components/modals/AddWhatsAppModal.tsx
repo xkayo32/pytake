@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { X, Copy, RefreshCw } from 'lucide-react';
 import { whatsappAPI } from '@/lib/api';
+import { countries, defaultCountry } from '@/lib/countries';
+import type { Country } from '@/lib/countries';
 
 interface AddWhatsAppModalProps {
   isOpen: boolean;
@@ -17,6 +19,7 @@ const generateToken = () => {
 
 export default function AddWhatsAppModal({ isOpen, onClose, onSuccess }: AddWhatsAppModalProps) {
   const [connectionType, setConnectionType] = useState<'official' | 'qrcode'>('official');
+  const [selectedCountry, setSelectedCountry] = useState<Country>(defaultCountry);
   const [formData, setFormData] = useState({
     displayName: '',
     phoneNumber: '',
@@ -49,8 +52,11 @@ export default function AddWhatsAppModal({ isOpen, onClose, onSuccess }: AddWhat
     setIsSubmitting(true);
 
     try {
+      // Montar número completo com código do país
+      const fullPhoneNumber = `${selectedCountry.phoneCode}${formData.phoneNumber}`;
+
       const data: any = {
-        phone_number: formData.phoneNumber,
+        phone_number: fullPhoneNumber,
         display_name: formData.displayName || undefined,
         connection_type: connectionType,
       };
@@ -144,33 +150,61 @@ export default function AddWhatsAppModal({ isOpen, onClose, onSuccess }: AddWhat
           </div>
 
           {/* Basic Fields */}
-          <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Nome de Exibição *
+            </label>
+            <input
+              type="text"
+              value={formData.displayName}
+              onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              placeholder="Ex: Atendimento Principal"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nome de Exibição *
+                País *
               </label>
-              <input
-                type="text"
-                value={formData.displayName}
-                onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+              <select
+                value={selectedCountry.code}
+                onChange={(e) => {
+                  const country = countries.find(c => c.code === e.target.value);
+                  if (country) setSelectedCountry(country);
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="Ex: Atendimento Principal"
-                required
-              />
+              >
+                {countries.map((country) => (
+                  <option key={country.code} value={country.code}>
+                    {country.flag} {country.name} ({country.phoneCode})
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div>
+            <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Número de Telefone *
               </label>
-              <input
-                type="tel"
-                value={formData.phoneNumber}
-                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="5511999999999"
-                required
-              />
+              <div className="flex gap-2">
+                <div className="w-24 px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg flex items-center justify-center font-medium text-gray-700">
+                  {selectedCountry.phoneCode}
+                </div>
+                <input
+                  type="tel"
+                  value={formData.phoneNumber}
+                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="11999999999"
+                  required
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Digite apenas os números, sem o código do país
+              </p>
             </div>
           </div>
 
