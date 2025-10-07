@@ -20,6 +20,9 @@ export function AddWhatsAppNumberModal({
   const [selectedCountry, setSelectedCountry] = useState<Country>(defaultCountry);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [phoneNumberId, setPhoneNumberId] = useState('');
+  const [businessAccountId, setBusinessAccountId] = useState('');
+  const [accessToken, setAccessToken] = useState('');
   const [webhookVerifyToken, setWebhookVerifyToken] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -60,6 +63,9 @@ export function AddWhatsAppNumberModal({
         phone_number: fullPhoneNumber,
         display_name: displayName || undefined,
         connection_type: 'official',
+        phone_number_id: phoneNumberId,
+        whatsapp_business_account_id: businessAccountId,
+        access_token: accessToken,
         webhook_url: webhookUrl,
         webhook_verify_token: webhookVerifyToken,
       };
@@ -72,6 +78,9 @@ export function AddWhatsAppNumberModal({
       // Reset form
       setPhoneNumber('');
       setDisplayName('');
+      setPhoneNumberId('');
+      setBusinessAccountId('');
+      setAccessToken('');
       setSelectedCountry(defaultCountry);
       setWebhookVerifyToken('');
     } catch (err: any) {
@@ -219,6 +228,68 @@ export function AddWhatsAppNumberModal({
             </p>
           </div>
 
+          {/* Meta Cloud API Credentials */}
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              Credenciais da Meta Cloud API
+            </h3>
+
+            {/* Phone Number ID */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Phone Number ID *
+              </label>
+              <input
+                type="text"
+                required
+                value={phoneNumberId}
+                onChange={(e) => setPhoneNumberId(e.target.value)}
+                placeholder="123456789012345"
+                className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 font-mono text-sm"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                ID do número de telefone fornecido pela Meta (encontrado em "Números de Telefone" no painel)
+              </p>
+            </div>
+
+            {/* WhatsApp Business Account ID */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                WhatsApp Business Account ID *
+              </label>
+              <input
+                type="text"
+                required
+                value={businessAccountId}
+                onChange={(e) => setBusinessAccountId(e.target.value)}
+                placeholder="987654321098765"
+                className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 font-mono text-sm"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                ID da conta comercial do WhatsApp (encontrado em "Informações" no painel da Meta)
+              </p>
+            </div>
+
+            {/* Access Token */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Access Token (Permanente) *
+              </label>
+              <textarea
+                required
+                value={accessToken}
+                onChange={(e) => setAccessToken(e.target.value)}
+                placeholder="EAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                rows={3}
+                className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 font-mono text-xs resize-none"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Token de acesso permanente da Meta (System User Token - nunca expira)
+              </p>
+            </div>
+          </div>
+
           {/* Webhook Configuration */}
           <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-4">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -310,13 +381,17 @@ export function AddWhatsAppNumberModal({
               Passo a Passo - Configuração no Meta
             </h3>
             <ol className="text-sm text-gray-700 dark:text-gray-300 space-y-2 list-decimal list-inside">
-              <li>Acesse o Meta for Developers e crie um App de WhatsApp Business</li>
+              <li>Acesse o <strong>Meta for Developers</strong> e crie um App de WhatsApp Business</li>
               <li>Configure o número no painel do WhatsApp Business</li>
+              <li>Copie o <strong>Phone Number ID</strong> (em "Números de Telefone")</li>
+              <li>Copie o <strong>WhatsApp Business Account ID</strong> (em "Informações")</li>
+              <li>Crie um <strong>System User</strong> e gere um <strong>Token Permanente</strong> (em "Usuários do Sistema")</li>
               <li>Vá em "Configuração" → "Webhook"</li>
               <li>Cole a <strong>Callback URL</strong> acima</li>
               <li>Cole o <strong>Verify Token</strong> acima</li>
               <li>Clique em "Verificar e Salvar"</li>
-              <li>Inscreva-se nos eventos: messages, message_status</li>
+              <li>Inscreva-se nos eventos: <strong>messages</strong>, <strong>message_status</strong></li>
+              <li>Preencha todos os campos acima e clique em "Adicionar Número"</li>
             </ol>
             <a
               href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started"

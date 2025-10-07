@@ -35,7 +35,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
   };
 
   return (
-    <RoleGuard allowedRoles={['agent']} fallbackPath="/admin">
+    <RoleGuard allowedRoles={['agent', 'viewer']} fallbackPath="/admin">
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="flex h-screen overflow-hidden">
           {/* Sidebar */}

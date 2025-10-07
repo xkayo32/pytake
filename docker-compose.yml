@@ -93,7 +93,7 @@ services:
     environment:
       - NODE_ENV=development
       # For browser access from host machine
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.pytake.net/api/v1}
     depends_on:
       - backend
 

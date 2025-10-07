@@ -63,12 +63,15 @@ export default function LoginPage() {
           console.log(`🔵 [LOGIN] User role: ${currentUser.role}`);
 
           // Redirecionar baseado no role
-          if (currentUser.role === 'org_admin' || currentUser.role === 'super_admin') {
+          if (currentUser.role === 'admin' || currentUser.role === 'org_admin' || currentUser.role === 'super_admin') {
             router.push('/admin');
             console.log('✅ [LOGIN] Redirecting to /admin');
           } else if (currentUser.role === 'agent' || currentUser.role === 'viewer') {
             router.push('/agent');
             console.log('✅ [LOGIN] Redirecting to /agent');
+          } else if (currentUser.role === 'manager') {
+            router.push('/dashboard');
+            console.log('✅ [LOGIN] Redirecting to /dashboard (manager)');
           } else {
             // Fallback para dashboard que vai redirecionar
             router.push('/dashboard');

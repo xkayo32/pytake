@@ -7,9 +7,10 @@ import { useAuthStore } from '@/store/authStore';
 /**
  * Dashboard Router - Redirects users to appropriate dashboard based on role
  *
- * - org_admin, super_admin -> /admin
+ * - admin, org_admin, super_admin -> /admin
  * - agent -> /agent
  * - viewer -> /agent (read-only mode)
+ * - manager -> /manager
  */
 export default function DashboardPage() {
   const router = useRouter();
@@ -32,10 +33,12 @@ export default function DashboardPage() {
     if (user) {
       console.log(`🔵 [DASHBOARD] Redirecting user with role: ${user.role}`);
 
-      if (user.role === 'org_admin' || user.role === 'super_admin') {
+      if (user.role === 'admin' || user.role === 'org_admin' || user.role === 'super_admin') {
         router.push('/admin');
       } else if (user.role === 'agent' || user.role === 'viewer') {
         router.push('/agent');
+      } else if (user.role === 'manager') {
+        router.push('/manager');
       } else {
         // Fallback for unknown roles
         console.warn(`⚠️ [DASHBOARD] Unknown role: ${user.role}, redirecting to /agent`);

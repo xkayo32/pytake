@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 
-type UserRole = 'super_admin' | 'org_admin' | 'agent' | 'viewer';
+type UserRole = 'super_admin' | 'org_admin' | 'admin' | 'agent' | 'viewer' | 'manager';
 
 interface RoleGuardProps {
   allowedRoles: UserRole[];
@@ -78,10 +78,10 @@ export function useHasRole(role: UserRole | UserRole[]): boolean {
 }
 
 /**
- * Hook to check if user is admin (org_admin or super_admin)
+ * Hook to check if user is admin (admin, org_admin or super_admin)
  */
 export function useIsAdmin(): boolean {
-  return useHasRole(['org_admin', 'super_admin']);
+  return useHasRole(['admin', 'org_admin', 'super_admin']);
 }
 
 /**
