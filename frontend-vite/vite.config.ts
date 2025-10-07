@@ -17,5 +17,12 @@ export default defineConfig({
   preview: {
     port: 3000,
     host: true,
+    strictPort: true,
+    allowedHosts: [
+      'app.pytake.net',
+      'localhost',
+      '127.0.0.1',
+      '.pytake.net', // Permite todos os subdomínios de pytake.net
+    ],
   },
 })
