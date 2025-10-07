@@ -19,6 +19,9 @@ RUN npm install
 # Copy application code
 COPY . .
 
+# Create .env.local with API URL for development
+RUN echo "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}" > .env.local
+
 # Expose port
 EXPOSE 3000
 
