@@ -186,7 +186,7 @@ export default function ChatbotsPage() {
 
                 {/* Ação Principal - Abrir Builder */}
                 <button
-                  onClick={() => router.push(`/admin/chatbots/${bot.id}/builder`)}
+                  onClick={() => router.push(`/builder/${bot.id}`)}
                   className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium rounded-xl transition-all flex items-center justify-center gap-2 mb-3"
                 >
                   <Workflow className="w-4 h-4" />
