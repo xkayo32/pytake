@@ -32,6 +32,15 @@ class Chatbot(Base, TimestampMixin, SoftDeleteMixin):
         index=True,
     )
 
+    # WhatsApp Number Association (optional)
+    # Each chatbot can be linked to a specific WhatsApp number
+    whatsapp_number_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("whatsapp_numbers.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Basic Info
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -74,7 +83,11 @@ class Chatbot(Base, TimestampMixin, SoftDeleteMixin):
     flows = relationship(
         "Flow", back_populates="chatbot", cascade="all, delete-orphan"
     )
-    # whatsapp_numbers = relationship("WhatsAppNumber", foreign_keys="WhatsAppNumber.default_chatbot_id")
+    whatsapp_number = relationship(
+        "WhatsAppNumber",
+        foreign_keys=[whatsapp_number_id],
+        back_populates="chatbots"
+    )
 
     def __repr__(self):
         return f"<Chatbot(id={self.id}, name='{self.name}', active={self.is_active})>"

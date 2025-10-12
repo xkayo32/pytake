@@ -1,14 +1,22 @@
 'use client';
 
-import { useState } from 'react';
-import { X, Bot, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Bot, Loader2, Phone } from 'lucide-react';
 import { chatbotsAPI } from '@/lib/api/chatbots';
+import { api } from '@/lib/api';
 import type { ChatbotCreate } from '@/types/chatbot';
 
 interface CreateChatbotModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+}
+
+interface WhatsAppNumber {
+  id: string;
+  phone_number: string;
+  display_name?: string;
+  is_active: boolean;
 }
 
 export function CreateChatbotModal({
@@ -19,6 +27,7 @@ export function CreateChatbotModal({
   const [formData, setFormData] = useState<ChatbotCreate>({
     name: '',
     description: '',
+    whatsapp_number_id: undefined,
     is_active: false,
     is_published: false,
     global_variables: {},
@@ -29,8 +38,32 @@ export function CreateChatbotModal({
     },
   });
 
+  const [whatsappNumbers, setWhatsappNumbers] = useState<WhatsAppNumber[]>([]);
+  const [loadingNumbers, setLoadingNumbers] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load WhatsApp numbers when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadWhatsAppNumbers();
+    }
+  }, [isOpen]);
+
+  const loadWhatsAppNumbers = async () => {
+    try {
+      setLoadingNumbers(true);
+      const response = await api.get<WhatsAppNumber[]>('/whatsapp/');
+      // Filter only active numbers
+      const activeNumbers = response.data.filter(n => n.is_active);
+      setWhatsappNumbers(activeNumbers);
+    } catch (error) {
+      console.error('Erro ao carregar números WhatsApp:', error);
+      setWhatsappNumbers([]);
+    } finally {
+      setLoadingNumbers(false);
+    }
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -153,6 +186,60 @@ export function CreateChatbotModal({
               placeholder="Descreva o propósito deste chatbot..."
               className="w-full px-4 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 resize-none"
             />
+          </div>
+
+          {/* Número WhatsApp */}
+          <div>
+            <label
+              htmlFor="whatsapp_number_id"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Número WhatsApp
+            </label>
+            {loadingNumbers ? (
+              <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl">
+                <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                <span className="text-sm text-gray-500">Carregando números...</span>
+              </div>
+            ) : whatsappNumbers.length === 0 ? (
+              <div className="px-4 py-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl">
+                <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                  ⚠️ Nenhum número WhatsApp ativo encontrado.{' '}
+                  <a
+                    href="/admin/whatsapp"
+                    className="underline hover:no-underline font-medium"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.open('/admin/whatsapp', '_blank');
+                    }}
+                  >
+                    Cadastre um número primeiro
+                  </a>
+                </p>
+              </div>
+            ) : (
+              <select
+                id="whatsapp_number_id"
+                value={formData.whatsapp_number_id || ''}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    whatsapp_number_id: e.target.value || undefined,
+                  }))
+                }
+                className="w-full px-4 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+              >
+                <option value="">Nenhum (sem número WhatsApp)</option>
+                {whatsappNumbers.map((number) => (
+                  <option key={number.id} value={number.id}>
+                    {number.display_name || number.phone_number} ({number.phone_number})
+                  </option>
+                ))}
+              </select>
+            )}
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Opcional: Escolha o número WhatsApp que este chatbot irá utilizar
+            </p>
           </div>
 
           {/* Mensagem de Boas-Vindas */}

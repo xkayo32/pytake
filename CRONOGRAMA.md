@@ -350,6 +350,87 @@
 
 ---
 
+### Sprint 10.2: Chatbot Builder Visual
+**Data**: 2025-10-12 (HOJE)
+**Status**: ✅ 90% CONCLUÍDO
+**Tempo gasto**: 4 horas
+
+- [x] **Builder Fullscreen Dedicado**:
+  - [x] Rota independente `/builder/[id]`
+  - [x] Layout sem sidebar admin
+  - [x] Experiência fullscreen imersiva
+- [x] **React Flow Integration**:
+  - [x] Canvas com dots background
+  - [x] 10 tipos de nodes coloridos
+  - [x] Drag & drop de nodes
+  - [x] Sistema de conexões (edges)
+  - [x] Controls (zoom, fit view)
+  - [x] MiniMap colorido
+- [x] **Toolbar Superior**:
+  - [x] Botão voltar + título do chatbot
+  - [x] Toggle sidebar (Ctrl+B)
+  - [x] Toggle propriedades (Ctrl+P)
+  - [x] Botão Preview (preparado)
+  - [x] Botão Salvar com gradient
+- [x] **Sidebar Esquerda (256px)**:
+  - [x] Paleta de 10 nodes com hover effects
+  - [x] Seção atalhos de teclado
+  - [x] Toggle on/off
+- [x] **Painel Propriedades (320px)**:
+  - [x] Exibir tipo, ID, posição
+  - [x] Botões duplicar/deletar
+  - [x] Toggle on/off
+- [x] **Atalhos de Teclado**:
+  - [x] Ctrl+S: Salvar
+  - [x] Del: Deletar node
+  - [x] Ctrl+B: Toggle sidebar
+  - [x] Ctrl+P: Toggle propriedades
+- [x] **Mini-Toolbar Flutuante**:
+  - [x] Aparece ao selecionar node
+  - [x] Ações: Duplicar, Deletar
+- [ ] **Node Configuration** (próximo):
+  - [ ] Editar propriedades específicas por tipo
+  - [ ] Validação de configuração
+  - [ ] Preview de mensagens
+- [ ] **Flow Management** (próximo):
+  - [ ] Seleção de número WhatsApp
+  - [ ] Criar novo fluxo
+  - [ ] Trocar entre fluxos
+  - [ ] Validação de fluxo
+
+**Entregáveis**:
+- ✅ Builder fullscreen 100% funcional
+- ✅ 10 tipos de nodes implementados
+- ✅ UX profissional com atalhos
+- ✅ Save/load de canvas state
+- ✅ Dark mode completo
+- ⏱️ Configuração avançada de nodes
+- ⏱️ Validação e deploy de chatbots
+
+**Arquivos criados**:
+- `frontend/src/app/builder/layout.tsx` (322 bytes)
+- `frontend/src/app/builder/[id]/page.tsx` (23 KB)
+
+**Arquivos modificados**:
+- `frontend/src/app/admin/chatbots/page.tsx` - Rota para /builder/[id]
+
+**Screenshots**:
+- `builder-fullscreen.png` - Interface fullscreen
+
+**Tipos de Nodes Implementados**:
+1. **Start** (Verde) - Ponto de entrada
+2. **Message** (Azul) - Enviar mensagem
+3. **Question** (Roxo) - Capturar resposta
+4. **Condition** (Laranja) - Decisão condicional
+5. **Action** (Amarelo) - Executar ação
+6. **API Call** (Índigo) - Chamar API externa
+7. **AI Prompt** (Rosa) - Prompt GPT-4
+8. **Jump** (Cinza) - Pular para outro fluxo
+9. **End** (Vermelho) - Finalizar
+10. **Handoff** (Teal) - Transferir para humano
+
+---
+
 ### Sprint 11: Remaining Admin Pages ⏱️
 **Data**: A definir
 **Status**: ⏱️ Planejado
@@ -570,6 +651,7 @@
 - ✅ Templates WhatsApp - Lista redesenhada
 - ✅ Templates - Sistema ativar/desativar
 - ✅ Templates - Filtro para ocultar inativos
+- ✅ Chatbot Builder Visual Fullscreen
 - ⏱️ Páginas restantes (Contacts, Users, Campaigns, etc)
 
 ### v1.3.0 (Planejado) - Media & Templates

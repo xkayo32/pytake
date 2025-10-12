@@ -119,6 +119,7 @@ class ChatbotBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     avatar_url: Optional[str] = None
+    whatsapp_number_id: Optional[UUID] = Field(None, description="WhatsApp number linked to this chatbot")
     is_active: bool = False
     is_published: bool = False
     global_variables: dict = Field(default_factory=dict)
@@ -136,6 +137,7 @@ class ChatbotUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     avatar_url: Optional[str] = None
+    whatsapp_number_id: Optional[UUID] = None
     is_active: Optional[bool] = None
     is_published: Optional[bool] = None
     global_variables: Optional[dict] = None

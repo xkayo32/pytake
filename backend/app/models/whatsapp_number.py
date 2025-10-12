@@ -58,6 +58,7 @@ class WhatsAppNumber(Base, TimestampMixin, SoftDeleteMixin):
         String(255), nullable=True
     )  # Meta's WABA ID
     access_token = Column(Text, nullable=True)  # Meta API access token
+    app_secret = Column(Text, nullable=True)  # Meta App Secret for webhook signature verification
     webhook_verify_token = Column(String(255), nullable=True)
 
     # Evolution API Credentials (QR Code)
@@ -123,6 +124,7 @@ class WhatsAppNumber(Base, TimestampMixin, SoftDeleteMixin):
     templates = relationship("WhatsAppTemplate", back_populates="whatsapp_number", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="whatsapp_number")
     messages = relationship("Message", back_populates="whatsapp_number")
+    chatbots = relationship("Chatbot", back_populates="whatsapp_number", foreign_keys="Chatbot.whatsapp_number_id")
 
     def __repr__(self):
         return f"<WhatsAppNumber(id={self.id}, phone='{self.phone_number}', org_id={self.organization_id})>"
