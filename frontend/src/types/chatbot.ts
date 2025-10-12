@@ -104,6 +104,7 @@ export interface Chatbot {
   name: string;
   description?: string;
   avatar_url?: string;
+  whatsapp_number_id?: string; // WhatsApp number linked to this chatbot
   is_active: boolean;
   is_published: boolean;
   global_variables: Record<string, any>;
@@ -126,6 +127,7 @@ export interface ChatbotCreate {
   name: string;
   description?: string;
   avatar_url?: string;
+  whatsapp_number_id?: string;
   is_active?: boolean;
   is_published?: boolean;
   global_variables?: Record<string, any>;
@@ -136,6 +138,7 @@ export interface ChatbotUpdate {
   name?: string;
   description?: string;
   avatar_url?: string;
+  whatsapp_number_id?: string;
   is_active?: boolean;
   is_published?: boolean;
   global_variables?: Record<string, any>;
