@@ -33,6 +33,7 @@ export interface WhatsAppNumber {
   business_hours: Record<string, any> | null;
   business_profile: Record<string, any> | null;
   default_department_id: string | null;
+  default_chatbot_id: string | null;
   webhook_url: string | null;
   created_at: string;
   updated_at: string;
@@ -65,6 +66,7 @@ export interface WhatsAppNumberUpdate {
   is_active?: boolean;
   auto_reply_enabled?: boolean;
   away_message?: string;
+  default_chatbot_id?: string | null;
 }
 
 export const whatsappAPI = {

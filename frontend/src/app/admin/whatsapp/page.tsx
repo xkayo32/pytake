@@ -2,13 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import { whatsappAPI, WhatsAppNumber } from '@/lib/api/whatsapp';
-import { Phone, Plus, Edit, Trash2, CheckCircle, XCircle, Loader2, QrCode, Shield, ChevronDown } from 'lucide-react';
+import { Phone, Plus, Edit, Trash2, CheckCircle, XCircle, Loader2, QrCode, Shield, ChevronDown, FileText, Bot } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { AddWhatsAppNumberModal } from '@/components/admin/AddWhatsAppNumberModal';
 import { AddWhatsAppQRCodeModal } from '@/components/admin/AddWhatsAppQRCodeModal';
 import { EditWhatsAppNumberModal } from '@/components/admin/EditWhatsAppNumberModal';
+import { EmptyState } from '@/components/admin/EmptyState';
+import { chatbotsAPI } from '@/lib/api/chatbots';
+import type { Chatbot } from '@/types/chatbot';
 
 export default function WhatsAppPage() {
+  const router = useRouter();
   const [numbers, setNumbers] = useState<WhatsAppNumber[]>([]);
+  const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddOfficialModal, setShowAddOfficialModal] = useState(false);
   const [showAddQRCodeModal, setShowAddQRCodeModal] = useState(false);
@@ -17,6 +23,7 @@ export default function WhatsAppPage() {
 
   useEffect(() => {
     loadNumbers();
+    loadChatbots();
   }, []);
 
   const loadNumbers = async () => {
@@ -28,6 +35,16 @@ export default function WhatsAppPage() {
       console.error('Failed to load WhatsApp numbers:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadChatbots = async () => {
+    try {
+      const response = await chatbotsAPI.list({ limit: 100 });
+      setChatbots(response.items || []);
+    } catch (error) {
+      console.error('Failed to load chatbots:', error);
+      setChatbots([]);
     }
   };
 
@@ -57,55 +74,68 @@ export default function WhatsAppPage() {
     }
   };
 
+  const handleSetDefaultChatbot = async (
+    numberId: string,
+    chatbotId: string | null
+  ) => {
+    try {
+      await whatsappAPI.update(numberId, {
+        default_chatbot_id: chatbotId,
+      });
+      await loadNumbers();
+    } catch (error) {
+      console.error('Failed to set default chatbot:', error);
+      alert('Erro ao definir chatbot padrão');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        <Loader2 className="h-12 w-12 animate-spin text-gray-900 dark:text-white" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Números WhatsApp
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Gerencie os números WhatsApp conectados à sua organização
-          </p>
-        </div>
-        {/* Dropdown Button */}
+      {/* Action Button Row */}
+      <div className="flex justify-end gap-3">
+        <button
+          onClick={() => router.push('/admin/whatsapp/templates')}
+          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-medium rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          <FileText className="h-4 w-4" />
+          Gerenciar Templates
+        </button>
         <div className="relative">
           <button
             onClick={() => setShowAddMenu(!showAddMenu)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="h-4 w-4" />
             Adicionar Número
             <ChevronDown className="h-4 w-4" />
           </button>
 
           {/* Dropdown Menu */}
           {showAddMenu && (
-            <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-10">
+            <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 z-10 overflow-hidden">
               <button
                 onClick={() => {
                   setShowAddOfficialModal(true);
                   setShowAddMenu(false);
                 }}
-                className="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-200 dark:border-gray-700 rounded-t-lg"
+                className="w-full px-5 py-4 text-left hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 dark:hover:from-blue-900/20 dark:hover:to-cyan-900/20 transition-all border-b border-gray-200 dark:border-gray-700"
               >
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                    <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                    <Shield className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <div>
-                    <div className="font-semibold text-gray-900 dark:text-white">API Oficial (Meta)</div>
+                  <div className="flex-1">
+                    <div className="font-bold text-gray-900 dark:text-white mb-1">API Oficial (Meta)</div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
-                      WhatsApp Business Cloud API oficial
+                      WhatsApp Business Cloud API oficial da Meta
                     </div>
                   </div>
                 </div>
@@ -116,16 +146,16 @@ export default function WhatsAppPage() {
                   setShowAddQRCodeModal(true);
                   setShowAddMenu(false);
                 }}
-                className="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors rounded-b-lg"
+                className="w-full px-5 py-4 text-left hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 dark:hover:from-green-900/20 dark:hover:to-emerald-900/20 transition-all"
               >
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                    <QrCode className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
+                    <QrCode className="w-6 h-6 text-green-600 dark:text-green-400" />
                   </div>
-                  <div>
-                    <div className="font-semibold text-gray-900 dark:text-white">QR Code (Evolution API)</div>
+                  <div className="flex-1">
+                    <div className="font-bold text-gray-900 dark:text-white mb-1">QR Code (Evolution API)</div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Conexão via WhatsApp Web (gratuito)
+                      Conexão via WhatsApp Web - 100% gratuito
                     </div>
                   </div>
                 </div>
@@ -137,33 +167,28 @@ export default function WhatsAppPage() {
 
       {/* Numbers List */}
       {numbers.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:border dark:border-gray-700 p-12 text-center">
-          <Phone className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-            Nenhum número WhatsApp configurado
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Adicione seu primeiro número WhatsApp para começar a usar o sistema
-          </p>
-          <button
-            onClick={() => setShowAddMenu(true)}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            <Plus className="h-5 w-5" />
-            Adicionar Primeiro Número
-          </button>
-        </div>
+        <EmptyState
+          icon={Phone}
+          title="Nenhum número WhatsApp configurado"
+          description="Conecte seu primeiro número WhatsApp Business para começar a enviar e receber mensagens dos seus clientes"
+          variant="gradient"
+          action={{
+            label: 'Adicionar Primeiro Número',
+            onClick: () => setShowAddMenu(true),
+            icon: Plus,
+          }}
+        />
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-6">
           {numbers.map((number) => (
             <div
               key={number.id}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:border dark:border-gray-700 p-6"
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm dark:border dark:border-gray-700 p-7 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2 flex-wrap">
-                    <Phone className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                    <Phone className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                       {number.display_name || number.phone_number}
                     </h3>
@@ -244,6 +269,31 @@ export default function WhatsAppPage() {
                       </p>
                     </div>
                   )}
+
+                  {/* Default Chatbot Selector */}
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <Bot className="w-4 h-4" />
+                      Chatbot Padrão
+                    </label>
+                    <select
+                      value={number.default_chatbot_id || ''}
+                      onChange={(e) =>
+                        handleSetDefaultChatbot(number.id, e.target.value || null)
+                      }
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-sm"
+                    >
+                      <option value="">Nenhum chatbot padrão</option>
+                      {chatbots.map((bot) => (
+                        <option key={bot.id} value={bot.id}>
+                          {bot.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Chatbot que responderá automaticamente as mensagens neste número
+                    </p>
+                  </div>
                 </div>
 
                 {/* Actions */}
@@ -265,7 +315,7 @@ export default function WhatsAppPage() {
                   </button>
                   <button
                     onClick={() => setEditingNumber(number)}
-                    className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                    className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                     title="Editar"
                   >
                     <Edit className="h-5 w-5" />

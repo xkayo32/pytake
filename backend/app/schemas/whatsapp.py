@@ -23,7 +23,6 @@ class ConnectionType(str, Enum):
 class WhatsAppNumberBase(BaseModel):
     phone_number: str = Field(..., min_length=10, max_length=20)
     display_name: Optional[str] = Field(None, max_length=255)
-    business_profile: Optional[Dict] = None
 
 
 class WhatsAppNumberCreate(WhatsAppNumberBase):
@@ -34,6 +33,7 @@ class WhatsAppNumberCreate(WhatsAppNumberBase):
     phone_number_id: Optional[str] = None
     whatsapp_business_account_id: Optional[str] = None
     access_token: Optional[str] = None
+    app_secret: Optional[str] = None  # Meta App Secret for webhook signature verification
     webhook_url: Optional[str] = None
     webhook_verify_token: Optional[str] = None
 
@@ -49,6 +49,7 @@ class WhatsAppNumberUpdate(BaseModel):
     webhook_url: Optional[str] = None
     is_active: Optional[bool] = None
     away_message: Optional[str] = None
+    default_chatbot_id: Optional[UUID] = None
 
 
 class WhatsAppNumberInDB(WhatsAppNumberBase):
@@ -83,6 +84,7 @@ class WhatsAppNumberInDB(WhatsAppNumberBase):
 
     # Routing
     default_department_id: Optional[UUID] = None
+    default_chatbot_id: Optional[UUID] = None
     webhook_url: Optional[str] = None
 
     created_at: datetime

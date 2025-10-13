@@ -25,6 +25,7 @@ import { CreateChatbotModal } from '@/components/admin/CreateChatbotModal';
 import { EditChatbotModal } from '@/components/admin/EditChatbotModal';
 import { chatbotsAPI } from '@/lib/api/chatbots';
 import type { Chatbot } from '@/types/chatbot';
+import { whatsappAPI, type WhatsAppNumber } from '@/lib/api/whatsapp';
 
 type ViewMode = 'grid' | 'list';
 type FilterStatus = 'all' | 'active' | 'inactive';
@@ -33,6 +34,7 @@ type FilterWhatsApp = 'all' | 'with' | 'without';
 export default function ChatbotsPage() {
   const router = useRouter();
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
+  const [whatsappNumbers, setWhatsappNumbers] = useState<WhatsAppNumber[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -54,8 +56,19 @@ export default function ChatbotsPage() {
     }
   };
 
+  const fetchWhatsAppNumbers = async () => {
+    try {
+      const numbers = await whatsappAPI.list();
+      setWhatsappNumbers(numbers);
+    } catch (error) {
+      console.error('Erro ao carregar números WhatsApp:', error);
+      setWhatsappNumbers([]);
+    }
+  };
+
   useEffect(() => {
     fetchChatbots();
+    fetchWhatsAppNumbers();
   }, []);
 
   const handleToggleActive = async (bot: Chatbot) => {
@@ -106,6 +119,11 @@ export default function ChatbotsPage() {
 
   const activeCount = chatbots.filter((c) => c.is_active).length;
   const withWhatsAppCount = chatbots.filter((c) => c.whatsapp_number_id).length;
+
+  // Helper: retorna os números WhatsApp onde o chatbot é padrão
+  const getDefaultForNumbers = (chatbotId: string): WhatsAppNumber[] => {
+    return whatsappNumbers.filter((num) => num.default_chatbot_id === chatbotId);
+  };
 
   return (
     <div className="space-y-6">
@@ -245,6 +263,7 @@ export default function ChatbotsPage() {
             <ChatbotCard
               key={bot.id}
               bot={bot}
+              defaultForNumbers={getDefaultForNumbers(bot.id)}
               onToggleActive={handleToggleActive}
               onDelete={handleDelete}
               onEdit={() => router.push(`/builder/${bot.id}`)}
@@ -258,6 +277,7 @@ export default function ChatbotsPage() {
             <ChatbotListItem
               key={bot.id}
               bot={bot}
+              defaultForNumbers={getDefaultForNumbers(bot.id)}
               onToggleActive={handleToggleActive}
               onDelete={handleDelete}
               onEdit={() => router.push(`/builder/${bot.id}`)}
@@ -298,12 +318,14 @@ export default function ChatbotsPage() {
 // Componente Card
 function ChatbotCard({
   bot,
+  defaultForNumbers,
   onToggleActive,
   onDelete,
   onEdit,
   onEditSettings,
 }: {
   bot: Chatbot;
+  defaultForNumbers: WhatsAppNumber[];
   onToggleActive: (bot: Chatbot) => void;
   onDelete: (bot: Chatbot) => void;
   onEdit: () => void;
@@ -367,6 +389,18 @@ function ChatbotCard({
           </div>
         )}
 
+        {/* Badge Chatbot Padrão */}
+        {defaultForNumbers.length > 0 && (
+          <div className="mb-3 px-3 py-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <div className="flex items-center gap-2 text-sm text-yellow-700 dark:text-yellow-300">
+              <Star className="w-4 h-4 fill-current" />
+              <span className="font-medium">
+                Bot Padrão{defaultForNumbers.length > 1 ? ` (${defaultForNumbers.length} números)` : ` - ${defaultForNumbers[0].display_name || defaultForNumbers[0].phone_number}`}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Ação Principal - Abrir Builder */}
         <button
           onClick={onEdit}
@@ -416,12 +450,14 @@ function ChatbotCard({
 // Componente Lista
 function ChatbotListItem({
   bot,
+  defaultForNumbers,
   onToggleActive,
   onDelete,
   onEdit,
   onEditSettings,
 }: {
   bot: Chatbot;
+  defaultForNumbers: WhatsAppNumber[];
   onToggleActive: (bot: Chatbot) => void;
   onDelete: (bot: Chatbot) => void;
   onEdit: () => void;
@@ -450,6 +486,12 @@ function ChatbotListItem({
               <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 flex items-center gap-1 flex-shrink-0">
                 <MessageSquare className="w-3 h-3" />
                 WhatsApp
+              </span>
+            )}
+            {defaultForNumbers.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 flex items-center gap-1 flex-shrink-0">
+                <Star className="w-3 h-3 fill-current" />
+                Padrão
               </span>
             )}
           </div>
