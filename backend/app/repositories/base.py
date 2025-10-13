@@ -147,8 +147,10 @@ class BaseRepository(Generic[ModelType]):
                 if not key.startswith("_")
             }
 
-        # Remove None values
-        obj_in = {k: v for k, v in obj_in.items() if v is not None}
+        # Note: We DON'T remove None values here because when using
+        # model_dump(exclude_unset=True), fields are only included if
+        # explicitly set. If a field has None value, it means we want
+        # to explicitly set it to NULL in the database.
 
         if not obj_in:
             return await self.get(id)

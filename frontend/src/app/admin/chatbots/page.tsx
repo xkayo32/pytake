@@ -16,11 +16,13 @@ import {
   Filter,
   MessageSquare,
   Star,
+  Edit2,
 } from 'lucide-react';
 import { StatsCard } from '@/components/admin/StatsCard';
 import { EmptyState } from '@/components/admin/EmptyState';
 import { ActionButton } from '@/components/admin/ActionButton';
 import { CreateChatbotModal } from '@/components/admin/CreateChatbotModal';
+import { EditChatbotModal } from '@/components/admin/EditChatbotModal';
 import { chatbotsAPI } from '@/lib/api/chatbots';
 import type { Chatbot } from '@/types/chatbot';
 
@@ -36,6 +38,8 @@ export default function ChatbotsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [filterWhatsApp, setFilterWhatsApp] = useState<FilterWhatsApp>('all');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedChatbot, setSelectedChatbot] = useState<Chatbot | null>(null);
 
   const fetchChatbots = async () => {
     try {
@@ -80,6 +84,11 @@ export default function ChatbotsPage() {
       console.error('Erro ao deletar:', error);
       alert(error.response?.data?.detail || 'Erro ao deletar chatbot');
     }
+  };
+
+  const handleOpenEditSettings = (bot: Chatbot) => {
+    setSelectedChatbot(bot);
+    setShowEditModal(true);
   };
 
   // Filtragem
@@ -239,6 +248,7 @@ export default function ChatbotsPage() {
               onToggleActive={handleToggleActive}
               onDelete={handleDelete}
               onEdit={() => router.push(`/builder/${bot.id}`)}
+              onEditSettings={() => handleOpenEditSettings(bot)}
             />
           ))}
         </div>
@@ -251,6 +261,7 @@ export default function ChatbotsPage() {
               onToggleActive={handleToggleActive}
               onDelete={handleDelete}
               onEdit={() => router.push(`/builder/${bot.id}`)}
+              onEditSettings={() => handleOpenEditSettings(bot)}
             />
           ))}
         </div>
@@ -265,6 +276,21 @@ export default function ChatbotsPage() {
           setShowCreateModal(false);
         }}
       />
+
+      {/* Modal de Edição */}
+      <EditChatbotModal
+        isOpen={showEditModal}
+        chatbot={selectedChatbot}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedChatbot(null);
+        }}
+        onSuccess={() => {
+          fetchChatbots();
+          setShowEditModal(false);
+          setSelectedChatbot(null);
+        }}
+      />
     </div>
   );
 }
@@ -275,11 +301,13 @@ function ChatbotCard({
   onToggleActive,
   onDelete,
   onEdit,
+  onEditSettings,
 }: {
   bot: Chatbot;
   onToggleActive: (bot: Chatbot) => void;
   onDelete: (bot: Chatbot) => void;
   onEdit: () => void;
+  onEditSettings: () => void;
 }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
@@ -352,6 +380,13 @@ function ChatbotCard({
       {/* Actions Row */}
       <div className="px-6 py-3 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
         <button
+          onClick={onEditSettings}
+          className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          title="Editar configurações"
+        >
+          <Edit2 className="w-4 h-4" />
+        </button>
+        <button
           onClick={() => onToggleActive(bot)}
           className={`p-2 rounded-lg transition-colors ${
             bot.is_active
@@ -384,11 +419,13 @@ function ChatbotListItem({
   onToggleActive,
   onDelete,
   onEdit,
+  onEditSettings,
 }: {
   bot: Chatbot;
   onToggleActive: (bot: Chatbot) => void;
   onDelete: (bot: Chatbot) => void;
   onEdit: () => void;
+  onEditSettings: () => void;
 }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-200">
@@ -456,6 +493,14 @@ function ChatbotListItem({
           >
             <Workflow className="w-4 h-4" />
             Editar
+          </button>
+
+          <button
+            onClick={onEditSettings}
+            className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            title="Editar configurações"
+          >
+            <Edit2 className="w-4 h-4" />
           </button>
 
           <button

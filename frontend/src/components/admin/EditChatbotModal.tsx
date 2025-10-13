@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Bot, Loader2, Phone } from 'lucide-react';
+import { X, Bot, Loader2, MessageSquare, Edit } from 'lucide-react';
 import { chatbotsAPI } from '@/lib/api/chatbots';
 import { api } from '@/lib/api';
-import type { ChatbotCreate } from '@/types/chatbot';
+import type { Chatbot, ChatbotUpdate } from '@/types/chatbot';
 
-interface CreateChatbotModalProps {
+interface EditChatbotModalProps {
   isOpen: boolean;
+  chatbot: Chatbot | null;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -19,22 +20,20 @@ interface WhatsAppNumber {
   is_active: boolean;
 }
 
-export function CreateChatbotModal({
+export function EditChatbotModal({
   isOpen,
+  chatbot,
   onClose,
   onSuccess,
-}: CreateChatbotModalProps) {
-  const [formData, setFormData] = useState<ChatbotCreate>({
+}: EditChatbotModalProps) {
+  const [formData, setFormData] = useState<ChatbotUpdate>({
     name: '',
     description: '',
     whatsapp_number_id: null,
-    is_active: false,
-    is_published: false,
-    global_variables: {},
     settings: {
-      welcome_message: 'Olá! Como posso ajudar você hoje?',
-      fallback_message: 'Desculpe, não entendi. Pode reformular?',
-      handoff_message: 'Transferindo para um atendente humano...',
+      welcome_message: '',
+      fallback_message: '',
+      handoff_message: '',
     },
   });
 
@@ -43,19 +42,29 @@ export function CreateChatbotModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load WhatsApp numbers when modal opens
+  // Load chatbot data when modal opens
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && chatbot) {
+      setFormData({
+        name: chatbot.name,
+        description: chatbot.description || '',
+        whatsapp_number_id: chatbot.whatsapp_number_id,
+        settings: chatbot.settings || {
+          welcome_message: 'Olá! Como posso ajudar você hoje?',
+          fallback_message: 'Desculpe, não entendi. Pode reformular?',
+          handoff_message: 'Transferindo para um atendente humano...',
+        },
+      });
       loadWhatsAppNumbers();
     }
-  }, [isOpen]);
+  }, [isOpen, chatbot]);
 
   const loadWhatsAppNumbers = async () => {
     try {
       setLoadingNumbers(true);
       const response = await api.get<WhatsAppNumber[]>('/whatsapp/');
       // Filter only active numbers
-      const activeNumbers = response.data.filter(n => n.is_active);
+      const activeNumbers = response.data.filter((n) => n.is_active);
       setWhatsappNumbers(activeNumbers);
     } catch (error) {
       console.error('Erro ao carregar números WhatsApp:', error);
@@ -79,40 +88,29 @@ export function CreateChatbotModal({
     e.preventDefault();
     setError(null);
 
-    if (!formData.name.trim()) {
+    if (!chatbot) return;
+
+    if (!formData.name?.trim()) {
       setError('Nome do chatbot é obrigatório');
       return;
     }
 
     try {
       setIsSubmitting(true);
-      await chatbotsAPI.create(formData);
+      await chatbotsAPI.update(chatbot.id, formData);
       onSuccess();
       onClose();
-      // Reset form
-      setFormData({
-        name: '',
-        description: '',
-        is_active: false,
-        is_published: false,
-        global_variables: {},
-        settings: {
-          welcome_message: 'Olá! Como posso ajudar você hoje?',
-          fallback_message: 'Desculpe, não entendi. Pode reformular?',
-          handoff_message: 'Transferindo para um atendente humano...',
-        },
-      });
     } catch (err: any) {
-      console.error('Erro ao criar chatbot:', err);
+      console.error('Erro ao atualizar chatbot:', err);
       setError(
-        err.response?.data?.detail || 'Erro ao criar chatbot. Tente novamente.'
+        err.response?.data?.detail || 'Erro ao atualizar chatbot. Tente novamente.'
       );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !chatbot) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -121,14 +119,14 @@ export function CreateChatbotModal({
         <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
+              <Edit className="w-5 h-5 text-white" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                Criar Novo Chatbot
+                Editar Chatbot
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Configure seu assistente virtual
+                Altere as configurações do seu chatbot
               </p>
             </div>
           </div>
@@ -294,22 +292,6 @@ export function CreateChatbotModal({
             />
           </div>
 
-          {/* Info Box */}
-          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4">
-            <div className="flex gap-3">
-              <div className="flex-shrink-0">
-                <Bot className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-              </div>
-              <div className="text-sm text-indigo-900 dark:text-indigo-100">
-                <p className="font-medium mb-1">Próximos Passos</p>
-                <p className="text-indigo-700 dark:text-indigo-300">
-                  Após criar o chatbot, você será direcionado para o construtor
-                  visual onde poderá criar os fluxos de conversa com drag-and-drop.
-                </p>
-              </div>
-            </div>
-          </div>
-
           {/* Actions */}
           <div className="flex gap-3 pt-4">
             <button
@@ -328,12 +310,12 @@ export function CreateChatbotModal({
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Criando...
+                  Salvando...
                 </>
               ) : (
                 <>
-                  <Bot className="w-5 h-5" />
-                  Criar Chatbot
+                  <Edit className="w-5 h-5" />
+                  Salvar Alterações
                 </>
               )}
             </button>
