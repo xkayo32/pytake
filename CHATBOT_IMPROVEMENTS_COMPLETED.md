@@ -230,7 +230,7 @@ await self._send_error_message(
 
 ## 🎯 Resumo de Progresso
 
-### **Tarefas Concluídas (13/25):**
+### **Tarefas Concluídas (14/25):**
 ✅ Condition Node (ramificação if/else)
 ✅ Handoff Node (transferir para agente humano)
 ✅ Validação de responseType (text, number, email, phone, options)
@@ -244,6 +244,7 @@ await self._send_error_message(
 ✅ Timeout de resposta (1 hora)
 ✅ Retry automático de envio
 ✅ Action Node (webhook, save_contact, update_variable)
+✅ API Call Node (chamadas HTTP com retry e error handling)
 
 ### **Proteções Implementadas:**
 🛡️ Detecção de loops infinitos (10 visitas ao mesmo node)
@@ -957,5 +958,249 @@ Condition: attempts >= 3
 
 ---
 
-**Status Final:** 🟢 13/25 tarefas concluídas (52% de progresso)
-**Próximo Milestone:** 15/25 tarefas (após implementar API Call Node e AI Prompt Node)
+### 14. **API Call Node - Chamadas HTTP para APIs Externas** 🌐
+
+**Prioridade:** ALTA
+**Arquivo:** `backend/app/services/whatsapp_service.py`
+
+**Funcionalidade:**
+- Faz chamadas HTTP para APIs externas (GET, POST, PUT, PATCH, DELETE)
+- Salva resposta da API em variável para uso no fluxo
+- Suporta headers customizados, query params e body
+- Sistema de retry automático com backoff
+- Tratamento de erro configurável (continue, stop, retry)
+- Substituição de variáveis em todos os campos
+
+**Diferença entre Action Node (webhook) e API Call Node:**
+- **Action Webhook:** Fire-and-forget (envia dados, não espera/processa resposta)
+- **API Call Node:** Busca dados da API e os disponibiliza no fluxo via variáveis
+
+**Formato do Node Data:**
+```json
+{
+  "url": "https://api.example.com/users/{{user_id}}",
+  "method": "GET",  // GET, POST, PUT, DELETE, PATCH
+  "headers": {
+    "Authorization": "Bearer {{api_token}}",
+    "Content-Type": "application/json"
+  },
+  "queryParams": {
+    "limit": "10",
+    "offset": "{{page_offset}}"
+  },
+  "body": {
+    "name": "{{user_name}}",
+    "email": "{{user_email}}"
+  },
+  "timeout": 30,  // Segundos (padrão: 30)
+  "responseVariable": "api_response",  // Nome da variável para salvar resposta
+  "errorHandling": {
+    "onError": "continue",  // continue, stop, retry
+    "maxRetries": 3,
+    "retryDelay": 2,
+    "fallbackValue": null
+  }
+}
+```
+
+**Métodos HTTP Suportados:**
+
+#### 14.1. GET - Buscar dados
+```json
+{
+  "url": "https://api.weather.com/v1/current",
+  "method": "GET",
+  "queryParams": {
+    "city": "{{user_city}}",
+    "units": "metric"
+  },
+  "responseVariable": "weather_data"
+}
+```
+
+**Uso no fluxo:**
+```
+Question: "Qual sua cidade?" → user_city
+  ↓
+API Call: GET weather API
+  ↓ Salva em: weather_data
+Message: "Temperatura em {{user_city}}: {{weather_data.temp}}°C"
+```
+
+#### 14.2. POST - Enviar dados
+```json
+{
+  "url": "https://crm.example.com/api/leads",
+  "method": "POST",
+  "headers": {
+    "Authorization": "Bearer secret_token"
+  },
+  "body": {
+    "name": "{{user_name}}",
+    "email": "{{user_email}}",
+    "source": "whatsapp"
+  },
+  "responseVariable": "lead_id"
+}
+```
+
+#### 14.3. PUT/PATCH - Atualizar dados
+```json
+{
+  "url": "https://api.example.com/users/{{user_id}}",
+  "method": "PATCH",
+  "body": {
+    "status": "active",
+    "last_interaction": "{{current_date}}"
+  }
+}
+```
+
+#### 14.4. DELETE - Deletar dados
+```json
+{
+  "url": "https://api.example.com/temp-users/{{session_id}}",
+  "method": "DELETE"
+}
+```
+
+**Substituição de Variáveis:**
+- ✅ URL: `https://api.com/users/{{user_id}}`
+- ✅ Headers: `"Authorization": "Bearer {{api_token}}"`
+- ✅ Query Params: `"city": "{{user_city}}"`
+- ✅ Body (string): `"Hello {{user_name}}"`
+- ✅ Body (object): `{"name": "{{user_name}}"}`
+
+**Tratamento de Erros:**
+
+#### Estratégia: `continue` (padrão)
+```json
+{
+  "errorHandling": {
+    "onError": "continue",
+    "fallbackValue": {"error": "API indisponível"}
+  }
+}
+```
+- Continua fluxo mesmo se API falhar
+- Usa `fallbackValue` como resposta (se configurado)
+- Ideal para APIs não-críticas
+
+#### Estratégia: `stop`
+```json
+{
+  "errorHandling": {
+    "onError": "stop"
+  }
+}
+```
+- Para o fluxo em caso de erro
+- Transfere conversa para agente humano (priority: high)
+- Ideal para APIs críticas para o fluxo
+
+#### Estratégia: `retry` (com maxRetries)
+```json
+{
+  "errorHandling": {
+    "onError": "retry",
+    "maxRetries": 3,
+    "retryDelay": 2
+  }
+}
+```
+- Tenta novamente após falha
+- Aguarda `retryDelay` segundos entre tentativas
+- Após esgotar tentativas, usa estratégia fallback
+
+**Logs Detalhados:**
+```
+🌐 Executando API Call Node
+  📡 GET https://api.weather.com/v1/current?city=S%C3%A3o%20Paulo
+  🔍 Query Params: {'city': 'São Paulo', 'units': 'metric'}
+  ✅ API respondeu: 200
+  📥 Resposta JSON recebida
+  💾 Resposta salva em 'weather_data'
+✅ API Call Node concluído
+```
+
+**Exemplo de Fluxo Completo:**
+```
+Start
+  ↓
+Question: "Qual seu CEP?" [responseType: text]
+  ↓ Salva em: user_cep
+API Call: GET https://viacep.com.br/ws/{{user_cep}}/json/
+  ↓ Salva em: address_data
+Condition: address_data.erro == null
+  ├─ true → Message: "Você mora em {{address_data.localidade}}, {{address_data.uf}}"
+  │            ↓
+  │         Action: Save Contact
+  │            - city: address_data.localidade
+  │            - state: address_data.uf
+  │
+  └─ false → Message: "CEP inválido. Por favor, tente novamente."
+               ↓
+            Jump (node: Question CEP)
+```
+
+**Casos de Uso:**
+
+1. **Consulta de CEP (ViaCEP API):**
+```json
+{
+  "url": "https://viacep.com.br/ws/{{user_cep}}/json/",
+  "method": "GET",
+  "responseVariable": "address"
+}
+```
+
+2. **Consulta de Preço (API interna):**
+```json
+{
+  "url": "https://api.mystore.com/products/{{product_id}}/price",
+  "method": "GET",
+  "headers": {
+    "Authorization": "Bearer {{store_api_key}}"
+  },
+  "responseVariable": "product_price"
+}
+```
+
+3. **Validação de Cupom:**
+```json
+{
+  "url": "https://api.mystore.com/coupons/validate",
+  "method": "POST",
+  "body": {
+    "code": "{{coupon_code}}",
+    "user_id": "{{user_id}}"
+  },
+  "responseVariable": "coupon_validation",
+  "errorHandling": {
+    "onError": "continue",
+    "fallbackValue": {"valid": false, "discount": 0}
+  }
+}
+```
+
+4. **Consulta de Status de Pedido:**
+```json
+{
+  "url": "https://api.mystore.com/orders/{{order_id}}",
+  "method": "GET",
+  "responseVariable": "order_status"
+}
+```
+
+---
+
+## 🔧 Arquivos Modificados (API Call Node)
+
+- `backend/app/services/whatsapp_service.py`:
+  - Método `_execute_api_call()` (linha ~1673-1929)
+  - Modificação em `_execute_node()` (linha ~163-167)
+
+---
+
+**Status Final:** 🟢 14/25 tarefas concluídas (56% de progresso)
+**Próximo Milestone:** 15/25 tarefas (após implementar AI Prompt Node)

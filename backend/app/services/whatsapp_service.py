@@ -160,6 +160,12 @@ class WhatsAppService:
             await self._execute_action(conversation, node, flow, incoming_message, node_data)
             return
 
+        # API CALL NODE: Fazer chamada HTTP e salvar resposta
+        if node.node_type == "api_call":
+            logger.info(f"🌐 Executando API Call Node")
+            await self._execute_api_call(conversation, node, flow, incoming_message, node_data)
+            return
+
         content_text = None
 
         if node.node_type == "question":
@@ -1660,6 +1666,264 @@ class WhatsAppService:
         await self.db.commit()
 
         logger.info(f"✅ Action Node concluído")
+
+        # Avançar para próximo node
+        await self._advance_to_next_node(conversation, node, flow, incoming_message)
+
+    async def _execute_api_call(self, conversation, node, flow, incoming_message, node_data):
+        """
+        Executa um API Call Node - faz chamadas HTTP para APIs externas e salva resposta.
+
+        Args:
+            conversation: Instância da conversa
+            node: Node atual (API Call)
+            flow: Flow ativo
+            incoming_message: Mensagem que originou a execução
+            node_data: Dados do API Call Node
+
+        Formato esperado do node_data:
+        {
+            "url": "https://api.example.com/users/{{user_id}}",
+            "method": "GET",  # GET, POST, PUT, DELETE, PATCH
+            "headers": {
+                "Authorization": "Bearer token123",
+                "Content-Type": "application/json"
+            },
+            "queryParams": {
+                "limit": "10",
+                "offset": "0"
+            },
+            "body": {
+                "name": "{{user_name}}",
+                "email": "{{user_email}}"
+            },
+            "timeout": 30,  # Segundos (padrão: 30)
+            "responseVariable": "api_response",  # Nome da variável para salvar resposta
+            "errorHandling": {
+                "onError": "continue",  # continue, stop, retry
+                "maxRetries": 3,
+                "retryDelay": 2,
+                "fallbackValue": null
+            }
+        }
+        """
+        import httpx
+        import re
+        import json
+        from app.repositories.conversation import ConversationRepository
+
+        logger.info(f"🌐 Executando API Call Node")
+
+        # Extrair configurações
+        url = node_data.get("url")
+        method = node_data.get("method", "GET").upper()
+        headers = node_data.get("headers", {})
+        query_params = node_data.get("queryParams", {})
+        body = node_data.get("body")
+        timeout_seconds = node_data.get("timeout", 30)
+        response_variable = node_data.get("responseVariable", "api_response")
+        error_handling = node_data.get("errorHandling", {})
+
+        if not url:
+            logger.error("❌ API Call sem URL configurada")
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
+            return
+
+        context_vars = conversation.context_variables or {}
+
+        # Substituir variáveis na URL
+        final_url = url
+        variables = re.findall(r'\{\{(\w+)\}\}', url)
+        for var_name in variables:
+            if var_name in context_vars:
+                final_url = final_url.replace(f"{{{{{var_name}}}}}", str(context_vars[var_name]))
+
+        # Substituir variáveis nos query params
+        final_query_params = {}
+        for key, value in query_params.items():
+            if isinstance(value, str):
+                variables = re.findall(r'\{\{(\w+)\}\}', value)
+                for var_name in variables:
+                    if var_name in context_vars:
+                        value = value.replace(f"{{{{{var_name}}}}}", str(context_vars[var_name]))
+            final_query_params[key] = value
+
+        # Substituir variáveis nos headers
+        final_headers = {}
+        for key, value in headers.items():
+            if isinstance(value, str):
+                variables = re.findall(r'\{\{(\w+)\}\}', value)
+                for var_name in variables:
+                    if var_name in context_vars:
+                        value = value.replace(f"{{{{{var_name}}}}}", str(context_vars[var_name]))
+            final_headers[key] = value
+
+        # Substituir variáveis no body
+        final_body = None
+        if body is not None:
+            if isinstance(body, str):
+                # Body como string (JSON ou texto)
+                variables = re.findall(r'\{\{(\w+)\}\}', body)
+                final_body = body
+                for var_name in variables:
+                    if var_name in context_vars:
+                        final_body = final_body.replace(
+                            f"{{{{{var_name}}}}}",
+                            str(context_vars[var_name])
+                        )
+                # Tentar parsear como JSON
+                try:
+                    final_body = json.loads(final_body)
+                except:
+                    pass  # Manter como string se não for JSON válido
+
+            elif isinstance(body, dict):
+                # Body como objeto - substituir variáveis nos valores
+                final_body = {}
+                for key, value in body.items():
+                    if isinstance(value, str):
+                        variables = re.findall(r'\{\{(\w+)\}\}', value)
+                        for var_name in variables:
+                            if var_name in context_vars:
+                                value = value.replace(
+                                    f"{{{{{var_name}}}}}",
+                                    str(context_vars[var_name])
+                                )
+                    final_body[key] = value
+
+        # Configurar retry
+        on_error = error_handling.get("onError", "continue")
+        max_retries = error_handling.get("maxRetries", 1)
+        retry_delay = error_handling.get("retryDelay", 2)
+        fallback_value = error_handling.get("fallbackValue")
+
+        retry_count = 0
+        last_error = None
+
+        logger.info(f"  📡 {method} {final_url}")
+        if final_query_params:
+            logger.info(f"  🔍 Query Params: {final_query_params}")
+        if final_body:
+            logger.info(f"  📦 Body: {json.dumps(final_body) if isinstance(final_body, dict) else final_body}")
+
+        # Tentar fazer a chamada (com retry se configurado)
+        while retry_count < max_retries:
+            try:
+                async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+                    if method == "GET":
+                        response = await client.get(
+                            final_url,
+                            headers=final_headers,
+                            params=final_query_params
+                        )
+                    elif method == "POST":
+                        response = await client.post(
+                            final_url,
+                            headers=final_headers,
+                            params=final_query_params,
+                            json=final_body if isinstance(final_body, dict) else None,
+                            content=final_body if isinstance(final_body, str) else None
+                        )
+                    elif method == "PUT":
+                        response = await client.put(
+                            final_url,
+                            headers=final_headers,
+                            params=final_query_params,
+                            json=final_body if isinstance(final_body, dict) else None,
+                            content=final_body if isinstance(final_body, str) else None
+                        )
+                    elif method == "PATCH":
+                        response = await client.patch(
+                            final_url,
+                            headers=final_headers,
+                            params=final_query_params,
+                            json=final_body if isinstance(final_body, dict) else None,
+                            content=final_body if isinstance(final_body, str) else None
+                        )
+                    elif method == "DELETE":
+                        response = await client.delete(
+                            final_url,
+                            headers=final_headers,
+                            params=final_query_params
+                        )
+                    else:
+                        logger.error(f"❌ Método HTTP não suportado: {method}")
+                        await self._advance_to_next_node(conversation, node, flow, incoming_message)
+                        return
+
+                # Verificar status code
+                response.raise_for_status()
+
+                logger.info(f"  ✅ API respondeu: {response.status_code}")
+
+                # Parsear resposta
+                try:
+                    response_data = response.json()
+                    logger.info(f"  📥 Resposta JSON recebida")
+                except:
+                    response_data = response.text
+                    logger.info(f"  📥 Resposta em texto recebida")
+
+                # Salvar resposta em variável
+                context_vars[response_variable] = response_data
+                logger.info(f"  💾 Resposta salva em '{response_variable}'")
+
+                # Sucesso - sair do loop de retry
+                break
+
+            except httpx.HTTPStatusError as e:
+                last_error = e
+                logger.warning(
+                    f"  ⚠️ Erro HTTP {e.response.status_code}: {e.response.text[:100]}"
+                )
+
+            except httpx.TimeoutException as e:
+                last_error = e
+                logger.warning(f"  ⏰ Timeout na chamada da API")
+
+            except Exception as e:
+                last_error = e
+                logger.warning(f"  ❌ Erro na chamada da API: {str(e)}")
+
+            # Incrementar contador de retry
+            retry_count += 1
+
+            if retry_count < max_retries:
+                import asyncio
+                logger.info(f"  🔄 Tentando novamente ({retry_count}/{max_retries})...")
+                await asyncio.sleep(retry_delay)
+            else:
+                # Esgotou tentativas
+                logger.error(f"  ❌ Falha após {max_retries} tentativas")
+
+                # Aplicar estratégia de erro
+                if on_error == "stop":
+                    logger.info(f"  🛑 Parando fluxo devido a erro")
+                    # Transferir para agente humano
+                    from app.repositories.conversation import ConversationRepository
+                    conv_repo = ConversationRepository(self.db)
+                    await conv_repo.update(conversation.id, {
+                        "is_bot_active": False,
+                        "status": "queued",
+                        "priority": "high"
+                    })
+                    await self.db.commit()
+                    return
+
+                elif on_error == "continue":
+                    logger.info(f"  ➡️ Continuando fluxo apesar do erro")
+                    if fallback_value is not None:
+                        context_vars[response_variable] = fallback_value
+                        logger.info(f"  💾 Valor fallback salvo em '{response_variable}'")
+
+        # Salvar context_variables atualizadas
+        conv_repo = ConversationRepository(self.db)
+        await conv_repo.update(conversation.id, {
+            "context_variables": context_vars
+        })
+        await self.db.commit()
+
+        logger.info(f"✅ API Call Node concluído")
 
         # Avançar para próximo node
         await self._advance_to_next_node(conversation, node, flow, incoming_message)
