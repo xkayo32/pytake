@@ -73,6 +73,29 @@
 - ✅ `e6dce2a` - feat: adiciona componente ChatActions
 - ✅ `b38ab28` - feat: integra ChatActions nas páginas de chat
 
+### 🔄 Backend - WebSocket (Fase 4 Parcial - EM ANDAMENTO)
+- [x] **WebSocket:** Eventos de typing já implementados (`typing_start`, `typing_stop`)
+- [x] **Backend:** Handler `user_typing` emite para conversation room
+- [x] **Infraestrutura:** Socket.IO manager com autenticação JWT
+- [ ] **Pendente:** Eventos de status online/offline
+
+### 🔄 Frontend - Typing Indicators (Fase 4 Parcial - COMPLETA 2025-10-15)
+- [x] **MessageList:** Componente visual de typing indicator (3 dots animados)
+- [x] **MessageInput:** Lógica de auto-stop após 3s de inatividade
+- [x] **Chat Pages:** Integração completa em admin e agent
+- [x] **WebSocket:** Listeners para `user_typing` events
+- [x] **Features:**
+  - Indicador visual "digitando..." com animação
+  - Auto-scroll quando typing indicator aparece
+  - Emite typing_start ao começar a digitar
+  - Auto-stop após 3s sem digitar
+  - Stop imediato ao enviar mensagem
+  - Cleanup ao desmontar componente
+
+**Commits Fase 4 (Typing):**
+- ✅ `96a38a0` - feat: adiciona typing indicator nos componentes de chat
+- ✅ `837a686` - feat: integra typing indicators nas páginas de chat admin e agent
+
 ---
 
 ## 🎯 O Que Falta Implementar
