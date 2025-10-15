@@ -1,14 +1,9 @@
-"""
-WhatsApp Service
-"""
 
 from typing import List, Dict, Any, Optional
 from uuid import UUID
 import logging
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-
 from app.models.whatsapp_number import WhatsAppNumber
 from app.models.conversation import Message
 from app.repositories.whatsapp import WhatsAppNumberRepository
@@ -18,13 +13,68 @@ from app.integrations.evolution_api import EvolutionAPIClient, generate_instance
 
 logger = logging.getLogger(__name__)
 
-
 class WhatsAppService:
     """Service for WhatsApp number management"""
 
     def __init__(self, db: AsyncSession):
         self.db = db
         self.repo = WhatsAppNumberRepository(db)
+
+    async def _trigger_chatbot(self, conversation, new_message):
+        """
+        Inicia o fluxo principal do chatbot para o contato/conversa.
+        Busca o main_flow do chatbot ativo, identifica o start_node e envia a primeira mensagem do fluxo.
+        """
+        from app.services.chatbot_service import ChatbotService
+        from app.repositories.chatbot import FlowRepository, NodeRepository
+        from app.models.chatbot import Flow, Node
+        from app.repositories.conversation import MessageRepository
+        from datetime import datetime
+
+        if not conversation.active_chatbot_id:
+            logger.warning("Nenhum chatbot ativo para a conversa.")
+            return
+
+        chatbot_service = ChatbotService(self.db)
+        organization_id = conversation.organization_id
+        chatbot_id = conversation.active_chatbot_id
+
+        # Buscar o fluxo principal
+        main_flow = await chatbot_service.flow_repo.get_main_flow(chatbot_id, organization_id)
+        if not main_flow:
+            logger.warning(f"Nenhum fluxo principal encontrado para chatbot {chatbot_id}")
+            return
+
+        # Buscar o nó inicial
+        start_node = await chatbot_service.node_repo.get_start_node(main_flow.id, organization_id)
+        if not start_node:
+            logger.warning(f"Nenhum nó inicial encontrado para o fluxo principal {main_flow.id}")
+            return
+
+        # Enviar a primeira mensagem do fluxo (se houver conteúdo)
+        node_data = start_node.data or {}
+        content = node_data.get("content") or node_data.get("question") or node_data.get("text")
+        if not content:
+            logger.info(f"Nó inicial do fluxo não possui conteúdo para enviar.")
+            return
+
+        # Monta mensagem para o contato
+        message_repo = MessageRepository(self.db)
+        message_data = {
+            "organization_id": organization_id,
+            "conversation_id": conversation.id,
+            "whatsapp_number_id": conversation.whatsapp_number_id,
+            "direction": "outbound",
+            "sender_type": "bot",
+            "message_type": "text",
+            "content": {"text": content},
+            "status": "pending",
+            "sent_at": datetime.utcnow(),
+            # Não atribuir whatsapp_message_id para mensagens do bot
+        }
+        await message_repo.create(message_data)
+        await self.db.commit()
+        logger.info(f"Mensagem inicial do fluxo enviada para conversa {conversation.id}")
 
     async def get_by_id(
         self, number_id: UUID, organization_id: UUID
@@ -266,6 +316,18 @@ class WhatsAppService:
         # 3. Store Message
         message_repo = MessageRepository(self.db)
 
+        # Check if message already exists (WhatsApp may send duplicate webhooks)
+        stmt = select(Message).where(
+            Message.whatsapp_message_id == whatsapp_message_id,
+            Message.organization_id == whatsapp_number.organization_id,
+        )
+        result = await self.db.execute(stmt)
+        existing_message = result.scalar_one_or_none()
+
+        if existing_message:
+            logger.info(f"Message {whatsapp_message_id} already processed. Skipping duplicate.")
+            return  # Idempotent - just return without error
+
         # Extract content based on message type
         content = {}
         if message_type == "text":
@@ -299,9 +361,9 @@ class WhatsAppService:
         new_message = await message_repo.create(message_data)
         logger.info(f"Saved message: {new_message.id} (WhatsApp ID: {whatsapp_message_id})")
 
-        # 4. TODO: Trigger chatbot if configured
-        # if conversation.is_bot_active and conversation.active_chatbot_id:
-        #     await self._trigger_chatbot(conversation, new_message)
+        # 4. Trigger chatbot se configurado
+        if conversation.is_bot_active and conversation.active_chatbot_id:
+            await self._trigger_chatbot(conversation, new_message)
 
         # 5. TODO: Send to queue if needed
         # if not conversation.is_bot_active and not conversation.current_agent_id:
