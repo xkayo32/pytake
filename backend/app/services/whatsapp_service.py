@@ -211,18 +211,37 @@ class WhatsAppService:
 
             contact_whatsapp_id = conversation.contact.whatsapp_id.replace("+", "")
 
-            try:
-                response = await meta_api.send_text_message(
-                    to=contact_whatsapp_id,
-                    text=final_text
-                )
+            # 🛡️ PROTEÇÃO: Retry automático de envio (até 3 tentativas)
+            max_retries = 3
+            retry_count = 0
+            last_error = None
 
-                whatsapp_message_id = response.get("messages", [{}])[0].get("id")
-                logger.info(f"✅ Mensagem enviada via Meta API. ID: {whatsapp_message_id}")
+            while retry_count < max_retries:
+                try:
+                    response = await meta_api.send_text_message(
+                        to=contact_whatsapp_id,
+                        text=final_text
+                    )
 
-            except Exception as e:
-                logger.error(f"❌ Erro ao enviar mensagem via Meta API: {e}")
-                return
+                    whatsapp_message_id = response.get("messages", [{}])[0].get("id")
+                    logger.info(f"✅ Mensagem enviada via Meta API. ID: {whatsapp_message_id}")
+                    break  # Sucesso - sair do loop
+
+                except Exception as e:
+                    retry_count += 1
+                    last_error = e
+                    logger.warning(f"⚠️ Erro ao enviar mensagem (tentativa {retry_count}/{max_retries}): {e}")
+
+                    if retry_count < max_retries:
+                        # Aguardar antes de tentar novamente (exponential backoff)
+                        import asyncio
+                        wait_time = 2 ** retry_count  # 2s, 4s, 8s
+                        logger.info(f"⏳ Aguardando {wait_time}s antes de tentar novamente...")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        # Máximo de tentativas atingido
+                        logger.error(f"❌ Falha após {max_retries} tentativas: {last_error}")
+                        return
 
         elif whatsapp_number.connection_type == "qrcode":
             # Evolution API
@@ -235,17 +254,36 @@ class WhatsAppService:
 
             contact_whatsapp_id = conversation.contact.whatsapp_id.replace("+", "")
 
-            try:
-                response = await evolution.send_text_message(
-                    instance_name=whatsapp_number.evolution_instance_name,
-                    to=contact_whatsapp_id,
-                    text=final_text
-                )
-                logger.info(f"✅ Mensagem enviada via Evolution API")
+            # 🛡️ PROTEÇÃO: Retry automático de envio (até 3 tentativas)
+            max_retries = 3
+            retry_count = 0
+            last_error = None
 
-            except Exception as e:
-                logger.error(f"❌ Erro ao enviar mensagem via Evolution API: {e}")
-                return
+            while retry_count < max_retries:
+                try:
+                    response = await evolution.send_text_message(
+                        instance_name=whatsapp_number.evolution_instance_name,
+                        to=contact_whatsapp_id,
+                        text=final_text
+                    )
+                    logger.info(f"✅ Mensagem enviada via Evolution API")
+                    break  # Sucesso - sair do loop
+
+                except Exception as e:
+                    retry_count += 1
+                    last_error = e
+                    logger.warning(f"⚠️ Erro ao enviar mensagem (tentativa {retry_count}/{max_retries}): {e}")
+
+                    if retry_count < max_retries:
+                        # Aguardar antes de tentar novamente (exponential backoff)
+                        import asyncio
+                        wait_time = 2 ** retry_count  # 2s, 4s, 8s
+                        logger.info(f"⏳ Aguardando {wait_time}s antes de tentar novamente...")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        # Máximo de tentativas atingido
+                        logger.error(f"❌ Falha após {max_retries} tentativas: {last_error}")
+                        return
 
         # Salvar mensagem no banco
         from app.repositories.conversation import MessageRepository
@@ -287,8 +325,56 @@ class WhatsAppService:
             user_message: Mensagem do usuário
         """
         from app.repositories.conversation import ConversationRepository
+        from datetime import datetime, timedelta
 
         logger.info(f"💬 Processando resposta do usuário para node {current_node.node_id}")
+
+        # 🛡️ PROTEÇÃO: Timeout de resposta (1 hora)
+        context_vars = conversation.context_variables or {}
+        timeout_key = f"_question_timestamp_{current_node.node_id}"
+        question_timestamp = context_vars.get(timeout_key)
+
+        if not question_timestamp:
+            # Primeira mensagem deste question node - salvar timestamp
+            context_vars[timeout_key] = datetime.utcnow().isoformat()
+
+            conv_repo = ConversationRepository(self.db)
+            await conv_repo.update(conversation.id, {
+                "context_variables": context_vars
+            })
+            await self.db.commit()
+        else:
+            # Verificar se passou mais de 1 hora
+            question_time = datetime.fromisoformat(question_timestamp)
+            elapsed = datetime.utcnow() - question_time
+
+            if elapsed > timedelta(hours=1):
+                logger.warning(f"⏰ Timeout de resposta! Passou {elapsed.total_seconds()//60:.0f} minutos")
+
+                # Enviar mensagem de timeout
+                timeout_msg = (
+                    "O tempo para resposta expirou. "
+                    "Vou encaminhar você para um agente humano."
+                )
+                await self._send_error_message(conversation, timeout_msg)
+
+                # Limpar timestamp
+                del context_vars[timeout_key]
+
+                conv_repo = ConversationRepository(self.db)
+                await conv_repo.update(conversation.id, {
+                    "context_variables": context_vars
+                })
+                await self.db.commit()
+
+                # Transferir para agente humano
+                handoff_data = {
+                    "transferMessage": "Transferência automática devido a timeout de resposta.",
+                    "priority": "medium",
+                    "sendTransferMessage": False  # Já enviamos mensagem acima
+                }
+                await self._execute_handoff(conversation, handoff_data)
+                return
 
         # Extrair texto da resposta do usuário
         user_text = user_message.content.get("text", "").strip()
@@ -411,6 +497,48 @@ class WhatsAppService:
         from sqlalchemy import select
 
         logger.info(f"➡️ Avançando do node {current_node.node_id}")
+
+        # 🛡️ PROTEÇÃO: Detecção de loops infinitos
+        context_vars = conversation.context_variables or {}
+        path_key = "_execution_path"
+        execution_path = context_vars.get(path_key, [])
+
+        # Adicionar node atual ao caminho
+        execution_path.append(current_node.node_id)
+
+        # Verificar se node foi visitado mais de 10 vezes (loop infinito)
+        visit_count = execution_path.count(current_node.node_id)
+        if visit_count > 10:
+            logger.error(f"🚫 Loop infinito detectado! Node {current_node.node_id} visitado {visit_count} vezes")
+
+            # Enviar mensagem de erro
+            error_msg = (
+                "Desculpe, detectamos um problema no fluxo de atendimento. "
+                "Um agente humano irá atendê-lo em breve."
+            )
+            await self._send_error_message(conversation, error_msg)
+
+            # Transferir para agente humano
+            handoff_data = {
+                "transferMessage": "Transferência automática devido a loop infinito no fluxo.",
+                "priority": "high",
+                "sendTransferMessage": False  # Já enviamos mensagem acima
+            }
+            await self._execute_handoff(conversation, handoff_data)
+            return
+
+        # Limitar tamanho do caminho (guardar apenas últimos 50 nodes)
+        if len(execution_path) > 50:
+            execution_path = execution_path[-50:]
+
+        # Atualizar caminho
+        context_vars[path_key] = execution_path
+
+        conv_repo = ConversationRepository(self.db)
+        await conv_repo.update(conversation.id, {
+            "context_variables": context_vars
+        })
+        await self.db.commit()
 
         # Buscar próximo node nas edges
         canvas_data = flow.canvas_data or {}
@@ -778,6 +906,7 @@ class WhatsAppService:
             - number: Apenas números (inteiros ou decimais)
             - email: Formato de email válido
             - phone: Formato de telefone válido (mínimo 10 dígitos)
+            - options: Escolha múltipla (deve estar na lista de opções)
         """
         import re
 
@@ -798,6 +927,31 @@ class WhatsAppService:
         if response_type == "text":
             # Texto sempre válido (se não vazio)
             return True, None
+
+        elif response_type == "options":
+            # Validar se resposta está na lista de opções
+            options = node_data.get("options", [])
+
+            if not options:
+                logger.warning("Question Node com responseType 'options' mas sem opções definidas")
+                return True, None  # Aceitar qualquer resposta se não há opções
+
+            # Normalizar resposta do usuário (lowercase, sem espaços)
+            user_normalized = user_text.strip().lower()
+
+            # Verificar se resposta corresponde a alguma opção (por valor ou label)
+            for option in options:
+                option_value = str(option.get("value", "")).strip().lower()
+                option_label = str(option.get("label", "")).strip().lower()
+
+                if user_normalized == option_value or user_normalized == option_label:
+                    return True, None
+
+            # Resposta não encontrada nas opções
+            options_text = ", ".join([f"'{opt.get('label')}'" for opt in options if opt.get('label')])
+            default_error = f"Por favor, escolha uma das opções: {options_text}"
+
+            return False, custom_error_message or default_error
 
         elif response_type == "number":
             # Verificar se é número
