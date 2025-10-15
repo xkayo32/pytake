@@ -7,6 +7,7 @@ import { Conversation, Message } from '@/types/conversation';
 import MessageList from '@/components/chat/MessageList';
 import MessageInput from '@/components/chat/MessageInput';
 import TemplateModal from '@/components/chat/TemplateModal';
+import ChatActions from '@/components/inbox/ChatActions';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { socketClient } from '@/lib/socket';
@@ -268,6 +269,21 @@ export default function ChatPage() {
           {getWindowExpiryText()}
         </div>
       </div>
+
+      {/* Quick Actions */}
+      {conversation && (
+        <div className="bg-white border-b border-gray-200 px-6 py-3">
+          <ChatActions
+            conversationId={conversationId}
+            currentStatus={conversation.status}
+            currentAgentId={conversation.assigned_agent_id}
+            onActionComplete={() => {
+              loadConversation();
+              loadMessages();
+            }}
+          />
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-hidden">
