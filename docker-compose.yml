@@ -81,7 +81,6 @@ services:
       mongodb:
         condition: service_healthy
 
-
   # Frontend - Next.js
   frontend:
     build:
