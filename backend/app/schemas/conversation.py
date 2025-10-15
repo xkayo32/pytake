@@ -92,6 +92,25 @@ class ConversationUpdate(BaseModel):
     tags: Optional[List[str]] = None
 
 
+# ============= Action Schemas =============
+
+class ConversationAssign(BaseModel):
+    """Schema for assigning conversation to agent"""
+    agent_id: UUID = Field(..., description="Agent ID to assign conversation to")
+
+
+class ConversationTransfer(BaseModel):
+    """Schema for transferring conversation to department"""
+    department_id: UUID = Field(..., description="Department ID to transfer conversation to")
+    note: Optional[str] = Field(None, max_length=500, description="Optional transfer note")
+
+
+class ConversationClose(BaseModel):
+    """Schema for closing a conversation"""
+    reason: Optional[str] = Field(None, max_length=500, description="Reason for closing")
+    resolved: bool = Field(True, description="Mark as resolved")
+
+
 class ConversationInDB(ConversationBase):
     id: UUID
     organization_id: UUID
