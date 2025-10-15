@@ -11,7 +11,10 @@ from app.api.deps import get_current_user, get_db
 from app.models.user import User
 from app.schemas.conversation import (
     Conversation,
+    ConversationAssign,
+    ConversationClose,
     ConversationCreate,
+    ConversationTransfer,
     ConversationUpdate,
     Message,
     MessageCreate,
@@ -146,4 +149,74 @@ async def mark_conversation_as_read(
     return await service.mark_as_read(
         conversation_id=conversation_id,
         organization_id=current_user.organization_id,
+    )
+
+
+# ============================================
+# ACTION ENDPOINTS
+# ============================================
+
+
+@router.post("/{conversation_id}/assign", response_model=Conversation)
+async def assign_conversation(
+    conversation_id: UUID,
+    data: ConversationAssign,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Assign conversation to a specific agent
+
+    Changes status to 'active' and assigns the specified agent.
+    If conversation was queued, removes from queue.
+    """
+    service = ConversationService(db)
+    return await service.assign_to_agent(
+        conversation_id=conversation_id,
+        organization_id=current_user.organization_id,
+        agent_id=data.agent_id,
+    )
+
+
+@router.post("/{conversation_id}/transfer", response_model=Conversation)
+async def transfer_conversation(
+    conversation_id: UUID,
+    data: ConversationTransfer,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Transfer conversation to a department
+
+    Unassigns current agent, changes status to 'queued',
+    and sets the new department. Stores transfer history.
+    """
+    service = ConversationService(db)
+    return await service.transfer_to_department(
+        conversation_id=conversation_id,
+        organization_id=current_user.organization_id,
+        department_id=data.department_id,
+        note=data.note,
+    )
+
+
+@router.post("/{conversation_id}/close", response_model=Conversation)
+async def close_conversation(
+    conversation_id: UUID,
+    data: ConversationClose,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Close a conversation
+
+    Sets status to 'closed', records close timestamp and reason.
+    Can optionally mark as resolved.
+    """
+    service = ConversationService(db)
+    return await service.close_conversation(
+        conversation_id=conversation_id,
+        organization_id=current_user.organization_id,
+        reason=data.reason,
+        resolved=data.resolved,
     )
