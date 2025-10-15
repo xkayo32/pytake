@@ -222,3 +222,137 @@ class ConversationService:
         await self.db.refresh(conversation)
 
         return conversation
+
+    # ============================================
+    # ACTIONS
+    # ============================================
+
+    async def assign_to_agent(
+        self,
+        conversation_id: UUID,
+        organization_id: UUID,
+        agent_id: UUID,
+    ) -> Conversation:
+        """
+        Assign conversation to a specific agent
+
+        Args:
+            conversation_id: Conversation ID
+            organization_id: Organization ID
+            agent_id: Agent ID to assign
+
+        Returns:
+            Updated conversation
+
+        Raises:
+            NotFoundException: If conversation not found
+        """
+        conversation = await self.get_by_id(conversation_id, organization_id)
+
+        # Update status to active and assign agent
+        update_data = {
+            "assigned_agent_id": agent_id,
+            "status": "active",
+            "assigned_at": datetime.utcnow(),
+        }
+
+        # If conversation was queued, clear queue timestamp
+        if conversation.status == "queued":
+            update_data["queued_at"] = None
+
+        updated = await self.repo.update(conversation_id, update_data)
+        return updated
+
+    async def transfer_to_department(
+        self,
+        conversation_id: UUID,
+        organization_id: UUID,
+        department_id: UUID,
+        note: Optional[str] = None,
+    ) -> Conversation:
+        """
+        Transfer conversation to a department
+
+        Args:
+            conversation_id: Conversation ID
+            organization_id: Organization ID
+            department_id: Department ID to transfer to
+            note: Optional transfer note
+
+        Returns:
+            Updated conversation
+
+        Raises:
+            NotFoundException: If conversation not found
+        """
+        conversation = await self.get_by_id(conversation_id, organization_id)
+
+        # Update department and put back in queue
+        update_data = {
+            "assigned_department_id": department_id,
+            "assigned_agent_id": None,  # Unassign current agent
+            "status": "queued",
+            "queued_at": datetime.utcnow(),
+        }
+
+        # Store transfer note in extra_data if provided
+        if note:
+            extra_data = conversation.extra_data or {}
+            if "transfers" not in extra_data:
+                extra_data["transfers"] = []
+
+            extra_data["transfers"].append({
+                "from_agent_id": str(conversation.assigned_agent_id) if conversation.assigned_agent_id else None,
+                "to_department_id": str(department_id),
+                "note": note,
+                "transferred_at": datetime.utcnow().isoformat(),
+            })
+
+            update_data["extra_data"] = extra_data
+
+        updated = await self.repo.update(conversation_id, update_data)
+        return updated
+
+    async def close_conversation(
+        self,
+        conversation_id: UUID,
+        organization_id: UUID,
+        reason: Optional[str] = None,
+        resolved: bool = True,
+    ) -> Conversation:
+        """
+        Close a conversation
+
+        Args:
+            conversation_id: Conversation ID
+            organization_id: Organization ID
+            reason: Optional close reason
+            resolved: Whether conversation was resolved
+
+        Returns:
+            Updated conversation
+
+        Raises:
+            NotFoundException: If conversation not found
+        """
+        conversation = await self.get_by_id(conversation_id, organization_id)
+
+        # Update status
+        now = datetime.utcnow()
+        update_data = {
+            "status": "closed",
+            "closed_at": now,
+        }
+
+        if resolved:
+            update_data["resolved_at"] = now
+
+        # Store close reason in extra_data if provided
+        if reason:
+            extra_data = conversation.extra_data or {}
+            extra_data["close_reason"] = reason
+            extra_data["closed_by_agent_id"] = str(conversation.assigned_agent_id) if conversation.assigned_agent_id else None
+            update_data["extra_data"] = extra_data
+
+        updated = await self.repo.update(conversation_id, update_data)
+        return updated
