@@ -1,7 +1,9 @@
 import axios from 'axios';
 
-// NÃO DEFINE BASEURL AQUI - APENAS NO INTERCEPTOR!
+// Cria instância do axios SEM baseURL
 export const api = axios.create({
+  // NUNCA usar baseURL - sempre URLs relativas
+  baseURL: undefined,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -11,16 +13,21 @@ export const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // SEMPRE FORÇA /api/v1 - BROWSER OU SSR
-    // Se a URL começa com /, adiciona /api/v1 na frente
+    // Se a URL começa com /, adiciona /api/v1 na frente (se ainda não tiver)
     if (config.url && config.url.startsWith('/')) {
-      config.url = `/api/v1${config.url}`;
+      // Só adiciona /api/v1 se NÃO começar com /api/v1 já
+      if (!config.url.startsWith('/api/v1')) {
+        config.url = `/api/v1${config.url}`;
+      }
     } else if (config.url && !config.url.startsWith('http')) {
       config.url = `/api/v1/${config.url}`;
     }
-    // REMOVE baseURL completamente
-    delete config.baseURL;
+
+    // FORÇA baseURL para ser vazio - NUNCA deixar axios adicionar hostname
+    config.baseURL = '';
 
     console.log('🚀 FINAL URL:', config.url);
+    console.log('🔍 BASE URL:', config.baseURL);
 
     // Add auth token
     try {
@@ -71,7 +78,7 @@ api.interceptors.response.use(
           throw new Error('No refresh token available');
         }
 
-        const response = await axios.post(`${API_URL}/auth/refresh`, {
+        const response = await axios.post('/api/v1/auth/refresh', {
           refresh_token: refreshToken,
         });
 

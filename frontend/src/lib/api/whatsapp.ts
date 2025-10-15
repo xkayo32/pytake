@@ -72,7 +72,7 @@ export interface WhatsAppNumberUpdate {
 export const whatsappAPI = {
   // List all WhatsApp numbers
   list: async () => {
-    const response = await api.get<WhatsAppNumber[]>('/whatsapp');
+    const response = await api.get<WhatsAppNumber[]>('/whatsapp/');
     return response.data;
   },
 
@@ -84,7 +84,7 @@ export const whatsappAPI = {
 
   // Create new WhatsApp number
   create: async (data: WhatsAppNumberCreate) => {
-    const response = await api.post<WhatsAppNumber>('/whatsapp', data);
+    const response = await api.post<WhatsAppNumber>('/whatsapp/', data);
     return response.data;
   },
 

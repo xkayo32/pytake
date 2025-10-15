@@ -30,9 +30,14 @@ export function AddWhatsAppNumberModal({
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Webhook URL padrão (backend) - agora editável
-  const defaultWebhookUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') + '/api/v1/whatsapp/webhook' ||
-                            'https://api.pytake.net/api/v1/whatsapp/webhook';
-  const [webhookUrl, setWebhookUrl] = useState(defaultWebhookUrl);
+  // Use window.location.origin for browser, fallback for SSR
+  const getDefaultWebhookUrl = () => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/api/v1/whatsapp/webhook`;
+    }
+    return 'https://api.pytake.net/api/v1/whatsapp/webhook';
+  };
+  const [webhookUrl, setWebhookUrl] = useState(getDefaultWebhookUrl());
 
   // Gerar token automaticamente ao abrir o modal
   useEffect(() => {

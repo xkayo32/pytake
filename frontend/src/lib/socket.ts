@@ -18,9 +18,15 @@ class SocketClient {
 
     this.token = accessToken;
 
-    // Get API URL from environment
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-    const baseUrl = apiUrl.replace('/api/v1', ''); // Remove /api/v1 suffix
+    // Get API URL - use window.location.origin for browser, fallback for SSR
+    let baseUrl: string;
+    if (typeof window !== 'undefined') {
+      // Browser: use current origin (works with Docker proxy)
+      baseUrl = window.location.origin;
+    } else {
+      // Server-side: use localhost
+      baseUrl = 'http://localhost:8000';
+    }
 
     console.log('[WebSocket] Connecting to:', baseUrl);
 
