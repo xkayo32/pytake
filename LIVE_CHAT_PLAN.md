@@ -335,11 +335,30 @@ frontend/src/
 9. ✅ Feedback visual e auto-refresh após ações
 10. ✅ Error handling e loading states
 
-### **Fase 4: Indicadores** (Bônus)
-1. WebSocket: Eventos de typing
-2. Status online/offline
-3. Notificações
-4. Badge de não lidas
+### ✅ **Fase 4: Indicadores em Tempo Real** (COMPLETA - 2025-10-15)
+1. ✅ Backend: Eventos de status online/offline no WebSocket
+   - `user:status` event quando usuários conectam/desconectam
+   - Sala de organização para broadcasts org-wide
+   - Helper functions: `emit_to_organization()`, `update_unread_count()`
+2. ✅ Backend: Eventos de typing (já implementados previamente)
+   - `typing_start` e `typing_stop` events
+   - Broadcast para sala de conversa
+3. ✅ Frontend: Indicador de typing nos componentes de chat
+   - Visual: 3 dots animados com "digitando..."
+   - Auto-stop após 3s de inatividade
+   - Integrado em MessageList e MessageInput
+4. ✅ Frontend: Indicador de status online/offline
+   - Hook `useUserStatus` para gerenciar estados
+   - Componente `UserStatusIndicator` (dot verde/cinza)
+   - Integrado em ConversationItem (badge "Atribuída")
+5. ✅ Frontend: Badge de contador de mensagens não lidas
+   - Hook `useUnreadCount` com atualização em tempo real
+   - Badge vermelho no sidebar (AdminSidebar e AgentSidebar)
+   - Atualização dinâmica via WebSocket ao receber mensagens inbound
+6. ✅ Arquitetura completa de real-time
+   - WebSocket client com métodos `onUserStatus()` e `onTyping()`
+   - Cleanup adequado em useEffect hooks
+   - Event listeners com auto-remove on unmount
 
 ---
 
@@ -385,9 +404,23 @@ frontend/src/
 - ✅ Performance: Inbox carrega em < 1s
 - ✅ WebSocket: Mensagens aparecem em < 500ms
 - ✅ Ações: Feedback visual e auto-refresh funcionando
-- 🆕 Indicadores em tempo real (typing, status)
-- 🆕 Notificações de novas mensagens
+- ✅ Indicadores em tempo real (typing, status online/offline)
+- ✅ Badge de contador de mensagens não lidas
+- ✅ WebSocket: Eventos de status e typing em < 100ms
 
 ---
 
-**Status:** Sistema de Live Chat Funcional! 🎉 Fases 1, 2 e 3 completas. Próximo: Indicadores em tempo real.
+**Status:** ✅ Sistema de Live Chat COMPLETO! 🎉
+
+**Fases Implementadas:**
+- ✅ **Fase 1:** Inbox (Admin e Agent) - 2025-10-10
+- ✅ **Fase 2:** Sistema de Fila - 2025-10-10
+- ✅ **Fase 3:** Ações Rápidas (Atribuir, Transferir, Encerrar) - 2025-10-15
+- ✅ **Fase 4:** Indicadores em Tempo Real (Typing, Status, Badges) - 2025-10-15
+
+**Próximos passos opcionais:**
+- 🔄 Notificações push (browser notifications)
+- 🔄 Histórico de conversas com paginação infinita
+- 🔄 Tags e categorização de conversas
+- 🔄 Templates de resposta rápida
+- 🔄 Notas internas por conversa

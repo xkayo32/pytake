@@ -944,20 +944,28 @@ This project is being developed on **Windows** but runs entirely in Docker conta
   - Transfer history saved in `extra_data`
 - **Commits:** `a1c928c`, `e6dce2a`, `b38ab28`
 
-**Phase 4: Real-time Indicators (Partial) - IN PROGRESS 🔄**
+**Phase 4: Real-time Indicators - COMPLETED ✅**
 - **Typing Indicators - COMPLETED ✅**
-  - Backend WebSocket events already implemented (`typing_start`, `typing_stop`)
+  - Backend WebSocket events (`typing_start`, `typing_stop`)
   - Frontend: Visual typing indicator with 3 animated dots
   - Auto-stop after 3 seconds of inactivity
   - Integrated in MessageList and MessageInput components
-  - Connected to admin and agent chat pages via WebSocket
   - **Commits:** `96a38a0`, `837a686`
-- **Pending:**
-  - Online/offline status indicators
-  - Unread count in real-time
-  - Badge notifications on sidebar
+- **Status Online/Offline - COMPLETED ✅**
+  - Backend: `user:status` event on connect/disconnect
+  - Organization room for broadcast org-wide
+  - Helper functions: `emit_to_organization()`, `update_unread_count()`
+  - Frontend: `useUserStatus` hook for state management
+  - `UserStatusIndicator` component (green/gray dot)
+  - Integrated in ConversationItem component
+  - **Commit:** `53abd20`
+- **Unread Count Badges - COMPLETED ✅**
+  - `useUnreadCount` hook with real-time updates via WebSocket
+  - Red badge on sidebar (AdminSidebar and AgentSidebar)
+  - Dynamic updates on new inbound messages
+  - **Commit:** `95358ff`
 
-**Status:** Typing indicators working! 🎉 Next: Status indicators & notifications.
+**Status:** Live Chat system COMPLETE! 🎉 All 4 phases implemented.
 
 ## Additional Documentation
 
