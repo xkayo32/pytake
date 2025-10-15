@@ -28,7 +28,6 @@ class WhatsAppService:
         from app.services.chatbot_service import ChatbotService
         from app.repositories.chatbot import FlowRepository, NodeRepository
         from app.models.chatbot import Flow, Node
-        from app.repositories.conversation import MessageRepository
         from datetime import datetime
 
         if not conversation.active_chatbot_id:
@@ -58,23 +57,71 @@ class WhatsAppService:
             logger.info(f"Nó inicial do fluxo não possui conteúdo para enviar.")
             return
 
-        # Monta mensagem para o contato
-        message_repo = MessageRepository(self.db)
-        message_data = {
-            "organization_id": organization_id,
-            "conversation_id": conversation.id,
-            "whatsapp_number_id": conversation.whatsapp_number_id,
-            "direction": "outbound",
-            "sender_type": "bot",
-            "message_type": "text",
-            "content": {"text": content},
-            "status": "pending",
-            "sent_at": datetime.utcnow(),
-            # Não atribuir whatsapp_message_id para mensagens do bot
-        }
-        await message_repo.create(message_data)
-        await self.db.commit()
-        logger.info(f"Mensagem inicial do fluxo enviada para conversa {conversation.id}")
+        # Enviar mensagem pelo WhatsApp (suporta oficial e Evolution API)
+        try:
+            logger.info(f"🤖 Enviando mensagem inicial do chatbot: {content[:50]}...")
+
+            # Buscar o WhatsApp number para verificar tipo de conexão
+            whatsapp_number = await self.repo.get(conversation.whatsapp_number_id)
+
+            if not whatsapp_number or not whatsapp_number.is_active:
+                logger.error("WhatsApp number not active, cannot send bot message")
+                return
+
+            if whatsapp_number.connection_type == "official":
+                # Usar Meta Cloud API
+                await self.send_message(
+                    conversation_id=conversation.id,
+                    organization_id=organization_id,
+                    message_type="text",
+                    content={"text": content, "preview_url": False},
+                    sender_user_id=None  # Bot message, no user
+                )
+            elif whatsapp_number.connection_type == "qrcode":
+                # Usar Evolution API
+                from app.integrations.evolution_api import EvolutionAPIClient
+                from app.repositories.conversation import MessageRepository, ConversationRepository
+                from app.repositories.contact import ContactRepository
+
+                contact_repo = ContactRepository(self.db)
+                contact = await contact_repo.get(conversation.contact_id)
+
+                if not contact:
+                    logger.error("Contact not found for conversation")
+                    return
+
+                evolution = EvolutionAPIClient(
+                    api_url=whatsapp_number.evolution_api_url,
+                    api_key=whatsapp_number.evolution_api_key
+                )
+
+                # Enviar via Evolution API
+                response = await evolution.send_text_message(
+                    instance_name=whatsapp_number.evolution_instance_name,
+                    to=contact.whatsapp_id,
+                    text=content
+                )
+
+                # Salvar mensagem no banco
+                message_repo = MessageRepository(self.db)
+                message_data = {
+                    "organization_id": organization_id,
+                    "conversation_id": conversation.id,
+                    "whatsapp_number_id": whatsapp_number.id,
+                    "direction": "outbound",
+                    "sender_type": "bot",
+                    "message_type": "text",
+                    "content": {"text": content},
+                    "status": "sent",
+                    "sent_at": datetime.utcnow(),
+                }
+                await message_repo.create(message_data)
+                await self.db.commit()
+
+            logger.info(f"✅ Mensagem inicial do chatbot enviada com sucesso para conversa {conversation.id}")
+        except Exception as e:
+            logger.error(f"❌ Erro ao enviar mensagem inicial do chatbot: {e}")
+            # Não propaga erro para não quebrar o processamento da mensagem recebida
 
     async def get_by_id(
         self, number_id: UUID, organization_id: UUID
