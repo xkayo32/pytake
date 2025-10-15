@@ -86,11 +86,21 @@ async def connect(sid, environ, auth):
 
     logger.info(f"Client {sid} connected successfully. User: {user_id}, Org: {organization_id}")
 
+    # Join organization room to receive org-wide updates
+    org_room = f"organization:{organization_id}"
+    await sio.enter_room(sid, org_room)
+
     # Emit welcome message
     await sio.emit('connected', {
         'message': 'Connected to PyTake WebSocket',
         'user_id': user_id
     }, room=sid)
+
+    # Broadcast user status to organization
+    await sio.emit('user:status', {
+        'user_id': user_id,
+        'status': 'online'
+    }, room=org_room, skip_sid=sid)
 
     return True
 
@@ -99,6 +109,19 @@ async def connect(sid, environ, auth):
 async def disconnect(sid):
     """Handle client disconnect"""
     logger.info(f"Client disconnected: {sid}")
+
+    # Get user info before session is cleared
+    async with sio.session(sid) as session:
+        user_id = session.get('user_id')
+        organization_id = session.get('organization_id')
+
+    # Broadcast user status to organization if user was authenticated
+    if user_id and organization_id:
+        org_room = f"organization:{organization_id}"
+        await sio.emit('user:status', {
+            'user_id': user_id,
+            'status': 'offline'
+        }, room=org_room)
 
     # Leave all rooms
     rooms = sio.rooms(sid)
@@ -135,3 +158,32 @@ async def emit_to_user(user_id: str, event: str, data: dict):
     room = f"user:{user_id}"
     await sio.emit(event, data, room=room)
     logger.info(f"Emitted {event} to user {user_id}")
+
+
+async def emit_to_organization(organization_id: str, event: str, data: dict):
+    """
+    Emit event to all users in an organization
+
+    Args:
+        organization_id: Organization ID
+        event: Event name
+        data: Event data
+    """
+    room = f"organization:{organization_id}"
+    await sio.emit(event, data, room=room)
+    logger.info(f"Emitted {event} to organization {organization_id}")
+
+
+async def update_unread_count(conversation_id: str, user_id: str, unread_count: int):
+    """
+    Update unread count for a specific conversation
+
+    Args:
+        conversation_id: Conversation ID
+        user_id: User ID to send update to
+        unread_count: New unread count
+    """
+    await emit_to_user(user_id, 'conversation:unread_update', {
+        'conversation_id': conversation_id,
+        'unread_count': unread_count
+    })

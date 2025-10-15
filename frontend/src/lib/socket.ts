@@ -128,6 +128,15 @@ class SocketClient {
   }
 
   /**
+   * Listen for user status updates (online/offline)
+   */
+  onUserStatus(callback: (data: { user_id: string; status: 'online' | 'offline' }) => void) {
+    if (!this.socket) return;
+
+    this.socket.on('user:status', callback);
+  }
+
+  /**
    * Emit typing start event
    */
   startTyping(conversationId: string) {

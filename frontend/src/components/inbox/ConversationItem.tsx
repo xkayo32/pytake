@@ -3,6 +3,8 @@
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
+import { useUserStatus } from '@/hooks/useUserStatus';
+import UserStatusIndicator from '@/components/common/UserStatusIndicator';
 
 interface Contact {
   id: string;
@@ -44,6 +46,9 @@ export default function ConversationItem({
   basePath = '/admin/conversations',
 }: ConversationItemProps) {
   const router = useRouter();
+  const { isUserOnline } = useUserStatus();
+
+  const agentOnline = isUserOnline(conversation.current_agent_id);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -190,8 +195,9 @@ export default function ConversationItem({
           )}
 
           {conversation.current_agent_id && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
               👤 Atribuída
+              <UserStatusIndicator isOnline={agentOnline} />
             </span>
           )}
         </div>
