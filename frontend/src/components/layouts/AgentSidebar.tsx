@@ -10,21 +10,24 @@ import {
   BarChart2,
   User
 } from 'lucide-react';
+import { useUnreadCount } from '@/hooks/useUnreadCount';
 
 interface NavItem {
   name: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: number;
+  showUnreadBadge?: boolean;
 }
 
 export function AgentSidebar() {
   const pathname = usePathname();
+  const { unreadCount } = useUnreadCount();
 
   const navigation: NavItem[] = [
     { name: 'Dashboard', href: '/agent', icon: BarChart2 },
-    { name: 'Fila de Atendimento', href: '/agent/queue', icon: Inbox, badge: 0 },
-    { name: 'Conversas Ativas', href: '/agent/conversations', icon: MessageSquare, badge: 0 },
+    { name: 'Fila de Atendimento', href: '/agent/queue', icon: Inbox },
+    { name: 'Conversas Ativas', href: '/agent/conversations', icon: MessageSquare, showUnreadBadge: true },
     { name: 'Histórico', href: '/agent/history', icon: Clock },
     { name: 'Atendimentos Concluídos', href: '/agent/completed', icon: CheckCircle },
     { name: 'Meu Perfil', href: '/agent/profile', icon: User },
@@ -75,11 +78,11 @@ export function AgentSidebar() {
                     />
                     {item.name}
                   </div>
-                  {item.badge !== undefined && item.badge > 0 && (
+                  {(item.badge !== undefined && item.badge > 0) || (item.showUnreadBadge && unreadCount > 0) ? (
                     <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
-                      {item.badge}
+                      {item.showUnreadBadge ? (unreadCount > 99 ? '99+' : unreadCount) : item.badge}
                     </span>
-                  )}
+                  ) : null}
                 </Link>
               );
             })}
