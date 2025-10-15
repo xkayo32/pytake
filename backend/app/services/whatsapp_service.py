@@ -153,8 +153,12 @@ class WhatsAppService:
         # Encontrar todas as variáveis no formato {{variable_name}}
         variables = re.findall(r'\{\{(\w+)\}\}', content_text)
         for var_name in variables:
-            var_value = context_vars.get(var_name, f"{{{{var_name}}}}")  # Manter placeholder se não existir
-            final_text = final_text.replace(f"{{{{{var_name}}}}}", str(var_value))
+            if var_name in context_vars:
+                var_value = context_vars[var_name]
+                final_text = final_text.replace(f"{{{{{var_name}}}}}", str(var_value))
+            else:
+                logger.warning(f"Variável {{{{var_name}}}} não encontrada em context_variables")
+                # Manter placeholder original se variável não existir
 
         logger.info(f"📤 Enviando mensagem: {final_text[:50]}...")
 
@@ -258,12 +262,16 @@ class WhatsAppService:
             return
 
         # Determinar nome da variável para salvar
-        # Formato: user_response_{node_canvas_id}
-        # Ex: node-3 (de3 removendo "node-") -> user_response_de3
-        node_canvas_id = current_node.node_id  # Ex: "node-3"
-        # Remover "node-" para criar nome de variável
-        variable_suffix = node_canvas_id.replace("node-", "")
-        variable_name = f"user_response_{variable_suffix}"
+        # Usa o campo outputVariable do node.data (definido no Chatbot Builder)
+        node_data = current_node.data or {}
+        variable_name = node_data.get("outputVariable")
+
+        if not variable_name:
+            # Fallback: gerar nome baseado no node_id
+            node_canvas_id = current_node.node_id
+            variable_suffix = node_canvas_id.replace("node-", "")
+            variable_name = f"user_response_{variable_suffix}"
+            logger.warning(f"Node sem outputVariable, usando fallback: {variable_name}")
 
         logger.info(f"💾 Salvando resposta '{user_text}' na variável '{variable_name}'")
 
