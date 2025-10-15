@@ -8,15 +8,16 @@ import { ptBR } from 'date-fns/locale';
 interface MessageListProps {
   messages: Message[];
   isLoading?: boolean;
+  isTyping?: boolean;
 }
 
-export default function MessageList({ messages, isLoading }: MessageListProps) {
+export default function MessageList({ messages, isLoading, isTyping }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive or typing indicator appears
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isTyping]);
 
   if (isLoading) {
     return (
@@ -39,6 +40,23 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
       {messages.map((message) => (
         <MessageBubble key={message.id} message={message} />
       ))}
+
+      {/* Typing Indicator */}
+      {isTyping && (
+        <div className="flex justify-start">
+          <div className="max-w-[70%] rounded-lg px-4 py-3 bg-white border border-gray-200">
+            <div className="flex items-center space-x-2">
+              <div className="flex space-x-1">
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
+              <span className="text-xs text-gray-500">digitando...</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div ref={messagesEndRef} />
     </div>
   );

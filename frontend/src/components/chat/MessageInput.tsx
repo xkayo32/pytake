@@ -1,26 +1,79 @@
 'use client';
 
-import { useState, FormEvent, KeyboardEvent } from 'react';
+import { useState, FormEvent, KeyboardEvent, useRef, useEffect } from 'react';
 
 interface MessageInputProps {
   onSendMessage: (text: string) => Promise<void>;
   disabled?: boolean;
   placeholder?: string;
+  onTypingStart?: () => void;
+  onTypingStop?: () => void;
 }
 
 export default function MessageInput({
   onSendMessage,
   disabled = false,
   placeholder = 'Digite sua mensagem...',
+  onTypingStart,
+  onTypingStop,
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Handle typing indicator
+  const handleMessageChange = (value: string) => {
+    setMessage(value);
+
+    // Start typing indicator if not already typing
+    if (!isTyping && value.trim()) {
+      setIsTyping(true);
+      onTypingStart?.();
+    }
+
+    // Clear previous timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Stop typing after 3 seconds of inactivity
+    if (value.trim()) {
+      typingTimeoutRef.current = setTimeout(() => {
+        setIsTyping(false);
+        onTypingStop?.();
+      }, 3000);
+    } else {
+      // Empty message, stop typing immediately
+      setIsTyping(false);
+      onTypingStop?.();
+    }
+  };
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      if (isTyping) {
+        onTypingStop?.();
+      }
+    };
+  }, [isTyping, onTypingStop]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     const trimmedMessage = message.trim();
     if (!trimmedMessage || isSending) return;
+
+    // Stop typing indicator
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    setIsTyping(false);
+    onTypingStop?.();
 
     setIsSending(true);
     try {
@@ -48,7 +101,7 @@ export default function MessageInput({
         <div className="flex-1">
           <textarea
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => handleMessageChange(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder={placeholder}
             disabled={disabled || isSending}
