@@ -9,6 +9,8 @@ import MessageInput from '@/components/chat/MessageInput';
 import ChatActions from '@/components/inbox/ChatActions';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { socketClient } from '@/lib/socket';
+import { useAuthStore } from '@/store/authStore';
 
 export default function AgentChatPage() {
   const params = useParams();
@@ -20,6 +22,7 @@ export default function AgentChatPage() {
   const [isLoadingConversation, setIsLoadingConversation] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isContactTyping, setIsContactTyping] = useState(false);
 
   // Load conversation details
   const loadConversation = useCallback(async () => {
@@ -82,11 +85,60 @@ export default function AgentChatPage() {
     loadMessages();
   }, [loadConversation, loadMessages]);
 
-  // Auto-refresh messages every 5 seconds
+  // WebSocket connection and real-time updates
+  useEffect(() => {
+    const accessToken = useAuthStore.getState().accessToken;
+
+    if (!accessToken) {
+      console.warn('[WebSocket] No access token available');
+      return;
+    }
+
+    // Connect to WebSocket if not already connected
+    if (!socketClient.isConnected()) {
+      console.log('[WebSocket] Connecting...');
+      socketClient.connect(accessToken);
+    }
+
+    // Join this conversation room
+    console.log('[WebSocket] Joining conversation:', conversationId);
+    socketClient.joinConversation(conversationId);
+
+    // Listen for new messages
+    const handleNewMessage = (message: Message) => {
+      console.log('[WebSocket] New message received:', message);
+      setMessages((prev) => {
+        const exists = prev.some((m) => m.id === message.id);
+        if (exists) return prev;
+        return [...prev, message];
+      });
+    };
+
+    // Listen for typing indicators
+    const handleTyping = (data: any) => {
+      console.log('[WebSocket] Typing indicator:', data);
+      if (data.user_id !== useAuthStore.getState().user?.id) {
+        setIsContactTyping(data.typing);
+      }
+    };
+
+    socketClient.onNewMessage(handleNewMessage);
+    socketClient.onTyping(handleTyping);
+
+    // Cleanup
+    return () => {
+      console.log('[WebSocket] Leaving conversation:', conversationId);
+      socketClient.leaveConversation(conversationId);
+      socketClient.off('message:new', handleNewMessage);
+      socketClient.off('user_typing', handleTyping);
+    };
+  }, [conversationId]);
+
+  // Auto-refresh messages every 30 seconds (WebSocket handles real-time)
   useEffect(() => {
     const interval = setInterval(() => {
       loadMessages();
-    }, 5000);
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [loadMessages]);
@@ -216,7 +268,11 @@ export default function AgentChatPage() {
 
       {/* Messages */}
       <div className="flex-1 overflow-hidden">
-        <MessageList messages={messages} isLoading={isLoadingMessages} />
+        <MessageList
+          messages={messages}
+          isLoading={isLoadingMessages}
+          isTyping={isContactTyping}
+        />
       </div>
 
       {/* Input */}
@@ -228,6 +284,8 @@ export default function AgentChatPage() {
             ? 'Janela de 24h expirada. Use mensagens template.'
             : 'Digite sua mensagem...'
         }
+        onTypingStart={() => socketClient.startTyping(conversationId)}
+        onTypingStop={() => socketClient.stopTyping(conversationId)}
       />
     </div>
   );

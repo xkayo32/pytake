@@ -24,6 +24,7 @@ export default function ChatPage() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [isContactTyping, setIsContactTyping] = useState(false);
 
   // Load conversation details
   const loadConversation = useCallback(async () => {
@@ -126,8 +127,18 @@ export default function ChatPage() {
       );
     };
 
+    // Listen for typing indicators
+    const handleTyping = (data: any) => {
+      console.log('[WebSocket] Typing indicator:', data);
+      // Only show typing if it's from contact (not from agent)
+      if (data.user_id !== useAuthStore.getState().user?.id) {
+        setIsContactTyping(data.typing);
+      }
+    };
+
     socketClient.onNewMessage(handleNewMessage);
     socketClient.onMessageStatus(handleMessageStatus);
+    socketClient.onTyping(handleTyping);
 
     // Cleanup: leave room and remove listeners on unmount
     return () => {
@@ -135,6 +146,7 @@ export default function ChatPage() {
       socketClient.leaveConversation(conversationId);
       socketClient.off('message:new', handleNewMessage);
       socketClient.off('message:status', handleMessageStatus);
+      socketClient.off('user_typing', handleTyping);
     };
   }, [conversationId]);
 
@@ -287,7 +299,11 @@ export default function ChatPage() {
 
       {/* Messages */}
       <div className="flex-1 overflow-hidden">
-        <MessageList messages={messages} isLoading={isLoadingMessages} />
+        <MessageList
+          messages={messages}
+          isLoading={isLoadingMessages}
+          isTyping={isContactTyping}
+        />
       </div>
 
       {/* Input */}
@@ -299,6 +315,8 @@ export default function ChatPage() {
             ? 'Janela de 24h expirada. Use mensagens template.'
             : 'Digite sua mensagem...'
         }
+        onTypingStart={() => socketClient.startTyping(conversationId)}
+        onTypingStop={() => socketClient.stopTyping(conversationId)}
       />
 
       {/* Template Modal */}
