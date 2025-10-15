@@ -944,7 +944,20 @@ This project is being developed on **Windows** but runs entirely in Docker conta
   - Transfer history saved in `extra_data`
 - **Commits:** `a1c928c`, `e6dce2a`, `b38ab28`
 
-**Status:** Live Chat system fully functional! 🎉 Next: Real-time indicators (typing, status).
+**Phase 4: Real-time Indicators (Partial) - IN PROGRESS 🔄**
+- **Typing Indicators - COMPLETED ✅**
+  - Backend WebSocket events already implemented (`typing_start`, `typing_stop`)
+  - Frontend: Visual typing indicator with 3 animated dots
+  - Auto-stop after 3 seconds of inactivity
+  - Integrated in MessageList and MessageInput components
+  - Connected to admin and agent chat pages via WebSocket
+  - **Commits:** `96a38a0`, `837a686`
+- **Pending:**
+  - Online/offline status indicators
+  - Unread count in real-time
+  - Badge notifications on sidebar
+
+**Status:** Typing indicators working! 🎉 Next: Status indicators & notifications.
 
 ## Additional Documentation
 
