@@ -1,4 +1,3 @@
-
 from typing import List, Dict, Any, Optional
 from uuid import UUID
 import logging
@@ -128,12 +127,48 @@ class WhatsAppService:
 
         # Extrair conteúdo baseado no tipo do node
         node_data = node.data or {}
+
+        # CONDITION NODE: Avaliar condições e decidir próximo node
+        if node.node_type == "condition":
+            logger.info(f"🔀 Avaliando condições do Condition Node")
+            result = await self._evaluate_conditions(conversation, node_data)
+            # Avançar passando o resultado da condição (true/false)
+            await self._advance_to_next_node(conversation, node, flow, incoming_message, condition_result=result)
+            return
+
+        # HANDOFF NODE: Transferir para agente humano
+        if node.node_type == "handoff":
+            logger.info(f"👤 Transferindo conversa para agente humano")
+            await self._execute_handoff(conversation, node_data)
+            return
+
+        # DELAY NODE: Aguardar X segundos antes de avançar
+        if node.node_type == "delay":
+            logger.info(f"⏰ Executando Delay Node")
+            await self._execute_delay(conversation, node, flow, incoming_message, node_data)
+            return
+
+        # JUMP NODE: Pular para outro node/flow
+        if node.node_type == "jump":
+            logger.info(f"🔀 Executando Jump Node")
+            await self._execute_jump(conversation, node_data, incoming_message)
+            return
+
         content_text = None
 
         if node.node_type == "question":
             content_text = node_data.get("questionText", "")
         elif node.node_type == "message":
-            content_text = node_data.get("messageText", "")
+            # Verificar se é mensagem de mídia
+            media_type = node_data.get("mediaType")
+            if media_type in ["image", "video", "document", "audio"]:
+                logger.info(f"📎 Enviando mensagem de mídia: {media_type}")
+                await self._send_media_message(conversation, node_data, media_type)
+                # Avançar para próximo node após enviar mídia
+                await self._advance_to_next_node(conversation, node, flow, incoming_message)
+                return
+            else:
+                content_text = node_data.get("messageText", "")
         elif node.node_type == "end":
             content_text = node_data.get("farewellMessage", "")
         else:
@@ -243,6 +278,7 @@ class WhatsAppService:
     async def _process_user_response_and_advance(self, conversation, current_node, flow, user_message):
         """
         Processa resposta do usuário para um question node e avança para próximo node.
+        Inclui validação de responseType e sistema de retry com maxAttempts.
 
         Args:
             conversation: Instância da conversa
@@ -261,9 +297,68 @@ class WhatsAppService:
             logger.warning("Mensagem do usuário sem texto")
             return
 
-        # Determinar nome da variável para salvar
-        # Usa o campo outputVariable do node.data (definido no Chatbot Builder)
         node_data = current_node.data or {}
+
+        # VALIDAÇÃO: Verificar se resposta é válida baseado no responseType
+        is_valid, error_message = await self._validate_user_response(user_text, node_data)
+
+        if not is_valid:
+            logger.warning(f"❌ Resposta inválida: {user_text} (esperado: {node_data.get('responseType')})")
+
+            # Sistema de retry: verificar número de tentativas
+            context_vars = conversation.context_variables or {}
+            attempt_key = f"_attempts_{current_node.node_id}"
+            attempts = context_vars.get(attempt_key, 0) + 1
+
+            validation = node_data.get("validation", {})
+            max_attempts = validation.get("maxAttempts", 3)
+
+            logger.info(f"  Tentativa {attempts}/{max_attempts}")
+
+            if attempts >= max_attempts:
+                # Máximo de tentativas atingido - enviar mensagem final e avançar
+                logger.warning(f"⚠️ Número máximo de tentativas ({max_attempts}) atingido")
+
+                final_error_message = (
+                    "Número máximo de tentativas excedido. "
+                    "Continuando com o atendimento..."
+                )
+
+                await self._send_error_message(conversation, final_error_message)
+
+                # Limpar contador de tentativas
+                del context_vars[attempt_key]
+
+                conv_repo = ConversationRepository(self.db)
+                await conv_repo.update(conversation.id, {
+                    "context_variables": context_vars
+                })
+                await self.db.commit()
+
+                # Avançar para próximo node (sem salvar resposta inválida)
+                await self._advance_to_next_node(conversation, current_node, flow, user_message)
+
+            else:
+                # Incrementar contador e enviar mensagem de erro
+                context_vars[attempt_key] = attempts
+
+                conv_repo = ConversationRepository(self.db)
+                await conv_repo.update(conversation.id, {
+                    "context_variables": context_vars
+                })
+                await self.db.commit()
+
+                # Enviar mensagem de erro personalizada
+                await self._send_error_message(conversation, error_message)
+
+                # NÃO avançar - aguardar nova resposta do usuário
+
+            return
+
+        # Resposta válida - salvar e avançar
+        logger.info(f"✅ Resposta válida: {user_text}")
+
+        # Determinar nome da variável para salvar
         variable_name = node_data.get("outputVariable")
 
         if not variable_name:
@@ -279,6 +374,11 @@ class WhatsAppService:
         context_vars = conversation.context_variables or {}
         context_vars[variable_name] = user_text
 
+        # Limpar contador de tentativas (se existir)
+        attempt_key = f"_attempts_{current_node.node_id}"
+        if attempt_key in context_vars:
+            del context_vars[attempt_key]
+
         conv_repo = ConversationRepository(self.db)
         await conv_repo.update(conversation.id, {
             "context_variables": context_vars
@@ -288,7 +388,14 @@ class WhatsAppService:
         # Avançar para próximo node
         await self._advance_to_next_node(conversation, current_node, flow, user_message)
 
-    async def _advance_to_next_node(self, conversation, current_node, flow, incoming_message):
+    async def _advance_to_next_node(
+        self,
+        conversation,
+        current_node,
+        flow,
+        incoming_message,
+        condition_result: Optional[bool] = None
+    ):
         """
         Avança para o próximo node seguindo as edges do canvas_data.
 
@@ -297,6 +404,7 @@ class WhatsAppService:
             current_node: Node atual
             flow: Flow ativo
             incoming_message: Mensagem que originou o avanço
+            condition_result: Resultado de condição (True/False) para Condition Nodes
         """
         from app.repositories.conversation import ConversationRepository
         from app.models.chatbot import Node
@@ -310,10 +418,34 @@ class WhatsAppService:
         current_node_canvas_id = current_node.node_id
         next_node_canvas_id = None
 
-        for edge in edges:
-            if edge.get("source") == current_node_canvas_id:
-                next_node_canvas_id = edge.get("target")
-                break
+        # Se for Condition Node, buscar edge baseado no resultado
+        if condition_result is not None:
+            target_label = "true" if condition_result else "false"
+            logger.info(f"🔀 Buscando edge com label '{target_label}' para Condition Node")
+
+            for edge in edges:
+                if edge.get("source") == current_node_canvas_id:
+                    edge_label = edge.get("label", "").lower()
+                    # Também aceita "yes"/"no" como sinônimos
+                    if (target_label == "true" and edge_label in ["true", "yes", "sim"]) or \
+                       (target_label == "false" and edge_label in ["false", "no", "não"]):
+                        next_node_canvas_id = edge.get("target")
+                        logger.info(f"  ✅ Edge encontrada: {edge_label} → {next_node_canvas_id}")
+                        break
+
+            if not next_node_canvas_id:
+                logger.error(
+                    f"❌ Nenhuma edge com label '{target_label}' encontrada "
+                    f"saindo do Condition Node {current_node_canvas_id}"
+                )
+                return
+
+        else:
+            # Fluxo normal: primeira edge encontrada
+            for edge in edges:
+                if edge.get("source") == current_node_canvas_id:
+                    next_node_canvas_id = edge.get("target")
+                    break
 
         if not next_node_canvas_id:
             logger.warning(f"⚠️ Nenhuma edge encontrada saindo do node {current_node_canvas_id}")
@@ -374,6 +506,793 @@ class WhatsAppService:
         await self.db.commit()
 
         logger.info(f"✅ Fluxo finalizado com sucesso")
+
+    async def _evaluate_conditions(self, conversation, node_data) -> bool:
+        """
+        Avalia as condições de um Condition Node.
+
+        Args:
+            conversation: Instância da conversa (com context_variables)
+            node_data: Dados do node (com campo "conditions")
+
+        Returns:
+            bool: True se condições forem satisfeitas, False caso contrário
+
+        Formato esperado do node_data:
+        {
+            "conditions": [
+                {
+                    "variable": "user_response_edad",
+                    "operator": ">=",
+                    "value": "18"
+                }
+            ],
+            "logicOperator": "AND"  # Opcional: AND (default) ou OR
+        }
+        """
+        context_vars = conversation.context_variables or {}
+        conditions = node_data.get("conditions", [])
+        logic_operator = node_data.get("logicOperator", "AND").upper()
+
+        if not conditions:
+            logger.warning("Condition Node sem condições definidas, retornando False")
+            return False
+
+        logger.info(f"🔍 Avaliando {len(conditions)} condição(ões) com lógica {logic_operator}")
+
+        results = []
+
+        for condition in conditions:
+            var_name = condition.get("variable")
+            operator = condition.get("operator")
+            expected_value = condition.get("value")
+
+            if not var_name or not operator:
+                logger.warning(f"Condição inválida (sem variable ou operator): {condition}")
+                results.append(False)
+                continue
+
+            # Obter valor da variável
+            var_value = context_vars.get(var_name)
+
+            if var_value is None:
+                logger.warning(f"Variável '{var_name}' não encontrada em context_variables")
+                results.append(False)
+                continue
+
+            # Converter valores para comparação
+            # Tentar converter para número se possível
+            try:
+                var_value_num = float(var_value)
+                expected_value_num = float(expected_value)
+                use_numeric = True
+            except (ValueError, TypeError):
+                var_value_str = str(var_value).strip().lower()
+                expected_value_str = str(expected_value).strip().lower()
+                use_numeric = False
+
+            # Avaliar operador
+            condition_result = False
+
+            try:
+                if operator == "==":
+                    if use_numeric:
+                        condition_result = var_value_num == expected_value_num
+                    else:
+                        condition_result = var_value_str == expected_value_str
+
+                elif operator == "!=":
+                    if use_numeric:
+                        condition_result = var_value_num != expected_value_num
+                    else:
+                        condition_result = var_value_str != expected_value_str
+
+                elif operator == ">":
+                    if use_numeric:
+                        condition_result = var_value_num > expected_value_num
+                    else:
+                        logger.warning(f"Operador '>' requer valores numéricos")
+                        condition_result = False
+
+                elif operator == "<":
+                    if use_numeric:
+                        condition_result = var_value_num < expected_value_num
+                    else:
+                        logger.warning(f"Operador '<' requer valores numéricos")
+                        condition_result = False
+
+                elif operator == ">=":
+                    if use_numeric:
+                        condition_result = var_value_num >= expected_value_num
+                    else:
+                        logger.warning(f"Operador '>=' requer valores numéricos")
+                        condition_result = False
+
+                elif operator == "<=":
+                    if use_numeric:
+                        condition_result = var_value_num <= expected_value_num
+                    else:
+                        logger.warning(f"Operador '<=' requer valores numéricos")
+                        condition_result = False
+
+                elif operator == "contains":
+                    # Sempre string
+                    condition_result = expected_value_str in var_value_str
+
+                else:
+                    logger.warning(f"Operador desconhecido: {operator}")
+                    condition_result = False
+
+                logger.info(
+                    f"  Condição: {var_name} ({var_value}) {operator} {expected_value} "
+                    f"= {condition_result}"
+                )
+
+            except Exception as e:
+                logger.error(f"Erro ao avaliar condição: {e}")
+                condition_result = False
+
+            results.append(condition_result)
+
+        # Aplicar lógica AND/OR
+        if logic_operator == "AND":
+            final_result = all(results)
+        elif logic_operator == "OR":
+            final_result = any(results)
+        else:
+            logger.warning(f"Operador lógico desconhecido: {logic_operator}, usando AND")
+            final_result = all(results)
+
+        logger.info(f"✅ Resultado final das condições: {final_result}")
+
+        return final_result
+
+    async def _execute_handoff(self, conversation, node_data):
+        """
+        Executa transferência de conversa para agente humano (Handoff Node).
+
+        Args:
+            conversation: Instância da conversa
+            node_data: Dados do Handoff Node
+
+        Formato esperado do node_data:
+        {
+            "transferMessage": "Transferindo para um agente...",  # Opcional
+            "sendTransferMessage": true,  # Opcional (default: true)
+            "queueId": "uuid-da-fila",    # Opcional
+            "priority": "medium"          # Opcional: low, medium, high, urgent
+        }
+        """
+        from app.repositories.conversation import ConversationRepository
+
+        logger.info(f"👤 Executando handoff para conversa {conversation.id}")
+
+        # Extrair configurações
+        send_transfer_message = node_data.get("sendTransferMessage", True)
+        transfer_message = node_data.get("transferMessage", "Transferindo para um agente humano...")
+        queue_id = node_data.get("queueId")
+        priority = node_data.get("priority", "medium")
+
+        # Enviar mensagem de transferência (se configurado)
+        if send_transfer_message and transfer_message:
+            whatsapp_number = await self.repo.get(conversation.whatsapp_number_id)
+
+            if whatsapp_number.connection_type == "official":
+                # Meta Cloud API
+                from app.integrations.meta_api import MetaCloudAPI
+
+                meta_api = MetaCloudAPI(
+                    phone_number_id=whatsapp_number.phone_number_id,
+                    access_token=whatsapp_number.access_token
+                )
+
+                contact_whatsapp_id = conversation.contact.whatsapp_id.replace("+", "")
+
+                try:
+                    await meta_api.send_text_message(
+                        to=contact_whatsapp_id,
+                        text=transfer_message
+                    )
+                    logger.info(f"✅ Mensagem de transferência enviada via Meta API")
+                except Exception as e:
+                    logger.error(f"❌ Erro ao enviar mensagem de transferência: {e}")
+
+            elif whatsapp_number.connection_type == "qrcode":
+                # Evolution API
+                from app.integrations.evolution_api import EvolutionAPIClient
+
+                evolution = EvolutionAPIClient(
+                    api_url=whatsapp_number.evolution_api_url,
+                    api_key=whatsapp_number.evolution_api_key
+                )
+
+                contact_whatsapp_id = conversation.contact.whatsapp_id.replace("+", "")
+
+                try:
+                    await evolution.send_text_message(
+                        instance_name=whatsapp_number.evolution_instance_name,
+                        to=contact_whatsapp_id,
+                        text=transfer_message
+                    )
+                    logger.info(f"✅ Mensagem de transferência enviada via Evolution API")
+                except Exception as e:
+                    logger.error(f"❌ Erro ao enviar mensagem de transferência: {e}")
+
+            # Salvar mensagem no banco
+            from app.repositories.conversation import MessageRepository
+            from datetime import datetime
+
+            message_repo = MessageRepository(self.db)
+            message_data = {
+                "organization_id": conversation.organization_id,
+                "conversation_id": conversation.id,
+                "whatsapp_number_id": whatsapp_number.id,
+                "direction": "outbound",
+                "sender_type": "bot",
+                "message_type": "text",
+                "content": {"text": transfer_message},
+                "status": "sent",
+                "sent_at": datetime.utcnow(),
+            }
+            await message_repo.create(message_data)
+            await self.db.commit()
+
+        # Atualizar conversa: desativar bot e colocar na fila
+        conv_repo = ConversationRepository(self.db)
+
+        update_data = {
+            "is_bot_active": False,
+            "status": "queued",
+            "priority": priority,
+        }
+
+        if queue_id:
+            update_data["assigned_queue_id"] = queue_id
+
+        await conv_repo.update(conversation.id, update_data)
+        await self.db.commit()
+
+        logger.info(
+            f"✅ Handoff completo: conversa {conversation.id} "
+            f"transferida para fila (prioridade: {priority})"
+        )
+
+        # Finalizar fluxo do bot
+        await self._finalize_flow(conversation)
+
+    async def _validate_user_response(self, user_text: str, node_data: Dict[str, Any]) -> tuple[bool, Optional[str]]:
+        """
+        Valida a resposta do usuário baseado no responseType do Question Node.
+
+        Args:
+            user_text: Texto da resposta do usuário
+            node_data: Dados do Question Node (com responseType e validation)
+
+        Returns:
+            tuple: (is_valid, error_message)
+                - is_valid: True se resposta é válida, False caso contrário
+                - error_message: Mensagem de erro (None se válido)
+
+        Tipos suportados:
+            - text: Qualquer texto (sempre válido)
+            - number: Apenas números (inteiros ou decimais)
+            - email: Formato de email válido
+            - phone: Formato de telefone válido (mínimo 10 dígitos)
+        """
+        import re
+
+        response_type = node_data.get("responseType", "text")
+        validation = node_data.get("validation", {})
+        is_required = validation.get("required", True)
+        custom_error_message = validation.get("errorMessage")
+
+        # Verificar se campo é obrigatório e está vazio
+        if is_required and not user_text.strip():
+            return False, custom_error_message or "Por favor, digite uma resposta."
+
+        # Se não é obrigatório e está vazio, aceitar
+        if not is_required and not user_text.strip():
+            return True, None
+
+        # Validar baseado no tipo
+        if response_type == "text":
+            # Texto sempre válido (se não vazio)
+            return True, None
+
+        elif response_type == "number":
+            # Verificar se é número
+            try:
+                float(user_text.strip().replace(",", "."))
+                return True, None
+            except ValueError:
+                return False, custom_error_message or "Por favor, digite um número válido."
+
+        elif response_type == "email":
+            # Validação básica de email
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if re.match(email_pattern, user_text.strip()):
+                return True, None
+            else:
+                return False, custom_error_message or "Por favor, digite um e-mail válido."
+
+        elif response_type == "phone":
+            # Remover caracteres especiais e validar telefone
+            phone_digits = re.sub(r'\D', '', user_text)
+
+            if len(phone_digits) >= 10:  # Mínimo 10 dígitos (DDD + número)
+                return True, None
+            else:
+                return False, custom_error_message or "Por favor, digite um telefone válido."
+
+        else:
+            # Tipo desconhecido - aceitar como text
+            logger.warning(f"Tipo de resposta desconhecido: {response_type}, aceitando como texto")
+            return True, None
+
+    async def _send_error_message(self, conversation, error_text: str):
+        """
+        Envia mensagem de erro para o usuário via WhatsApp.
+
+        Args:
+            conversation: Instância da conversa
+            error_text: Texto da mensagem de erro
+        """
+        logger.info(f"📮 Enviando mensagem de erro: {error_text}")
+
+        whatsapp_number = await self.repo.get(conversation.whatsapp_number_id)
+
+        if whatsapp_number.connection_type == "official":
+            # Meta Cloud API
+            from app.integrations.meta_api import MetaCloudAPI
+
+            meta_api = MetaCloudAPI(
+                phone_number_id=whatsapp_number.phone_number_id,
+                access_token=whatsapp_number.access_token
+            )
+
+            contact_whatsapp_id = conversation.contact.whatsapp_id.replace("+", "")
+
+            try:
+                await meta_api.send_text_message(
+                    to=contact_whatsapp_id,
+                    text=error_text
+                )
+                logger.info(f"✅ Mensagem de erro enviada via Meta API")
+            except Exception as e:
+                logger.error(f"❌ Erro ao enviar mensagem de erro: {e}")
+                return
+
+        elif whatsapp_number.connection_type == "qrcode":
+            # Evolution API
+            from app.integrations.evolution_api import EvolutionAPIClient
+
+            evolution = EvolutionAPIClient(
+                api_url=whatsapp_number.evolution_api_url,
+                api_key=whatsapp_number.evolution_api_key
+            )
+
+            contact_whatsapp_id = conversation.contact.whatsapp_id.replace("+", "")
+
+            try:
+                await evolution.send_text_message(
+                    instance_name=whatsapp_number.evolution_instance_name,
+                    to=contact_whatsapp_id,
+                    text=error_text
+                )
+                logger.info(f"✅ Mensagem de erro enviada via Evolution API")
+            except Exception as e:
+                logger.error(f"❌ Erro ao enviar mensagem de erro: {e}")
+                return
+
+        # Salvar mensagem no banco
+        from app.repositories.conversation import MessageRepository
+        from datetime import datetime
+
+        message_repo = MessageRepository(self.db)
+        message_data = {
+            "organization_id": conversation.organization_id,
+            "conversation_id": conversation.id,
+            "whatsapp_number_id": whatsapp_number.id,
+            "direction": "outbound",
+            "sender_type": "bot",
+            "message_type": "text",
+            "content": {"text": error_text},
+            "status": "sent",
+            "sent_at": datetime.utcnow(),
+        }
+        await message_repo.create(message_data)
+        await self.db.commit()
+
+    async def _execute_delay(self, conversation, node, flow, incoming_message, node_data):
+        """
+        Executa um Delay Node - aguarda X segundos antes de avançar para o próximo node.
+
+        Args:
+            conversation: Instância da conversa
+            node: Node atual (Delay)
+            flow: Flow ativo
+            incoming_message: Mensagem que originou a execução
+            node_data: Dados do Delay Node
+
+        Formato esperado do node_data:
+        {
+            "delaySeconds": 5,  # Tempo em segundos (padrão: 3)
+            "delayMessage": "Aguarde um momento..."  # Opcional
+        }
+        """
+        import asyncio
+
+        logger.info(f"⏰ Executando Delay Node")
+
+        # Extrair configurações
+        delay_seconds = node_data.get("delaySeconds", 3)
+        delay_message = node_data.get("delayMessage")
+
+        # Validar delay (máximo 60 segundos para evitar bloqueios)
+        if delay_seconds > 60:
+            logger.warning(f"Delay de {delay_seconds}s reduzido para 60s (máximo permitido)")
+            delay_seconds = 60
+
+        # Enviar mensagem de espera (opcional)
+        if delay_message:
+            whatsapp_number = await self.repo.get(conversation.whatsapp_number_id)
+
+            if whatsapp_number.connection_type == "official":
+                from app.integrations.meta_api import MetaCloudAPI
+                meta_api = MetaCloudAPI(
+                    phone_number_id=whatsapp_number.phone_number_id,
+                    access_token=whatsapp_number.access_token
+                )
+                contact_whatsapp_id = conversation.contact.whatsapp_id.replace("+", "")
+
+                try:
+                    await meta_api.send_text_message(to=contact_whatsapp_id, text=delay_message)
+                    logger.info(f"✅ Mensagem de delay enviada via Meta API")
+                except Exception as e:
+                    logger.error(f"❌ Erro ao enviar mensagem de delay: {e}")
+
+            elif whatsapp_number.connection_type == "qrcode":
+                from app.integrations.evolution_api import EvolutionAPIClient
+                evolution = EvolutionAPIClient(
+                    api_url=whatsapp_number.evolution_api_url,
+                    api_key=whatsapp_number.evolution_api_key
+                )
+                contact_whatsapp_id = conversation.contact.whatsapp_id.replace("+", "")
+
+                try:
+                    await evolution.send_text_message(
+                        instance_name=whatsapp_number.evolution_instance_name,
+                        to=contact_whatsapp_id,
+                        text=delay_message
+                    )
+                    logger.info(f"✅ Mensagem de delay enviada via Evolution API")
+                except Exception as e:
+                    logger.error(f"❌ Erro ao enviar mensagem de delay: {e}")
+
+            # Salvar mensagem no banco
+            from app.repositories.conversation import MessageRepository
+            from datetime import datetime
+
+            message_repo = MessageRepository(self.db)
+            message_data = {
+                "organization_id": conversation.organization_id,
+                "conversation_id": conversation.id,
+                "whatsapp_number_id": whatsapp_number.id,
+                "direction": "outbound",
+                "sender_type": "bot",
+                "message_type": "text",
+                "content": {"text": delay_message},
+                "status": "sent",
+                "sent_at": datetime.utcnow(),
+            }
+            await message_repo.create(message_data)
+            await self.db.commit()
+
+        # Aguardar o delay
+        logger.info(f"⏳ Aguardando {delay_seconds} segundos...")
+        await asyncio.sleep(delay_seconds)
+        logger.info(f"✅ Delay de {delay_seconds}s concluído")
+
+        # Avançar para próximo node
+        await self._advance_to_next_node(conversation, node, flow, incoming_message)
+
+    async def _execute_jump(self, conversation, node_data, incoming_message):
+        """
+        Executa um Jump Node - pula para outro node ou flow.
+
+        Args:
+            conversation: Instância da conversa
+            node_data: Dados do Jump Node
+            incoming_message: Mensagem que originou a execução
+
+        Formato esperado do node_data:
+        {
+            "jumpType": "node",  # "node" ou "flow"
+            "targetNodeId": "node-message-abc123",  # Se jumpType = "node"
+            "targetFlowId": "uuid-do-flow"  # Se jumpType = "flow"
+        }
+        """
+        from app.services.chatbot_service import ChatbotService
+        from app.repositories.conversation import ConversationRepository
+        from app.models.chatbot import Node
+        from sqlalchemy import select
+
+        logger.info(f"🔀 Executando Jump Node")
+
+        jump_type = node_data.get("jumpType", "node")
+        chatbot_service = ChatbotService(self.db)
+        conv_repo = ConversationRepository(self.db)
+
+        if jump_type == "node":
+            # Pular para node específico no flow atual
+            target_node_canvas_id = node_data.get("targetNodeId")
+
+            if not target_node_canvas_id:
+                logger.error("❌ Jump Node sem targetNodeId configurado")
+                return
+
+            # Buscar node no flow atual
+            stmt = select(Node).where(
+                Node.flow_id == conversation.active_flow_id,
+                Node.node_id == target_node_canvas_id,
+                Node.organization_id == conversation.organization_id
+            )
+            result = await self.db.execute(stmt)
+            target_node = result.scalar_one_or_none()
+
+            if not target_node:
+                logger.error(f"❌ Node {target_node_canvas_id} não encontrado no flow atual")
+                return
+
+            # Atualizar current_node_id
+            await conv_repo.update(conversation.id, {
+                "current_node_id": target_node.id
+            })
+            await self.db.commit()
+
+            logger.info(f"✅ Jump para node {target_node.node_type}: {target_node.label}")
+
+            # Buscar flow atual
+            flow = await chatbot_service.flow_repo.get(conversation.active_flow_id)
+
+            # Executar node de destino
+            await self._execute_node(conversation, target_node, flow, incoming_message)
+
+        elif jump_type == "flow":
+            # Pular para outro flow
+            target_flow_id = node_data.get("targetFlowId")
+
+            if not target_flow_id:
+                logger.error("❌ Jump Node sem targetFlowId configurado")
+                return
+
+            # Buscar flow de destino
+            target_flow = await chatbot_service.flow_repo.get(target_flow_id)
+
+            if not target_flow or target_flow.organization_id != conversation.organization_id:
+                logger.error(f"❌ Flow {target_flow_id} não encontrado")
+                return
+
+            # Buscar start node do novo flow
+            start_node = await chatbot_service.node_repo.get_start_node(
+                target_flow.id,
+                conversation.organization_id
+            )
+
+            if not start_node:
+                logger.error(f"❌ Start node não encontrado no flow {target_flow.name}")
+                return
+
+            # Encontrar primeiro node real (seguindo edge do start)
+            canvas_data = target_flow.canvas_data or {}
+            edges = canvas_data.get("edges", [])
+            next_node_canvas_id = None
+
+            for edge in edges:
+                if edge.get("source") == start_node.node_id:
+                    next_node_canvas_id = edge.get("target")
+                    break
+
+            if not next_node_canvas_id:
+                logger.error(f"❌ Nenhuma edge encontrada saindo do start node")
+                return
+
+            # Buscar próximo node
+            stmt = select(Node).where(
+                Node.flow_id == target_flow.id,
+                Node.node_id == next_node_canvas_id,
+                Node.organization_id == conversation.organization_id
+            )
+            result = await self.db.execute(stmt)
+            first_node = result.scalar_one_or_none()
+
+            if not first_node:
+                logger.error(f"❌ Node {next_node_canvas_id} não encontrado")
+                return
+
+            # Atualizar flow e node
+            await conv_repo.update(conversation.id, {
+                "active_flow_id": target_flow.id,
+                "current_node_id": first_node.id
+            })
+            await self.db.commit()
+
+            logger.info(f"✅ Jump para flow {target_flow.name}, node {first_node.node_type}")
+
+            # Executar primeiro node do novo flow
+            await self._execute_node(conversation, first_node, target_flow, incoming_message)
+
+        else:
+            logger.error(f"❌ Tipo de jump desconhecido: {jump_type}")
+
+    async def _send_media_message(self, conversation, node_data, media_type: str):
+        """
+        Envia mensagem de mídia (imagem, vídeo, documento, áudio) via WhatsApp.
+
+        Args:
+            conversation: Instância da conversa
+            node_data: Dados do Message Node
+            media_type: Tipo de mídia (image, video, document, audio)
+
+        Formato esperado do node_data:
+        {
+            "mediaType": "image",  # image, video, document, audio
+            "mediaUrl": "https://example.com/image.jpg",  # URL da mídia
+            "caption": "Legenda da imagem"  # Opcional
+        }
+        """
+        logger.info(f"📎 Enviando mensagem de mídia: {media_type}")
+
+        media_url = node_data.get("mediaUrl")
+        caption = node_data.get("caption", "")
+
+        if not media_url:
+            logger.error(f"❌ Media URL não configurada para {media_type}")
+            return
+
+        # Substituir variáveis na URL e caption
+        import re
+        context_vars = conversation.context_variables or {}
+
+        # Substituir variáveis no URL
+        variables = re.findall(r'\{\{(\w+)\}\}', media_url)
+        for var_name in variables:
+            if var_name in context_vars:
+                media_url = media_url.replace(f"{{{{{var_name}}}}}", str(context_vars[var_name]))
+
+        # Substituir variáveis no caption
+        if caption:
+            variables = re.findall(r'\{\{(\w+)\}\}', caption)
+            for var_name in variables:
+                if var_name in context_vars:
+                    caption = caption.replace(f"{{{{{var_name}}}}}", str(context_vars[var_name]))
+
+        # Enviar via WhatsApp
+        whatsapp_number = await self.repo.get(conversation.whatsapp_number_id)
+
+        if whatsapp_number.connection_type == "official":
+            # Meta Cloud API
+            from app.integrations.meta_api import MetaCloudAPI
+
+            meta_api = MetaCloudAPI(
+                phone_number_id=whatsapp_number.phone_number_id,
+                access_token=whatsapp_number.access_token
+            )
+
+            contact_whatsapp_id = conversation.contact.whatsapp_id.replace("+", "")
+
+            try:
+                if media_type == "image":
+                    response = await meta_api.send_image_message(
+                        to=contact_whatsapp_id,
+                        image_url=media_url,
+                        caption=caption
+                    )
+                elif media_type == "video":
+                    response = await meta_api.send_video_message(
+                        to=contact_whatsapp_id,
+                        video_url=media_url,
+                        caption=caption
+                    )
+                elif media_type == "document":
+                    filename = node_data.get("filename", "document.pdf")
+                    response = await meta_api.send_document_message(
+                        to=contact_whatsapp_id,
+                        document_url=media_url,
+                        filename=filename,
+                        caption=caption
+                    )
+                elif media_type == "audio":
+                    response = await meta_api.send_audio_message(
+                        to=contact_whatsapp_id,
+                        audio_url=media_url
+                    )
+                else:
+                    logger.error(f"❌ Tipo de mídia não suportado: {media_type}")
+                    return
+
+                logger.info(f"✅ Mensagem de {media_type} enviada via Meta API")
+
+            except Exception as e:
+                logger.error(f"❌ Erro ao enviar {media_type} via Meta API: {e}")
+                return
+
+        elif whatsapp_number.connection_type == "qrcode":
+            # Evolution API
+            from app.integrations.evolution_api import EvolutionAPIClient
+
+            evolution = EvolutionAPIClient(
+                api_url=whatsapp_number.evolution_api_url,
+                api_key=whatsapp_number.evolution_api_key
+            )
+
+            contact_whatsapp_id = conversation.contact.whatsapp_id.replace("+", "")
+
+            try:
+                if media_type == "image":
+                    await evolution.send_media_message(
+                        instance_name=whatsapp_number.evolution_instance_name,
+                        to=contact_whatsapp_id,
+                        media_type="image",
+                        media_url=media_url,
+                        caption=caption
+                    )
+                elif media_type == "video":
+                    await evolution.send_media_message(
+                        instance_name=whatsapp_number.evolution_instance_name,
+                        to=contact_whatsapp_id,
+                        media_type="video",
+                        media_url=media_url,
+                        caption=caption
+                    )
+                elif media_type == "document":
+                    filename = node_data.get("filename", "document.pdf")
+                    await evolution.send_media_message(
+                        instance_name=whatsapp_number.evolution_instance_name,
+                        to=contact_whatsapp_id,
+                        media_type="document",
+                        media_url=media_url,
+                        caption=caption,
+                        filename=filename
+                    )
+                elif media_type == "audio":
+                    await evolution.send_media_message(
+                        instance_name=whatsapp_number.evolution_instance_name,
+                        to=contact_whatsapp_id,
+                        media_type="audio",
+                        media_url=media_url
+                    )
+                else:
+                    logger.error(f"❌ Tipo de mídia não suportado: {media_type}")
+                    return
+
+                logger.info(f"✅ Mensagem de {media_type} enviada via Evolution API")
+
+            except Exception as e:
+                logger.error(f"❌ Erro ao enviar {media_type} via Evolution API: {e}")
+                return
+
+        # Salvar mensagem no banco
+        from app.repositories.conversation import MessageRepository
+        from datetime import datetime
+
+        message_repo = MessageRepository(self.db)
+        message_data = {
+            "organization_id": conversation.organization_id,
+            "conversation_id": conversation.id,
+            "whatsapp_number_id": whatsapp_number.id,
+            "direction": "outbound",
+            "sender_type": "bot",
+            "message_type": media_type,
+            "content": {
+                media_type: {"url": media_url},
+                "caption": caption
+            },
+            "status": "sent",
+            "sent_at": datetime.utcnow(),
+        }
+        await message_repo.create(message_data)
+        await self.db.commit()
 
     async def get_by_id(
         self, number_id: UUID, organization_id: UUID
