@@ -22,13 +22,11 @@ class WhatsAppService:
 
     async def _trigger_chatbot(self, conversation, new_message):
         """
-        Inicia o fluxo principal do chatbot para o contato/conversa.
-        Busca o main_flow do chatbot ativo, identifica o start_node e envia a primeira mensagem do fluxo.
+        Executa o fluxo do chatbot, processando node atual e avançando automaticamente.
         """
         from app.services.chatbot_service import ChatbotService
-        from app.repositories.chatbot import FlowRepository, NodeRepository
-        from app.models.chatbot import Flow, Node
-        from datetime import datetime
+        from app.repositories.conversation import ConversationRepository
+        from app.models.chatbot import Node
         from sqlalchemy import select
 
         if not conversation.active_chatbot_id:
@@ -38,143 +36,336 @@ class WhatsAppService:
         chatbot_service = ChatbotService(self.db)
         organization_id = conversation.organization_id
         chatbot_id = conversation.active_chatbot_id
+        conv_repo = ConversationRepository(self.db)
 
-        # Buscar o fluxo principal
-        main_flow = await chatbot_service.flow_repo.get_main_flow(chatbot_id, organization_id)
-        if not main_flow:
-            logger.warning(f"Nenhum fluxo principal encontrado para chatbot {chatbot_id}")
-            return
+        # Se não tem flow ativo, iniciar com main flow
+        if not conversation.active_flow_id:
+            main_flow = await chatbot_service.flow_repo.get_main_flow(chatbot_id, organization_id)
+            if not main_flow:
+                logger.warning(f"Nenhum fluxo principal encontrado para chatbot {chatbot_id}")
+                return
 
-        # Buscar o nó inicial
-        start_node = await chatbot_service.node_repo.get_start_node(main_flow.id, organization_id)
-        if not start_node:
-            logger.warning(f"Nenhum nó inicial encontrado para o fluxo principal {main_flow.id}")
-            return
+            # Buscar start node
+            start_node = await chatbot_service.node_repo.get_start_node(main_flow.id, organization_id)
+            if not start_node:
+                logger.warning(f"Nenhum nó inicial encontrado para o fluxo principal {main_flow.id}")
+                return
 
-        # Determinar qual node enviar (start ou próximo)
-        node_to_send = start_node
-        node_data = start_node.data or {}
-        content = node_data.get("content") or node_data.get("questionText") or node_data.get("messageText") or node_data.get("text")
-
-        # Se o start node não tem conteúdo, seguir a edge para o próximo node
-        if not content:
-            logger.info(f"Nó inicial não possui conteúdo, seguindo edge para próximo nó...")
-
-            # Buscar canvas_data com as edges
+            # Encontrar primeiro node com conteúdo seguindo edge
             canvas_data = main_flow.canvas_data or {}
             edges = canvas_data.get("edges", [])
-
-            # Encontrar a edge que sai do start node
             start_node_canvas_id = start_node.node_id
             next_node_canvas_id = None
 
             for edge in edges:
                 if edge.get("source") == start_node_canvas_id:
                     next_node_canvas_id = edge.get("target")
-                    logger.info(f"Encontrada edge: {start_node_canvas_id} -> {next_node_canvas_id}")
                     break
 
             if not next_node_canvas_id:
                 logger.warning(f"Nenhuma edge encontrada saindo do start node")
                 return
 
-            # Buscar o próximo node pelo node_id (canvas_id)
+            # Buscar próximo node
             stmt = select(Node).where(
                 Node.flow_id == main_flow.id,
                 Node.node_id == next_node_canvas_id,
                 Node.organization_id == organization_id
             )
             result = await self.db.execute(stmt)
-            next_node = result.scalar_one_or_none()
+            first_node = result.scalar_one_or_none()
 
-            if not next_node:
+            if not first_node:
                 logger.warning(f"Node {next_node_canvas_id} não encontrado no banco")
                 return
 
-            # Usar o próximo node
-            node_to_send = next_node
-            node_data = next_node.data or {}
-            content = node_data.get("questionText") or node_data.get("messageText") or node_data.get("content") or node_data.get("text")
+            # Configurar flow e node inicial
+            await conv_repo.update(conversation.id, {
+                "active_flow_id": main_flow.id,
+                "current_node_id": first_node.id
+            })
+            await self.db.commit()
 
-            logger.info(f"Próximo node encontrado: {next_node.node_type} - {next_node_canvas_id}")
+            logger.info(f"🚀 Iniciando fluxo {main_flow.name} no node {first_node.node_type}")
 
-        if not content:
-            logger.warning(f"Nenhum conteúdo encontrado para enviar no node {node_to_send.node_id}")
-            return
-
-        # Enviar mensagem pelo WhatsApp (suporta oficial e Evolution API)
-        try:
-            logger.info(f"🤖 Enviando mensagem inicial do chatbot: {content[:50]}...")
-
-            # Buscar o WhatsApp number para verificar tipo de conexão
-            whatsapp_number = await self.repo.get(conversation.whatsapp_number_id)
-
-            if not whatsapp_number or not whatsapp_number.is_active:
-                logger.error("WhatsApp number not active, cannot send bot message")
+            # Executar primeiro node
+            await self._execute_node(conversation, first_node, main_flow, new_message)
+        else:
+            # Continuar fluxo - processar resposta do usuário e avançar
+            if not conversation.current_node_id:
+                logger.warning("Conversa tem flow ativo mas sem current_node_id")
                 return
 
-            if whatsapp_number.connection_type == "official":
-                # Usar Meta Cloud API
-                await self.send_message(
-                    conversation_id=conversation.id,
-                    organization_id=organization_id,
-                    message_type="text",
-                    content={"text": content, "preview_url": False},
-                    sender_user_id=None  # Bot message, no user
+            # Buscar node atual
+            current_node = await chatbot_service.node_repo.get(conversation.current_node_id)
+            if not current_node:
+                logger.warning(f"Node atual {conversation.current_node_id} não encontrado")
+                return
+
+            # Buscar flow
+            flow = await chatbot_service.flow_repo.get(conversation.active_flow_id)
+            if not flow:
+                logger.warning(f"Flow {conversation.active_flow_id} não encontrado")
+                return
+
+            # Processar resposta do usuário e avançar
+            await self._process_user_response_and_advance(conversation, current_node, flow, new_message)
+
+    async def _execute_node(self, conversation, node, flow, incoming_message):
+        """
+        Executa um node do fluxo e envia mensagem via WhatsApp.
+
+        Args:
+            conversation: Instância da conversa
+            node: Node a ser executado
+            flow: Flow ativo
+            incoming_message: Mensagem que originou a execução
+        """
+        from app.repositories.conversation import ConversationRepository
+        import re
+
+        logger.info(f"🎬 Executando node {node.node_type}: {node.label}")
+
+        # Extrair conteúdo baseado no tipo do node
+        node_data = node.data or {}
+        content_text = None
+
+        if node.node_type == "question":
+            content_text = node_data.get("questionText", "")
+        elif node.node_type == "message":
+            content_text = node_data.get("messageText", "")
+        elif node.node_type == "end":
+            content_text = node_data.get("farewellMessage", "")
+        else:
+            logger.warning(f"Node type {node.node_type} não suportado para envio de mensagem")
+            return
+
+        if not content_text:
+            logger.warning(f"Node {node.node_id} não tem conteúdo para enviar")
+            # Avançar para próximo node mesmo sem conteúdo
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
+            return
+
+        # Substituir variáveis no texto usando context_variables
+        context_vars = conversation.context_variables or {}
+        final_text = content_text
+
+        # Encontrar todas as variáveis no formato {{variable_name}}
+        variables = re.findall(r'\{\{(\w+)\}\}', content_text)
+        for var_name in variables:
+            var_value = context_vars.get(var_name, f"{{{{var_name}}}}")  # Manter placeholder se não existir
+            final_text = final_text.replace(f"{{{{{var_name}}}}}", str(var_value))
+
+        logger.info(f"📤 Enviando mensagem: {final_text[:50]}...")
+
+        # Enviar mensagem via WhatsApp
+        whatsapp_number = await self.repo.get(conversation.whatsapp_number_id)
+
+        if whatsapp_number.connection_type == "official":
+            # Meta Cloud API
+            from app.integrations.meta_api import MetaCloudAPI
+
+            meta_api = MetaCloudAPI(
+                phone_number_id=whatsapp_number.phone_number_id,
+                access_token=whatsapp_number.access_token
+            )
+
+            contact_whatsapp_id = conversation.contact.whatsapp_id.replace("+", "")
+
+            try:
+                response = await meta_api.send_text_message(
+                    to=contact_whatsapp_id,
+                    text=final_text
                 )
-            elif whatsapp_number.connection_type == "qrcode":
-                # Usar Evolution API
-                from app.integrations.evolution_api import EvolutionAPIClient
-                from app.repositories.conversation import MessageRepository, ConversationRepository
-                from app.repositories.contact import ContactRepository
 
-                contact_repo = ContactRepository(self.db)
-                contact = await contact_repo.get(conversation.contact_id)
+                whatsapp_message_id = response.get("messages", [{}])[0].get("id")
+                logger.info(f"✅ Mensagem enviada via Meta API. ID: {whatsapp_message_id}")
 
-                if not contact:
-                    logger.error("Contact not found for conversation")
-                    return
+            except Exception as e:
+                logger.error(f"❌ Erro ao enviar mensagem via Meta API: {e}")
+                return
 
-                evolution = EvolutionAPIClient(
-                    api_url=whatsapp_number.evolution_api_url,
-                    api_key=whatsapp_number.evolution_api_key
-                )
+        elif whatsapp_number.connection_type == "qrcode":
+            # Evolution API
+            from app.integrations.evolution_api import EvolutionAPIClient
 
-                # Enviar via Evolution API
+            evolution = EvolutionAPIClient(
+                api_url=whatsapp_number.evolution_api_url,
+                api_key=whatsapp_number.evolution_api_key
+            )
+
+            contact_whatsapp_id = conversation.contact.whatsapp_id.replace("+", "")
+
+            try:
                 response = await evolution.send_text_message(
                     instance_name=whatsapp_number.evolution_instance_name,
-                    to=contact.whatsapp_id,
-                    text=content
+                    to=contact_whatsapp_id,
+                    text=final_text
                 )
+                logger.info(f"✅ Mensagem enviada via Evolution API")
 
-                # Salvar mensagem no banco
-                message_repo = MessageRepository(self.db)
-                message_data = {
-                    "organization_id": organization_id,
-                    "conversation_id": conversation.id,
-                    "whatsapp_number_id": whatsapp_number.id,
-                    "direction": "outbound",
-                    "sender_type": "bot",
-                    "message_type": "text",
-                    "content": {"text": content},
-                    "status": "sent",
-                    "sent_at": datetime.utcnow(),
-                }
-                await message_repo.create(message_data)
-                await self.db.commit()
+            except Exception as e:
+                logger.error(f"❌ Erro ao enviar mensagem via Evolution API: {e}")
+                return
 
-            logger.info(f"✅ Mensagem inicial do chatbot enviada com sucesso para conversa {conversation.id}")
+        # Salvar mensagem no banco
+        from app.repositories.conversation import MessageRepository
+        from datetime import datetime
 
-            # IMPORTANTE: Desativar bot após primeira mensagem para evitar loop
-            # TODO: Implementar motor de execução de fluxo completo para processar respostas e avançar nodes
-            from app.repositories.conversation import ConversationRepository
-            conv_repo = ConversationRepository(self.db)
-            await conv_repo.update(conversation.id, {"is_bot_active": False})
-            await self.db.commit()
-            logger.info(f"🔴 Bot desativado para conversa {conversation.id} (primeira mensagem enviada)")
-        except Exception as e:
-            logger.error(f"❌ Erro ao enviar mensagem inicial do chatbot: {e}")
-            # Não propaga erro para não quebrar o processamento da mensagem recebida
+        message_repo = MessageRepository(self.db)
+        message_data = {
+            "organization_id": conversation.organization_id,
+            "conversation_id": conversation.id,
+            "whatsapp_number_id": whatsapp_number.id,
+            "direction": "outbound",
+            "sender_type": "bot",
+            "message_type": "text",
+            "content": {"text": final_text},
+            "status": "sent",
+            "sent_at": datetime.utcnow(),
+        }
+        await message_repo.create(message_data)
+        await self.db.commit()
+
+        # Se for node de pergunta, aguardar resposta do usuário
+        if node.node_type == "question":
+            logger.info(f"⏸️ Aguardando resposta do usuário para question node {node.node_id}")
+            # Não avançar - esperar próxima mensagem do usuário
+            return
+
+        # Para message e end nodes, avançar automaticamente
+        await self._advance_to_next_node(conversation, node, flow, incoming_message)
+
+    async def _process_user_response_and_advance(self, conversation, current_node, flow, user_message):
+        """
+        Processa resposta do usuário para um question node e avança para próximo node.
+
+        Args:
+            conversation: Instância da conversa
+            current_node: Node atual (deve ser tipo "question")
+            flow: Flow ativo
+            user_message: Mensagem do usuário
+        """
+        from app.repositories.conversation import ConversationRepository
+
+        logger.info(f"💬 Processando resposta do usuário para node {current_node.node_id}")
+
+        # Extrair texto da resposta do usuário
+        user_text = user_message.content.get("text", "").strip()
+
+        if not user_text:
+            logger.warning("Mensagem do usuário sem texto")
+            return
+
+        # Determinar nome da variável para salvar
+        # Formato: user_response_{node_canvas_id}
+        # Ex: node-3 (de3 removendo "node-") -> user_response_de3
+        node_canvas_id = current_node.node_id  # Ex: "node-3"
+        # Remover "node-" para criar nome de variável
+        variable_suffix = node_canvas_id.replace("node-", "")
+        variable_name = f"user_response_{variable_suffix}"
+
+        logger.info(f"💾 Salvando resposta '{user_text}' na variável '{variable_name}'")
+
+        # Atualizar context_variables
+        context_vars = conversation.context_variables or {}
+        context_vars[variable_name] = user_text
+
+        conv_repo = ConversationRepository(self.db)
+        await conv_repo.update(conversation.id, {
+            "context_variables": context_vars
+        })
+        await self.db.commit()
+
+        # Avançar para próximo node
+        await self._advance_to_next_node(conversation, current_node, flow, user_message)
+
+    async def _advance_to_next_node(self, conversation, current_node, flow, incoming_message):
+        """
+        Avança para o próximo node seguindo as edges do canvas_data.
+
+        Args:
+            conversation: Instância da conversa
+            current_node: Node atual
+            flow: Flow ativo
+            incoming_message: Mensagem que originou o avanço
+        """
+        from app.repositories.conversation import ConversationRepository
+        from app.models.chatbot import Node
+        from sqlalchemy import select
+
+        logger.info(f"➡️ Avançando do node {current_node.node_id}")
+
+        # Buscar próximo node nas edges
+        canvas_data = flow.canvas_data or {}
+        edges = canvas_data.get("edges", [])
+        current_node_canvas_id = current_node.node_id
+        next_node_canvas_id = None
+
+        for edge in edges:
+            if edge.get("source") == current_node_canvas_id:
+                next_node_canvas_id = edge.get("target")
+                break
+
+        if not next_node_canvas_id:
+            logger.warning(f"⚠️ Nenhuma edge encontrada saindo do node {current_node_canvas_id}")
+
+            # Se for end node, finalizar fluxo
+            if current_node.node_type == "end":
+                await self._finalize_flow(conversation)
+
+            return
+
+        # Buscar próximo node no banco
+        stmt = select(Node).where(
+            Node.flow_id == flow.id,
+            Node.node_id == next_node_canvas_id,
+            Node.organization_id == conversation.organization_id
+        )
+        result = await self.db.execute(stmt)
+        next_node = result.scalar_one_or_none()
+
+        if not next_node:
+            logger.warning(f"❌ Node {next_node_canvas_id} não encontrado no banco")
+            return
+
+        # Atualizar current_node_id
+        conv_repo = ConversationRepository(self.db)
+        await conv_repo.update(conversation.id, {
+            "current_node_id": next_node.id
+        })
+        await self.db.commit()
+
+        logger.info(f"✅ Avançado para node {next_node.node_type}: {next_node.label}")
+
+        # Se for end node, finalizar após executar
+        if next_node.node_type == "end":
+            await self._execute_node(conversation, next_node, flow, incoming_message)
+            await self._finalize_flow(conversation)
+        else:
+            # Executar próximo node
+            await self._execute_node(conversation, next_node, flow, incoming_message)
+
+    async def _finalize_flow(self, conversation):
+        """
+        Finaliza o fluxo do chatbot.
+
+        Args:
+            conversation: Instância da conversa
+        """
+        from app.repositories.conversation import ConversationRepository
+
+        logger.info(f"🏁 Finalizando fluxo para conversa {conversation.id}")
+
+        conv_repo = ConversationRepository(self.db)
+        await conv_repo.update(conversation.id, {
+            "is_bot_active": False,
+            "active_flow_id": None,
+            "current_node_id": None,
+        })
+        await self.db.commit()
+
+        logger.info(f"✅ Fluxo finalizado com sucesso")
 
     async def get_by_id(
         self, number_id: UUID, organization_id: UUID
