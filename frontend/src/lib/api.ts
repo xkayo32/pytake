@@ -1,9 +1,7 @@
 import axios from 'axios';
 
-// Cria instância do axios SEM baseURL
+// Cria instância do axios
 export const api = axios.create({
-  // NUNCA usar baseURL - sempre URLs relativas
-  baseURL: undefined,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -23,11 +21,7 @@ api.interceptors.request.use(
       config.url = `/api/v1/${config.url}`;
     }
 
-    // FORÇA baseURL para ser vazio - NUNCA deixar axios adicionar hostname
-    config.baseURL = '';
-
     console.log('🚀 FINAL URL:', config.url);
-    console.log('🔍 BASE URL:', config.baseURL);
 
     // Add auth token
     try {
