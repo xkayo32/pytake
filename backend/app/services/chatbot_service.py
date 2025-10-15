@@ -353,6 +353,15 @@ class ChatbotService:
             await self.flow_repo.unset_main_flows(flow.chatbot_id, organization_id)
 
         update_data = data.model_dump(exclude_unset=True)
+
+        # If canvas_data is being updated, sync nodes to database
+        if "canvas_data" in update_data and update_data["canvas_data"]:
+            await self._sync_nodes_from_canvas(
+                flow_id=flow_id,
+                organization_id=organization_id,
+                canvas_data=update_data["canvas_data"]
+            )
+
         updated_flow = await self.flow_repo.update(flow_id, update_data)
 
         return updated_flow
@@ -466,3 +475,64 @@ class ChatbotService:
             raise NotFoundException("Node not found")
 
         await self.node_repo.delete(node_id)
+
+    # ============================================
+    # HELPER METHODS
+    # ============================================
+
+    async def _sync_nodes_from_canvas(
+        self, flow_id: UUID, organization_id: UUID, canvas_data: dict
+    ):
+        """
+        Sync nodes from canvas_data to database
+
+        Extracts nodes from React Flow canvas_data and saves them to nodes table.
+        This allows querying nodes directly from DB for chatbot execution.
+
+        Args:
+            flow_id: Flow UUID
+            organization_id: Organization UUID
+            canvas_data: Canvas data with nodes and edges
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Delete all existing nodes for this flow
+        await self.node_repo.delete_by_flow(flow_id, organization_id)
+
+        # Extract nodes from canvas_data
+        nodes_data = canvas_data.get("nodes", [])
+
+        if not nodes_data:
+            logger.warning(f"No nodes found in canvas_data for flow {flow_id}")
+            return
+
+        # Create Node instances
+        nodes_to_create = []
+        for idx, node_data in enumerate(nodes_data):
+            # Extract node info from React Flow format
+            react_flow_id = node_data.get("id")  # e.g., "node-1"
+            node_info = node_data.get("data", {})
+            node_type = node_info.get("nodeType", "custom")  # start, message, question, etc.
+            position = node_data.get("position", {})
+
+            # Create Node instance
+            node = Node(
+                flow_id=flow_id,
+                organization_id=organization_id,
+                node_id=react_flow_id,  # React Flow ID (e.g., "node-1")
+                node_type=node_type,  # Node type (start, message, question, end, etc.)
+                label=node_info.get("label", f"Node {idx + 1}"),
+                data=node_info,  # Store all node data as JSONB
+                position_x=position.get("x", 0),
+                position_y=position.get("y", 0),
+                order=idx,
+            )
+            nodes_to_create.append(node)
+
+        # Bulk create nodes
+        if nodes_to_create:
+            await self.node_repo.bulk_create(nodes_to_create)
+            logger.info(f"Synced {len(nodes_to_create)} nodes to database for flow {flow_id}")
+        else:
+            logger.warning(f"No valid nodes to sync for flow {flow_id}")
