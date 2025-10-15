@@ -4,28 +4,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Quick Start
 
+**⚠️ IMPORTANT: This project ALWAYS runs in Docker. Do not attempt local development outside of containers.**
+
 ```bash
-# 1. Start all services with Docker Compose
+# 1. Start all services with Docker Compose (REQUIRED)
 docker-compose up -d
 
-# 2. Access the application
+# 2. Verify all services are running
+docker ps
+
+# 3. View logs if needed
+docker-compose logs -f backend
+docker-compose logs -f frontend
+
+# 4. Access the application
 # - Frontend: http://localhost:3001
 # - Backend API Docs: http://localhost:8000/docs
+# - Nginx Proxy: http://localhost:8080
 # - Default login: admin@pytake.com / Admin123
 
-# 3. Local development (without Docker)
-# Terminal 1 - Backend
-cd backend
-python -m venv venv
-venv\Scripts\activate  # Windows (or source venv/bin/activate on Unix)
-pip install -r requirements.txt
-alembic upgrade head
-uvicorn app.main:app --reload
+# 5. Stop all services
+docker-compose down
 
-# Terminal 2 - Frontend
-cd frontend
-npm install
-npm run dev
+# 6. Restart a specific service after code changes
+docker-compose restart backend
+docker-compose restart frontend
 ```
 
 ## Project Overview
@@ -49,27 +52,45 @@ npm run dev
 
 ## Development Commands
 
-### Backend Setup
+**All commands must be executed inside Docker containers using `docker exec`.**
+
+### Docker Management
 
 ```bash
-cd backend
+# Start all services
+docker-compose up -d
 
-# Create virtualenv and install dependencies
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+# Stop all services
+docker-compose down
 
-# Run server (from backend directory)
-uvicorn app.main:app --reload --port 8000
+# Rebuild containers after dependency changes
+docker-compose up -d --build
 
-# Or use the venv directly (Unix/Mac)
-./venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# View logs
+docker-compose logs -f                    # All services
+docker-compose logs -f backend            # Backend only
+docker-compose logs -f frontend           # Frontend only
 
-# Windows (PowerShell)
-venv\Scripts\uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# Restart a service
+docker-compose restart backend
+docker-compose restart frontend
 
-# Database migrations (from backend directory)
+# Access container shell
+docker exec -it pytake-backend bash       # Backend container
+docker exec -it pytake-frontend sh        # Frontend container
+
+# Check container status
+docker ps                                 # Running containers
+docker-compose ps                         # All project containers
+```
+
+### Backend Commands (Inside Container)
+
+```bash
+# Execute commands in backend container
+docker exec -it pytake-backend bash
+
+# Database migrations (inside container)
 alembic upgrade head                           # Apply migrations
 alembic revision --autogenerate -m "description"  # Auto-generate migration
 alembic revision -m "description"              # Create empty migration
@@ -77,77 +98,59 @@ alembic downgrade -1                           # Rollback one migration
 alembic current                                # Show current revision
 alembic history                                # Show migration history
 
-# Using venv directly (Unix/Mac)
-./venv/bin/alembic upgrade head
-./venv/bin/alembic revision --autogenerate -m "initial_migration"
+# Or run directly from host
+docker exec pytake-backend alembic upgrade head
+docker exec pytake-backend alembic revision --autogenerate -m "add_new_field"
 
-# Windows (PowerShell)
-venv\Scripts\alembic upgrade head
-venv\Scripts\alembic revision --autogenerate -m "initial_migration"
+# Testing (inside container)
+docker exec pytake-backend pytest                            # All tests
+docker exec pytake-backend pytest tests/unit                 # Unit tests
+docker exec pytake-backend pytest tests/integration          # Integration tests
+docker exec pytake-backend pytest -v --cov=app              # With coverage
 
-# Celery workers
-celery -A app.tasks.celery_app worker --loglevel=info
-celery -A app.tasks.celery_app beat --loglevel=info
-celery -A app.tasks.celery_app flower --port=5555  # Optional monitoring
-
-# Testing
-pytest                            # Run all tests
-pytest tests/unit                 # Unit tests only
-pytest tests/integration          # Integration tests only
-pytest -v --cov=app              # With coverage
-
-# Code quality
-black app/                        # Format code
-isort app/                        # Sort imports
-flake8 app/                       # Lint
-mypy app/                         # Type checking
+# Code quality (inside container)
+docker exec pytake-backend black app/                        # Format code
+docker exec pytake-backend isort app/                        # Sort imports
+docker exec pytake-backend flake8 app/                       # Lint
+docker exec pytake-backend mypy app/                         # Type checking
 ```
 
-### Frontend Setup
+### Frontend Commands (Inside Container)
 
 ```bash
-cd frontend
+# Execute commands in frontend container
+docker exec -it pytake-frontend sh
 
-# Install dependencies
-npm install
-
-# Development
-npm run dev                      # Dev server with Turbopack (port 3000)
-npm run build                    # Build for production with Turbopack
-npm start                        # Start production server
+# Inside container
+npm install                      # Install new dependencies (after package.json changes)
+npm run build                    # Build for production
 npm run lint                     # ESLint check
+
+# Or run directly from host
+docker exec pytake-frontend npm install
+docker exec pytake-frontend npm run build
+docker exec pytake-frontend npm run lint
 ```
 
-### Database Services
-
-PostgreSQL, Redis, and MongoDB must be running. Use Docker Compose (recommended):
+### Database Access
 
 ```bash
-# Start all services (PostgreSQL, Redis, MongoDB, Backend, Frontend)
-docker-compose up -d
+# PostgreSQL
+docker exec -it pytake-postgres psql -U pytake -d pytake
 
-# Start only databases
-docker-compose up -d postgres redis mongodb
+# Redis
+docker exec -it pytake-redis redis-cli
 
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
+# MongoDB
+docker exec -it pytake-mongodb mongosh pytake_logs
 ```
 
 **Important Notes:**
-- Frontend runs on port **3001** in Docker (port 3000 locally)
-- MongoDB is mapped to port **27018** (not default 27017) to avoid conflicts
-- Backend uses `.env.docker` when running in Docker (not `.env`)
-
-Or run individual containers:
-
-```bash
-docker run -d -p 5432:5432 -e POSTGRES_USER=pytake -e POSTGRES_PASSWORD=pytake_dev_password -e POSTGRES_DB=pytake_dev postgres:15-alpine
-docker run -d -p 6379:6379 redis:7-alpine
-docker run -d -p 27018:27017 mongo:7  # Note: MongoDB mapped to port 27018
-```
+- Frontend runs on port **3001** in Docker
+- MongoDB is mapped to port **27018** (not default 27017) to avoid conflicts with other local MongoDB instances
+- Backend uses `backend/.env.docker` for configuration (not `.env`)
+- Root `.env` file controls Docker Compose port mappings
+- All file changes on host are synced to containers via volume mounts (hot reload enabled)
 
 ## Architecture
 
@@ -890,31 +893,20 @@ login: async (email: string, password: string) => {
 }
 ```
 
-## Windows Development Notes
+## Platform Notes
 
-When developing on Windows, use these platform-specific commands:
+This project is being developed on **Windows** but runs entirely in Docker containers, making it platform-agnostic.
 
-```powershell
-# Backend - Activate virtualenv
-cd backend
-venv\Scripts\activate
+**Windows Requirements:**
+- Docker Desktop installed and running
+- Git for Windows (or Git Bash)
+- Any code editor (VS Code recommended)
 
-# Run uvicorn
-venv\Scripts\uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-# Run alembic
-venv\Scripts\alembic upgrade head
-
-# Or install globally and use directly
-pip install uvicorn fastapi
-uvicorn app.main:app --reload
-```
-
-**Windows-specific notes:**
-- Use `\` instead of `/` for venv paths
-- PowerShell requires different script execution policies - if you get errors, run: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
-- Git bash works well for Unix-style commands
-- Docker Desktop required for docker-compose
+**All platforms:**
+- Docker and Docker Compose are the only requirements
+- No need for Python, Node.js, or database installations on host
+- All development happens inside containers
+- Hot reload works across all platforms via volume mounts
 
 ## Recent Implementation Status
 
@@ -963,5 +955,70 @@ Comprehensive documentation available:
 - [CREDENTIALS.md](CREDENTIALS.md) - Default login credentials
 
 Refer to these files for deep dives into specific areas.
-- Esse projeto sempre roda em docker, nao tente fica usando local
-- Não teste mais usando o MCP, deixa que mesmo efetuo os teste
+
+## Development Guidelines for AI Assistants
+
+### Core Principles
+
+- **Docker-First:** This project ALWAYS runs in Docker. Never suggest local Python/Node.js installations or running services outside containers.
+- **No Automated Testing:** DO NOT use MCP tools (Playwright, browser automation, etc.) for testing. The developer handles ALL testing manually.
+- **Windows Paths:** This project is developed on Windows (D:\pytake\) but all paths inside containers use Unix format.
+- **Code Changes Only:** Focus on code implementation, architecture, and bug fixes. Leave testing and validation to the developer.
+
+### Git Workflow
+
+**IMPORTANT: Commit after EVERY completed task/step.**
+
+When working on a feature or bug fix:
+1. Complete a logical unit of work (e.g., create a component, add an endpoint, fix a bug)
+2. Immediately create a Git commit with a descriptive message
+3. Move to the next task
+4. Repeat
+
+**Commit Message Format:**
+```bash
+# Use conventional commits format
+git add .
+git commit -m "feat: add user profile component"
+git commit -m "fix: resolve authentication token refresh issue"
+git commit -m "refactor: improve database query performance"
+git commit -m "docs: update API documentation for new endpoints"
+```
+
+**Commit Prefixes:**
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `refactor:` - Code refactoring (no functional changes)
+- `docs:` - Documentation changes
+- `style:` - Formatting, missing semicolons, etc.
+- `test:` - Adding or updating tests
+- `chore:` - Maintenance tasks
+
+**Example Workflow:**
+```bash
+# Task 1: Create UserProfile component
+# ... write code ...
+git add frontend/src/components/UserProfile.tsx
+git commit -m "feat: add UserProfile component with avatar and bio"
+
+# Task 2: Add API endpoint
+# ... write code ...
+git add backend/app/api/v1/endpoints/profile.py
+git commit -m "feat: add GET /api/v1/profile endpoint"
+
+# Task 3: Fix bug
+# ... write code ...
+git add backend/app/services/auth_service.py
+git commit -m "fix: resolve token expiration validation issue"
+```
+
+**Why commit frequently:**
+- Makes it easier to review changes
+- Allows rolling back specific changes if needed
+- Creates a clear history of development progress
+- Each commit represents a working state
+
+**DO NOT:**
+- Wait until all tasks are complete to commit
+- Create massive commits with multiple unrelated changes
+- Commit broken or untested code (verify basics before committing)
