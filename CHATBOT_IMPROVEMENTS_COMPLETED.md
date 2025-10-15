@@ -230,24 +230,26 @@ await self._send_error_message(
 
 ## 🎯 Resumo de Progresso
 
-### **Tarefas Concluídas (8/25):**
+### **Tarefas Concluídas (13/25):**
 ✅ Condition Node (ramificação if/else)
 ✅ Handoff Node (transferir para agente humano)
-✅ Validação de responseType (text, number, email, phone)
+✅ Validação de responseType (text, number, email, phone, options)
 ✅ maxAttempts e retry quando usuário erra validação
 ✅ errorMessage customizado
 ✅ Delay Node (aguardar X segundos)
 ✅ Envio de mídia (image, video, document, audio)
 ✅ Jump Node (pular para outro node/flow)
+✅ Options em Question Node (escolha múltipla)
+✅ Detecção de loops infinitos
+✅ Timeout de resposta (1 hora)
+✅ Retry automático de envio
+✅ Action Node (webhook, save_contact, update_variable)
 
-### **Próximas Tarefas (Prioridade Média):**
-🟡 Options em Question Node (escolha múltipla)
-
-### **Proteções Necessárias:**
-🛡️ Detecção de loops infinitos
-🛡️ Timeout de resposta (1 hora)
-🛡️ Retry automático de envio
-🛡️ Logs detalhados
+### **Proteções Implementadas:**
+🛡️ Detecção de loops infinitos (10 visitas ao mesmo node)
+🛡️ Timeout de resposta (1 hora com handoff automático)
+🛡️ Retry automático de envio (3 tentativas com exponential backoff)
+🛡️ Logs detalhados com emojis para fácil identificação
 
 ---
 
@@ -513,5 +515,447 @@ Fluxo de Suporte:
 
 ---
 
-**Status Final:** 🟢 8/25 tarefas concluídas (32% de progresso)
-**Próximo Milestone:** 10/25 tarefas (após implementar Options e proteções básicas)
+### 9. **Options em Question Node - Escolha Múltipla** 🎯
+
+**Prioridade:** MÉDIA
+**Arquivo:** `backend/app/services/whatsapp_service.py`
+
+**Funcionalidade:**
+- Validação de escolha múltipla no Question Node
+- Aceita valor (`value`) ou rótulo (`label`) da opção
+- Comparação case-insensitive para flexibilidade
+- Mensagem de erro automática com opções disponíveis
+
+**Formato do Node Data:**
+```json
+{
+  "questionText": "Escolha um departamento:",
+  "responseType": "options",
+  "outputVariable": "department",
+  "options": [
+    { "value": "vendas", "label": "Vendas" },
+    { "value": "suporte", "label": "Suporte Técnico" },
+    { "value": "financeiro", "label": "Financeiro" }
+  ],
+  "validation": {
+    "required": true,
+    "errorMessage": "Por favor, escolha uma opção válida"
+  }
+}
+```
+
+**Validação:**
+- Usuário pode digitar "vendas", "Vendas", "VENDAS" → ✅ Válido
+- Usuário pode digitar "Suporte Técnico" → ✅ Válido
+- Usuário digita "contabilidade" → ❌ Inválido
+
+**Mensagem de Erro Padrão:**
+```
+Por favor, escolha uma das opções: 'Vendas', 'Suporte Técnico', 'Financeiro'
+```
+
+---
+
+### 10. **Detecção de Loops Infinitos** 🛡️
+
+**Prioridade:** ALTA (Proteção)
+**Arquivo:** `backend/app/services/whatsapp_service.py`
+
+**Funcionalidade:**
+- Rastreia caminho de execução em `context_variables._execution_path`
+- Detecta se um node foi visitado mais de 10 vezes
+- Transfere automaticamente para agente humano
+- Previne travamentos e loops acidentais no fluxo
+
+**Implementação:**
+```python
+# Rastrear caminho
+execution_path.append(current_node.node_id)
+visit_count = execution_path.count(current_node.node_id)
+
+if visit_count > 10:
+    # Loop infinito detectado!
+    # 1. Enviar mensagem de erro
+    # 2. Transferir para agente (priority: high)
+    # 3. Finalizar fluxo
+```
+
+**Cenário de Ativação:**
+```
+Node A → Node B → Node A → Node B → ... (11 vezes)
+  ↓
+🚫 Loop infinito detectado!
+  ↓
+Bot: "Detectamos um problema no fluxo. Um agente irá atendê-lo."
+  ↓
+Handoff automático (priority: high)
+```
+
+**Armazenamento:**
+- `context_variables._execution_path`: `["node-a", "node-b", "node-a", ...]`
+- Limite: 50 nodes (guarda apenas últimos 50 para economizar espaço)
+
+---
+
+### 11. **Timeout de Resposta (1 hora)** ⏰
+
+**Prioridade:** ALTA (Proteção)
+**Arquivo:** `backend/app/services/whatsapp_service.py`
+
+**Funcionalidade:**
+- Rastreia timestamp da pergunta em `context_variables`
+- Valida tempo decorrido antes de processar resposta
+- Transfere automaticamente para agente após 1 hora
+- Evita conversas abandonadas travarem o fluxo
+
+**Implementação:**
+```python
+# Salvar timestamp da pergunta
+context_vars[f"_question_timestamp_{node_id}"] = datetime.utcnow().isoformat()
+
+# Ao receber resposta, verificar tempo decorrido
+elapsed = datetime.utcnow() - question_time
+
+if elapsed > timedelta(hours=1):
+    # Timeout!
+    # 1. Enviar mensagem de timeout
+    # 2. Transferir para agente (priority: medium)
+    # 3. Limpar timestamp
+```
+
+**Cenário de Ativação:**
+```
+Bot: "Qual seu nome?"
+  ↓
+... (usuário demora mais de 1 hora)
+  ↓
+Usuário: "João"
+  ↓
+⏰ Timeout detectado!
+  ↓
+Bot: "O tempo para resposta expirou. Vou encaminhá-lo para um agente."
+  ↓
+Handoff automático (priority: medium)
+```
+
+---
+
+### 12. **Retry Automático de Envio** 🔄
+
+**Prioridade:** ALTA (Proteção)
+**Arquivo:** `backend/app/services/whatsapp_service.py`
+
+**Funcionalidade:**
+- Até 3 tentativas automáticas de envio
+- Exponential backoff: 2s, 4s, 8s
+- Funciona com Meta API e Evolution API
+- Logs detalhados de cada tentativa
+- Falha gracefully após tentativas esgotadas
+
+**Implementação:**
+```python
+max_retries = 3
+retry_count = 0
+
+while retry_count < max_retries:
+    try:
+        # Tentar enviar mensagem
+        await api.send_text_message(...)
+        break  # Sucesso!
+    except Exception as e:
+        retry_count += 1
+
+        if retry_count < max_retries:
+            wait_time = 2 ** retry_count  # 2, 4, 8
+            await asyncio.sleep(wait_time)
+        else:
+            # Falhou após 3 tentativas
+            logger.error(f"❌ Falha após {max_retries} tentativas")
+            return
+```
+
+**Fluxo de Retry:**
+```
+Tentativa 1: ❌ Falha (network error)
+  ↓ Aguarda 2 segundos
+Tentativa 2: ❌ Falha (timeout)
+  ↓ Aguarda 4 segundos
+Tentativa 3: ✅ Sucesso!
+```
+
+**Logs:**
+```
+⚠️ Erro ao enviar mensagem (tentativa 1/3): ConnectionError
+⏳ Aguardando 2s antes de tentar novamente...
+⚠️ Erro ao enviar mensagem (tentativa 2/3): Timeout
+⏳ Aguardando 4s antes de tentar novamente...
+✅ Mensagem enviada via Meta API. ID: wamid.xyz
+```
+
+---
+
+## 🔧 Arquivos Modificados (Sprint de Proteções)
+
+- `backend/app/services/whatsapp_service.py`:
+  - Modificação em `_validate_user_response()` (linha ~803-826): Options validation
+  - Modificação em `_advance_to_next_node()` (linha ~415-455): Loop detection
+  - Modificação em `_process_user_response_and_advance()` (linha ~294-339): Timeout check
+  - Modificação em `_execute_node()` (linha ~214-244, ~257-286): Retry logic
+
+---
+
+### 13. **Action Node - Automatização de Ações** ⚡
+
+**Prioridade:** ALTA
+**Arquivo:** `backend/app/services/whatsapp_service.py`
+
+**Funcionalidade:**
+- Executa ações automatizadas durante o fluxo
+- Suporta múltiplas ações por node (executadas sequencialmente)
+- Substitui variáveis em todos os campos configuráveis
+- Continua fluxo mesmo se uma ação falhar
+
+**Formato do Node Data:**
+```json
+{
+  "actions": [
+    {
+      "type": "webhook",  // webhook, save_contact, update_variable
+      "config": {
+        // Configuração específica de cada tipo
+      }
+    }
+  ]
+}
+```
+
+**Tipos de Ações:**
+
+#### 13.1. Webhook (📡)
+Executa chamadas HTTP para APIs externas:
+
+```json
+{
+  "type": "webhook",
+  "config": {
+    "url": "https://api.example.com/users/{{user_id}}",
+    "method": "POST",  // GET, POST, PUT, DELETE
+    "headers": {
+      "Authorization": "Bearer token123",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "name": "{{user_name}}",
+      "email": "{{user_email}}",
+      "age": "{{user_age}}"
+    },
+    "timeout": 30,  // Segundos (padrão: 30)
+    "saveResponseTo": "api_response"  // Opcional: salvar resposta em variável
+  }
+}
+```
+
+**Recursos:**
+- Substitui `{{variáveis}}` em URL, headers e body
+- Suporta body como string ou objeto
+- Timeout configurável
+- Salva resposta JSON em variável (se `saveResponseTo` configurado)
+- Logs detalhados: `📡 Chamando webhook: POST https://...`
+
+**Exemplo de Uso:**
+```
+Question: "Qual seu email?"
+  ↓ (salva em user_email)
+Action: Webhook
+  - URL: https://crm.com/api/leads
+  - Body: {"email": "{{user_email}}", "source": "whatsapp"}
+  - Salva resposta em: crm_lead_id
+  ↓
+Message: "Cadastro realizado! ID: {{crm_lead_id}}"
+```
+
+#### 13.2. Save Contact (👤)
+Atualiza informações do contato no banco de dados:
+
+```json
+{
+  "type": "save_contact",
+  "config": {
+    "fields": {
+      "name": "user_name",        // Mapeia variável → campo do contato
+      "email": "user_email",
+      "phone": "user_phone",
+      "company": "user_company",
+      "position": "user_position",
+      "custom_field": "variable_name"  // Campos customizados
+    }
+  }
+}
+```
+
+**Campos Padrão:**
+- `name` - Nome do contato
+- `email` - Email
+- `phone` - Telefone
+- `company` - Empresa
+- `position` - Cargo
+
+**Campos Customizados:**
+- Qualquer campo não-padrão vai para `custom_fields` (JSONB)
+
+**Exemplo de Uso:**
+```
+Question: "Qual seu nome?" → user_name
+  ↓
+Question: "Qual seu email?" → user_email
+  ↓
+Question: "Qual sua empresa?" → user_company
+  ↓
+Action: Save Contact
+  - name: user_name
+  - email: user_email
+  - company: user_company
+  ↓
+Message: "Cadastro atualizado, {{user_name}}!"
+```
+
+#### 13.3. Update Variable (💾)
+Atualiza ou cria variáveis no contexto:
+
+```json
+{
+  "type": "update_variable",
+  "config": {
+    "variableName": "total_score",
+    "value": "100",
+    "operation": "set"  // set, append, increment
+  }
+}
+```
+
+**Operações:**
+
+1. **set** - Define valor (sobrescreve):
+```json
+{
+  "variableName": "status",
+  "value": "approved",
+  "operation": "set"
+}
+```
+
+2. **append** - Concatena strings:
+```json
+{
+  "variableName": "full_message",
+  "value": " - Obrigado!",
+  "operation": "append"
+}
+// Se full_message = "Olá" → Resultado: "Olá - Obrigado!"
+```
+
+3. **increment** - Incrementa números:
+```json
+{
+  "variableName": "points",
+  "value": "50",
+  "operation": "increment"
+}
+// Se points = 100 → Resultado: 150
+```
+
+**Substituição de Variáveis:**
+```json
+{
+  "variableName": "greeting",
+  "value": "Olá, {{user_name}}! Você tem {{points}} pontos.",
+  "operation": "set"
+}
+```
+
+**Exemplo de Uso:**
+```
+Action: Update Variable
+  - variableName: attempts
+  - value: 0
+  - operation: set
+  ↓
+Question: "Adivinhe o número"
+  ↓
+Action: Update Variable
+  - variableName: attempts
+  - value: 1
+  - operation: increment
+  ↓
+Condition: attempts >= 3
+  ├─ true → Message: "Máximo de tentativas!"
+  └─ false → (volta para Question)
+```
+
+**Múltiplas Ações:**
+```json
+{
+  "actions": [
+    {
+      "type": "save_contact",
+      "config": {
+        "fields": {
+          "name": "user_name",
+          "email": "user_email"
+        }
+      }
+    },
+    {
+      "type": "webhook",
+      "config": {
+        "url": "https://crm.com/api/leads",
+        "method": "POST",
+        "body": {
+          "name": "{{user_name}}",
+          "email": "{{user_email}}"
+        }
+      }
+    },
+    {
+      "type": "update_variable",
+      "config": {
+        "variableName": "registration_complete",
+        "value": "true",
+        "operation": "set"
+      }
+    }
+  ]
+}
+```
+
+**Tratamento de Erros:**
+- Cada ação executa independentemente
+- Se uma ação falhar, continua com as próximas
+- Logs detalhados: `❌ Erro ao executar ação webhook: ConnectionError`
+
+**Logs:**
+```
+⚡ Executando Action Node
+  Ação 1/3: save_contact
+  ✅ Contato atualizado: ['name', 'email']
+  Ação 2/3: webhook
+  📡 Chamando webhook: POST https://crm.com/api/leads
+  ✅ Webhook respondeu: 200
+  💾 Resposta salva em 'crm_response'
+  Ação 3/3: update_variable
+  ✅ Variável 'registration_complete' definida como: true
+✅ Action Node concluído
+```
+
+---
+
+## 🔧 Arquivos Modificados (Action Node)
+
+- `backend/app/services/whatsapp_service.py`:
+  - Método `_execute_action()` (linha ~1457-1665)
+  - Modificação em `_execute_node()` (linha ~157-161)
+
+---
+
+**Status Final:** 🟢 13/25 tarefas concluídas (52% de progresso)
+**Próximo Milestone:** 15/25 tarefas (após implementar API Call Node e AI Prompt Node)
