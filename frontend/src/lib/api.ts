@@ -219,6 +219,16 @@ export const conversationsAPI = {
 
   markAsRead: (conversationId: string) =>
     api.post(`/conversations/${conversationId}/read`),
+
+  // Conversation actions
+  assign: (conversationId: string, agentId: string) =>
+    api.post(`/conversations/${conversationId}/assign`, { agent_id: agentId }),
+
+  transfer: (conversationId: string, departmentId: string, note?: string) =>
+    api.post(`/conversations/${conversationId}/transfer`, { department_id: departmentId, note }),
+
+  close: (conversationId: string, reason?: string, resolved: boolean = true) =>
+    api.post(`/conversations/${conversationId}/close`, { reason, resolved }),
 };
 
 // Campaigns API
