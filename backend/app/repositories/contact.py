@@ -19,6 +19,15 @@ class ContactRepository(BaseRepository[Contact]):
     def __init__(self, db: AsyncSession):
         super().__init__(Contact, db)
 
+    async def get(self, id: UUID) -> Optional[Contact]:
+        """Get contact by ID with tags loaded"""
+        result = await self.db.execute(
+            select(Contact)
+            .where(Contact.id == id)
+            .options(selectinload(Contact.tags))
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_whatsapp_id(
         self, whatsapp_id: str, organization_id: UUID
     ) -> Optional[Contact]:
@@ -110,9 +119,30 @@ class ContactRepository(BaseRepository[Contact]):
         await self.db.refresh(contact)
         return contact
 
+    async def replace_tags(self, contact_id: UUID, tag_ids: List[UUID]) -> Contact:
+        """Replace all contact tags with the provided list"""
+        contact = await self.get(contact_id)
+        if not contact:
+            return None
+
+        # Get new tags
+        if tag_ids:
+            result = await self.db.execute(select(Tag).where(Tag.id.in_(tag_ids)))
+            new_tags = list(result.scalars().all())
+        else:
+            new_tags = []
+
+        # Replace all tags
+        contact.tags = new_tags
+
+        await self.db.commit()
+        await self.db.refresh(contact)
+        return contact
+
     async def get_contact_stats(self, contact_id: UUID) -> dict:
         """Get contact statistics"""
         from app.models.conversation import Conversation, Message
+        from datetime import datetime
 
         # Count conversations
         conv_count = await self.db.scalar(
@@ -122,17 +152,109 @@ class ContactRepository(BaseRepository[Contact]):
             )
         )
 
-        # Count messages
+        # Count messages (join with conversations to filter by contact_id)
         msg_count = await self.db.scalar(
-            select(func.count(Message.id)).where(
-                Message.contact_id == contact_id,
+            select(func.count(Message.id))
+            .select_from(Message)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .where(
+                Conversation.contact_id == contact_id,
                 Message.deleted_at.is_(None)
             )
         )
 
+        # Get last interaction (most recent message)
+        last_message = await self.db.scalar(
+            select(Message.created_at)
+            .select_from(Message)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .where(
+                Conversation.contact_id == contact_id,
+                Message.deleted_at.is_(None)
+            )
+            .order_by(Message.created_at.desc())
+            .limit(1)
+        )
+
+        # Calculate average response time using CTE to avoid window function in aggregate
+        # First, create a CTE with response times
+        response_times_cte = select(
+            (func.extract('epoch', Message.created_at - func.lag(Message.created_at).over(
+                partition_by=Message.conversation_id,
+                order_by=Message.created_at
+            )) / 60).label('response_time')
+        ).select_from(Message).join(
+            Conversation, Message.conversation_id == Conversation.id
+        ).where(
+            Conversation.contact_id == contact_id,
+            Message.direction == 'outgoing',
+            Message.deleted_at.is_(None)
+        ).cte('response_times')
+
+        # Then calculate average from the CTE
+        avg_response_time_result = await self.db.execute(
+            select(func.avg(response_times_cte.c.response_time)).where(
+                response_times_cte.c.response_time.isnot(None)
+            )
+        )
+        avg_response_time = avg_response_time_result.scalar()
+
         return {
             "total_conversations": conv_count or 0,
             "total_messages": msg_count or 0,
+            "avg_response_time_minutes": float(avg_response_time) if avg_response_time else None,
+            "last_interaction": last_message.isoformat() if last_message else None,
+        }
+
+    async def get_organization_stats(self, organization_id: UUID) -> dict:
+        """Get organization-wide contact statistics"""
+        from datetime import datetime, timedelta
+
+        # Total contacts
+        total_contacts = await self.db.scalar(
+            select(func.count(Contact.id)).where(
+                Contact.organization_id == organization_id,
+                Contact.deleted_at.is_(None)
+            )
+        )
+
+        # Contacts with tags
+        contacts_with_tags = await self.db.scalar(
+            select(func.count(func.distinct(contact_tags.c.contact_id)))
+            .where(
+                contact_tags.c.contact_id.in_(
+                    select(Contact.id).where(
+                        Contact.organization_id == organization_id,
+                        Contact.deleted_at.is_(None)
+                    )
+                )
+            )
+        )
+
+        # Blocked contacts
+        blocked_contacts = await self.db.scalar(
+            select(func.count(Contact.id)).where(
+                Contact.organization_id == organization_id,
+                Contact.deleted_at.is_(None),
+                Contact.is_blocked == True
+            )
+        )
+
+        # Recently added contacts (last 7 days)
+        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+        recent_contacts = await self.db.scalar(
+            select(func.count(Contact.id)).where(
+                Contact.organization_id == organization_id,
+                Contact.deleted_at.is_(None),
+                Contact.created_at >= seven_days_ago
+            )
+        )
+
+        return {
+            "total_contacts": total_contacts or 0,
+            "contacts_with_tags": contacts_with_tags or 0,
+            "blocked_contacts": blocked_contacts or 0,
+            "recent_contacts": recent_contacts or 0,
         }
 
 
@@ -150,7 +272,6 @@ class TagRepository(BaseRepository[Tag]):
             select(Tag).where(
                 Tag.name == name,
                 Tag.organization_id == organization_id,
-                Tag.deleted_at.is_(None),
             )
         )
         return result.scalar_one_or_none()
@@ -163,7 +284,6 @@ class TagRepository(BaseRepository[Tag]):
             select(Tag)
             .where(
                 Tag.organization_id == organization_id,
-                Tag.deleted_at.is_(None)
             )
             .order_by(Tag.name)
         )

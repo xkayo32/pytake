@@ -95,7 +95,20 @@ class ContactInDB(ContactBase):
 
 # Contact Response
 class Contact(ContactInDB):
-    pass
+    tags: List[str] = Field(default_factory=list, description="List of tag names")
+
+    @classmethod
+    def model_validate(cls, obj, **kwargs):
+        """Custom validation to extract tag names from SQLAlchemy relationship"""
+        if hasattr(obj, '__dict__'):
+            # SQLAlchemy object
+            data = {key: value for key, value in obj.__dict__.items() if not key.startswith('_')}
+            if hasattr(obj, 'tags') and obj.tags:
+                data['tags'] = [tag.name for tag in obj.tags]
+            else:
+                data['tags'] = []
+            return super().model_validate(data, **kwargs)
+        return super().model_validate(obj, **kwargs)
 
 
 # Contact with Tags

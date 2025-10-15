@@ -1,0 +1,15 @@
+{
+  "name": "teste_pytake",
+  "language": "pt_BR",
+  "category": "UTILITY",
+  "components": [
+    {
+      "type": "BODY",
+      "text": "Olá {{1}}! Este é um teste do PyTake Template Builder. Seu código é: {{2}}"
+    },
+    {
+      "type": "FOOTER",
+      "text": "Esta é uma mensagem automática"
+    }
+  ]
+}

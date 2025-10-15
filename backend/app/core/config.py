@@ -104,6 +104,13 @@ class Settings(BaseSettings):
     # Password Hashing
     BCRYPT_ROUNDS: int = Field(default=12)
 
+    # Encryption for Secrets (Fernet key for internal encryption)
+    # Generate with: from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())
+    ENCRYPTION_KEY: Optional[str] = Field(
+        default=None,
+        description="Fernet encryption key for secrets (32 URL-safe base64-encoded bytes)"
+    )
+
     # Celery
     CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/1")
     CELERY_RESULT_BACKEND: str = Field(default="redis://localhost:6379/2")

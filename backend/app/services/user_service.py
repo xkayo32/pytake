@@ -185,28 +185,68 @@ class UserService:
         # Import here to avoid circular imports
         from app.models.conversation import Conversation, Message
 
-        # Count conversations assigned to user
-        conversations_count = await self.db.scalar(
+        # Count total conversations assigned to user
+        total_conversations = await self.db.scalar(
             select(func.count(Conversation.id)).where(
-                Conversation.assigned_agent_id == user_id,
+                Conversation.current_agent_id == user_id,
                 Conversation.deleted_at.is_(None)
             )
-        )
+        ) or 0
 
-        # Count messages sent by user (if agent)
+        # Count active conversations
+        conversations_active = await self.db.scalar(
+            select(func.count(Conversation.id)).where(
+                Conversation.current_agent_id == user_id,
+                Conversation.status.in_(["active", "waiting"]),
+                Conversation.deleted_at.is_(None)
+            )
+        ) or 0
+
+        # Count resolved conversations
+        conversations_resolved = await self.db.scalar(
+            select(func.count(Conversation.id)).where(
+                Conversation.current_agent_id == user_id,
+                Conversation.status == "closed",
+                Conversation.deleted_at.is_(None)
+            )
+        ) or 0
+
+        # Count messages sent by user
         messages_sent = 0
         if user.role in ["agent", "org_admin"]:
             messages_sent = await self.db.scalar(
                 select(func.count(Message.id)).where(
-                    Message.sender_id == user_id,
-                    Message.direction == "outbound",
+                    Message.sender_user_id == user_id,
+                    Message.direction == "outgoing",
                     Message.deleted_at.is_(None)
                 )
             ) or 0
 
+        # Calculate average response time using CTE to avoid window function in aggregate
+        # First, create a CTE with response times
+        response_times_cte = select(
+            (func.extract('epoch', Message.created_at - func.lag(Message.created_at).over(
+                partition_by=Message.conversation_id,
+                order_by=Message.created_at
+            )) / 60).label('response_time')
+        ).select_from(Message).where(
+            Message.sender_user_id == user_id,
+            Message.direction == 'outgoing',
+            Message.deleted_at.is_(None)
+        ).cte('response_times')
+
+        # Then calculate average from the CTE
+        avg_response_time_result = await self.db.execute(
+            select(func.avg(response_times_cte.c.response_time)).where(
+                response_times_cte.c.response_time.isnot(None)
+            )
+        )
+        avg_response_time = avg_response_time_result.scalar()
+
         return {
-            "total_conversations_assigned": conversations_count or 0,
+            "total_conversations": total_conversations,
             "total_messages_sent": messages_sent,
-            "is_online": user.is_online,
-            "agent_status": user.agent_status,
+            "avg_response_time_minutes": float(avg_response_time) if avg_response_time else None,
+            "conversations_resolved": conversations_resolved,
+            "conversations_active": conversations_active,
         }

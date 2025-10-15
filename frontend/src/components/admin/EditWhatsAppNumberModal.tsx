@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { whatsappAPI, WhatsAppNumber, WhatsAppNumberUpdate } from '@/lib/api/whatsapp';
-import { X, Loader2, Building2, Webhook, ToggleLeft, ToggleRight, MessageSquare } from 'lucide-react';
+import { X, Loader2, Building2, Webhook, ToggleLeft, ToggleRight, MessageSquare, Shield } from 'lucide-react';
 
 interface EditWhatsAppNumberModalProps {
   isOpen: boolean;
@@ -20,8 +20,8 @@ export function EditWhatsAppNumberModal({
   const [formData, setFormData] = useState<WhatsAppNumberUpdate>({
     display_name: '',
     webhook_url: '',
+    app_secret: '',
     is_active: true,
-    auto_reply_enabled: false,
     away_message: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,8 +32,8 @@ export function EditWhatsAppNumberModal({
       setFormData({
         display_name: number.display_name || '',
         webhook_url: number.webhook_url || '',
+        app_secret: '', // Don't show existing app_secret for security
         is_active: number.is_active,
-        auto_reply_enabled: number.auto_reply_enabled,
         away_message: number.away_message || '',
       });
     }
@@ -136,79 +136,72 @@ export function EditWhatsAppNumberModal({
             </div>
           </div>
 
-          {/* Status Toggles */}
-          <div className="space-y-4">
-            {/* Is Active */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-              <div className="flex-1">
-                <label className="text-sm font-medium text-gray-900 dark:text-white">
-                  Número Ativo
-                </label>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                  Permitir que este número receba e envie mensagens
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleChange('is_active', !formData.is_active)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  formData.is_active ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    formData.is_active ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
+          {/* App Secret (only for Official API) */}
+          {number.connection_type === 'official' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  App Secret (Meta for Developers)
+                </div>
+              </label>
+              <input
+                type="password"
+                value={formData.app_secret}
+                onChange={(e) => handleChange('app_secret', e.target.value)}
+                placeholder="••••••••••••••••••••••••••••••••"
+                className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                🔐 <strong>Obrigatório para segurança do webhook.</strong> Encontre em: Meta for Developers → Settings → Basic → App Secret.
+                {' '}Deixe em branco se não deseja alterar.
+              </p>
             </div>
+          )}
 
-            {/* Auto Reply Enabled */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-              <div className="flex-1">
-                <label className="text-sm font-medium text-gray-900 dark:text-white">
-                  Resposta Automática
-                </label>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                  Enviar mensagem automática quando fora do horário
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleChange('auto_reply_enabled', !formData.auto_reply_enabled)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  formData.auto_reply_enabled ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    formData.auto_reply_enabled ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
+          {/* Status Toggle */}
+          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="flex-1">
+              <label className="text-sm font-medium text-gray-900 dark:text-white">
+                Número Ativo
+              </label>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                Permitir que este número receba e envie mensagens
+              </p>
             </div>
+            <button
+              type="button"
+              onClick={() => handleChange('is_active', !formData.is_active)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                formData.is_active ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  formData.is_active ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
           </div>
 
           {/* Away Message */}
-          {formData.auto_reply_enabled && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Mensagem de Ausência
-              </label>
-              <div className="relative">
-                <div className="absolute top-3 left-3 pointer-events-none">
-                  <MessageSquare className="h-5 w-5 text-gray-400" />
-                </div>
-                <textarea
-                  value={formData.away_message}
-                  onChange={(e) => handleChange('away_message', e.target.value)}
-                  placeholder="Olá! No momento estamos fora do horário de atendimento. Retornaremos em breve."
-                  rows={3}
-                  className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400"
-                />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Mensagem de Ausência (Opcional)
+            </label>
+            <div className="relative">
+              <div className="absolute top-3 left-3 pointer-events-none">
+                <MessageSquare className="h-5 w-5 text-gray-400" />
               </div>
+              <textarea
+                value={formData.away_message}
+                onChange={(e) => handleChange('away_message', e.target.value)}
+                placeholder="Olá! No momento estamos fora do horário de atendimento. Retornaremos em breve."
+                rows={3}
+                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400"
+              />
             </div>
-          )}
+          </div>
 
           {/* Actions */}
           <div className="flex items-center gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">

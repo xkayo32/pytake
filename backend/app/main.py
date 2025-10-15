@@ -252,6 +252,20 @@ app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 
 # ============================================
+# WEBSOCKET / SOCKET.IO
+# ============================================
+
+# Mount Socket.IO app
+from app.websocket.manager import get_sio_app
+import app.websocket.events as _  # Import to register event handlers (side effect only)
+
+sio_asgi_app = get_sio_app()
+app.mount("/socket.io", sio_asgi_app)
+
+print("✅ WebSocket/Socket.IO mounted at /socket.io")
+
+
+# ============================================
 # EXCEPTION HANDLERS
 # ============================================
 

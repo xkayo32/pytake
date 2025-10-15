@@ -169,3 +169,56 @@ class ConversationService:
         """Mark conversation as read"""
         conversation = await self.get_by_id(conversation_id, organization_id)
         return await self.repo.mark_as_read(conversation_id, organization_id)
+
+    async def get_queue(
+        self,
+        organization_id: UUID,
+        department_id: Optional[UUID] = None,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> List[Conversation]:
+        """Get conversations in queue"""
+        return await self.repo.list_conversations(
+            organization_id=organization_id,
+            status="queued",
+            assigned_department_id=department_id,
+            skip=skip,
+            limit=limit,
+        )
+
+    async def pull_from_queue(
+        self, organization_id: UUID, agent_id: UUID, department_id: Optional[UUID] = None
+    ) -> Optional[Conversation]:
+        """Pull next conversation from queue and assign to agent"""
+        from sqlalchemy import select
+        from app.models.conversation import Conversation as ConversationModel
+
+        # Find next queued conversation with highest priority
+        query = (
+            select(ConversationModel)
+            .where(ConversationModel.organization_id == organization_id)
+            .where(ConversationModel.status == "queued")
+            .where(ConversationModel.deleted_at.is_(None))
+        )
+
+        if department_id:
+            query = query.where(ConversationModel.department_id == department_id)
+
+        # Order by priority (desc) and queued_at (asc)
+        query = query.order_by(
+            ConversationModel.queue_priority.desc(),
+            ConversationModel.queued_at.asc(),
+        ).limit(1)
+
+        result = await self.db.execute(query)
+        conversation = result.scalars().first()
+
+        if not conversation:
+            return None
+
+        # Assign to agent
+        conversation.assign_to_agent(agent_id, department_id)
+        await self.db.commit()
+        await self.db.refresh(conversation)
+
+        return conversation

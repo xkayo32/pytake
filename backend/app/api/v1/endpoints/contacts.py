@@ -25,6 +25,20 @@ router = APIRouter()
 
 # ============= Contacts =============
 
+@router.get("/stats", response_model=dict)
+async def get_organization_stats(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get organization-wide contact statistics
+    """
+    service = ContactService(db)
+    return await service.get_organization_stats(
+        organization_id=current_user.organization_id,
+    )
+
+
 @router.get("/", response_model=List[Contact])
 async def list_contacts(
     skip: int = Query(0, ge=0),
@@ -166,6 +180,45 @@ async def unblock_contact(
     )
 
 
+@router.put("/{contact_id}/tags", response_model=Contact)
+async def update_contact_tags(
+    contact_id: UUID,
+    tag_names: List[str],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Update contact tags (replaces all tags with the provided list)
+    Accepts tag names as strings - creates tags if they don't exist
+    """
+    service = ContactService(db)
+    tag_service = TagService(db)
+
+    # Get or create tags
+    tag_ids = []
+    for tag_name in tag_names:
+        # Try to find existing tag
+        existing_tags = await tag_service.list_tags(organization_id=current_user.organization_id)
+        existing_tag = next((t for t in existing_tags if t.name.lower() == tag_name.lower()), None)
+
+        if existing_tag:
+            tag_ids.append(existing_tag.id)
+        else:
+            # Create new tag
+            new_tag = await tag_service.create_tag(
+                data=TagCreate(name=tag_name),
+                organization_id=current_user.organization_id,
+            )
+            tag_ids.append(new_tag.id)
+
+    # Replace all tags
+    return await service.replace_tags(
+        contact_id=contact_id,
+        tag_ids=tag_ids,
+        organization_id=current_user.organization_id,
+    )
+
+
 @router.post("/{contact_id}/tags", response_model=Contact)
 async def add_contact_tags(
     contact_id: UUID,
@@ -174,7 +227,7 @@ async def add_contact_tags(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Add tags to contact
+    Add tags to contact (by UUID)
     """
     service = ContactService(db)
     return await service.add_tags(

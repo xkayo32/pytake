@@ -47,6 +47,7 @@ class WhatsAppNumberUpdate(BaseModel):
     """Schema for updating a WhatsApp number"""
     display_name: Optional[str] = Field(None, max_length=255)
     webhook_url: Optional[str] = None
+    app_secret: Optional[str] = None  # Meta App Secret for webhook signature verification
     is_active: Optional[bool] = None
     away_message: Optional[str] = None
     default_chatbot_id: Optional[UUID] = None

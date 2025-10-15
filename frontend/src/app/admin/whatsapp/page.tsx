@@ -10,9 +10,13 @@ import { EditWhatsAppNumberModal } from '@/components/admin/EditWhatsAppNumberMo
 import { EmptyState } from '@/components/admin/EmptyState';
 import { chatbotsAPI } from '@/lib/api/chatbots';
 import type { Chatbot } from '@/types/chatbot';
+import { useToast } from '@/store/notificationStore';
+import { useConfirm } from '@/hooks/useConfirm';
 
 export default function WhatsAppPage() {
   const router = useRouter();
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const [numbers, setNumbers] = useState<WhatsAppNumber[]>([]);
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,16 +54,23 @@ export default function WhatsAppPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja deletar este número WhatsApp?')) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Deletar Número WhatsApp',
+      message: 'Tem certeza que deseja deletar este número WhatsApp? Esta ação não pode ser desfeita.',
+      confirmText: 'Deletar',
+      cancelText: 'Cancelar',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     try {
       await whatsappAPI.delete(id);
       await loadNumbers();
+      toast.success('Número WhatsApp deletado com sucesso');
     } catch (error) {
       console.error('Failed to delete number:', error);
-      alert('Erro ao deletar número WhatsApp');
+      toast.error('Erro ao deletar número WhatsApp');
     }
   };
 
@@ -69,9 +80,12 @@ export default function WhatsAppPage() {
         is_active: !number.is_active,
       });
       await loadNumbers();
+      toast.success(
+        `Número ${number.is_active ? 'desativado' : 'ativado'} com sucesso`
+      );
     } catch (error) {
       console.error('Failed to toggle number status:', error);
-      alert('Erro ao alterar status do número');
+      toast.error('Erro ao alterar status do número');
     }
   };
 
@@ -79,14 +93,60 @@ export default function WhatsAppPage() {
     numberId: string,
     chatbotId: string | null
   ) => {
+    // Se está removendo o chatbot padrão (null), não precisa verificar
+    if (!chatbotId) {
+      try {
+        await whatsappAPI.update(numberId, {
+          default_chatbot_id: null,
+        });
+        await loadNumbers();
+        toast.success('Chatbot padrão removido com sucesso');
+      } catch (error) {
+        console.error('Failed to remove default chatbot:', error);
+        toast.error('Erro ao remover chatbot padrão');
+      }
+      return;
+    }
+
+    // Verificar se este chatbot já é padrão de outro número
+    const existingDefault = numbers.find(
+      (n) => n.default_chatbot_id === chatbotId && n.id !== numberId
+    );
+
+    if (existingDefault) {
+      // Encontrar o nome do chatbot
+      const chatbot = chatbots.find((c) => c.id === chatbotId);
+      const chatbotName = chatbot?.name || 'Chatbot selecionado';
+
+      // Encontrar o nome do número que já tem este chatbot como padrão
+      const existingNumberName = existingDefault.display_name || existingDefault.phone_number;
+
+      // Mostrar aviso de confirmação
+      const confirmed = await confirm({
+        title: 'Chatbot Já é Padrão',
+        message: `O chatbot "${chatbotName}" já é o padrão do número "${existingNumberName}".\n\nSe você confirmar, "${existingNumberName}" ficará sem chatbot padrão e "${chatbotName}" será o novo padrão do número atual.`,
+        confirmText: 'Confirmar Alteração',
+        cancelText: 'Cancelar',
+        variant: 'warning',
+      });
+
+      if (!confirmed) {
+        // Usuário cancelou, recarregar para resetar o select
+        await loadNumbers();
+        return;
+      }
+    }
+
+    // Prosseguir com a alteração
     try {
       await whatsappAPI.update(numberId, {
         default_chatbot_id: chatbotId,
       });
       await loadNumbers();
+      toast.success('Chatbot padrão definido com sucesso');
     } catch (error) {
       console.error('Failed to set default chatbot:', error);
-      alert('Erro ao definir chatbot padrão');
+      toast.error('Erro ao definir chatbot padrão');
     }
   };
 

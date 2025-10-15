@@ -5,6 +5,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ToastContainer } from "@/components/ui/Toast";
+import { ConfirmDialogProvider } from "@/components/ui/ConfirmDialogProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,7 +35,6 @@ export default function RootLayout({
         <meta httpEquiv="Pragma" content="no-cache" />
         <meta httpEquiv="Expires" content="0" />
         <Script src="/config.js" strategy="beforeInteractive" />
-        <Script src="https://cdn.tailwindcss.com" strategy="beforeInteractive" />
         <Script id="clear-cache" strategy="beforeInteractive">
           {`
             // Clear Service Worker cache
@@ -53,6 +54,10 @@ export default function RootLayout({
             }
           `}
         </Script>
+        <Script
+          src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"
+          strategy="lazyOnload"
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors`}
@@ -62,6 +67,8 @@ export default function RootLayout({
           <AuthProvider>
             <ThemeProvider>
               {children}
+              <ToastContainer />
+              <ConfirmDialogProvider />
             </ThemeProvider>
           </AuthProvider>
         </ErrorBoundary>

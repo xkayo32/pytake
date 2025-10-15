@@ -99,3 +99,4 @@ media/certbot/
 .claude*
 CLAUDE.md
 *.claude.md
+nul

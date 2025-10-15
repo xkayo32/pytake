@@ -12,7 +12,8 @@ import {
   Settings,
   Phone,
   UserPlus,
-  Layers
+  Layers,
+  Key
 } from 'lucide-react';
 
 interface NavItem {
@@ -31,6 +32,7 @@ const navigation: NavItem[] = [
   { name: 'Filas', href: '/admin/queues', icon: Layers },
   { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { name: 'WhatsApp', href: '/admin/whatsapp', icon: Phone },
+  { name: 'Secrets', href: '/admin/secrets', icon: Key },
   { name: 'Configurações', href: '/admin/settings', icon: Settings },
 ];
 
@@ -40,19 +42,19 @@ export function AdminSidebar() {
   return (
     <aside className="hidden md:flex md:flex-shrink-0">
       <div className="flex flex-col w-64">
-        <div className="flex flex-col flex-grow bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pt-5 pb-4 overflow-y-auto">
-          {/* Logo */}
-          <div className="flex items-center flex-shrink-0 px-4">
+        <div className="flex flex-col flex-grow bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 pt-5 pb-4 overflow-y-auto">
+          {/* Logo - Minimal */}
+          <div className="flex items-center flex-shrink-0 px-4 mb-8">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">P</span>
+              <div className="w-8 h-8 bg-gray-900 dark:bg-white rounded-lg flex items-center justify-center">
+                <span className="text-white dark:text-gray-900 font-bold text-lg">P</span>
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white">PyTake</span>
+              <span className="text-xl font-semibold text-gray-900 dark:text-white">PyTake</span>
             </div>
           </div>
 
-          {/* Navigation */}
-          <nav className="mt-8 flex-1 px-2 space-y-1">
+          {/* Navigation - Flat Style */}
+          <nav className="flex-1 px-3 space-y-0.5">
             {navigation.map((item) => {
               const isActive = pathname === item.href ||
                               (item.href !== '/admin' && pathname?.startsWith(item.href));
@@ -63,32 +65,24 @@ export function AdminSidebar() {
                   key={item.name}
                   href={item.href}
                   className={`
-                    group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors
+                    group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
                     ${isActive
-                      ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'
                     }
                   `}
                 >
-                  <Icon
-                    className={`
-                      mr-3 flex-shrink-0 h-5 w-5
-                      ${isActive
-                        ? 'text-indigo-600 dark:text-indigo-400'
-                        : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-400'
-                      }
-                    `}
-                  />
+                  <Icon className="mr-3 flex-shrink-0 h-4 w-4" />
                   {item.name}
                 </Link>
               );
             })}
           </nav>
 
-          {/* User Role Badge */}
-          <div className="flex-shrink-0 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+          {/* User Role Badge - Minimal */}
+          <div className="flex-shrink-0 px-4 py-3 border-t border-gray-200 dark:border-gray-800">
             <div className="flex items-center justify-center">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                 Administrador
               </span>
             </div>

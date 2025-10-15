@@ -14,6 +14,7 @@ import {
   type Edge,
   type Node,
   Panel,
+  MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
@@ -31,9 +32,19 @@ import {
   ArrowRight,
   StopCircle,
   Users,
+  Variable,
 } from 'lucide-react';
 import { chatbotsAPI, flowsAPI } from '@/lib/api/chatbots';
 import type { Chatbot, Flow } from '@/types/chatbot';
+import AIPromptProperties from '@/components/admin/builder/AIPromptProperties';
+import APICallProperties from '@/components/admin/builder/APICallProperties';
+import HandoffProperties from '@/components/admin/builder/HandoffProperties';
+import CustomNode from '@/components/admin/builder/CustomNode';
+import VariablesPanel from '@/components/admin/builder/VariablesPanel';
+import FlowSimulator from '@/components/admin/builder/FlowSimulator';
+import SessionExpiredModal from '@/components/admin/SessionExpiredModal';
+import { useSessionExpired } from '@/lib/hooks/useSessionExpired';
+import { useToast } from '@/store/notificationStore';
 
 // Palette of node types available to drag
 const NODE_TYPES_PALETTE = [
@@ -64,10 +75,30 @@ const COLOR_MAP: Record<string, string> = {
 
 let nodeIdCounter = 0;
 
+// Custom node types
+const nodeTypes = {
+  default: CustomNode,
+};
+
+// Default edge style com setas
+const defaultEdgeOptions = {
+  type: 'smoothstep',
+  animated: true,
+  style: { stroke: '#94a3b8', strokeWidth: 2 },
+  markerEnd: {
+    type: MarkerType.ArrowClosed,
+    color: '#94a3b8',
+    width: 20,
+    height: 20,
+  },
+};
+
 export default function ChatbotBuilderPage() {
   const params = useParams();
   const router = useRouter();
+  const toast = useToast();
   const chatbotId = params.id as string;
+  const { showExpiredModal, hideModal } = useSessionExpired();
 
   const [chatbot, setChatbot] = useState<Chatbot | null>(null);
   const [flows, setFlows] = useState<Flow[]>([]);
@@ -75,6 +106,9 @@ export default function ChatbotBuilderPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [showVariablesPanel, setShowVariablesPanel] = useState(true);
+  const [showSimulator, setShowSimulator] = useState(false);
+  const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -84,6 +118,31 @@ export default function ChatbotBuilderPage() {
   useEffect(() => {
     loadChatbotData();
   }, [chatbotId]);
+
+  // Highlight node during simulation
+  useEffect(() => {
+    if (highlightedNodeId) {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === highlightedNodeId) {
+            return {
+              ...node,
+              style: {
+                ...node.style,
+                boxShadow: '0 0 0 3px rgba(34, 197, 94, 0.5)',
+                animation: 'pulse 1s infinite',
+              },
+            };
+          } else if (node.style?.boxShadow?.includes('rgba(34, 197, 94')) {
+            // Remove highlight from previously highlighted node
+            const { boxShadow, animation, ...restStyle } = node.style;
+            return { ...node, style: restStyle };
+          }
+          return node;
+        })
+      );
+    }
+  }, [highlightedNodeId, setNodes]);
 
   const loadChatbotData = async () => {
     try {
@@ -107,7 +166,7 @@ export default function ChatbotBuilderPage() {
       }
     } catch (error) {
       console.error('Erro ao carregar chatbot:', error);
-      alert('Erro ao carregar chatbot');
+      toast.error('Erro ao carregar chatbot');
       router.push('/admin/chatbots');
     } finally {
       setIsLoading(false);
@@ -147,7 +206,14 @@ export default function ChatbotBuilderPage() {
   };
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    (params: Connection) => {
+      // Adicionar edge com seta
+      const newEdge = {
+        ...params,
+        ...defaultEdgeOptions,
+      };
+      setEdges((eds) => addEdge(newEdge, eds));
+    },
     [setEdges]
   );
 
@@ -162,10 +228,10 @@ export default function ChatbotBuilderPage() {
           edges,
         },
       });
-      alert('Fluxo salvo com sucesso!');
+      toast.success('Fluxo salvo com sucesso!');
     } catch (error: any) {
       console.error('Erro ao salvar fluxo:', error);
-      alert(error.response?.data?.detail || 'Erro ao salvar fluxo');
+      toast.error(error.response?.data?.detail || 'Erro ao salvar fluxo');
     } finally {
       setIsSaving(false);
     }
@@ -205,6 +271,17 @@ export default function ChatbotBuilderPage() {
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     setSelectedNode(node);
   }, []);
+
+  const handleNodeDataChange = useCallback((nodeId: string, newData: any) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return { ...node, data: { ...node.data, ...newData } };
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
 
   if (isLoading) {
     return (
@@ -248,6 +325,13 @@ export default function ChatbotBuilderPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowSimulator(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+            >
+              <Play className="w-4 h-4" />
+              Testar Fluxo
+            </button>
             <button
               onClick={handleSave}
               disabled={isSaving}
@@ -317,6 +401,8 @@ export default function ChatbotBuilderPage() {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onNodeClick={onNodeClick}
+            nodeTypes={nodeTypes}
+            defaultEdgeOptions={defaultEdgeOptions}
             fitView
             className="bg-gray-50 dark:bg-gray-900"
           >
@@ -332,43 +418,90 @@ export default function ChatbotBuilderPage() {
             />
             <Panel position="top-center" className="bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                💡 Dica: Arraste os nós do painel lateral ou conecte-os clicando e arrastando das bordas
+                💡 Dica: Conecte os nós arrastando das bordas. Use <code className="px-1 bg-gray-100 dark:bg-gray-700 rounded">{`{{variavel}}`}</code> para usar variáveis
               </p>
+            </Panel>
+            <Panel position="top-right" className="bg-white dark:bg-gray-800 px-3 py-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setShowVariablesPanel(!showVariablesPanel)}
+                className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+              >
+                <Variable className="w-4 h-4" />
+                {showVariablesPanel ? 'Ocultar' : 'Mostrar'} Variáveis
+              </button>
             </Panel>
           </ReactFlow>
         </div>
 
-        {/* Right Sidebar - Properties Panel */}
-        <div className="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
-          <div className="p-4">
+        {/* Right Sidebar - Properties Panel + Variables Panel */}
+        <div className="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
+          {/* Properties Panel - Top Section (scrollable) */}
+          <div className="flex-1 overflow-y-auto p-4">
             {selectedNode ? (
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">
-                  Propriedades do Nó
-                </h3>
-                <div className="space-y-4">
+                {/* Render specific properties component based on node type */}
+                {selectedNode.data?.nodeType === 'ai_prompt' && (
+                  <AIPromptProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                    nodes={nodes}
+                    edges={edges}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'api_call' && (
+                  <APICallProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                    nodes={nodes}
+                    edges={edges}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'handoff' && (
+                  <HandoffProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                  />
+                )}
+
+                {/* Generic properties for other node types */}
+                {!['ai_prompt', 'api_call', 'handoff'].includes(selectedNode.data?.nodeType) && (
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Tipo
-                    </label>
-                    <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm text-gray-900 dark:text-white">
-                      {selectedNode.data?.nodeType || 'default'}
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">
+                      Propriedades do Nó
+                    </h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Tipo
+                        </label>
+                        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm text-gray-900 dark:text-white">
+                          {selectedNode.data?.nodeType || 'default'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          ID do Nó
+                        </label>
+                        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm font-mono text-gray-900 dark:text-white">
+                          {selectedNode.id}
+                        </div>
+                      </div>
+                      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          💡 Editor de propriedades para este tipo de nó será implementado em breve
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      ID do Nó
-                    </label>
-                    <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm font-mono text-gray-900 dark:text-white">
-                      {selectedNode.id}
-                    </div>
-                  </div>
-                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      💡 Editor de propriedades será implementado em breve
-                    </p>
-                  </div>
-                </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-12">
@@ -379,8 +512,32 @@ export default function ChatbotBuilderPage() {
               </div>
             )}
           </div>
+
+          {/* Variables Panel - Bottom Section (conditional) */}
+          {showVariablesPanel && (
+            <div className="h-96 flex-shrink-0">
+              <VariablesPanel
+                nodes={nodes}
+                edges={edges}
+                selectedNodeId={selectedNode?.id}
+              />
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Flow Simulator Modal */}
+      {showSimulator && (
+        <FlowSimulator
+          nodes={nodes}
+          edges={edges}
+          onClose={() => setShowSimulator(false)}
+          onHighlightNode={(nodeId) => setHighlightedNodeId(nodeId)}
+        />
+      )}
+
+      {/* Session Expired Modal */}
+      {showExpiredModal && <SessionExpiredModal onClose={hideModal} />}
     </div>
   );
 }

@@ -403,10 +403,135 @@ Integration via [Evolution API](https://github.com/EvolutionAPI/evolution-api) (
 
 ### Chatbot Builder (React Flow)
 
-Visual drag-and-drop editor with these node types:
-- Start, Message, Question, Condition, Action, API Call, AI Prompt, Jump, End, Handoff
+Visual drag-and-drop editor with comprehensive node types for building sophisticated WhatsApp automation flows.
 
-Flow data (nodes + edges) stored as JSONB in `flows.canvas_data`. Bot execution engine in `app/services/chatbot_service.py` processes nodes sequentially based on edges.
+#### Node Types
+
+**Core Nodes:**
+- **Start** - Entry point of the flow
+- **Message** - Send text messages to users
+- **Question** - Ask for user input and store response in variable
+- **Condition** - Branch flow based on variable values
+- **End** - Terminate conversation flow
+
+**Advanced Nodes:**
+- **Action** - Execute actions (save contact, send email, webhook, update CRM)
+- **API Call** - Make HTTP requests to external APIs
+- **AI Prompt** - Interact with AI models (GPT, Claude, etc.)
+- **Script** - Execute JavaScript or Python code for data processing
+- **Database Query** - Query databases (PostgreSQL, MySQL, MongoDB, SQLite)
+- **Jump** - Navigate to another node or flow
+- **Handoff** - Transfer conversation to human agent
+- **Delay** - Add timed delays in flow execution
+
+**WhatsApp-Specific Nodes:**
+- **WhatsApp Template** - Send official WhatsApp message templates
+- **Interactive Buttons** - Send messages with action buttons
+- **Interactive List** - Send selection lists to users
+
+#### Script Node (JavaScript & Python)
+
+The Script node allows executing custom code for data transformation and processing.
+
+**Supported Languages:**
+- **JavaScript** - Native browser execution (fast, ~0ms load time)
+- **Python** - Via Pyodide/WebAssembly (~10MB initial download)
+
+**Python Libraries Available:**
+```python
+import pandas as pd      # Data analysis (~15MB)
+import numpy as np       # Numerical computing (~8MB)
+import scipy            # Scientific computing (~30MB)
+from sklearn import *   # Machine Learning (~35MB)
+import matplotlib       # Visualization (~20MB)
+import regex            # Regular expressions (~1MB)
+import pytz             # Timezone handling (~500KB)
+```
+
+**Example Use Cases:**
+
+1. **Process Database Results:**
+```python
+import pandas as pd
+df = pd.DataFrame(database_result)
+df['preco'].sum()  # Calculate total price
+```
+
+2. **Statistical Analysis:**
+```python
+import numpy as np
+precos = [item['preco'] for item in database_result]
+np.mean(precos), np.std(precos)  # Mean and standard deviation
+```
+
+3. **Transform API Response:**
+```javascript
+// Extract nested data from API
+return api_response.data.user.name.toUpperCase();
+```
+
+4. **Format Data for WhatsApp:**
+```javascript
+// Create formatted list
+return database_result.map(item =>
+  `${item.name}: R$ ${item.preco}`
+).join('\n');
+```
+
+**Script Node Features:**
+- ✅ Fullscreen editor mode (95vw x 95vh modal)
+- ✅ Syntax highlighting and code formatting
+- ✅ Test execution with sample data
+- ✅ Variable substitution support
+- ✅ Output variable configuration
+- ✅ Timeout protection (configurable, default 5s)
+- ✅ Error handling (continues flow on error)
+- ✅ Python package selection UI
+
+#### PropertyModal Component
+
+Generic fullscreen modal for all property editors (reusable pattern).
+
+**Usage Pattern:**
+```tsx
+import PropertyModal, { PropertyModalTrigger } from './PropertyModal';
+
+// 1. Add state
+const [isModalOpen, setIsModalOpen] = useState(false);
+
+// 2. Create reusable editor
+const YourEditor = ({ isFullscreen = false }) => (
+  <textarea rows={isFullscreen ? 25 : 12} />
+);
+
+// 3. Add trigger button
+<PropertyModalTrigger onClick={() => setIsModalOpen(true)} />
+
+// 4. Render modal
+<PropertyModal
+  isOpen={isModalOpen}
+  onClose={() => setIsModalOpen(false)}
+  title="Your Editor"
+>
+  <YourEditor isFullscreen />
+</PropertyModal>
+```
+
+**Components Using PropertyModal:**
+- ✅ ScriptProperties (implemented)
+- 🔄 APICallProperties (recommended for JSON editing)
+- 🔄 DatabaseQueryProperties (recommended for SQL queries)
+- 🔄 WhatsAppTemplateProperties (recommended for long messages)
+- 🔄 AIPromptProperties (recommended for complex prompts)
+
+See [PROPERTY_MODAL_USAGE_EXAMPLE.md](PROPERTY_MODAL_USAGE_EXAMPLE.md) for complete implementation guide.
+
+#### Flow Storage & Execution
+
+- **Storage**: Flow data (nodes + edges) stored as JSONB in `flows.canvas_data`
+- **Execution**: Bot execution engine in `app/services/chatbot_service.py` processes nodes sequentially based on edges
+- **Variables**: Support for variable substitution using `{{variable_name}}` syntax
+- **Simulator**: Real-time flow testing with FlowSimulator component
 
 ### Queue System
 
@@ -791,6 +916,29 @@ uvicorn app.main:app --reload
 - Git bash works well for Unix-style commands
 - Docker Desktop required for docker-compose
 
+## Recent Implementation Status
+
+### Live Chat / Atendimento System (October 2025)
+
+**Phase 1: Inbox - COMPLETED ✅**
+- **Components:** `ConversationList.tsx`, `ConversationItem.tsx`, `ConversationFilters.tsx`
+- **Pages:** `/admin/conversations` (purple theme), `/agent/conversations` (green theme)
+- **Features:** Auto-refresh (5s), search, filters (status, assigned to me), role-based access
+- **Testing:** Fully tested with browser automation (Playwright MCP)
+- **Fix:** Backend schema validation error resolved (`priority` field optional)
+- **Documentation:** [LIVE_CHAT_PLAN.md](LIVE_CHAT_PLAN.md) - Complete implementation plan
+
+**Phase 2: Queue System - COMPLETED ✅**
+- **Backend:** Queue endpoints (`GET /api/v1/queue/`, `POST /api/v1/queue/pull`)
+- **Service:** `get_queue()` and `pull_from_queue()` methods in ConversationService
+- **Components:** `QueueList.tsx` (8.5 KB), `QueueItem.tsx` (6.1 KB)
+- **Page:** `/agent/queue` with green theme, auto-refresh (5s)
+- **Features:** Priority system (Urgent/High/Medium/Low), time in queue, "⚡ Pegar Próxima" button
+- **Testing:** Fully tested with browser automation (Playwright MCP)
+- **Fix:** Parameter mismatch resolved (`assigned_department_id`)
+
+**Next Phase: Quick Actions (Assign, Transfer, Close) 🎯**
+
 ## Additional Documentation
 
 Comprehensive documentation available:
@@ -801,6 +949,7 @@ Comprehensive documentation available:
 - [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) - Complete database schema
 - [docs/FEATURES.md](docs/FEATURES.md) - Feature specifications
 - [docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) - API reference
+- [LIVE_CHAT_PLAN.md](LIVE_CHAT_PLAN.md) - Live Chat implementation plan & progress
 
 ### Deployment & Infrastructure
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Production deployment guide
@@ -814,3 +963,5 @@ Comprehensive documentation available:
 - [CREDENTIALS.md](CREDENTIALS.md) - Default login credentials
 
 Refer to these files for deep dives into specific areas.
+- Esse projeto sempre roda em docker, nao tente fica usando local
+- Não teste mais usando o MCP, deixa que mesmo efetuo os teste

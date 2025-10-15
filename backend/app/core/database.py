@@ -19,7 +19,7 @@ Base = declarative_base()
 sync_engine = create_engine(
     str(settings.DATABASE_URL),
     pool_pre_ping=True,
-    echo=settings.DEBUG,
+    echo=False,  # Disable SQL query logging
 )
 
 # Async Engine (for FastAPI)
@@ -30,7 +30,7 @@ async_database_url = str(settings.DATABASE_URL).replace(
 async_engine = create_async_engine(
     async_database_url,
     pool_pre_ping=True,
-    echo=settings.DEBUG,
+    echo=False,  # Disable SQL query logging
     poolclass=NullPool if settings.TESTING else None,
 )
 

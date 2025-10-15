@@ -43,9 +43,41 @@ import {
   Settings,
   Eye,
   X,
+  Clock,
+  FileText,
+  Edit3,
+  LayoutGrid,
+  List,
+  ChevronDown,
+  ChevronRight,
+  Sparkles,
+  Phone,
+  Boxes,
+  Database,
+  Code,
 } from 'lucide-react';
 import { chatbotsAPI, flowsAPI } from '@/lib/api/chatbots';
 import type { Chatbot, Flow } from '@/types/chatbot';
+import AIPromptProperties from '@/components/admin/builder/AIPromptProperties';
+import APICallProperties from '@/components/admin/builder/APICallProperties';
+import MessageProperties from '@/components/admin/builder/MessageProperties';
+import QuestionProperties from '@/components/admin/builder/QuestionProperties';
+import ConditionProperties from '@/components/admin/builder/ConditionProperties';
+import HandoffProperties from '@/components/admin/builder/HandoffProperties';
+import DelayProperties from '@/components/admin/builder/DelayProperties';
+import ActionProperties from '@/components/admin/builder/ActionProperties';
+import SetVariableProperties from '@/components/admin/builder/SetVariableProperties';
+import WhatsAppTemplateProperties from '@/components/admin/builder/WhatsAppTemplateProperties';
+import InteractiveButtonsProperties from '@/components/admin/builder/InteractiveButtonsProperties';
+import InteractiveListProperties from '@/components/admin/builder/InteractiveListProperties';
+import JumpProperties from '@/components/admin/builder/JumpProperties';
+import EndProperties from '@/components/admin/builder/EndProperties';
+import DatabaseQueryProperties from '@/components/admin/builder/DatabaseQueryProperties';
+import ScriptProperties from '@/components/admin/builder/ScriptProperties';
+import CustomNode from '@/components/admin/builder/CustomNode';
+import FlowSimulator from '@/components/admin/builder/FlowSimulator';
+import SessionExpiredModal from '@/components/admin/SessionExpiredModal';
+import { useSessionExpired } from '@/lib/hooks/useSessionExpired';
 
 // Palette of node types available to drag
 const NODE_TYPES_PALETTE = [
@@ -59,6 +91,13 @@ const NODE_TYPES_PALETTE = [
   { type: 'jump', label: 'Pular', icon: ArrowRight, color: 'gray', description: 'Pular para outro fluxo' },
   { type: 'end', label: 'Fim', icon: StopCircle, color: 'red', description: 'Finalizar fluxo' },
   { type: 'handoff', label: 'Transferir', icon: Users, color: 'teal', description: 'Transferir para humano' },
+  { type: 'delay', label: 'Atraso', icon: Clock, color: 'cyan', description: 'Adicionar delay/pausa' },
+  { type: 'set_variable', label: 'Variável', icon: Edit3, color: 'amber', description: 'Definir variável' },
+  { type: 'whatsapp_template', label: 'Template', icon: FileText, color: 'emerald', description: 'Template WhatsApp' },
+  { type: 'interactive_buttons', label: 'Botões', icon: LayoutGrid, color: 'violet', description: 'Botões interativos (máx 3)' },
+  { type: 'interactive_list', label: 'Lista', icon: List, color: 'slate', description: 'Lista interativa (até 10)' },
+  { type: 'database_query', label: 'Banco de Dados', icon: Database, color: 'deeporange', description: 'Executar consulta SQL/NoSQL' },
+  { type: 'script', label: 'Script', icon: Code, color: 'indigo', description: 'Executar JavaScript para processar dados' },
 ];
 
 const COLOR_MAP: Record<string, string> = {
@@ -72,14 +111,72 @@ const COLOR_MAP: Record<string, string> = {
   gray: '#6b7280',
   red: '#ef4444',
   teal: '#14b8a6',
+  cyan: '#06b6d4',
+  amber: '#f59e0b',
+  emerald: '#10b981',
+  violet: '#7c3aed',
+  slate: '#64748b',
+  deeporange: '#ff5722',
 };
 
+// Node categories for sidebar organization
+const NODE_CATEGORIES = [
+  {
+    id: 'basics',
+    label: 'Básicos',
+    icon: Boxes,
+    color: '#3b82f6',
+    nodeTypes: ['start', 'message', 'question', 'end'],
+  },
+  {
+    id: 'logic',
+    label: 'Lógica & Controle',
+    icon: GitBranch,
+    color: '#f97316',
+    nodeTypes: ['condition', 'jump', 'delay', 'set_variable', 'script'],
+  },
+  {
+    id: 'ai',
+    label: 'IA & Integrações',
+    icon: Sparkles,
+    color: '#ec4899',
+    nodeTypes: ['ai_prompt', 'api_call', 'action'],
+  },
+  {
+    id: 'human',
+    label: 'Atendimento Humano',
+    icon: Users,
+    color: '#14b8a6',
+    nodeTypes: ['handoff'],
+  },
+  {
+    id: 'whatsapp',
+    label: 'WhatsApp',
+    icon: Phone,
+    color: '#10b981',
+    nodeTypes: ['whatsapp_template', 'interactive_buttons', 'interactive_list'],
+  },
+  {
+    id: 'data',
+    label: 'Dados & Armazenamento',
+    icon: Database,
+    color: '#ff5722',
+    nodeTypes: ['database_query'],
+  },
+];
+
 let nodeIdCounter = 0;
+
+// Register custom node types for React Flow
+const nodeTypes = {
+  custom: CustomNode,
+};
 
 export default function ChatbotBuilderPage() {
   const params = useParams();
   const router = useRouter();
   const chatbotId = params.id as string;
+  const { showExpiredModal, hideModal } = useSessionExpired();
 
   const [chatbot, setChatbot] = useState<Chatbot | null>(null);
   const [flows, setFlows] = useState<Flow[]>([]);
@@ -89,6 +186,18 @@ export default function ChatbotBuilderPage() {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showProperties, setShowProperties] = useState(true);
+  const [showSimulator, setShowSimulator] = useState(false);
+  const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => {
+    // Load from localStorage or default to all expanded
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('builder_expanded_categories');
+      if (saved) {
+        return new Set(JSON.parse(saved));
+      }
+    }
+    return new Set(NODE_CATEGORIES.map(c => c.id));
+  });
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -98,6 +207,31 @@ export default function ChatbotBuilderPage() {
   useEffect(() => {
     loadChatbotData();
   }, [chatbotId]);
+
+  // Highlight node during simulation
+  useEffect(() => {
+    if (highlightedNodeId) {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === highlightedNodeId) {
+            return {
+              ...node,
+              style: {
+                ...node.style,
+                boxShadow: '0 0 0 3px rgba(34, 197, 94, 0.5)',
+                animation: 'pulse 1s infinite',
+              },
+            };
+          } else if (node.style?.boxShadow?.includes('rgba(34, 197, 94')) {
+            // Remove highlight from previously highlighted node
+            const { boxShadow, animation, ...restStyle } = node.style;
+            return { ...node, style: restStyle };
+          }
+          return node;
+        })
+      );
+    }
+  }, [highlightedNodeId, setNodes]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -223,30 +357,203 @@ export default function ChatbotBuilderPage() {
     const newNodeId = `node-${++nodeIdCounter}`;
     const Icon = nodeType.icon;
 
+    // Get background color (lighter shade) for the node
+    const getBackgroundColor = (color: string): string => {
+      const colorMap: Record<string, string> = {
+        green: '#f0fdf4',
+        blue: '#eff6ff',
+        purple: '#faf5ff',
+        orange: '#fff7ed',
+        yellow: '#fefce8',
+        indigo: '#eef2ff',
+        pink: '#fdf2f8',
+        gray: '#f9fafb',
+        red: '#fef2f2',
+        teal: '#f0fdfa',
+        cyan: '#ecfeff',
+        amber: '#fffbeb',
+        emerald: '#f0fdf4',
+        violet: '#f5f3ff',
+        slate: '#f8fafc',
+        deeporange: '#fff3e0',
+      };
+      return colorMap[color] || '#fff';
+    };
+
+    // Generate default outputVariable for nodes that output data
+    const generateOutputVariable = (nodeId: string, type: string): string => {
+      const shortId = nodeId.slice(-4).replace(/-/g, '');
+      const variableMap: Record<string, string> = {
+        ai_prompt: `gpt_response_${shortId}`,
+        api_call: `get_response_${shortId}`,
+        question: `user_response_${shortId}`,
+        action: `action_result_${shortId}`,
+        handoff: `handoff_status_${shortId}`,
+        whatsapp_template: `template_sent_${shortId}`,
+        interactive_buttons: `button_clicked_${shortId}`,
+        interactive_list: `list_item_selected_${shortId}`,
+        database_query: `db_result_${shortId}`,
+        script: `script_result_${shortId}`,
+      };
+      return variableMap[type] || '';
+    };
+
     const newNode: Node = {
       id: newNodeId,
-      type: 'default',
+      type: 'custom', // Use custom node component with preview
       position: {
         x: Math.random() * 400 + 100,
         y: Math.random() * 400 + 100,
       },
       data: {
-        label: (
-          <div className="flex items-center gap-2 px-3 py-2">
-            <Icon className="w-4 h-4" style={{ color: COLOR_MAP[nodeType.color] }} />
-            <span className="font-medium">{nodeType.label}</span>
-          </div>
-        ),
         nodeType: nodeType.type,
+        // AI Prompt
+        ...(nodeType.type === 'ai_prompt' && {
+          outputVariable: generateOutputVariable(newNodeId, nodeType.type),
+          provider: 'openai',
+          model: 'gpt-4',
+          temperature: 0.7,
+          maxTokens: 1000,
+          prompt: '',
+          systemPrompt: '',
+        }),
+        // API Call
+        ...(nodeType.type === 'api_call' && {
+          outputVariable: generateOutputVariable(newNodeId, nodeType.type),
+          method: 'GET',
+          url: '',
+          authType: 'none',
+          headers: [],
+          body: '',
+          timeout: 30,
+        }),
+        // Message
+        ...(nodeType.type === 'message' && {
+          messageType: 'text',
+          messageText: '',
+          mediaUrl: '',
+          delay: 0,
+          autoAdvance: true,
+        }),
+        // Question
+        ...(nodeType.type === 'question' && {
+          outputVariable: generateOutputVariable(newNodeId, nodeType.type),
+          questionText: '',
+          responseType: 'text',
+          validation: {
+            required: true,
+            errorMessage: 'Por favor, forneça uma resposta válida',
+            maxAttempts: 3,
+          },
+          options: [],
+        }),
+        // Condition
+        ...(nodeType.type === 'condition' && {
+          conditions: [],
+          logicOperator: 'AND',
+          hasDefaultRoute: true,
+        }),
+        // Action
+        ...(nodeType.type === 'action' && {
+          outputVariable: generateOutputVariable(newNodeId, nodeType.type),
+          actionType: 'save_contact',
+          parameters: {},
+        }),
+        // Handoff
+        ...(nodeType.type === 'handoff' && {
+          outputVariable: generateOutputVariable(newNodeId, nodeType.type),
+          handoffType: 'queue',
+          departmentId: null,
+          agentId: null,
+          priority: 'normal',
+          contextMessage: '',
+          generateSummary: false,
+        }),
+        // Delay
+        ...(nodeType.type === 'delay' && {
+          duration: 3,
+          unit: 'seconds',
+          showTyping: true,
+          cancelable: false,
+        }),
+        // Set Variable
+        ...(nodeType.type === 'set_variable' && {
+          variableName: '',
+          variableType: 'text',
+          value: '',
+          operation: 'assign',
+        }),
+        // WhatsApp Template
+        ...(nodeType.type === 'whatsapp_template' && {
+          outputVariable: generateOutputVariable(newNodeId, nodeType.type),
+          templateId: null,
+          templateName: '',
+          parameters: [],
+        }),
+        // Interactive Buttons
+        ...(nodeType.type === 'interactive_buttons' && {
+          outputVariable: generateOutputVariable(newNodeId, nodeType.type),
+          bodyText: '',
+          footerText: '',
+          buttons: [],
+        }),
+        // Interactive List
+        ...(nodeType.type === 'interactive_list' && {
+          outputVariable: generateOutputVariable(newNodeId, nodeType.type),
+          bodyText: '',
+          buttonText: 'Ver opções',
+          footerText: '',
+          sections: [],
+        }),
+        // End
+        ...(nodeType.type === 'end' && {
+          endType: 'success',
+          farewellMessage: '',
+          sendFarewell: false,
+          saveConversation: true,
+        }),
+        // Jump
+        ...(nodeType.type === 'jump' && {
+          jumpType: 'flow',
+          targetFlowId: null,
+          targetNodeId: null,
+          preserveContext: true,
+        }),
+        // Database Query
+        ...(nodeType.type === 'database_query' && {
+          outputVariable: generateOutputVariable(newNodeId, nodeType.type),
+          connectionType: 'postgres',
+          host: 'localhost',
+          port: 5432,
+          database: '',
+          username: '',
+          password: '',
+          query: '',
+          queryType: 'SELECT',
+          parameters: [],
+          timeout: 30,
+          cache: false,
+          cacheKey: '',
+          cacheTTL: 300,
+        }),
+        // Script
+        ...(nodeType.type === 'script' && {
+          outputVariable: generateOutputVariable(newNodeId, nodeType.type),
+          scriptCode: '',
+          scriptLanguage: 'javascript',
+          description: '',
+          timeout: 5000,
+        }),
       },
       style: {
-        background: '#fff',
+        background: getBackgroundColor(nodeType.color),
         border: `2px solid ${COLOR_MAP[nodeType.color]}`,
         borderRadius: '12px',
         padding: '4px',
       },
     };
 
+    console.log('Adding node:', newNode.data.nodeType, 'with outputVariable:', newNode.data.outputVariable);
     setNodes((nds) => [...nds, newNode]);
   };
 
@@ -274,6 +581,33 @@ export default function ChatbotBuilderPage() {
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     setSelectedNode(node);
   }, []);
+
+  const handleNodeDataChange = useCallback((nodeId: string, newData: any) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return { ...node, data: { ...node.data, ...newData } };
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
+
+  const toggleCategory = (categoryId: string) => {
+    setExpandedCategories((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(categoryId)) {
+        newSet.delete(categoryId);
+      } else {
+        newSet.add(categoryId);
+      }
+      // Save to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('builder_expanded_categories', JSON.stringify(Array.from(newSet)));
+      }
+      return newSet;
+    });
+  };
 
   if (isLoading) {
     return (
@@ -346,6 +680,16 @@ export default function ChatbotBuilderPage() {
 
           <div className="h-8 w-px bg-gray-300 dark:bg-gray-600" />
 
+          {/* Test Flow Button */}
+          <button
+            onClick={() => setShowSimulator(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+            title="Testar Fluxo"
+          >
+            <Play className="w-4 h-4" />
+            <span className="text-sm font-medium">Testar Fluxo</span>
+          </button>
+
           {/* Preview Button */}
           <button
             className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -388,30 +732,73 @@ export default function ChatbotBuilderPage() {
                   Adicionar Nó
                 </h3>
               </div>
-              <div className="space-y-2">
-                {NODE_TYPES_PALETTE.map((nodeType) => {
-                  const Icon = nodeType.icon;
+
+              {/* Categories */}
+              <div className="space-y-1">
+                {NODE_CATEGORIES.map((category) => {
+                  const CategoryIcon = category.icon;
+                  const isExpanded = expandedCategories.has(category.id);
+                  const categoryNodes = NODE_TYPES_PALETTE.filter((n) =>
+                    category.nodeTypes.includes(n.type)
+                  );
+
                   return (
-                    <button
-                      key={nodeType.type}
-                      onClick={() => handleAddNode(nodeType)}
-                      className="w-full flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-700 transition-all hover:shadow-md text-left group"
-                    >
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
-                        style={{ backgroundColor: `${COLOR_MAP[nodeType.color]}20` }}
+                    <div key={category.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                      {/* Category Header */}
+                      <button
+                        onClick={() => toggleCategory(category.id)}
+                        className="w-full flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                       >
-                        <Icon className="w-4 h-4" style={{ color: COLOR_MAP[nodeType.color] }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm text-gray-900 dark:text-white">
-                          {nodeType.label}
+                        <div className="flex items-center gap-2">
+                          <CategoryIcon
+                            className="w-4 h-4"
+                            style={{ color: category.color }}
+                          />
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                            {category.label}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded-full">
+                            {categoryNodes.length}
+                          </span>
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {nodeType.description}
+                        {isExpanded ? (
+                          <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                        )}
+                      </button>
+
+                      {/* Category Nodes */}
+                      {isExpanded && (
+                        <div className="p-2 space-y-1.5 bg-white dark:bg-gray-800">
+                          {categoryNodes.map((nodeType) => {
+                            const Icon = nodeType.icon;
+                            return (
+                              <button
+                                key={nodeType.type}
+                                onClick={() => handleAddNode(nodeType)}
+                                className="w-full flex items-center gap-2.5 p-2 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg border border-transparent hover:border-gray-300 dark:hover:border-gray-600 transition-all text-left group"
+                              >
+                                <div
+                                  className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
+                                  style={{ backgroundColor: `${COLOR_MAP[nodeType.color]}20` }}
+                                >
+                                  <Icon className="w-3.5 h-3.5" style={{ color: COLOR_MAP[nodeType.color] }} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-xs text-gray-900 dark:text-white">
+                                    {nodeType.label}
+                                  </div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate leading-tight">
+                                    {nodeType.description}
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
                         </div>
-                      </div>
-                    </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -453,6 +840,7 @@ export default function ChatbotBuilderPage() {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onNodeClick={onNodeClick}
+            nodeTypes={nodeTypes}
             fitView
             className="bg-gray-50 dark:bg-gray-900"
           >
@@ -532,61 +920,231 @@ export default function ChatbotBuilderPage() {
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Tipo
-                      </label>
-                      <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm text-gray-900 dark:text-white">
-                        {selectedNode.data?.nodeType || 'default'}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        ID do Nó
-                      </label>
-                      <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm font-mono text-gray-900 dark:text-white">
-                        {selectedNode.id}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Posição
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm text-gray-900 dark:text-white">
-                          X: {Math.round(selectedNode.position.x)}
-                        </div>
-                        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm text-gray-900 dark:text-white">
-                          Y: {Math.round(selectedNode.position.y)}
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Actions */}
-                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-                      <button
-                        onClick={handleDuplicateNode}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
-                      >
-                        <Copy className="w-4 h-4" />
-                        Duplicar Nó
-                      </button>
-                      <button
-                        onClick={handleDeleteNode}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Deletar Nó
-                      </button>
-                    </div>
+                  {/* Debug info */}
+                  {console.log('Selected Node Type:', selectedNode.data?.nodeType)}
 
-                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        💡 Editor de propriedades avançado será implementado em breve
-                      </p>
+                  {/* Render specific properties component based on node type */}
+                  {selectedNode.data?.nodeType === 'ai_prompt' && (
+                    <AIPromptProperties
+                      key={selectedNode.id}
+                      nodeId={selectedNode.id}
+                      data={selectedNode.data}
+                      onChange={handleNodeDataChange}
+                      chatbotId={chatbotId}
+                    />
+                  )}
+
+                  {selectedNode.data?.nodeType === 'api_call' && (
+                    <APICallProperties
+                      key={selectedNode.id}
+                      nodeId={selectedNode.id}
+                      data={selectedNode.data}
+                      onChange={handleNodeDataChange}
+                      chatbotId={chatbotId}
+                    />
+                  )}
+
+                  {selectedNode.data?.nodeType === 'message' && (
+                    <MessageProperties
+                      key={selectedNode.id}
+                      nodeId={selectedNode.id}
+                      data={selectedNode.data}
+                      onChange={handleNodeDataChange}
+                      chatbotId={chatbotId}
+                    />
+                  )}
+
+                  {selectedNode.data?.nodeType === 'question' && (
+                    <QuestionProperties
+                      key={selectedNode.id}
+                      nodeId={selectedNode.id}
+                      data={selectedNode.data}
+                      onChange={handleNodeDataChange}
+                      chatbotId={chatbotId}
+                    />
+                  )}
+
+                  {selectedNode.data?.nodeType === 'condition' && (
+                    <ConditionProperties
+                      key={selectedNode.id}
+                      nodeId={selectedNode.id}
+                      data={selectedNode.data}
+                      onChange={handleNodeDataChange}
+                      chatbotId={chatbotId}
+                    />
+                  )}
+
+                  {selectedNode.data?.nodeType === 'handoff' && (
+                    <HandoffProperties
+                      key={selectedNode.id}
+                      nodeId={selectedNode.id}
+                      data={selectedNode.data}
+                      onChange={handleNodeDataChange}
+                      chatbotId={chatbotId}
+                    />
+                  )}
+
+                  {selectedNode.data?.nodeType === 'delay' && (
+                    <DelayProperties
+                      key={selectedNode.id}
+                      nodeId={selectedNode.id}
+                      data={selectedNode.data}
+                      onChange={handleNodeDataChange}
+                      chatbotId={chatbotId}
+                    />
+                  )}
+
+                  {selectedNode.data?.nodeType === 'action' && (
+                    <ActionProperties
+                      key={selectedNode.id}
+                      nodeId={selectedNode.id}
+                      data={selectedNode.data}
+                      onChange={handleNodeDataChange}
+                      chatbotId={chatbotId}
+                    />
+                  )}
+
+                  {selectedNode.data?.nodeType === 'set_variable' && (
+                    <SetVariableProperties
+                      key={selectedNode.id}
+                      nodeId={selectedNode.id}
+                      data={selectedNode.data}
+                      onChange={handleNodeDataChange}
+                      chatbotId={chatbotId}
+                    />
+                  )}
+
+                  {selectedNode.data?.nodeType === 'whatsapp_template' && (
+                    <WhatsAppTemplateProperties
+                      key={selectedNode.id}
+                      nodeId={selectedNode.id}
+                      data={selectedNode.data}
+                      onChange={handleNodeDataChange}
+                      chatbotId={chatbotId}
+                    />
+                  )}
+
+                  {selectedNode.data?.nodeType === 'interactive_buttons' && (
+                    <InteractiveButtonsProperties
+                      key={selectedNode.id}
+                      nodeId={selectedNode.id}
+                      data={selectedNode.data}
+                      onChange={handleNodeDataChange}
+                      chatbotId={chatbotId}
+                    />
+                  )}
+
+                  {selectedNode.data?.nodeType === 'interactive_list' && (
+                    <InteractiveListProperties
+                      key={selectedNode.id}
+                      nodeId={selectedNode.id}
+                      data={selectedNode.data}
+                      onChange={handleNodeDataChange}
+                      chatbotId={chatbotId}
+                    />
+                  )}
+
+                  {selectedNode.data?.nodeType === 'jump' && (
+                    <JumpProperties
+                      key={selectedNode.id}
+                      nodeId={selectedNode.id}
+                      data={selectedNode.data}
+                      onChange={handleNodeDataChange}
+                      chatbotId={chatbotId}
+                    />
+                  )}
+
+                  {selectedNode.data?.nodeType === 'end' && (
+                    <EndProperties
+                      key={selectedNode.id}
+                      nodeId={selectedNode.id}
+                      data={selectedNode.data}
+                      onChange={handleNodeDataChange}
+                      chatbotId={chatbotId}
+                    />
+                  )}
+
+                  {selectedNode.data?.nodeType === 'database_query' && (
+                    <DatabaseQueryProperties
+                      key={selectedNode.id}
+                      nodeId={selectedNode.id}
+                      data={selectedNode.data}
+                      onChange={handleNodeDataChange}
+                      chatbotId={chatbotId}
+                    />
+                  )}
+
+                  {selectedNode.data?.nodeType === 'script' && (
+                    <ScriptProperties
+                      key={selectedNode.id}
+                      nodeId={selectedNode.id}
+                      data={selectedNode.data}
+                      onChange={handleNodeDataChange}
+                      chatbotId={chatbotId}
+                      nodes={nodes}
+                      edges={edges}
+                    />
+                  )}
+
+                  {/* Generic properties for other node types */}
+                  {!['ai_prompt', 'api_call', 'message', 'question', 'condition', 'handoff', 'delay', 'action', 'set_variable', 'whatsapp_template', 'interactive_buttons', 'interactive_list', 'jump', 'end', 'database_query', 'script'].includes(selectedNode.data?.nodeType) && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Tipo
+                        </label>
+                        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm text-gray-900 dark:text-white">
+                          {selectedNode.data?.nodeType || 'default'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          ID do Nó
+                        </label>
+                        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm font-mono text-gray-900 dark:text-white">
+                          {selectedNode.id}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Posição
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm text-gray-900 dark:text-white">
+                            X: {Math.round(selectedNode.position.x)}
+                          </div>
+                          <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm text-gray-900 dark:text-white">
+                            Y: {Math.round(selectedNode.position.y)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                        <button
+                          onClick={handleDuplicateNode}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
+                        >
+                          <Copy className="w-4 h-4" />
+                          Duplicar Nó
+                        </button>
+                        <button
+                          onClick={handleDeleteNode}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Deletar Nó
+                        </button>
+                      </div>
+
+                      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          💡 Editor de propriedades para este tipo de nó será implementado em breve
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-12">
@@ -600,6 +1158,19 @@ export default function ChatbotBuilderPage() {
           </div>
         )}
       </div>
+
+      {/* Flow Simulator Modal */}
+      {showSimulator && (
+        <FlowSimulator
+          nodes={nodes}
+          edges={edges}
+          onClose={() => setShowSimulator(false)}
+          onHighlightNode={(nodeId) => setHighlightedNodeId(nodeId)}
+        />
+      )}
+
+      {/* Session Expired Modal */}
+      {showExpiredModal && <SessionExpiredModal onClose={hideModal} />}
     </div>
   );
 }

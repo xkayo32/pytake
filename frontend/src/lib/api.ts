@@ -1,28 +1,28 @@
 import axios from 'axios';
 
-// Runtime configuration - reads from window.__APP_CONFIG__ if available
-// Falls back to build-time env var, then localhost
-const getApiUrl = () => {
-  // Check if running in browser and config is loaded
-  if (typeof window !== 'undefined' && (window as any).__APP_CONFIG__) {
-    return (window as any).__APP_CONFIG__.API_URL;
-  }
-  // Fallback to build-time environment variable
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-};
-
-const API_URL = getApiUrl();
-
+// NÃO DEFINE BASEURL AQUI - APENAS NO INTERCEPTOR!
 export const api = axios.create({
-  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor to add auth token
+// INTERCEPTOR QUE MONTA A URL COMPLETA - SEM BACKEND:8000 EM LUGAR NENHUM!
 api.interceptors.request.use(
   (config) => {
+    // SEMPRE FORÇA /api/v1 - BROWSER OU SSR
+    // Se a URL começa com /, adiciona /api/v1 na frente
+    if (config.url && config.url.startsWith('/')) {
+      config.url = `/api/v1${config.url}`;
+    } else if (config.url && !config.url.startsWith('http')) {
+      config.url = `/api/v1/${config.url}`;
+    }
+    // REMOVE baseURL completamente
+    delete config.baseURL;
+
+    console.log('🚀 FINAL URL:', config.url);
+
+    // Add auth token
     try {
       const token = localStorage.getItem('access_token');
       if (token) {
@@ -153,31 +153,71 @@ export const analyticsAPI = {
 
 // Contacts API
 export const contactsAPI = {
-  list: (params?: { skip?: number; limit?: number; search?: string }) =>
+  list: (params?: { skip?: number; limit?: number; query?: string; assigned_agent_id?: string; is_blocked?: boolean }) =>
     api.get('/contacts/', { params }),
 
   get: (id: string) => api.get(`/contacts/${id}`),
 
+  getStats: (id: string) => api.get(`/contacts/${id}/stats`),
+
+  getOrganizationStats: () => api.get('/contacts/stats'),
+
   create: (data: any) => api.post('/contacts/', data),
 
-  update: (id: string, data: any) => api.patch(`/contacts/${id}`, data),
+  update: (id: string, data: any) => api.put(`/contacts/${id}`, data),
 
   delete: (id: string) => api.delete(`/contacts/${id}`),
+
+  block: (id: string, reason?: string) =>
+    api.post(`/contacts/${id}/block`, null, { params: { reason } }),
+
+  unblock: (id: string) =>
+    api.post(`/contacts/${id}/unblock`),
+
+  updateTags: (id: string, tag_names: string[]) =>
+    api.put(`/contacts/${id}/tags`, tag_names),
+
+  addTags: (id: string, tag_ids: string[]) =>
+    api.post(`/contacts/${id}/tags`, { tag_ids }),
+
+  removeTags: (id: string, tag_ids: string[]) =>
+    api.delete(`/contacts/${id}/tags`, { data: { tag_ids } }),
+};
+
+// Tags API
+export const tagsAPI = {
+  list: () => api.get('/contacts/tags/'),
+
+  get: (id: string) => api.get(`/contacts/tags/${id}`),
+
+  create: (data: { name: string; color?: string }) =>
+    api.post('/contacts/tags/', data),
+
+  update: (id: string, data: { name?: string; color?: string }) =>
+    api.put(`/contacts/tags/${id}`, data),
+
+  delete: (id: string) => api.delete(`/contacts/tags/${id}`),
 };
 
 // Conversations API
 export const conversationsAPI = {
-  list: (params?: { skip?: number; limit?: number; status?: string }) =>
+  list: (params?: { skip?: number; limit?: number; status?: string; assigned_to_me?: boolean }) =>
     api.get('/conversations/', { params }),
 
   get: (id: string) => api.get(`/conversations/${id}`),
 
   create: (data: any) => api.post('/conversations/', data),
 
-  update: (id: string, data: any) => api.patch(`/conversations/${id}`, data),
+  update: (id: string, data: any) => api.put(`/conversations/${id}`, data),
+
+  getMessages: (conversationId: string, params?: { skip?: number; limit?: number }) =>
+    api.get(`/conversations/${conversationId}/messages`, { params }),
 
   sendMessage: (conversationId: string, data: any) =>
     api.post(`/conversations/${conversationId}/messages`, data),
+
+  markAsRead: (conversationId: string) =>
+    api.post(`/conversations/${conversationId}/read`),
 };
 
 // Campaigns API
@@ -224,6 +264,90 @@ export const chatbotsAPI = {
   deactivate: (id: string) => api.post(`/chatbots/${id}/deactivate`),
 
   getStats: (id: string) => api.get(`/chatbots/${id}/stats`),
+};
+
+// WhatsApp API
+export const whatsappAPI = {
+  list: () => api.get('/whatsapp/'),
+
+  get: (id: string) => api.get(`/whatsapp/${id}`),
+
+  create: (data: any) => api.post('/whatsapp/', data),
+
+  update: (id: string, data: any) => api.put(`/whatsapp/${id}`, data),
+
+  delete: (id: string) => api.delete(`/whatsapp/${id}`),
+
+  listTemplates: (numberId: string, status: string = 'APPROVED') =>
+    api.get(`/whatsapp/${numberId}/templates`, { params: { status } }),
+
+  generateQRCode: (numberId: string) =>
+    api.post(`/whatsapp/${numberId}/qrcode`),
+
+  getQRCodeStatus: (numberId: string) =>
+    api.get(`/whatsapp/${numberId}/qrcode/status`),
+
+  disconnect: (numberId: string) =>
+    api.post(`/whatsapp/${numberId}/disconnect`),
+};
+
+// Queue API
+export const queueAPI = {
+  list: (params?: { skip?: number; limit?: number; department_id?: string }) =>
+    api.get('/queue/', { params }),
+
+  pull: (params?: { department_id?: string }) =>
+    api.post('/queue/pull', params),
+};
+
+// Departments API
+export const departmentsAPI = {
+  list: (params?: { skip?: number; limit?: number; is_active?: boolean }) =>
+    api.get('/departments/', { params }),
+
+  listActive: () => api.get('/departments/active'),
+
+  getStats: () => api.get('/departments/stats'),
+
+  get: (id: string) => api.get(`/departments/${id}`),
+
+  create: (data: any) => api.post('/departments/', data),
+
+  update: (id: string, data: any) => api.put(`/departments/${id}`, data),
+
+  delete: (id: string) => api.delete(`/departments/${id}`),
+
+  addAgent: (departmentId: string, agentId: string) =>
+    api.post(`/departments/${departmentId}/agents/${agentId}`),
+
+  removeAgent: (departmentId: string, agentId: string) =>
+    api.delete(`/departments/${departmentId}/agents/${agentId}`),
+};
+
+// Users API
+export const usersAPI = {
+  list: (params?: { skip?: number; limit?: number; role?: string; is_active?: boolean }) =>
+    api.get('/users/', { params }),
+
+  get: (id: string) => api.get(`/users/${id}`),
+
+  getStats: (id: string) => api.get(`/users/${id}/stats`),
+
+  getMe: () => api.get('/users/me'),
+
+  getMyStats: () => api.get('/users/me/stats'),
+
+  create: (data: any) => api.post('/users/', data),
+
+  update: (id: string, data: any) => api.put(`/users/${id}`, data),
+
+  updateMe: (data: any) => api.put('/users/me', data),
+
+  activate: (id: string) => api.post(`/users/${id}/activate`),
+
+  deactivate: (id: string) => api.post(`/users/${id}/deactivate`),
+
+  delete: (id: string) => api.delete(`/users/${id}`),
 };
 
 export default api;

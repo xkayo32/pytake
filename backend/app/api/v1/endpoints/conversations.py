@@ -16,6 +16,7 @@ from app.schemas.conversation import (
     Message,
     MessageCreate,
 )
+from app.schemas.message import MessageSendRequest, MessageResponse
 from app.services.conversation_service import ConversationService
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -108,21 +109,30 @@ async def get_conversation_messages(
     )
 
 
-@router.post("/{conversation_id}/messages", response_model=Message, status_code=status.HTTP_201_CREATED)
+@router.post("/{conversation_id}/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
 async def send_message(
     conversation_id: UUID,
-    data: MessageCreate,
+    data: MessageSendRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Send a message in a conversation"""
-    service = ConversationService(db)
-    return await service.send_message(
+    """
+    Send a message via WhatsApp
+
+    Validates 24-hour window and sends via Meta Cloud API
+    """
+    from app.services.whatsapp_service import WhatsAppService
+
+    service = WhatsAppService(db)
+    message = await service.send_message(
         conversation_id=conversation_id,
-        data=data,
         organization_id=current_user.organization_id,
-        sender_id=current_user.id,
+        message_type=data.message_type,
+        content=data.content,
+        sender_user_id=current_user.id,
     )
+
+    return message
 
 
 @router.post("/{conversation_id}/read", response_model=Conversation)

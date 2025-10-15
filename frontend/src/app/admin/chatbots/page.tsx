@@ -26,6 +26,8 @@ import { EditChatbotModal } from '@/components/admin/EditChatbotModal';
 import { chatbotsAPI } from '@/lib/api/chatbots';
 import type { Chatbot } from '@/types/chatbot';
 import { whatsappAPI, type WhatsAppNumber } from '@/lib/api/whatsapp';
+import { useToast } from '@/store/notificationStore';
+import { useConfirm } from '@/hooks/useConfirm';
 
 type ViewMode = 'grid' | 'list';
 type FilterStatus = 'all' | 'active' | 'inactive';
@@ -33,6 +35,8 @@ type FilterWhatsApp = 'all' | 'with' | 'without';
 
 export default function ChatbotsPage() {
   const router = useRouter();
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [whatsappNumbers, setWhatsappNumbers] = useState<WhatsAppNumber[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -79,23 +83,33 @@ export default function ChatbotsPage() {
         await chatbotsAPI.activate(bot.id);
       }
       await fetchChatbots();
+      toast.success(
+        `Chatbot ${bot.is_active ? 'desativado' : 'ativado'} com sucesso`
+      );
     } catch (error: any) {
       console.error('Erro ao alterar status:', error);
-      alert(error.response?.data?.detail || 'Erro ao alterar status do chatbot');
+      toast.error(error.response?.data?.detail || 'Erro ao alterar status do chatbot');
     }
   };
 
   const handleDelete = async (bot: Chatbot) => {
-    if (!confirm(`Tem certeza que deseja deletar o chatbot "${bot.name}"?`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Deletar Chatbot',
+      message: `Tem certeza que deseja deletar o chatbot "${bot.name}"? Esta ação não pode ser desfeita.`,
+      confirmText: 'Deletar',
+      cancelText: 'Cancelar',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     try {
       await chatbotsAPI.delete(bot.id);
       await fetchChatbots();
+      toast.success('Chatbot deletado com sucesso');
     } catch (error: any) {
       console.error('Erro ao deletar:', error);
-      alert(error.response?.data?.detail || 'Erro ao deletar chatbot');
+      toast.error(error.response?.data?.detail || 'Erro ao deletar chatbot');
     }
   };
 
@@ -332,10 +346,11 @@ function ChatbotCard({
   onEditSettings: () => void;
 }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
-      <div className="p-6">
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
+      {/* Card Content - grows to fill available space */}
+      <div className="p-6 flex-1 flex flex-col">
         <div className="flex items-start justify-between mb-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center relative">
+          <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center relative flex-shrink-0">
             <Bot className="w-6 h-6 text-white" />
             {bot.whatsapp_number_id && (
               <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center border-2 border-white dark:border-gray-800">
@@ -401,18 +416,21 @@ function ChatbotCard({
           </div>
         )}
 
+        {/* Spacer - pushes button to bottom */}
+        <div className="flex-1"></div>
+
         {/* Ação Principal - Abrir Builder */}
         <button
           onClick={onEdit}
-          className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium rounded-xl transition-all flex items-center justify-center gap-2 mb-3"
+          className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium rounded-xl transition-all flex items-center justify-center gap-2"
         >
           <Workflow className="w-4 h-4" />
           Editar Fluxos
         </button>
       </div>
 
-      {/* Actions Row */}
-      <div className="px-6 py-3 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
+      {/* Actions Row - always at the bottom */}
+      <div className="px-6 py-3 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2 mt-auto">
         <button
           onClick={onEditSettings}
           className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"

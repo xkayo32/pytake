@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { whatsappAPI, WhatsAppNumberCreate } from '@/lib/api/whatsapp';
-import { X, Loader2, Phone, Building2, Key, Webhook, Info, Copy, RefreshCw } from 'lucide-react';
+import { X, Loader2, Phone, Building2, Key, Webhook, Info, Copy, RefreshCw, Shield } from 'lucide-react';
 import { countries, defaultCountry, Country } from '@/lib/countries';
 import { generateWebhookVerifyToken } from '@/lib/utils/crypto';
 
@@ -23,14 +23,16 @@ export function AddWhatsAppNumberModal({
   const [phoneNumberId, setPhoneNumberId] = useState('');
   const [businessAccountId, setBusinessAccountId] = useState('');
   const [accessToken, setAccessToken] = useState('');
+  const [appSecret, setAppSecret] = useState('');
   const [webhookVerifyToken, setWebhookVerifyToken] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  // Webhook URL padrão (backend)
-  const webhookUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') + '/api/v1/whatsapp/webhook' ||
-                     'https://api.pytake.net/api/v1/whatsapp/webhook';
+  // Webhook URL padrão (backend) - agora editável
+  const defaultWebhookUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') + '/api/v1/whatsapp/webhook' ||
+                            'https://api.pytake.net/api/v1/whatsapp/webhook';
+  const [webhookUrl, setWebhookUrl] = useState(defaultWebhookUrl);
 
   // Gerar token automaticamente ao abrir o modal
   useEffect(() => {
@@ -66,6 +68,7 @@ export function AddWhatsAppNumberModal({
         phone_number_id: phoneNumberId,
         whatsapp_business_account_id: businessAccountId,
         access_token: accessToken,
+        app_secret: appSecret || undefined,
         webhook_url: webhookUrl,
         webhook_verify_token: webhookVerifyToken,
       };
@@ -81,7 +84,9 @@ export function AddWhatsAppNumberModal({
       setPhoneNumberId('');
       setBusinessAccountId('');
       setAccessToken('');
+      setAppSecret('');
       setSelectedCountry(defaultCountry);
+      setWebhookUrl(defaultWebhookUrl);
       setWebhookVerifyToken('');
     } catch (err: any) {
       console.error('Failed to create WhatsApp number:', err);
@@ -288,6 +293,26 @@ export function AddWhatsAppNumberModal({
                 Token de acesso permanente da Meta (System User Token - nunca expira)
               </p>
             </div>
+
+            {/* App Secret */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  App Secret (Meta for Developers)
+                </div>
+              </label>
+              <input
+                type="password"
+                value={appSecret}
+                onChange={(e) => setAppSecret(e.target.value)}
+                placeholder="abc123def456ghi789jkl012mno345pq"
+                className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 font-mono text-xs"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                🔐 <strong>Obrigatório para segurança do webhook.</strong> Encontre em: Meta for Developers → Settings → Basic → App Secret
+              </p>
+            </div>
           </div>
 
           {/* Webhook Configuration */}
@@ -306,8 +331,9 @@ export function AddWhatsAppNumberModal({
                 <input
                   type="text"
                   value={webhookUrl}
-                  readOnly
-                  className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg text-sm text-gray-900 dark:text-white font-mono"
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  placeholder="https://api.pytake.net/api/v1/whatsapp/webhook"
+                  className="flex-1 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white font-mono focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent"
                 />
                 <button
                   type="button"
@@ -325,7 +351,7 @@ export function AddWhatsAppNumberModal({
                 </button>
               </div>
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Cole esta URL no campo "Callback URL" no Meta for Developers
+                URL do webhook para receber mensagens. Você pode editá-la se usar um domínio personalizado. Cole no campo "Callback URL" no Meta for Developers.
               </p>
             </div>
 
@@ -386,6 +412,7 @@ export function AddWhatsAppNumberModal({
               <li>Copie o <strong>Phone Number ID</strong> (em "Números de Telefone")</li>
               <li>Copie o <strong>WhatsApp Business Account ID</strong> (em "Informações")</li>
               <li>Crie um <strong>System User</strong> e gere um <strong>Token Permanente</strong> (em "Usuários do Sistema")</li>
+              <li>🔐 Copie o <strong>App Secret</strong> (em "Settings" → "Basic" → clique em "Show")</li>
               <li>Vá em "Configuração" → "Webhook"</li>
               <li>Cole a <strong>Callback URL</strong> acima</li>
               <li>Cole o <strong>Verify Token</strong> acima</li>

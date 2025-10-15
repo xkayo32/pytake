@@ -142,10 +142,21 @@ class ContactService:
         contact = await self.get_by_id(contact_id, organization_id)
         return await self.repo.remove_tags(contact_id, tag_ids)
 
+    async def replace_tags(
+        self, contact_id: UUID, tag_ids: List[UUID], organization_id: UUID
+    ) -> Contact:
+        """Replace all contact tags with the provided list"""
+        contact = await self.get_by_id(contact_id, organization_id)
+        return await self.repo.replace_tags(contact_id, tag_ids)
+
     async def get_stats(self, contact_id: UUID, organization_id: UUID) -> dict:
         """Get contact statistics"""
         contact = await self.get_by_id(contact_id, organization_id)
         return await self.repo.get_contact_stats(contact_id)
+
+    async def get_organization_stats(self, organization_id: UUID) -> dict:
+        """Get organization-wide contact statistics"""
+        return await self.repo.get_organization_stats(organization_id)
 
 
 class TagService:

@@ -102,7 +102,7 @@ class ConversationInDB(ConversationBase):
     status: str  # open, pending, resolved, closed
     assigned_agent_id: Optional[UUID] = None
     assigned_department_id: Optional[UUID] = None
-    priority: str  # low, medium, high, urgent
+    priority: Optional[str] = None  # low, medium, high, urgent
 
     # Tracking
     last_message_at: Optional[datetime] = None
