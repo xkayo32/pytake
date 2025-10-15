@@ -29,6 +29,7 @@ class WhatsAppService:
         from app.repositories.chatbot import FlowRepository, NodeRepository
         from app.models.chatbot import Flow, Node
         from datetime import datetime
+        from sqlalchemy import select
 
         if not conversation.active_chatbot_id:
             logger.warning("Nenhum chatbot ativo para a conversa.")
@@ -50,11 +51,55 @@ class WhatsAppService:
             logger.warning(f"Nenhum nó inicial encontrado para o fluxo principal {main_flow.id}")
             return
 
-        # Enviar a primeira mensagem do fluxo (se houver conteúdo)
+        # Determinar qual node enviar (start ou próximo)
+        node_to_send = start_node
         node_data = start_node.data or {}
-        content = node_data.get("content") or node_data.get("question") or node_data.get("text")
+        content = node_data.get("content") or node_data.get("questionText") or node_data.get("messageText") or node_data.get("text")
+
+        # Se o start node não tem conteúdo, seguir a edge para o próximo node
         if not content:
-            logger.info(f"Nó inicial do fluxo não possui conteúdo para enviar.")
+            logger.info(f"Nó inicial não possui conteúdo, seguindo edge para próximo nó...")
+
+            # Buscar canvas_data com as edges
+            canvas_data = main_flow.canvas_data or {}
+            edges = canvas_data.get("edges", [])
+
+            # Encontrar a edge que sai do start node
+            start_node_canvas_id = start_node.node_id
+            next_node_canvas_id = None
+
+            for edge in edges:
+                if edge.get("source") == start_node_canvas_id:
+                    next_node_canvas_id = edge.get("target")
+                    logger.info(f"Encontrada edge: {start_node_canvas_id} -> {next_node_canvas_id}")
+                    break
+
+            if not next_node_canvas_id:
+                logger.warning(f"Nenhuma edge encontrada saindo do start node")
+                return
+
+            # Buscar o próximo node pelo node_id (canvas_id)
+            stmt = select(Node).where(
+                Node.flow_id == main_flow.id,
+                Node.node_id == next_node_canvas_id,
+                Node.organization_id == organization_id
+            )
+            result = await self.db.execute(stmt)
+            next_node = result.scalar_one_or_none()
+
+            if not next_node:
+                logger.warning(f"Node {next_node_canvas_id} não encontrado no banco")
+                return
+
+            # Usar o próximo node
+            node_to_send = next_node
+            node_data = next_node.data or {}
+            content = node_data.get("questionText") or node_data.get("messageText") or node_data.get("content") or node_data.get("text")
+
+            logger.info(f"Próximo node encontrado: {next_node.node_type} - {next_node_canvas_id}")
+
+        if not content:
+            logger.warning(f"Nenhum conteúdo encontrado para enviar no node {node_to_send.node_id}")
             return
 
         # Enviar mensagem pelo WhatsApp (suporta oficial e Evolution API)
@@ -119,6 +164,14 @@ class WhatsAppService:
                 await self.db.commit()
 
             logger.info(f"✅ Mensagem inicial do chatbot enviada com sucesso para conversa {conversation.id}")
+
+            # IMPORTANTE: Desativar bot após primeira mensagem para evitar loop
+            # TODO: Implementar motor de execução de fluxo completo para processar respostas e avançar nodes
+            from app.repositories.conversation import ConversationRepository
+            conv_repo = ConversationRepository(self.db)
+            await conv_repo.update(conversation.id, {"is_bot_active": False})
+            await self.db.commit()
+            logger.info(f"🔴 Bot desativado para conversa {conversation.id} (primeira mensagem enviada)")
         except Exception as e:
             logger.error(f"❌ Erro ao enviar mensagem inicial do chatbot: {e}")
             # Não propaga erro para não quebrar o processamento da mensagem recebida
@@ -814,9 +867,15 @@ class WhatsAppService:
         # 4. Validate 24-hour window for non-template messages
         from datetime import timezone
         now = datetime.now(timezone.utc)
+
+        # Ensure window_expires_at is timezone-aware
+        window_expires = conversation.window_expires_at
+        if window_expires and window_expires.tzinfo is None:
+            window_expires = window_expires.replace(tzinfo=timezone.utc)
+
         is_within_window = (
-            conversation.window_expires_at and
-            now < conversation.window_expires_at
+            window_expires and
+            now < window_expires
         )
 
         if not is_within_window and message_type != "template":
