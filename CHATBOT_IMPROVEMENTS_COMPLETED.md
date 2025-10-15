@@ -230,7 +230,7 @@ await self._send_error_message(
 
 ## 🎯 Resumo de Progresso
 
-### **Tarefas Concluídas (14/25):**
+### **Tarefas Concluídas (15/25):**
 ✅ Condition Node (ramificação if/else)
 ✅ Handoff Node (transferir para agente humano)
 ✅ Validação de responseType (text, number, email, phone, options)
@@ -245,6 +245,7 @@ await self._send_error_message(
 ✅ Retry automático de envio
 ✅ Action Node (webhook, save_contact, update_variable)
 ✅ API Call Node (chamadas HTTP com retry e error handling)
+✅ AI Prompt Node (OpenAI, Anthropic, Custom APIs)
 
 ### **Proteções Implementadas:**
 🛡️ Detecção de loops infinitos (10 visitas ao mesmo node)
@@ -1202,5 +1203,261 @@ Condition: address_data.erro == null
 
 ---
 
-**Status Final:** 🟢 14/25 tarefas concluídas (56% de progresso)
-**Próximo Milestone:** 15/25 tarefas (após implementar AI Prompt Node)
+### 15. **AI Prompt Node - Integração com Modelos de IA** 🤖
+
+**Prioridade:** ALTA
+**Arquivo:** `backend/app/services/whatsapp_service.py`
+
+**Funcionalidade:**
+- Integração com modelos de IA (OpenAI GPT, Anthropic Claude, APIs customizadas)
+- Processamento de linguagem natural no fluxo do chatbot
+- Classificação, análise de sentimento, extração de entidades, etc.
+- Substituição de variáveis no prompt e system prompt
+- Suporte a múltiplos provedores (openai, anthropic, custom)
+- Temperature e max_tokens configuráveis
+
+**Formato do Node Data:**
+```json
+{
+  "provider": "openai",  // openai, anthropic, custom
+  "model": "gpt-4",  // gpt-4, gpt-3.5-turbo, claude-3-opus, claude-3-sonnet, etc.
+  "prompt": "Classifique o seguinte problema: {{user_message}}",
+  "systemPrompt": "Você é um assistente de atendimento ao cliente.",  // Opcional
+  "temperature": 0.7,  // 0.0 (determinístico) - 1.0 (criativo)
+  "maxTokens": 500,  // Máximo de tokens na resposta
+  "responseVariable": "ai_response",  // Variável para salvar resposta
+  "apiKey": "{{openai_api_key}}",  // API key (pode usar variável)
+  "timeout": 60,  // Timeout em segundos (padrão: 60)
+  "errorHandling": {
+    "onError": "continue",  // continue, stop
+    "fallbackValue": "Não foi possível processar"
+  }
+}
+```
+
+**Provedores Suportados:**
+
+#### 15.1. OpenAI (GPT-3.5, GPT-4)
+```json
+{
+  "provider": "openai",
+  "model": "gpt-4",
+  "prompt": "Analise o sentimento desta mensagem: {{user_message}}",
+  "systemPrompt": "Você é um analisador de sentimento. Responda apenas: positivo, negativo ou neutro.",
+  "temperature": 0.3,
+  "maxTokens": 50,
+  "apiKey": "sk-...",
+  "responseVariable": "sentiment"
+}
+```
+
+**Modelos OpenAI:**
+- `gpt-4` - Mais inteligente, melhor raciocínio
+- `gpt-3.5-turbo` - Mais rápido e econômico
+- `gpt-4-turbo` - GPT-4 otimizado
+
+#### 15.2. Anthropic (Claude)
+```json
+{
+  "provider": "anthropic",
+  "model": "claude-3-opus-20240229",
+  "prompt": "Extraia as seguintes informações: nome, email, telefone\n\n{{user_message}}",
+  "systemPrompt": "Retorne apenas um JSON com as informações extraídas.",
+  "temperature": 0.5,
+  "maxTokens": 300,
+  "apiKey": "sk-ant-...",
+  "responseVariable": "extracted_data"
+}
+```
+
+**Modelos Anthropic:**
+- `claude-3-opus-20240229` - Mais poderoso
+- `claude-3-sonnet-20240229` - Balanceado
+- `claude-3-haiku-20240307` - Mais rápido
+
+#### 15.3. Custom API (Ollama, LocalAI, etc.)
+```json
+{
+  "provider": "custom",
+  "customUrl": "http://localhost:11434/v1/chat/completions",
+  "model": "llama2",
+  "prompt": "Responda de forma concisa: {{user_question}}",
+  "apiKey": "not-required-for-ollama",
+  "responseVariable": "ai_answer"
+}
+```
+
+**Substituição de Variáveis:**
+- ✅ Prompt: `"Classifique: {{user_message}}"`
+- ✅ System Prompt: `"Nome do atendente: {{agent_name}}"`
+- ✅ API Key: `"{{openai_api_key}}"` (pode vir de variável)
+
+**Parâmetros de Configuração:**
+
+**Temperature (0.0 - 1.0):**
+- `0.0` - Determinístico, sempre mesma resposta
+- `0.3` - Pouca variação, bom para classificação
+- `0.7` - Padrão, balanceado
+- `1.0` - Criativo, respostas variadas
+
+**Max Tokens:**
+- Controla tamanho máximo da resposta
+- `50` - Respostas curtas (classificação)
+- `500` - Respostas médias (padrão)
+- `2000` - Respostas longas (explicações detalhadas)
+
+**Casos de Uso:**
+
+#### Caso 1: Classificação de Problema
+```
+Question: "Descreva seu problema" → user_message
+  ↓
+AI Prompt:
+  - Provider: openai
+  - Model: gpt-3.5-turbo
+  - Prompt: "Classifique o problema em uma categoria: técnico, financeiro, comercial\n\n{{user_message}}"
+  - Temperature: 0.3
+  ↓ Salva em: problem_category
+Condition: problem_category == "técnico"
+  ├─ true → Jump (flow: "Suporte Técnico")
+  └─ false → Continue
+```
+
+#### Caso 2: Análise de Sentimento
+```
+AI Prompt:
+  - Prompt: "Analise o sentimento: {{user_message}}"
+  - System: "Responda apenas: positivo, negativo, neutro"
+  - Temperature: 0.2
+  ↓ Salva em: sentiment
+Condition: sentiment == "negativo"
+  ├─ true → Handoff (priority: high)
+  └─ false → Continue com bot
+```
+
+#### Caso 3: Extração de Dados
+```
+Question: "Me passe seus dados" → user_message
+  ↓
+AI Prompt:
+  - Prompt: "Extraia nome, email e telefone:\n\n{{user_message}}"
+  - System: "Retorne JSON: {\"name\": \"\", \"email\": \"\", \"phone\": \"\"}"
+  ↓ Salva em: extracted_data
+Action: Save Contact
+  - name: extracted_data.name
+  - email: extracted_data.email
+  - phone: extracted_data.phone
+```
+
+#### Caso 4: Geração de Resposta Personalizada
+```
+AI Prompt:
+  - Provider: anthropic
+  - Model: claude-3-sonnet
+  - Prompt: "O cliente perguntou: {{user_question}}\n\nHistórico: {{conversation_history}}"
+  - System: "Você é um atendente experiente. Responda de forma clara e profissional."
+  - Temperature: 0.8
+  ↓ Salva em: ai_response
+Message: "{{ai_response}}"
+```
+
+#### Caso 5: Resumo de Conversa
+```
+AI Prompt:
+  - Prompt: "Resuma esta conversa em 2 frases:\n\n{{conversation_history}}"
+  - Max Tokens: 100
+  ↓ Salva em: conversation_summary
+Action: Save Contact
+  - custom_fields.last_summary: conversation_summary
+```
+
+**Tratamento de Erros:**
+
+#### Estratégia: `continue`
+```json
+{
+  "errorHandling": {
+    "onError": "continue",
+    "fallbackValue": "não classificado"
+  }
+}
+```
+- Continua fluxo se IA falhar
+- Usa valor fallback na variável
+- Ideal para recursos não-críticos
+
+#### Estratégia: `stop`
+```json
+{
+  "errorHandling": {
+    "onError": "stop"
+  }
+}
+```
+- Para fluxo e transfere para agente
+- Ideal para recursos críticos
+
+**Logs Detalhados:**
+```
+🤖 Executando AI Prompt Node
+  🔮 Provider: openai
+  🎯 Model: gpt-4
+  💬 Prompt: Classifique o seguinte problema: Meu sistema está lento...
+  ✅ Resposta da IA: técnico
+  💾 Resposta salva em 'problem_category'
+✅ AI Prompt Node concluído
+```
+
+**Exemplo de Fluxo Completo com IA:**
+```
+Start
+  ↓
+Message: "Olá! Como posso ajudar?"
+  ↓
+Question: "Descreva seu problema" → user_message
+  ↓
+AI Prompt: Classificar problema
+  ↓ Salva em: category
+Condition: category == "urgente"
+  ├─ true → Handoff (priority: high)
+  │
+  └─ false → AI Prompt: Gerar resposta personalizada
+              ↓ Salva em: ai_answer
+           Message: "{{ai_answer}}"
+              ↓
+           Question: "Isso resolveu?" → satisfied
+              ↓
+           Condition: satisfied == "sim"
+              ├─ true → End: "Ótimo! Até logo!"
+              └─ false → Handoff (priority: medium)
+```
+
+**Vantagens:**
+- 🎯 Classificação automática de problemas
+- 🧠 Análise de sentimento em tempo real
+- 📊 Extração de dados estruturados
+- 💬 Respostas personalizadas por IA
+- 🔀 Roteamento inteligente baseado em IA
+- 📝 Resumo automático de conversas
+
+**Segurança:**
+- API keys podem vir de variáveis (não hardcoded)
+- Timeout configurável previne travamentos
+- Fallback values em caso de erro
+- Logs não expõem API keys
+
+---
+
+## 🔧 Arquivos Modificados (AI Prompt Node)
+
+- `backend/app/services/whatsapp_service.py`:
+  - Método `_execute_ai_prompt()` (linha ~1937-2117)
+  - Método `_call_openai()` (linha ~2119-2150)
+  - Método `_call_anthropic()` (linha ~2152-2184)
+  - Método `_call_custom_ai()` (linha ~2186-2215)
+  - Modificação em `_execute_node()` (linha ~169-173)
+
+---
+
+**Status Final:** 🟢 15/25 tarefas concluídas (60% de progresso)
+**Próximo Milestone:** 20/25 tarefas (80%)

@@ -166,6 +166,12 @@ class WhatsAppService:
             await self._execute_api_call(conversation, node, flow, incoming_message, node_data)
             return
 
+        # AI PROMPT NODE: Interagir com modelos de IA
+        if node.node_type == "ai_prompt":
+            logger.info(f"🤖 Executando AI Prompt Node")
+            await self._execute_ai_prompt(conversation, node, flow, incoming_message, node_data)
+            return
+
         content_text = None
 
         if node.node_type == "question":
@@ -1927,6 +1933,286 @@ class WhatsAppService:
 
         # Avançar para próximo node
         await self._advance_to_next_node(conversation, node, flow, incoming_message)
+
+    async def _execute_ai_prompt(self, conversation, node, flow, incoming_message, node_data):
+        """
+        Executa um AI Prompt Node - interage com modelos de IA (GPT, Claude, etc.).
+
+        Args:
+            conversation: Instância da conversa
+            node: Node atual (AI Prompt)
+            flow: Flow ativo
+            incoming_message: Mensagem que originou a execução
+            node_data: Dados do AI Prompt Node
+
+        Formato esperado do node_data:
+        {
+            "provider": "openai",  # openai, anthropic, custom
+            "model": "gpt-4",  # gpt-4, gpt-3.5-turbo, claude-3-opus, etc.
+            "prompt": "Classifique o seguinte problema: {{user_message}}",
+            "systemPrompt": "Você é um assistente de atendimento ao cliente.",  # Opcional
+            "temperature": 0.7,  # 0.0 - 1.0 (padrão: 0.7)
+            "maxTokens": 500,  # Máximo de tokens na resposta (padrão: 500)
+            "responseVariable": "ai_response",  # Variável para salvar resposta
+            "apiKey": "{{openai_api_key}}",  # API key (pode usar variável)
+            "timeout": 60,  # Timeout em segundos (padrão: 60)
+            "errorHandling": {
+                "onError": "continue",  # continue, stop
+                "fallbackValue": "Não foi possível processar"
+            }
+        }
+        """
+        import httpx
+        import re
+        import json
+        from app.repositories.conversation import ConversationRepository
+
+        logger.info(f"🤖 Executando AI Prompt Node")
+
+        # Extrair configurações
+        provider = node_data.get("provider", "openai")
+        model = node_data.get("model", "gpt-3.5-turbo")
+        prompt = node_data.get("prompt")
+        system_prompt = node_data.get("systemPrompt")
+        temperature = node_data.get("temperature", 0.7)
+        max_tokens = node_data.get("maxTokens", 500)
+        response_variable = node_data.get("responseVariable", "ai_response")
+        api_key = node_data.get("apiKey")
+        timeout_seconds = node_data.get("timeout", 60)
+        error_handling = node_data.get("errorHandling", {})
+
+        if not prompt:
+            logger.error("❌ AI Prompt Node sem prompt configurado")
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
+            return
+
+        if not api_key:
+            logger.error("❌ AI Prompt Node sem API key configurada")
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
+            return
+
+        context_vars = conversation.context_variables or {}
+
+        # Substituir variáveis no prompt
+        final_prompt = prompt
+        variables = re.findall(r'\{\{(\w+)\}\}', prompt)
+        for var_name in variables:
+            if var_name in context_vars:
+                final_prompt = final_prompt.replace(
+                    f"{{{{{var_name}}}}}",
+                    str(context_vars[var_name])
+                )
+
+        # Substituir variáveis no system prompt
+        final_system_prompt = system_prompt
+        if system_prompt:
+            variables = re.findall(r'\{\{(\w+)\}\}', system_prompt)
+            for var_name in variables:
+                if var_name in context_vars:
+                    final_system_prompt = final_system_prompt.replace(
+                        f"{{{{{var_name}}}}}",
+                        str(context_vars[var_name])
+                    )
+
+        # Substituir variáveis na API key
+        final_api_key = api_key
+        variables = re.findall(r'\{\{(\w+)\}\}', api_key)
+        for var_name in variables:
+            if var_name in context_vars:
+                final_api_key = final_api_key.replace(
+                    f"{{{{{var_name}}}}}",
+                    str(context_vars[var_name])
+                )
+
+        # Configurar error handling
+        on_error = error_handling.get("onError", "continue")
+        fallback_value = error_handling.get("fallbackValue")
+
+        logger.info(f"  🔮 Provider: {provider}")
+        logger.info(f"  🎯 Model: {model}")
+        logger.info(f"  💬 Prompt: {final_prompt[:100]}...")
+
+        try:
+            # Chamar API baseado no provider
+            if provider == "openai":
+                ai_response = await self._call_openai(
+                    model=model,
+                    prompt=final_prompt,
+                    system_prompt=final_system_prompt,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    api_key=final_api_key,
+                    timeout=timeout_seconds
+                )
+
+            elif provider == "anthropic":
+                ai_response = await self._call_anthropic(
+                    model=model,
+                    prompt=final_prompt,
+                    system_prompt=final_system_prompt,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    api_key=final_api_key,
+                    timeout=timeout_seconds
+                )
+
+            elif provider == "custom":
+                # Para APIs customizadas (compatíveis com formato OpenAI)
+                custom_url = node_data.get("customUrl")
+                if not custom_url:
+                    raise ValueError("Custom provider requer 'customUrl' configurado")
+
+                ai_response = await self._call_custom_ai(
+                    url=custom_url,
+                    model=model,
+                    prompt=final_prompt,
+                    system_prompt=final_system_prompt,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    api_key=final_api_key,
+                    timeout=timeout_seconds
+                )
+
+            else:
+                logger.error(f"❌ Provider não suportado: {provider}")
+                raise ValueError(f"Provider não suportado: {provider}")
+
+            # Salvar resposta em variável
+            context_vars[response_variable] = ai_response
+            logger.info(f"  ✅ Resposta da IA: {ai_response[:100]}...")
+            logger.info(f"  💾 Resposta salva em '{response_variable}'")
+
+        except Exception as e:
+            logger.error(f"  ❌ Erro ao chamar IA: {str(e)}")
+
+            # Aplicar estratégia de erro
+            if on_error == "stop":
+                logger.info(f"  🛑 Parando fluxo devido a erro")
+                # Transferir para agente humano
+                conv_repo = ConversationRepository(self.db)
+                await conv_repo.update(conversation.id, {
+                    "is_bot_active": False,
+                    "status": "queued",
+                    "priority": "high"
+                })
+                await self.db.commit()
+                return
+
+            elif on_error == "continue":
+                logger.info(f"  ➡️ Continuando fluxo apesar do erro")
+                if fallback_value is not None:
+                    context_vars[response_variable] = fallback_value
+                    logger.info(f"  💾 Valor fallback salvo em '{response_variable}'")
+
+        # Salvar context_variables atualizadas
+        conv_repo = ConversationRepository(self.db)
+        await conv_repo.update(conversation.id, {
+            "context_variables": context_vars
+        })
+        await self.db.commit()
+
+        logger.info(f"✅ AI Prompt Node concluído")
+
+        # Avançar para próximo node
+        await self._advance_to_next_node(conversation, node, flow, incoming_message)
+
+    async def _call_openai(
+        self, model: str, prompt: str, system_prompt: str, temperature: float,
+        max_tokens: int, api_key: str, timeout: int
+    ) -> str:
+        """Chama OpenAI API (GPT-3.5, GPT-4, etc.)"""
+        import httpx
+
+        url = "https://api.openai.com/v1/chat/completions"
+
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens
+        }
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+
+        return data["choices"][0]["message"]["content"]
+
+    async def _call_anthropic(
+        self, model: str, prompt: str, system_prompt: str, temperature: float,
+        max_tokens: int, api_key: str, timeout: int
+    ) -> str:
+        """Chama Anthropic API (Claude)"""
+        import httpx
+
+        url = "https://api.anthropic.com/v1/messages"
+
+        payload = {
+            "model": model,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ]
+        }
+
+        if system_prompt:
+            payload["system"] = system_prompt
+
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json"
+        }
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+
+        return data["content"][0]["text"]
+
+    async def _call_custom_ai(
+        self, url: str, model: str, prompt: str, system_prompt: str,
+        temperature: float, max_tokens: int, api_key: str, timeout: int
+    ) -> str:
+        """Chama API customizada (compatível com formato OpenAI)"""
+        import httpx
+
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens
+        }
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+
+        return data["choices"][0]["message"]["content"]
 
     async def get_by_id(
         self, number_id: UUID, organization_id: UUID
