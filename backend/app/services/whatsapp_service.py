@@ -154,6 +154,12 @@ class WhatsAppService:
             await self._execute_jump(conversation, node_data, incoming_message)
             return
 
+        # ACTION NODE: Executar ações (webhook, salvar contato, atualizar variável)
+        if node.node_type == "action":
+            logger.info(f"⚡ Executando Action Node")
+            await self._execute_action(conversation, node, flow, incoming_message, node_data)
+            return
+
         content_text = None
 
         if node.node_type == "question":
@@ -1447,6 +1453,216 @@ class WhatsAppService:
         }
         await message_repo.create(message_data)
         await self.db.commit()
+
+    async def _execute_action(self, conversation, node, flow, incoming_message, node_data):
+        """
+        Executa um Action Node - realiza ações automatizadas no fluxo.
+
+        Args:
+            conversation: Instância da conversa
+            node: Node atual (Action)
+            flow: Flow ativo
+            incoming_message: Mensagem que originou a execução
+            node_data: Dados do Action Node
+
+        Formato esperado do node_data:
+        {
+            "actions": [
+                {
+                    "type": "webhook",  # webhook, save_contact, update_variable
+                    "config": {
+                        # Configuração específica de cada tipo de ação
+                    }
+                }
+            ]
+        }
+        """
+        import httpx
+        import re
+        from app.repositories.conversation import ConversationRepository
+        from app.repositories.contact import ContactRepository
+
+        logger.info(f"⚡ Executando Action Node")
+
+        actions = node_data.get("actions", [])
+
+        if not actions:
+            logger.warning("Action Node sem ações configuradas")
+            # Avançar para próximo node mesmo sem ações
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
+            return
+
+        context_vars = conversation.context_variables or {}
+
+        # Executar cada ação sequencialmente
+        for idx, action in enumerate(actions):
+            action_type = action.get("type")
+            config = action.get("config", {})
+
+            logger.info(f"  Ação {idx+1}/{len(actions)}: {action_type}")
+
+            try:
+                if action_type == "webhook":
+                    # Executar webhook HTTP
+                    url = config.get("url")
+                    method = config.get("method", "POST").upper()
+                    headers = config.get("headers", {})
+                    body = config.get("body", {})
+                    timeout_seconds = config.get("timeout", 30)
+
+                    if not url:
+                        logger.error("❌ Webhook sem URL configurada")
+                        continue
+
+                    # Substituir variáveis na URL
+                    variables = re.findall(r'\{\{(\w+)\}\}', url)
+                    for var_name in variables:
+                        if var_name in context_vars:
+                            url = url.replace(f"{{{{{var_name}}}}}", str(context_vars[var_name]))
+
+                    # Substituir variáveis no body (se for string)
+                    if isinstance(body, str):
+                        variables = re.findall(r'\{\{(\w+)\}\}', body)
+                        for var_name in variables:
+                            if var_name in context_vars:
+                                body = body.replace(f"{{{{{var_name}}}}}", str(context_vars[var_name]))
+                    elif isinstance(body, dict):
+                        # Substituir variáveis nos valores do dict
+                        for key, value in body.items():
+                            if isinstance(value, str):
+                                variables = re.findall(r'\{\{(\w+)\}\}', value)
+                                for var_name in variables:
+                                    if var_name in context_vars:
+                                        body[key] = value.replace(
+                                            f"{{{{{var_name}}}}}",
+                                            str(context_vars[var_name])
+                                        )
+
+                    logger.info(f"  📡 Chamando webhook: {method} {url}")
+
+                    async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+                        if method == "GET":
+                            response = await client.get(url, headers=headers)
+                        elif method == "POST":
+                            response = await client.post(url, headers=headers, json=body)
+                        elif method == "PUT":
+                            response = await client.put(url, headers=headers, json=body)
+                        elif method == "DELETE":
+                            response = await client.delete(url, headers=headers)
+                        else:
+                            logger.error(f"❌ Método HTTP não suportado: {method}")
+                            continue
+
+                    logger.info(f"  ✅ Webhook respondeu: {response.status_code}")
+
+                    # Salvar resposta em variável (se configurado)
+                    response_var = config.get("saveResponseTo")
+                    if response_var:
+                        try:
+                            response_data = response.json()
+                            context_vars[response_var] = response_data
+                            logger.info(f"  💾 Resposta salva em '{response_var}'")
+                        except Exception as e:
+                            logger.warning(f"  ⚠️ Erro ao parsear resposta JSON: {e}")
+                            context_vars[response_var] = response.text
+
+                elif action_type == "save_contact":
+                    # Salvar/atualizar informações do contato
+                    contact_repo = ContactRepository(self.db)
+                    contact = conversation.contact
+
+                    contact_updates = {}
+
+                    # Mapear campos configurados
+                    field_mappings = config.get("fields", {})
+
+                    for field_name, variable_name in field_mappings.items():
+                        if variable_name in context_vars:
+                            value = context_vars[variable_name]
+
+                            # Mapear campos conhecidos
+                            if field_name == "name":
+                                contact_updates["name"] = value
+                            elif field_name == "email":
+                                contact_updates["email"] = value
+                            elif field_name == "phone":
+                                contact_updates["phone"] = value
+                            elif field_name == "company":
+                                contact_updates["company"] = value
+                            elif field_name == "position":
+                                contact_updates["position"] = value
+                            else:
+                                # Campos customizados vão para custom_fields
+                                if "custom_fields" not in contact_updates:
+                                    contact_updates["custom_fields"] = contact.custom_fields or {}
+                                contact_updates["custom_fields"][field_name] = value
+
+                    if contact_updates:
+                        await contact_repo.update(contact.id, contact_updates)
+                        logger.info(f"  ✅ Contato atualizado: {list(contact_updates.keys())}")
+                    else:
+                        logger.warning("  ⚠️ Nenhum campo para atualizar no contato")
+
+                elif action_type == "update_variable":
+                    # Atualizar/criar variável no contexto
+                    variable_name = config.get("variableName")
+                    variable_value = config.get("value")
+                    operation = config.get("operation", "set")  # set, append, increment
+
+                    if not variable_name:
+                        logger.error("❌ update_variable sem variableName configurado")
+                        continue
+
+                    # Substituir variáveis no valor
+                    if isinstance(variable_value, str):
+                        variables = re.findall(r'\{\{(\w+)\}\}', variable_value)
+                        for var_name in variables:
+                            if var_name in context_vars:
+                                variable_value = variable_value.replace(
+                                    f"{{{{{var_name}}}}}",
+                                    str(context_vars[var_name])
+                                )
+
+                    if operation == "set":
+                        context_vars[variable_name] = variable_value
+                        logger.info(f"  ✅ Variável '{variable_name}' definida como: {variable_value}")
+
+                    elif operation == "append":
+                        current_value = context_vars.get(variable_name, "")
+                        context_vars[variable_name] = str(current_value) + str(variable_value)
+                        logger.info(
+                            f"  ✅ Variável '{variable_name}' concatenada: {context_vars[variable_name]}"
+                        )
+
+                    elif operation == "increment":
+                        try:
+                            current_value = float(context_vars.get(variable_name, 0))
+                            increment_by = float(variable_value)
+                            context_vars[variable_name] = current_value + increment_by
+                            logger.info(
+                                f"  ✅ Variável '{variable_name}' incrementada: {context_vars[variable_name]}"
+                            )
+                        except (ValueError, TypeError) as e:
+                            logger.error(f"❌ Erro ao incrementar variável: {e}")
+
+                else:
+                    logger.warning(f"⚠️ Tipo de ação desconhecido: {action_type}")
+
+            except Exception as e:
+                logger.error(f"❌ Erro ao executar ação {action_type}: {e}")
+                # Continuar com próximas ações mesmo se uma falhar
+
+        # Salvar context_variables atualizadas
+        conv_repo = ConversationRepository(self.db)
+        await conv_repo.update(conversation.id, {
+            "context_variables": context_vars
+        })
+        await self.db.commit()
+
+        logger.info(f"✅ Action Node concluído")
+
+        # Avançar para próximo node
+        await self._advance_to_next_node(conversation, node, flow, incoming_message)
 
     async def get_by_id(
         self, number_id: UUID, organization_id: UUID
