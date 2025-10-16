@@ -144,6 +144,7 @@ export function formatNodeType(nodeType: string): string {
     database_query: 'Database Query',
     script: 'Script',
     set_variable: 'Set Variable',
+    random: 'Random / A-B Test',
     whatsapp_template: 'WhatsApp Template',
     interactive_buttons: 'Interactive Buttons',
     interactive_list: 'Interactive List',

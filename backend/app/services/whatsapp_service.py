@@ -246,6 +246,12 @@ class WhatsAppService:
             await self._execute_set_variable(conversation, node, flow, incoming_message, node_data)
             return
 
+        # RANDOM NODE: Seleção aleatória de caminhos (A/B Testing)
+        if node.node_type == "random":
+            logger.info(f"🎲 Executando Random/A-B Testing Node")
+            await self._execute_random(conversation, node, flow, incoming_message, node_data)
+            return
+
         # WHATSAPP TEMPLATE NODE: Enviar template oficial do WhatsApp
         if node.node_type == "whatsapp_template":
             logger.info(f"📋 Executando WhatsApp Template Node")
@@ -2948,6 +2954,117 @@ __result__ = __script_func__()
 
         # Avançar para próximo node
         await self._advance_to_next_node(conversation, node, flow, incoming_message)
+
+    async def _execute_random(self, conversation, node, flow, incoming_message, node_data):
+        """
+        Executa Random Node - Seleção aleatória de caminhos para A/B Testing
+
+        Node Data Format:
+        {
+            "paths": [
+                {
+                    "id": "path_a",
+                    "label": "Variante A",
+                    "weight": 50,  # Peso em porcentagem
+                    "targetNodeId": "node_123"
+                },
+                {
+                    "id": "path_b",
+                    "label": "Variante B",
+                    "weight": 30,
+                    "targetNodeId": "node_456"
+                }
+            ],
+            "saveToVariable": "ab_test_variant",  # Opcional: salvar variante escolhida
+            "seed": null  # Opcional: seed para randomização reproduzível
+        }
+        """
+        from app.repositories.conversation import ConversationRepository
+        import random
+
+        logger.info(f"🎲 Random Node - Selecionando caminho aleatório")
+
+        # Obter configuração de caminhos
+        paths = node_data.get("paths", [])
+        save_to_variable = node_data.get("saveToVariable")
+        seed = node_data.get("seed")
+
+        if not paths:
+            logger.warning("⚠️ Nenhum caminho configurado no Random Node")
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
+            return
+
+        # Validar pesos
+        total_weight = sum(path.get("weight", 0) for path in paths)
+        if total_weight == 0:
+            logger.warning("⚠️ Peso total é 0, usando distribuição uniforme")
+            # Distribuição uniforme se não houver pesos
+            for path in paths:
+                path["weight"] = 100 / len(paths)
+            total_weight = 100
+
+        # Configurar seed se fornecido (para testes reproduzíveis)
+        if seed is not None:
+            random.seed(seed)
+
+        # Seleção aleatória ponderada
+        rand_value = random.uniform(0, total_weight)
+        cumulative_weight = 0
+        selected_path = None
+
+        for path in paths:
+            cumulative_weight += path.get("weight", 0)
+            if rand_value <= cumulative_weight:
+                selected_path = path
+                break
+
+        # Fallback: se algo der errado, selecionar primeiro caminho
+        if not selected_path:
+            selected_path = paths[0]
+            logger.warning("⚠️ Nenhum caminho selecionado, usando primeiro path")
+
+        logger.info(
+            f"✅ Caminho selecionado: '{selected_path.get('label')}' "
+            f"(ID: {selected_path.get('id')}, Peso: {selected_path.get('weight')}%)"
+        )
+
+        # Salvar variante em variável se configurado
+        if save_to_variable:
+            conv_repo = ConversationRepository(self.db)
+            context_vars = conversation.context_variables or {}
+            context_vars[save_to_variable] = selected_path.get("id")
+
+            try:
+                await conv_repo.update(
+                    conversation.id,
+                    {"context_variables": context_vars}
+                )
+                logger.info(f"💾 Variante salva em '{save_to_variable}' = '{selected_path.get('id')}'")
+            except Exception as e:
+                logger.error(f"❌ Erro ao salvar variante: {str(e)}")
+
+        # Avançar para node de destino do caminho selecionado
+        target_node_id = selected_path.get("targetNodeId")
+        if target_node_id:
+            # Encontrar node de destino no flow
+            target_node = None
+            canvas_data = flow.canvas_data or {}
+            nodes = canvas_data.get("nodes", [])
+
+            for n in nodes:
+                if n.get("id") == target_node_id:
+                    target_node = n
+                    break
+
+            if target_node:
+                logger.info(f"➡️ Avançando para node de destino: {target_node.get('data', {}).get('label', target_node_id)}")
+                await self._execute_node(conversation, target_node, flow, incoming_message)
+            else:
+                logger.error(f"❌ Node de destino '{target_node_id}' não encontrado")
+                await self._advance_to_next_node(conversation, node, flow, incoming_message)
+        else:
+            logger.warning("⚠️ Caminho sem targetNodeId, avançando normalmente")
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
 
     async def _execute_whatsapp_template(self, conversation, node, flow, incoming_message, node_data):
         """

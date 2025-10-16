@@ -28,6 +28,7 @@ class NodeAvailability:
         "database_query",
         "script",
         "set_variable",
+        "random",
         "whatsapp_template",
         "interactive_buttons",
         "interactive_list",
@@ -49,6 +50,7 @@ class NodeAvailability:
         "database_query",
         "script",
         "set_variable",
+        "random",
     ]
 
     # Nodes EXCLUSIVE to Meta Cloud API (official)
