@@ -87,6 +87,7 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
     conversations = relationship("Conversation", back_populates="organization", cascade="all, delete-orphan")
     campaigns = relationship("Campaign", back_populates="organization", cascade="all, delete-orphan")
     departments = relationship("Department", back_populates="organization", cascade="all, delete-orphan")
+    custom_ai_models = relationship("AICustomModel", back_populates="organization", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Organization(id={self.id}, name='{self.name}', slug='{self.slug}')>"
