@@ -536,3 +536,134 @@ class ChatbotService:
             logger.info(f"Synced {len(nodes_to_create)} nodes to database for flow {flow_id}")
         else:
             logger.warning(f"No valid nodes to sync for flow {flow_id}")
+
+    # ============================================
+    # EXPORT/IMPORT OPERATIONS
+    # ============================================
+
+    async def export_flow(self, flow_id: UUID, organization_id: UUID) -> dict:
+        """
+        Export flow as JSON for backup/template
+
+        Args:
+            flow_id: Flow UUID
+            organization_id: Organization UUID
+
+        Returns:
+            Flow data as dictionary (JSON-serializable)
+
+        Raises:
+            NotFoundException: If flow not found
+        """
+        import logging
+        from datetime import datetime
+
+        logger = logging.getLogger(__name__)
+
+        flow = await self.get_flow(flow_id, organization_id)
+        if not flow:
+            raise NotFoundException("Flow not found")
+
+        logger.info(f"📤 Exportando flow '{flow.name}' (ID: {flow_id})")
+
+        # Build export data
+        export_data = {
+            "format_version": "1.0",
+            "exported_at": datetime.utcnow().isoformat(),
+            "flow": {
+                "name": flow.name,
+                "description": flow.description,
+                "is_main": flow.is_main,
+                "canvas_data": flow.canvas_data,
+                "variables": flow.variables,
+                "settings": flow.settings,
+            },
+            "metadata": {
+                "organization_id": str(organization_id),
+                "chatbot_id": str(flow.chatbot_id),
+                "original_flow_id": str(flow_id),
+                "total_nodes": len(flow.canvas_data.get("nodes", [])) if flow.canvas_data else 0,
+                "total_edges": len(flow.canvas_data.get("edges", [])) if flow.canvas_data else 0,
+            }
+        }
+
+        logger.info(f"✅ Flow exportado com {export_data['metadata']['total_nodes']} nodes")
+
+        return export_data
+
+    async def import_flow(
+        self,
+        import_data: dict,
+        chatbot_id: UUID,
+        organization_id: UUID,
+        override_name: Optional[str] = None
+    ) -> Flow:
+        """
+        Import flow from exported JSON
+
+        Args:
+            import_data: Exported flow data
+            chatbot_id: Target chatbot ID (can be different from original)
+            organization_id: Organization UUID
+            override_name: Optional name override (if None, uses original + " (Imported)")
+
+        Returns:
+            Created flow
+
+        Raises:
+            BadRequestException: If import data is invalid
+            NotFoundException: If chatbot not found
+        """
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        # Validate import data format
+        if "format_version" not in import_data or "flow" not in import_data:
+            raise BadRequestException("Invalid import data format")
+
+        format_version = import_data.get("format_version")
+        if format_version != "1.0":
+            raise BadRequestException(f"Unsupported format version: {format_version}")
+
+        # Verify chatbot exists
+        chatbot = await self.get_chatbot(chatbot_id, organization_id)
+        if not chatbot:
+            raise NotFoundException("Target chatbot not found")
+
+        flow_data = import_data["flow"]
+
+        # Prepare flow name
+        flow_name = override_name or f"{flow_data.get('name', 'Imported Flow')} (Imported)"
+
+        logger.info(f"📥 Importando flow '{flow_name}' para chatbot {chatbot_id}")
+
+        # Create new flow
+        new_flow_data = {
+            "name": flow_name,
+            "description": flow_data.get("description", ""),
+            "chatbot_id": chatbot_id,
+            "organization_id": organization_id,
+            "is_main": False,  # Never import as main (user must set manually)
+            "canvas_data": flow_data.get("canvas_data", {"nodes": [], "edges": []}),
+            "variables": flow_data.get("variables", {}),
+            "settings": flow_data.get("settings"),
+        }
+
+        new_flow = await self.flow_repo.create(new_flow_data)
+
+        # Sync nodes to database
+        if new_flow.canvas_data:
+            await self._sync_nodes_from_canvas(
+                flow_id=new_flow.id,
+                organization_id=organization_id,
+                canvas_data=new_flow.canvas_data
+            )
+
+        metadata = import_data.get("metadata", {})
+        logger.info(
+            f"✅ Flow importado com {metadata.get('total_nodes', 0)} nodes "
+            f"(Original: {metadata.get('original_flow_id', 'unknown')})"
+        )
+
+        return new_flow

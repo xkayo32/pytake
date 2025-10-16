@@ -412,3 +412,62 @@ async def delete_node(
     """
     service = ChatbotService(db)
     await service.delete_node(node_id, current_user.organization_id)
+
+
+# ============================================
+# EXPORT/IMPORT ENDPOINTS
+# ============================================
+
+
+@router.get(
+    "/flows/{flow_id}/export",
+    response_model=dict,
+    dependencies=[Depends(require_role(["org_admin"]))],
+)
+async def export_flow(
+    flow_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Export flow as JSON for backup/template
+
+    Required role: org_admin
+
+    Returns complete flow data including canvas_data, variables, and metadata.
+    Use this exported JSON to import the flow into another chatbot or organization.
+    """
+    service = ChatbotService(db)
+    export_data = await service.export_flow(flow_id, current_user.organization_id)
+    return export_data
+
+
+@router.post(
+    "/{chatbot_id}/import",
+    response_model=FlowInDB,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_role(["org_admin"]))],
+)
+async def import_flow(
+    chatbot_id: UUID,
+    import_data: dict,
+    override_name: str = Query(None, description="Optional name override for imported flow"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Import flow from exported JSON
+
+    Required role: org_admin
+
+    Import a flow previously exported from this or another chatbot.
+    The imported flow will never be set as main - you must set it manually.
+    """
+    service = ChatbotService(db)
+    flow = await service.import_flow(
+        import_data=import_data,
+        chatbot_id=chatbot_id,
+        organization_id=current_user.organization_id,
+        override_name=override_name,
+    )
+    return flow
