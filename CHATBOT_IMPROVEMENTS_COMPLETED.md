@@ -230,7 +230,7 @@ await self._send_error_message(
 
 ## 🎯 Resumo de Progresso
 
-### **Tarefas Concluídas (15/25):**
+### **Tarefas Concluídas (16/25):**
 ✅ Condition Node (ramificação if/else)
 ✅ Handoff Node (transferir para agente humano)
 ✅ Validação de responseType (text, number, email, phone, options)
@@ -246,6 +246,7 @@ await self._send_error_message(
 ✅ Action Node (webhook, save_contact, update_variable)
 ✅ API Call Node (chamadas HTTP com retry e error handling)
 ✅ AI Prompt Node (OpenAI, Anthropic, Custom APIs)
+✅ Database Query Node (PostgreSQL, MySQL, MongoDB, SQLite)
 
 ### **Proteções Implementadas:**
 🛡️ Detecção de loops infinitos (10 visitas ao mesmo node)
@@ -1459,5 +1460,289 @@ Condition: category == "urgente"
 
 ---
 
-**Status Final:** 🟢 15/25 tarefas concluídas (60% de progresso)
+### 16. **Database Query Node - Consulta a Bancos de Dados** 💾
+
+**Prioridade:** MÉDIA
+**Arquivo:** `backend/app/services/whatsapp_service.py`
+
+**Funcionalidade:**
+- Executa consultas SQL/NoSQL em bancos de dados externos
+- Suporte a PostgreSQL, MySQL, MongoDB, SQLite
+- Parâmetros de query preparados (SQL injection protection)
+- Múltiplos formatos de resultado (list, first, count, scalar)
+- Connection string com substituição de variáveis
+- Timeout configurável e error handling
+
+**Formato do Node Data:**
+```json
+{
+  "databaseType": "postgresql",  // postgresql, mysql, mongodb, sqlite
+  "connectionString": "postgresql://user:pass@host:5432/db",
+  "query": "SELECT * FROM products WHERE category = $1",
+  "parameters": {
+    "category": "{{product_category}}"
+  },
+  "resultVariable": "query_result",
+  "resultFormat": "list",  // list, first, count, scalar
+  "timeout": 30,
+  "errorHandling": {
+    "onError": "continue",
+    "fallbackValue": []
+  }
+}
+```
+
+**Bancos Suportados:**
+
+#### 16.1. PostgreSQL
+```json
+{
+  "databaseType": "postgresql",
+  "connectionString": "postgresql://{{db_user}}:{{db_pass}}@localhost:5432/produtos",
+  "query": "SELECT name, price FROM products WHERE category = $1 AND stock > $2",
+  "parameters": {
+    "category": "{{user_category}}",
+    "min_stock": "10"
+  },
+  "resultVariable": "products",
+  "resultFormat": "list"
+}
+```
+
+#### 16.2. MySQL
+```json
+{
+  "databaseType": "mysql",
+  "connectionString": "mysql://root:password@localhost:3306/ecommerce",
+  "query": "SELECT * FROM orders WHERE user_id = %s AND status = %s",
+  "parameters": {
+    "user_id": "{{user_id}}",
+    "status": "pending"
+  },
+  "resultVariable": "orders"
+}
+```
+
+#### 16.3. MongoDB
+```json
+{
+  "databaseType": "mongodb",
+  "connectionString": "mongodb://localhost:27017",
+  "query": "{\"database\": \"store\", \"collection\": \"products\", \"filter\": {\"category\": \"{{category}}\"}, \"limit\": 10}",
+  "resultVariable": "products"
+}
+```
+
+**Query MongoDB (JSON format):**
+```json
+{
+  "database": "store",
+  "collection": "products",
+  "filter": {"category": "electronics", "price": {"$lt": 1000}},
+  "projection": {"name": 1, "price": 1},
+  "limit": 20
+}
+```
+
+#### 16.4. SQLite
+```json
+{
+  "databaseType": "sqlite",
+  "connectionString": "sqlite:///./local_db.sqlite",
+  "query": "SELECT * FROM users WHERE email = ?",
+  "parameters": {
+    "email": "{{user_email}}"
+  },
+  "resultVariable": "user_data",
+  "resultFormat": "first"
+}
+```
+
+**Formatos de Resultado:**
+
+#### `list` (padrão)
+Retorna array completo de resultados:
+```json
+[
+  {"id": 1, "name": "Product A", "price": 100},
+  {"id": 2, "name": "Product B", "price": 200}
+]
+```
+
+#### `first`
+Retorna apenas primeiro resultado:
+```json
+{"id": 1, "name": "Product A", "price": 100}
+```
+
+#### `count`
+Retorna quantidade de resultados:
+```json
+2
+```
+
+#### `scalar`
+Retorna primeiro valor da primeira linha:
+```json
+100
+```
+
+**Casos de Uso:**
+
+#### Caso 1: Consulta de Produtos
+```
+Question: "Qual categoria?" → user_category
+  ↓
+Database Query:
+  - Type: postgresql
+  - Query: "SELECT name, price FROM products WHERE category = $1"
+  - Parameters: {"category": "{{user_category}}"}
+  ↓ Salva em: products
+Message: "Encontrei {{products.length}} produtos:"
+  ↓
+(Enviar lista formatada)
+```
+
+#### Caso 2: Validação de Cupom
+```
+Question: "Digite o cupom" → coupon_code
+  ↓
+Database Query:
+  - Query: "SELECT discount, valid_until FROM coupons WHERE code = $1"
+  - Parameters: {"code": "{{coupon_code}}"}
+  - Format: first
+  ↓ Salva em: coupon
+Condition: coupon != null
+  ├─ true → Message: "Cupom válido! Desconto: {{coupon.discount}}%"
+  └─ false → Message: "Cupom inválido"
+```
+
+#### Caso 3: Histórico de Pedidos
+```
+Database Query:
+  - Query: "SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC LIMIT 5"
+  - Parameters: {"user_id": "{{contact_id}}"}
+  ↓ Salva em: recent_orders
+Condition: recent_orders.length > 0
+  ├─ true → Message: "Seus últimos pedidos: ..."
+  └─ false → Message: "Você ainda não tem pedidos"
+```
+
+#### Caso 4: Contagem de Registros
+```
+Database Query:
+  - Query: "SELECT COUNT(*) FROM support_tickets WHERE user_id = $1 AND status = 'open'"
+  - Parameters: {"user_id": "{{contact_id}}"}
+  - Format: scalar
+  ↓ Salva em: open_tickets
+Condition: open_tickets > 0
+  ├─ true → Message: "Você tem {{open_tickets}} chamados abertos"
+  └─ false → Message: "Você não tem chamados abertos"
+```
+
+#### Caso 5: MongoDB - Busca de Documentos
+```
+Database Query:
+  - Type: mongodb
+  - Query: {
+      "database": "analytics",
+      "collection": "user_activity",
+      "filter": {"user_id": "{{contact_id}}"},
+      "projection": {"last_login": 1, "total_purchases": 1},
+      "limit": 1
+    }
+  - Format: first
+  ↓ Salva em: user_stats
+Message: "Última visita: {{user_stats.last_login}}"
+```
+
+**Segurança:**
+
+#### SQL Injection Protection
+✅ Sempre use parâmetros preparados:
+```json
+// ✅ CORRETO (parâmetros preparados)
+{
+  "query": "SELECT * FROM users WHERE email = $1",
+  "parameters": {"email": "{{user_email}}"}
+}
+
+// ❌ ERRADO (concatenação direta - SQL injection!)
+{
+  "query": "SELECT * FROM users WHERE email = '{{user_email}}'"
+}
+```
+
+#### Connection Strings Seguras
+- Connection strings podem vir de variáveis
+- Não hardcode credenciais no fluxo
+- Use variáveis de ambiente ou secrets
+
+```json
+{
+  "connectionString": "{{db_connection_string}}"  // ✅ De variável
+}
+```
+
+**Error Handling:**
+
+#### Estratégia: `continue`
+```json
+{
+  "errorHandling": {
+    "onError": "continue",
+    "fallbackValue": []
+  }
+}
+```
+- Retorna array vazio se falhar
+- Continua fluxo normalmente
+
+#### Estratégia: `stop`
+```json
+{
+  "errorHandling": {
+    "onError": "stop"
+  }
+}
+```
+- Para fluxo e transfere para agente
+- Ideal para queries críticas
+
+**Logs Detalhados:**
+```
+💾 Executando Database Query Node
+  🗄️ Database Type: postgresql
+  📝 Query: SELECT * FROM products WHERE category = $1 LIMIT 10...
+  🔧 Parameters: {'category': 'electronics'}
+  ✅ Query executada com sucesso
+  📊 Resultado: 8 linha(s)
+  💾 Resultado salvo em 'products'
+✅ Database Query Node concluído
+```
+
+**Vantagens:**
+- 🗄️ Acesso a dados externos em tempo real
+- 🔒 Parâmetros preparados (SQL injection protection)
+- 🚀 Suporte a 4 bancos populares
+- 📊 Múltiplos formatos de resultado
+- ⚡ Timeout configurável
+- 🛡️ Error handling robusto
+
+---
+
+## 🔧 Arquivos Modificados (Database Query Node)
+
+- `backend/app/services/whatsapp_service.py`:
+  - Método `_execute_database_query()` (linha ~2223-2401)
+  - Método `_query_postgresql()` (linha ~2403-2420)
+  - Método `_query_mysql()` (linha ~2422-2451)
+  - Método `_query_mongodb()` (linha ~2453-2497)
+  - Método `_query_sqlite()` (linha ~2499-2519)
+  - Método `_format_query_result()` (linha ~2521-2548)
+  - Modificação em `_execute_node()` (linha ~175-179)
+
+---
+
+**Status Final:** 🟢 16/25 tarefas concluídas (64% de progresso)
 **Próximo Milestone:** 20/25 tarefas (80%)

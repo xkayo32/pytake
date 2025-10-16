@@ -172,6 +172,12 @@ class WhatsAppService:
             await self._execute_ai_prompt(conversation, node, flow, incoming_message, node_data)
             return
 
+        # DATABASE QUERY NODE: Consultar bancos de dados
+        if node.node_type == "database_query":
+            logger.info(f"💾 Executando Database Query Node")
+            await self._execute_database_query(conversation, node, flow, incoming_message, node_data)
+            return
+
         content_text = None
 
         if node.node_type == "question":
@@ -2213,6 +2219,333 @@ class WhatsAppService:
             data = response.json()
 
         return data["choices"][0]["message"]["content"]
+
+    async def _execute_database_query(
+        self, conversation, node, flow, incoming_message, node_data
+    ):
+        """
+        Executa um Database Query Node - consulta bancos de dados externos.
+
+        Args:
+            conversation: Instância da conversa
+            node: Node atual (Database Query)
+            flow: Flow ativo
+            incoming_message: Mensagem que originou a execução
+            node_data: Dados do Database Query Node
+
+        Formato esperado do node_data:
+        {
+            "databaseType": "postgresql",  # postgresql, mysql, mongodb, sqlite
+            "connectionString": "{{db_connection_string}}",  # Connection string
+            "query": "SELECT * FROM products WHERE category = {{category}}",
+            "parameters": {  # Opcional: parâmetros para query preparada
+                "category": "{{product_category}}"
+            },
+            "resultVariable": "query_result",  # Variável para salvar resultado
+            "resultFormat": "list",  # list (padrão), first, count, scalar
+            "timeout": 30,  # Timeout em segundos
+            "errorHandling": {
+                "onError": "continue",  # continue, stop
+                "fallbackValue": []
+            }
+        }
+        """
+        import re
+        import json
+        from app.repositories.conversation import ConversationRepository
+
+        logger.info(f"💾 Executando Database Query Node")
+
+        # Extrair configurações
+        db_type = node_data.get("databaseType", "postgresql")
+        connection_string = node_data.get("connectionString")
+        query = node_data.get("query")
+        parameters = node_data.get("parameters", {})
+        result_variable = node_data.get("resultVariable", "query_result")
+        result_format = node_data.get("resultFormat", "list")
+        timeout_seconds = node_data.get("timeout", 30)
+        error_handling = node_data.get("errorHandling", {})
+
+        if not connection_string:
+            logger.error("❌ Database Query Node sem connection string configurada")
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
+            return
+
+        if not query:
+            logger.error("❌ Database Query Node sem query configurada")
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
+            return
+
+        context_vars = conversation.context_variables or {}
+
+        # Substituir variáveis na connection string
+        final_connection_string = connection_string
+        variables = re.findall(r'\{\{(\w+)\}\}', connection_string)
+        for var_name in variables:
+            if var_name in context_vars:
+                final_connection_string = final_connection_string.replace(
+                    f"{{{{{var_name}}}}}",
+                    str(context_vars[var_name])
+                )
+
+        # Substituir variáveis na query
+        final_query = query
+        variables = re.findall(r'\{\{(\w+)\}\}', query)
+        for var_name in variables:
+            if var_name in context_vars:
+                final_query = final_query.replace(
+                    f"{{{{{var_name}}}}}",
+                    str(context_vars[var_name])
+                )
+
+        # Substituir variáveis nos parâmetros
+        final_parameters = {}
+        for key, value in parameters.items():
+            if isinstance(value, str):
+                variables = re.findall(r'\{\{(\w+)\}\}', value)
+                for var_name in variables:
+                    if var_name in context_vars:
+                        value = value.replace(
+                            f"{{{{{var_name}}}}}",
+                            str(context_vars[var_name])
+                        )
+            final_parameters[key] = value
+
+        # Configurar error handling
+        on_error = error_handling.get("onError", "continue")
+        fallback_value = error_handling.get("fallbackValue", [])
+
+        logger.info(f"  🗄️ Database Type: {db_type}")
+        logger.info(f"  📝 Query: {final_query[:100]}...")
+        if final_parameters:
+            logger.info(f"  🔧 Parameters: {final_parameters}")
+
+        try:
+            # Executar query baseado no tipo de banco
+            if db_type == "postgresql":
+                result = await self._query_postgresql(
+                    final_connection_string,
+                    final_query,
+                    final_parameters,
+                    timeout_seconds
+                )
+
+            elif db_type == "mysql":
+                result = await self._query_mysql(
+                    final_connection_string,
+                    final_query,
+                    final_parameters,
+                    timeout_seconds
+                )
+
+            elif db_type == "mongodb":
+                result = await self._query_mongodb(
+                    final_connection_string,
+                    final_query,
+                    final_parameters,
+                    timeout_seconds
+                )
+
+            elif db_type == "sqlite":
+                result = await self._query_sqlite(
+                    final_connection_string,
+                    final_query,
+                    final_parameters,
+                    timeout_seconds
+                )
+
+            else:
+                logger.error(f"❌ Tipo de banco não suportado: {db_type}")
+                raise ValueError(f"Tipo de banco não suportado: {db_type}")
+
+            # Formatar resultado baseado em resultFormat
+            formatted_result = self._format_query_result(result, result_format)
+
+            # Salvar resultado em variável
+            context_vars[result_variable] = formatted_result
+            logger.info(f"  ✅ Query executada com sucesso")
+            logger.info(f"  📊 Resultado: {len(result)} linha(s)")
+            logger.info(f"  💾 Resultado salvo em '{result_variable}'")
+
+        except Exception as e:
+            logger.error(f"  ❌ Erro ao executar query: {str(e)}")
+
+            # Aplicar estratégia de erro
+            if on_error == "stop":
+                logger.info(f"  🛑 Parando fluxo devido a erro")
+                # Transferir para agente humano
+                conv_repo = ConversationRepository(self.db)
+                await conv_repo.update(conversation.id, {
+                    "is_bot_active": False,
+                    "status": "queued",
+                    "priority": "high"
+                })
+                await self.db.commit()
+                return
+
+            elif on_error == "continue":
+                logger.info(f"  ➡️ Continuando fluxo apesar do erro")
+                context_vars[result_variable] = fallback_value
+                logger.info(f"  💾 Valor fallback salvo em '{result_variable}'")
+
+        # Salvar context_variables atualizadas
+        conv_repo = ConversationRepository(self.db)
+        await conv_repo.update(conversation.id, {
+            "context_variables": context_vars
+        })
+        await self.db.commit()
+
+        logger.info(f"✅ Database Query Node concluído")
+
+        # Avançar para próximo node
+        await self._advance_to_next_node(conversation, node, flow, incoming_message)
+
+    async def _query_postgresql(
+        self, connection_string: str, query: str, parameters: dict, timeout: int
+    ) -> list:
+        """Executa query no PostgreSQL"""
+        import asyncpg
+
+        conn = await asyncpg.connect(connection_string, timeout=timeout)
+        try:
+            if parameters:
+                # Query com parâmetros nomeados
+                rows = await conn.fetch(query, *parameters.values())
+            else:
+                rows = await conn.fetch(query)
+
+            # Converter para lista de dicts
+            return [dict(row) for row in rows]
+        finally:
+            await conn.close()
+
+    async def _query_mysql(
+        self, connection_string: str, query: str, parameters: dict, timeout: int
+    ) -> list:
+        """Executa query no MySQL"""
+        import aiomysql
+        from urllib.parse import urlparse, parse_qs
+
+        # Parsear connection string
+        parsed = urlparse(connection_string)
+
+        conn = await aiomysql.connect(
+            host=parsed.hostname,
+            port=parsed.port or 3306,
+            user=parsed.username,
+            password=parsed.password,
+            db=parsed.path.lstrip('/'),
+            connect_timeout=timeout
+        )
+
+        try:
+            async with conn.cursor(aiomysql.DictCursor) as cursor:
+                if parameters:
+                    await cursor.execute(query, list(parameters.values()))
+                else:
+                    await cursor.execute(query)
+
+                rows = await cursor.fetchall()
+                return rows
+        finally:
+            conn.close()
+
+    async def _query_mongodb(
+        self, connection_string: str, query: str, parameters: dict, timeout: int
+    ) -> list:
+        """Executa query no MongoDB"""
+        from motor.motor_asyncio import AsyncIOMotorClient
+        import json
+
+        client = AsyncIOMotorClient(
+            connection_string,
+            serverSelectionTimeoutMS=timeout * 1000
+        )
+
+        try:
+            # Parsear query JSON
+            query_obj = json.loads(query)
+
+            # Extrair database e collection
+            db_name = query_obj.get("database")
+            collection_name = query_obj.get("collection")
+            filter_query = query_obj.get("filter", {})
+            projection = query_obj.get("projection")
+            limit_val = query_obj.get("limit")
+
+            if not db_name or not collection_name:
+                raise ValueError("MongoDB query deve ter 'database' e 'collection'")
+
+            db = client[db_name]
+            collection = db[collection_name]
+
+            # Executar query
+            cursor = collection.find(filter_query, projection)
+
+            if limit_val:
+                cursor = cursor.limit(limit_val)
+
+            results = await cursor.to_list(length=None)
+
+            # Converter ObjectId para string
+            for doc in results:
+                if '_id' in doc:
+                    doc['_id'] = str(doc['_id'])
+
+            return results
+        finally:
+            client.close()
+
+    async def _query_sqlite(
+        self, connection_string: str, query: str, parameters: dict, timeout: int
+    ) -> list:
+        """Executa query no SQLite (usando aiosqlite)"""
+        import aiosqlite
+
+        # Remover prefixo sqlite:/// se existir
+        db_path = connection_string.replace("sqlite:///", "")
+
+        async with aiosqlite.connect(db_path, timeout=timeout) as db:
+            db.row_factory = aiosqlite.Row
+
+            if parameters:
+                cursor = await db.execute(query, list(parameters.values()))
+            else:
+                cursor = await db.execute(query)
+
+            rows = await cursor.fetchall()
+
+            # Converter para lista de dicts
+            return [dict(row) for row in rows]
+
+    def _format_query_result(self, result: list, result_format: str) -> any:
+        """Formata resultado da query baseado no formato solicitado"""
+        if result_format == "list":
+            # Retorna lista completa (padrão)
+            return result
+
+        elif result_format == "first":
+            # Retorna apenas primeiro resultado
+            return result[0] if result else None
+
+        elif result_format == "count":
+            # Retorna quantidade de resultados
+            return len(result)
+
+        elif result_format == "scalar":
+            # Retorna primeiro valor da primeira linha
+            if result and len(result) > 0:
+                first_row = result[0]
+                if isinstance(first_row, dict):
+                    # Pegar primeiro valor do dict
+                    return list(first_row.values())[0] if first_row else None
+                else:
+                    return first_row
+            return None
+
+        else:
+            # Formato desconhecido, retorna lista
+            return result
 
     async def get_by_id(
         self, number_id: UUID, organization_id: UUID
