@@ -31,6 +31,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       '/admin/queues': { title: 'Filas', description: 'Gerencie filas de atendimento', icon: ListTodo },
       '/admin/whatsapp': { title: 'WhatsApp', description: 'Configure números WhatsApp', icon: PhoneCall },
       '/admin/settings': { title: 'Configurações', description: 'Configurações da organização', icon: Settings },
+      '/admin/settings/ai-assistant': { title: 'AI Assistant', description: 'Configure modelos de IA para respostas automáticas', icon: Settings, badge: { text: 'Novo', variant: 'purple' } },
     };
 
     // Try exact match first

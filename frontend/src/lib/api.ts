@@ -361,4 +361,35 @@ export const usersAPI = {
   delete: (id: string) => api.delete(`/users/${id}`),
 };
 
+// AI Assistant API
+export const aiAssistantAPI = {
+  getSettings: () => api.get('/ai-assistant/settings'),
+
+  updateSettings: (data: {
+    enabled: boolean;
+    provider?: 'openai' | 'anthropic';
+    api_key?: string;
+    model?: string;
+    max_tokens?: number;
+    temperature?: number;
+  }) => api.post('/ai-assistant/settings', data),
+
+  testConnection: () => api.post('/ai-assistant/test'),
+};
+
+// Templates API
+export const templatesAPI = {
+  getCategories: () => api.get('/ai-assistant/templates/categories'),
+
+  list: (filters?: any) => api.get('/ai-assistant/templates', { params: filters }),
+
+  get: (id: string) => api.get(`/ai-assistant/templates/${id}`),
+
+  search: (query: string, filters?: any) =>
+    api.get(`/ai-assistant/templates/search/${query}`, { params: filters }),
+
+  import: (templateId: string, options: any) =>
+    api.post(`/ai-assistant/templates/${templateId}/import`, options),
+};
+
 export default api;
