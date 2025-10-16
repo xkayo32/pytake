@@ -43,6 +43,7 @@ import {
   MousePointerClick,
   List,
   Library,
+  Sparkles,
 } from 'lucide-react';
 import { chatbotsAPI, flowsAPI } from '@/lib/api/chatbots';
 import type { Chatbot, Flow } from '@/types/chatbot';
@@ -72,6 +73,7 @@ import SessionExpiredModal from '@/components/admin/SessionExpiredModal';
 import { useSessionExpired } from '@/lib/hooks/useSessionExpired';
 import { useToast } from '@/store/notificationStore';
 import FlowTemplateGallery from '@/components/admin/templates/FlowTemplateGallery';
+import AIFlowAssistant from '@/components/admin/ai-assistant/AIFlowAssistant';
 
 // Palette of node types available to drag
 const NODE_TYPES_PALETTE = [
@@ -156,6 +158,7 @@ export default function ChatbotBuilderPage() {
   const [showVariablesPanel, setShowVariablesPanel] = useState(true);
   const [showSimulator, setShowSimulator] = useState(false);
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
@@ -348,6 +351,31 @@ export default function ChatbotBuilderPage() {
     }
   }, [chatbotId]);
 
+  const handleAIFlowImport = useCallback(async (flowData: any, flowName: string) => {
+    // Create new flow with AI-generated data
+    try {
+      const newFlow = await flowsAPI.create(chatbotId, {
+        name: flowName,
+        description: flowData.description,
+        canvas_data: flowData.canvas_data,
+      });
+
+      // Reload flows
+      const flowsData = await flowsAPI.list(chatbotId);
+      setFlows(flowsData.items || []);
+
+      // Load the new flow
+      setSelectedFlow(newFlow);
+      loadFlowCanvas(newFlow);
+
+      // Close AI Assistant
+      setShowAIAssistant(false);
+    } catch (error) {
+      console.error('Error importing AI-generated flow:', error);
+      throw error;
+    }
+  }, [chatbotId]);
+
   if (isLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -390,6 +418,13 @@ export default function ChatbotBuilderPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowAIAssistant(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium rounded-lg transition-all shadow-lg shadow-purple-500/30"
+            >
+              <Sparkles className="w-4 h-4" />
+              AI Assistant
+            </button>
             <button
               onClick={() => setShowTemplateGallery(true)}
               className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors"
@@ -765,6 +800,16 @@ export default function ChatbotBuilderPage() {
           chatbotId={chatbotId}
           onClose={() => setShowTemplateGallery(false)}
           onImportSuccess={handleTemplateImportSuccess}
+        />
+      )}
+
+      {/* AI Flow Assistant */}
+      {showAIAssistant && (
+        <AIFlowAssistant
+          isOpen={showAIAssistant}
+          onClose={() => setShowAIAssistant(false)}
+          chatbotId={chatbotId}
+          onImportFlow={handleAIFlowImport}
         />
       )}
 

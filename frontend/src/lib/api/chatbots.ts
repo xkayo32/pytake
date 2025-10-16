@@ -189,4 +189,55 @@ export const nodesAPI = {
   },
 };
 
-export default { chatbotsAPI, flowsAPI, nodesAPI };
+// ============================================
+// AI FLOW ASSISTANT ENDPOINTS
+// ============================================
+
+export const aiFlowAssistantAPI = {
+  /**
+   * Generate flow from natural language description
+   */
+  generateFlow: async (data: {
+    description: string;
+    industry?: string;
+    language: string;
+    chatbot_id?: string;
+  }): Promise<{
+    status: 'success' | 'needs_clarification' | 'error';
+    flow_data?: {
+      name: string;
+      description: string;
+      canvas_data: {
+        nodes: any[];
+        edges: any[];
+      };
+    };
+    clarification_questions?: Array<{
+      question: string;
+      options?: string[];
+      field: string;
+    }>;
+    error_message?: string;
+  }> => {
+    const response = await api.post('/ai-assistant/generate-flow', data);
+    return response.data;
+  },
+
+  /**
+   * Check if AI Assistant is enabled and configured
+   */
+  checkEnabled: async (): Promise<{
+    enabled: boolean;
+    configured: boolean;
+    provider?: 'openai' | 'anthropic';
+  }> => {
+    const response = await api.get('/ai-assistant/settings');
+    return {
+      enabled: response.data.enabled || false,
+      configured: !!(response.data.api_key),
+      provider: response.data.provider,
+    };
+  },
+};
+
+export default { chatbotsAPI, flowsAPI, nodesAPI, aiFlowAssistantAPI };
