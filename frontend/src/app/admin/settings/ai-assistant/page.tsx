@@ -134,6 +134,19 @@ export default function AIAssistantSettingsPage() {
       const response = await aiAssistantAPI.getSettings();
       const settings = response.data;
 
+      // If no settings configured, use defaults
+      if (!settings) {
+        reset({
+          enabled: false,
+          provider: 'openai',
+          api_key: '',
+          model: 'gpt-4-turbo-preview',
+          max_tokens: 4096,
+          temperature: 0.7,
+        });
+        return;
+      }
+
       // Mask API key if present (show only first 7 and last 4 chars)
       let maskedApiKey = '';
       if (settings.api_key) {
