@@ -151,6 +151,9 @@ docker exec -it pytake-mongodb mongosh pytake_logs
 - Backend uses `backend/.env.docker` for configuration (not `.env`)
 - Root `.env` file controls Docker Compose port mappings
 - All file changes on host are synced to containers via volume mounts (hot reload enabled)
+- **API Access**: Two options available:
+  - Direct frontend access (port 3001): Uses `NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1`
+  - Via Nginx proxy (port 8080): Uses `NEXT_PUBLIC_API_URL=/api/v1` (relative URL)
 
 ## Architecture
 
@@ -966,6 +969,159 @@ This project is being developed on **Windows** but runs entirely in Docker conta
   - **Commit:** `95358ff`
 
 **Status:** Live Chat system COMPLETE! 🎉 All 4 phases implemented.
+
+### AI Assistant & Models System (October 2025)
+
+**COMPLETED ✅ - Dynamic AI Models with Custom Support**
+
+A comprehensive system for managing AI models (OpenAI GPT & Anthropic Claude) with custom model support, usage tracking, and cost analytics.
+
+#### Features Implemented
+
+**1. Predefined Models Database (16 models)**
+- **OpenAI (8 models):** GPT-5, GPT-4o, GPT-4o mini, o4-mini, o3, GPT-4 Turbo, GPT-4, GPT-3.5 Turbo
+- **Anthropic (8 models):** Claude Sonnet 4.5, Claude Opus 4.1, Claude Sonnet 4, Claude Haiku 4.5, Claude 3.7 Sonnet, Claude 3.5 Sonnet/Haiku, Claude 3 Opus (deprecated)
+- Models updated: October 2025
+- Includes pricing, context windows, capabilities (vision, tools)
+- Location: `backend/app/data/ai_models.py`
+
+**2. Custom Models (User-Added)**
+- Organizations can add their own models (fine-tuned, new providers, etc.)
+- Database: `ai_custom_models` table with full tracking
+- Fields: model_id, provider, name, description, context_window, max_output_tokens, pricing, capabilities
+- Multi-tenant: Each organization has isolated custom models
+- Unique constraint: `organization_id + model_id`
+
+**3. Usage & Cost Tracking**
+- Automatic tracking: `usage_count`, `total_input_tokens`, `total_output_tokens`, `total_cost`
+- Per-model analytics
+- Per-organization aggregated stats
+- Cost calculation: `(tokens / 1_000_000) * cost_per_million`
+- Method: `increment_usage(input_tokens, output_tokens)` updates all metrics
+
+**4. API Endpoints**
+```bash
+# List all models (predefined + custom)
+GET /api/v1/ai-assistant/models
+    ?provider=openai|anthropic
+    &recommended=true|false
+    &include_deprecated=true|false
+
+# Get model details
+GET /api/v1/ai-assistant/models/{model_id}
+
+# Create custom model (org_admin only)
+POST /api/v1/ai-assistant/models/custom
+{
+  "model_id": "gpt-5-company-finetuned",
+  "provider": "openai",
+  "name": "GPT-5 Company Fine-tuned",
+  "description": "Fine-tuned for customer support",
+  "context_window": 128000,
+  "max_output_tokens": 16384,
+  "input_cost_per_million": 35.0,
+  "output_cost_per_million": 100.0,
+  "supports_vision": true,
+  "supports_tools": true
+}
+
+# AI Assistant Settings
+GET  /api/v1/ai-assistant/settings
+POST /api/v1/ai-assistant/settings
+POST /api/v1/ai-assistant/test
+```
+
+**5. Frontend UI**
+- Page: `/admin/settings/ai-assistant`
+- Dynamic model selection with pricing inline
+- Example: `GPT-4o (Omni) - $2.50/$10.00 por 1M tokens`
+- Badge indicators: `(Customizado)`, `(Recomendado)`, `(DEPRECATED)`
+- Modal: **AddCustomModelModal** - Complete form for adding custom models
+  - Validations with Zod
+  - Cost preview: Estimated cost per request
+  - Capabilities checkboxes (vision, tools)
+  - Auto-reload after success
+
+**6. Architecture**
+```
+Backend:
+├── app/data/ai_models.py              # 16 predefined models
+├── app/models/ai_custom_model.py      # ORM model with tracking
+├── app/repositories/ai_custom_model.py # Repository with 5 methods
+├── app/schemas/ai_assistant.py        # Pydantic schemas
+└── app/api/v1/endpoints/ai_assistant.py # REST endpoints
+
+Frontend:
+├── src/app/admin/settings/ai-assistant/page.tsx  # Settings page
+├── src/components/AddCustomModelModal.tsx         # Custom model form
+└── src/lib/api.ts                                # API client functions
+```
+
+**7. Database Schema**
+```sql
+CREATE TABLE ai_custom_models (
+  id UUID PRIMARY KEY,
+  organization_id UUID REFERENCES organizations(id),
+  model_id VARCHAR(255) NOT NULL,
+  provider VARCHAR(50) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  context_window INTEGER NOT NULL,
+  max_output_tokens INTEGER NOT NULL,
+  input_cost_per_million FLOAT NOT NULL,
+  output_cost_per_million FLOAT NOT NULL,
+  supports_vision BOOLEAN DEFAULT FALSE,
+  supports_tools BOOLEAN DEFAULT TRUE,
+  release_date VARCHAR(10),
+  is_active BOOLEAN DEFAULT TRUE,
+  usage_count INTEGER DEFAULT 0,
+  total_input_tokens BIGINT DEFAULT 0,
+  total_output_tokens BIGINT DEFAULT 0,
+  total_cost FLOAT DEFAULT 0.0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ,
+  UNIQUE(organization_id, model_id)
+);
+```
+
+**8. Key Features**
+- ✅ Multi-tenant model management
+- ✅ Automatic cost tracking
+- ✅ Production-ready (indexes, constraints, soft-delete)
+- ✅ RBAC (org_admin only for custom models)
+- ✅ Flexible: Supports any provider/model
+- ✅ Analytics-ready: Per-model and org-wide stats
+- ✅ Future-proof: Easy to add new providers
+
+**9. Usage Example**
+```python
+# Track model usage
+from app.repositories.ai_custom_model import AICustomModelRepository
+
+repo = AICustomModelRepository(db)
+await repo.increment_usage(
+    model_id=model_uuid,
+    input_tokens=1500,
+    output_tokens=800
+)
+
+# Get org stats
+stats = await repo.get_usage_stats(organization_id)
+# Returns: {
+#   "total_models": 3,
+#   "active_models": 3,
+#   "total_usage_count": 150,
+#   "total_cost": 2.45,
+#   "total_input_tokens": 75000,
+#   "total_output_tokens": 40000,
+#   "total_tokens": 115000
+# }
+```
+
+**Status:** Fully implemented and production-ready! 🚀
+
+See [AI_MODELS.md](AI_MODELS.md) for complete documentation.
 
 ## Additional Documentation
 
