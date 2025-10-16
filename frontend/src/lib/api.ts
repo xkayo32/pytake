@@ -363,6 +363,7 @@ export const usersAPI = {
 
 // AI Assistant API
 export const aiAssistantAPI = {
+  // Settings
   getSettings: () => api.get('/ai-assistant/settings'),
 
   updateSettings: (data: {
@@ -375,6 +376,29 @@ export const aiAssistantAPI = {
   }) => api.post('/ai-assistant/settings', data),
 
   testConnection: () => api.post('/ai-assistant/test'),
+
+  // Models
+  listModels: (params?: {
+    provider?: 'openai' | 'anthropic';
+    recommended?: boolean;
+    include_deprecated?: boolean;
+  }) => api.get('/ai-assistant/models', { params }),
+
+  getModel: (modelId: string) => api.get(`/ai-assistant/models/${modelId}`),
+
+  createCustomModel: (data: {
+    model_id: string;
+    provider: 'openai' | 'anthropic';
+    name: string;
+    description?: string;
+    context_window: number;
+    max_output_tokens: number;
+    input_cost_per_million: number;
+    output_cost_per_million: number;
+    supports_vision?: boolean;
+    supports_tools?: boolean;
+    release_date?: string;
+  }) => api.post('/ai-assistant/models/custom', data),
 };
 
 // Templates API

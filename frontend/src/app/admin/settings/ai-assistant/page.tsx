@@ -67,19 +67,23 @@ const aiSettingsSchema = z.object({
 
 type AISettingsFormData = z.infer<typeof aiSettingsSchema>;
 
-// Model options by provider
-const MODELS = {
-  openai: [
-    { value: 'gpt-4-turbo-preview', label: 'GPT-4 Turbo (Recomendado)' },
-    { value: 'gpt-4', label: 'GPT-4' },
-    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo (Mais Rápido)' },
-  ],
-  anthropic: [
-    { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet (Recomendado)' },
-    { value: 'claude-3-opus', label: 'Claude 3 Opus' },
-    { value: 'claude-3-sonnet', label: 'Claude 3 Sonnet' },
-  ],
-};
+// AI Model type
+interface AIModel {
+  id: string;
+  model_id: string;
+  provider: 'openai' | 'anthropic';
+  name: string;
+  description?: string;
+  context_window: number;
+  max_output_tokens: number;
+  input_cost_per_million: number;
+  output_cost_per_million: number;
+  supports_vision: boolean;
+  supports_tools: boolean;
+  is_custom: boolean;
+  is_deprecated: boolean;
+  release_date?: string;
+}
 
 export default function AIAssistantSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -89,6 +93,8 @@ export default function AIAssistantSettingsPage() {
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [testMessage, setTestMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [originalApiKey, setOriginalApiKey] = useState<string | null>(null);
+  const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
+  const [showAddModelModal, setShowAddModelModal] = useState(false);
 
   const {
     register,
@@ -113,20 +119,37 @@ export default function AIAssistantSettingsPage() {
   const provider = watch('provider');
   const apiKey = watch('api_key');
 
-  // Load settings on mount
+  // Load settings and models on mount
   useEffect(() => {
-    loadSettings();
+    const init = async () => {
+      await loadModels();
+      await loadSettings();
+    };
+    init();
   }, []);
 
-  // Update model options when provider changes
+  // Update model when provider changes
   useEffect(() => {
-    const currentModel = watch('model');
-    const availableModels = MODELS[provider].map(m => m.value);
+    if (availableModels.length === 0) return;
 
-    if (!availableModels.includes(currentModel)) {
-      setValue('model', MODELS[provider][0].value);
+    const currentModel = watch('model');
+    const providerModels = availableModels.filter(m => m.provider === provider);
+    const modelIds = providerModels.map(m => m.model_id);
+
+    if (!modelIds.includes(currentModel) && providerModels.length > 0) {
+      setValue('model', providerModels[0].model_id);
     }
-  }, [provider]);
+  }, [provider, availableModels]);
+
+  const loadModels = async () => {
+    try {
+      const response = await aiAssistantAPI.listModels({ include_deprecated: false });
+      setAvailableModels(response.data.models);
+    } catch (error: any) {
+      console.error('Erro ao carregar modelos:', error);
+      // Continue even if models fail to load
+    }
+  };
 
   const loadSettings = async () => {
     try {
@@ -354,20 +377,37 @@ export default function AIAssistantSettingsPage() {
 
           {/* Model Selection */}
           <div>
-            <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
-              Modelo
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-semibold text-gray-900 dark:text-white">
+                Modelo
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowAddModelModal(true)}
+                disabled={!enabled}
+                className="text-xs text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                + Adicionar Modelo Customizado
+              </button>
+            </div>
             <select
               {...register('model')}
               disabled={!enabled}
               className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {MODELS[provider].map((model) => (
-                <option key={model.value} value={model.value}>
-                  {model.label}
-                </option>
-              ))}
+              {availableModels
+                .filter(m => m.provider === provider)
+                .map((model) => (
+                  <option key={model.id} value={model.model_id}>
+                    {model.name}
+                    {model.is_custom && ' (Customizado)'}
+                    {` - $${model.input_cost_per_million.toFixed(2)}/$${model.output_cost_per_million.toFixed(2)} por 1M tokens`}
+                  </option>
+                ))}
             </select>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Exibindo modelos atualizados de {provider === 'openai' ? 'OpenAI' : 'Anthropic'} (Outubro 2025)
+            </p>
           </div>
 
           {/* Max Tokens Slider */}

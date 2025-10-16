@@ -14,6 +14,9 @@ from app.models.user import User
 from app.schemas.ai_assistant import (
     AIAssistantSettings,
     AIAssistantSettingsUpdate,
+    AIModelListResponse,
+    AIModel,
+    AIModelCreate,
     GenerateFlowRequest,
     GenerateFlowResponse,
     SuggestImprovementsRequest,
@@ -31,10 +34,116 @@ from app.repositories.chatbot import ChatbotRepository, FlowRepository
 from app.repositories.organization import OrganizationRepository
 from app.models.chatbot import Chatbot, Flow
 from app.models.organization import Organization
+from app.data.ai_models import (
+    get_all_models,
+    get_models_by_provider,
+    get_model_by_id,
+    get_recommended_models
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# ==================== AI Models Management ====================
+
+@router.get("/models", response_model=AIModelListResponse)
+async def list_ai_models(
+    provider: Optional[str] = Query(None, description="Filter by provider (openai, anthropic)"),
+    recommended: bool = Query(False, description="Show only recommended models"),
+    include_deprecated: bool = Query(False, description="Include deprecated models"),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    List all available AI models (predefined + custom).
+
+    Returns models from both providers with pricing and capabilities.
+    """
+    # Get predefined models
+    if recommended:
+        predefined_models = get_recommended_models()
+    elif provider:
+        predefined_models = get_models_by_provider(provider)
+    else:
+        predefined_models = get_all_models()
+
+    # Filter deprecated if needed
+    if not include_deprecated:
+        predefined_models = [m for m in predefined_models if not m.get("is_deprecated", False)]
+
+    # Convert to response format
+    models = []
+    for i, model_data in enumerate(predefined_models):
+        model = AIModel(
+            id=f"predefined_{i}",
+            organization_id=None,
+            created_at="2025-01-01T00:00:00Z",
+            is_custom=False,
+            **model_data
+        )
+        models.append(model)
+
+    # TODO: Add custom models from database (organization-specific)
+
+    return AIModelListResponse(
+        models=models,
+        total=len(models)
+    )
+
+
+@router.get("/models/{model_id}")
+async def get_model_details(
+    model_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Get detailed information about a specific model"""
+    model_data = get_model_by_id(model_id)
+
+    if not model_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Model not found"
+        )
+
+    return AIModel(
+        id=f"predefined_{model_id}",
+        organization_id=None,
+        created_at="2025-01-01T00:00:00Z",
+        is_custom=False,
+        **model_data
+    )
+
+
+@router.post("/models/custom", response_model=AIModel, status_code=status.HTTP_201_CREATED)
+async def create_custom_model(
+    model: AIModelCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Create a custom AI model for your organization.
+
+    Useful for adding fine-tuned models or new models not in the predefined list.
+    Only org_admin can create custom models.
+    """
+    # Check permission
+    if current_user.role not in ["org_admin", "super_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can create custom models"
+        )
+
+    # TODO: Store in database (new table: ai_custom_models)
+    # For now, return validation that it would work
+
+    return AIModel(
+        id=f"custom_{model.model_id}",
+        organization_id=str(current_user.organization_id),
+        created_at="2025-10-16T00:00:00Z",
+        is_custom=True,
+        **model.model_dump()
+    )
 
 
 # ==================== AI Assistant Settings ====================

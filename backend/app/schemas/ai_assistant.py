@@ -13,6 +13,44 @@ class AIProvider(str, Enum):
     ANTHROPIC = "anthropic"
 
 
+class AIModelBase(BaseModel):
+    """Base schema for AI models"""
+    model_id: str = Field(..., description="Model identifier (e.g., 'gpt-4o', 'claude-sonnet-4.5')")
+    provider: AIProvider = Field(..., description="AI provider")
+    name: str = Field(..., description="Display name")
+    description: Optional[str] = Field(None, description="Model description")
+    context_window: int = Field(..., description="Maximum context window in tokens")
+    max_output_tokens: int = Field(..., description="Maximum output tokens")
+    input_cost_per_million: float = Field(..., description="Cost per million input tokens (USD)")
+    output_cost_per_million: float = Field(..., description="Cost per million output tokens (USD)")
+    supports_vision: bool = Field(default=False, description="Supports image inputs")
+    supports_tools: bool = Field(default=True, description="Supports function calling/tools")
+    is_custom: bool = Field(default=False, description="Is custom model (user-added)")
+    is_deprecated: bool = Field(default=False, description="Is deprecated")
+    release_date: Optional[str] = Field(None, description="Release date (YYYY-MM-DD)")
+
+
+class AIModelCreate(AIModelBase):
+    """Schema for creating custom AI models"""
+    pass
+
+
+class AIModel(AIModelBase):
+    """Schema for AI model with ID"""
+    id: str = Field(..., description="Unique model ID in database")
+    organization_id: Optional[str] = Field(None, description="Organization ID (null for global models)")
+    created_at: str
+
+    class Config:
+        from_attributes = True
+
+
+class AIModelListResponse(BaseModel):
+    """Response for listing AI models"""
+    models: List[AIModel] = Field(..., description="List of available models")
+    total: int = Field(..., description="Total number of models")
+
+
 class AIAssistantSettings(BaseModel):
     """
     AI Assistant settings stored in organization.settings['ai_assistant']
@@ -62,25 +100,11 @@ class AIAssistantSettings(BaseModel):
     @field_validator('model')
     @classmethod
     def validate_model(cls, v: str, info) -> str:
-        """Validate model name based on provider"""
-        provider = info.data.get('provider')
-
-        if provider == AIProvider.OPENAI:
-            valid_models = [
-                'gpt-4-turbo-preview',
-                'gpt-4',
-                'gpt-4-32k',
-                'gpt-3.5-turbo',
-                'gpt-3.5-turbo-16k'
-            ]
-            if v not in valid_models:
-                raise ValueError(f"Invalid OpenAI model. Valid models: {', '.join(valid_models)}")
-
-        elif provider == AIProvider.ANTHROPIC:
-            valid_prefixes = ['claude-3', 'claude-2']
-            if not any(v.startswith(prefix) for prefix in valid_prefixes):
-                raise ValueError("Invalid Anthropic model. Must start with 'claude-3' or 'claude-2'")
-
+        """Validate model name format - accept any model string"""
+        # Remove strict validation to allow custom models
+        # Just ensure it's not empty
+        if not v or not v.strip():
+            raise ValueError("Model name cannot be empty")
         return v
 
 
@@ -267,6 +291,10 @@ class ImportTemplateRequest(BaseModel):
 # Export all schemas
 __all__ = [
     'AIProvider',
+    'AIModelBase',
+    'AIModelCreate',
+    'AIModel',
+    'AIModelListResponse',
     'AIAssistantSettings',
     'AIAssistantSettingsUpdate',
     'GenerateFlowRequest',
