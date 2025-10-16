@@ -145,6 +145,7 @@ export function formatNodeType(nodeType: string): string {
     script: 'Script',
     set_variable: 'Set Variable',
     random: 'Random / A-B Test',
+    datetime: 'Date / Time',
     whatsapp_template: 'WhatsApp Template',
     interactive_buttons: 'Interactive Buttons',
     interactive_list: 'Interactive List',

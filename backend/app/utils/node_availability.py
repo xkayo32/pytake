@@ -29,6 +29,7 @@ class NodeAvailability:
         "script",
         "set_variable",
         "random",
+        "datetime",
         "whatsapp_template",
         "interactive_buttons",
         "interactive_list",
@@ -51,6 +52,7 @@ class NodeAvailability:
         "script",
         "set_variable",
         "random",
+        "datetime",
     ]
 
     # Nodes EXCLUSIVE to Meta Cloud API (official)

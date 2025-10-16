@@ -252,6 +252,12 @@ class WhatsAppService:
             await self._execute_random(conversation, node, flow, incoming_message, node_data)
             return
 
+        # DATE/TIME NODE: Manipulação de datas e horários
+        if node.node_type == "datetime":
+            logger.info(f"📅 Executando Date/Time Node")
+            await self._execute_datetime(conversation, node, flow, incoming_message, node_data)
+            return
+
         # WHATSAPP TEMPLATE NODE: Enviar template oficial do WhatsApp
         if node.node_type == "whatsapp_template":
             logger.info(f"📋 Executando WhatsApp Template Node")
@@ -3065,6 +3071,170 @@ __result__ = __script_func__()
         else:
             logger.warning("⚠️ Caminho sem targetNodeId, avançando normalmente")
             await self._advance_to_next_node(conversation, node, flow, incoming_message)
+
+    async def _execute_datetime(self, conversation, node, flow, incoming_message, node_data):
+        """
+        Executa Date/Time Node - Manipulação de datas e horários
+
+        Node Data Format:
+        {
+            "operation": "get_current",  # "get_current", "format", "add", "compare", "parse"
+            "timezone": "America/Sao_Paulo",
+            "format": "DD/MM/YYYY HH:mm",  # Formato de saída
+            "inputFormat": null,  # Formato para parse
+            "addAmount": 7,  # Quantidade a adicionar/subtrair
+            "addUnit": "days",  # "days", "hours", "minutes", "months", "years"
+            "sourceVariable": null,  # Variável contendo data para manipular
+            "compareWith": null,  # Data/variável para comparar
+            "compareOperator": "gt",  # "gt", "lt", "eq", "gte", "lte"
+            "outputVariable": "scheduled_date"
+        }
+
+        Operations:
+        - get_current: Obter data/hora atual
+        - format: Formatar data
+        - add: Adicionar/subtrair tempo
+        - compare: Comparar datas
+        - parse: Parse de string para data
+        """
+        from app.repositories.conversation import ConversationRepository
+        from datetime import datetime, timedelta
+        from dateutil.relativedelta import relativedelta
+        import pytz
+
+        logger.info(f"📅 Date/Time Node - Manipulando datas")
+
+        operation = node_data.get("operation", "get_current")
+        timezone_str = node_data.get("timezone", "America/Sao_Paulo")
+        output_format = node_data.get("format", "%d/%m/%Y %H:%M")
+        output_variable = node_data.get("outputVariable")
+
+        # Obter contexto
+        conv_repo = ConversationRepository(self.db)
+        context_vars = conversation.context_variables or {}
+
+        try:
+            # Configurar timezone
+            tz = pytz.timezone(timezone_str)
+
+            # Obter data de origem (se houver)
+            source_var = node_data.get("sourceVariable")
+            if source_var and source_var in context_vars:
+                # Parse da data armazenada
+                source_date_str = context_vars[source_var]
+                input_format = node_data.get("inputFormat", "%d/%m/%Y %H:%M")
+                try:
+                    source_date = datetime.strptime(str(source_date_str), input_format)
+                    if source_date.tzinfo is None:
+                        source_date = tz.localize(source_date)
+                except Exception as e:
+                    logger.warning(f"⚠️ Erro ao fazer parse da data '{source_date_str}': {e}")
+                    source_date = datetime.now(tz)
+            else:
+                source_date = datetime.now(tz)
+
+            result = None
+
+            # Executar operação
+            if operation == "get_current":
+                # Obter data/hora atual
+                result_date = datetime.now(tz)
+                result = result_date.strftime(output_format)
+                logger.info(f"🕐 Data atual: {result}")
+
+            elif operation == "format":
+                # Formatar data
+                result = source_date.strftime(output_format)
+                logger.info(f"📝 Data formatada: {result}")
+
+            elif operation == "add":
+                # Adicionar/subtrair tempo
+                add_amount = node_data.get("addAmount", 0)
+                add_unit = node_data.get("addUnit", "days")
+
+                if add_unit == "days":
+                    result_date = source_date + timedelta(days=add_amount)
+                elif add_unit == "hours":
+                    result_date = source_date + timedelta(hours=add_amount)
+                elif add_unit == "minutes":
+                    result_date = source_date + timedelta(minutes=add_amount)
+                elif add_unit == "months":
+                    result_date = source_date + relativedelta(months=add_amount)
+                elif add_unit == "years":
+                    result_date = source_date + relativedelta(years=add_amount)
+                else:
+                    logger.warning(f"⚠️ Unidade '{add_unit}' desconhecida, usando days")
+                    result_date = source_date + timedelta(days=add_amount)
+
+                result = result_date.strftime(output_format)
+                logger.info(f"➕ Data calculada: {result} ({add_amount} {add_unit})")
+
+            elif operation == "compare":
+                # Comparar datas
+                compare_with = node_data.get("compareWith")
+                compare_operator = node_data.get("compareOperator", "gt")
+
+                # Parse da data de comparação
+                if compare_with and compare_with in context_vars:
+                    compare_date_str = context_vars[compare_with]
+                    input_format = node_data.get("inputFormat", "%d/%m/%Y %H:%M")
+                    try:
+                        compare_date = datetime.strptime(str(compare_date_str), input_format)
+                        if compare_date.tzinfo is None:
+                            compare_date = tz.localize(compare_date)
+                    except Exception as e:
+                        logger.warning(f"⚠️ Erro ao parse de compareWith: {e}")
+                        compare_date = datetime.now(tz)
+                else:
+                    compare_date = datetime.now(tz)
+
+                # Executar comparação
+                if compare_operator == "gt":
+                    result = source_date > compare_date
+                elif compare_operator == "lt":
+                    result = source_date < compare_date
+                elif compare_operator == "eq":
+                    result = source_date == compare_date
+                elif compare_operator == "gte":
+                    result = source_date >= compare_date
+                elif compare_operator == "lte":
+                    result = source_date <= compare_date
+                else:
+                    result = False
+
+                logger.info(f"⚖️ Comparação: {source_date} {compare_operator} {compare_date} = {result}")
+
+            elif operation == "parse":
+                # Parse de string para data
+                input_format = node_data.get("inputFormat", "%d/%m/%Y %H:%M")
+                result = source_date.strftime(output_format)
+                logger.info(f"🔄 Parse de data: {result}")
+
+            else:
+                logger.warning(f"⚠️ Operação '{operation}' desconhecida")
+                result = datetime.now(tz).strftime(output_format)
+
+            # Salvar resultado em variável
+            if output_variable:
+                context_vars[output_variable] = result
+                await conv_repo.update(
+                    conversation.id,
+                    {"context_variables": context_vars}
+                )
+                logger.info(f"💾 Resultado salvo em '{output_variable}' = '{result}'")
+
+        except Exception as e:
+            logger.error(f"❌ Erro na operação de data/hora: {str(e)}")
+            # Em caso de erro, salvar null
+            if output_variable:
+                context_vars[output_variable] = None
+                await conv_repo.update(
+                    conversation.id,
+                    {"context_variables": context_vars}
+                )
+
+        # Avançar para próximo node
+        await self._advance_to_next_node(conversation, node, flow, incoming_message)
 
     async def _execute_whatsapp_template(self, conversation, node, flow, incoming_message, node_data):
         """
