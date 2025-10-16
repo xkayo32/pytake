@@ -31,6 +31,7 @@ const COMPLEXITY_CONFIG = {
 
 export default function TemplateCard({ template, onClick }: TemplateCardProps) {
   const complexityConfig = COMPLEXITY_CONFIG[template.complexity];
+  const [imageError, setImageError] = React.useState(false);
 
   return (
     <button
@@ -39,11 +40,12 @@ export default function TemplateCard({ template, onClick }: TemplateCardProps) {
     >
       {/* Thumbnail */}
       <div className="relative h-40 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800 overflow-hidden">
-        {template.thumbnail_url || template.preview_image_url ? (
+        {(template.thumbnail_url || template.preview_image_url) && !imageError ? (
           <img
             src={template.thumbnail_url || template.preview_image_url}
             alt={template.name}
             className="w-full h-full object-cover"
+            onError={() => setImageError(true)}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
