@@ -80,8 +80,8 @@ export default function FlowTemplateGallery({
 
   const loadCategories = async () => {
     try {
-      const data = await templatesAPI.getCategories();
-      setCategories(data);
+      const response = await templatesAPI.getCategories();
+      setCategories(response.data);
     } catch (err: any) {
       console.error('Error loading categories:', err);
       toast.error('Erro ao carregar categorias');
@@ -101,11 +101,15 @@ export default function FlowTemplateGallery({
         search: debouncedSearch || undefined,
       };
 
-      const response = debouncedSearch
-        ? await templatesAPI.search(debouncedSearch, filters)
-        : await templatesAPI.list(filters);
-
-      setTemplates(response.items);
+      if (debouncedSearch) {
+        // Search returns List[FlowTemplate] directly
+        const response = await templatesAPI.search(debouncedSearch, filters);
+        setTemplates(Array.isArray(response.data) ? response.data : []);
+      } else {
+        // List returns TemplateListResponse with .items property
+        const response = await templatesAPI.list(filters);
+        setTemplates(response.data?.items || []);
+      }
     } catch (err: any) {
       console.error('Error loading templates:', err);
       setError('Erro ao carregar templates');
@@ -117,16 +121,17 @@ export default function FlowTemplateGallery({
 
   const handleImportTemplate = async (template: FlowTemplate, flowName?: string) => {
     try {
-      const result = await templatesAPI.import(template.id, {
+      const response = await templatesAPI.import(template.id, {
         chatbot_id: chatbotId,
         flow_name: flowName || template.name,
         set_as_main: false,
       });
 
-      toast.success(`Template "${result.flow_name}" importado com sucesso!`);
+      const result = response.data;
+      toast.success(`Template "${result.name}" importado com sucesso!`);
       setSelectedTemplate(null);
       onClose();
-      onImportSuccess(result.flow_id);
+      onImportSuccess(result.id);
     } catch (err: any) {
       console.error('Error importing template:', err);
       toast.error(err.response?.data?.detail || 'Erro ao importar template');
