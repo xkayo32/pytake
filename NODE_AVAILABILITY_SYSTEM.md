@@ -473,23 +473,31 @@ Backend:
 Frontend:
 - [x] Criar helper `nodeAvailability.ts`
 - [x] Criar componente `NodeStatusBadge`
-- [ ] Integrar no Chatbot Builder (desabilitar nodes incompatíveis)
-- [ ] Adicionar tooltips com avisos
-- [ ] Adicionar filtro visual para nodes experimentais
+- [ ] 🔜 **PENDENTE** - Integrar no Chatbot Builder (desabilitar nodes incompatíveis)
+- [ ] 🔜 **PENDENTE** - Adicionar tooltips com avisos
+- [ ] 🔜 **PENDENTE** - Adicionar filtro visual para nodes experimentais
+
+**Status:** ✅ **Core implementado e funcionando!** Backend valida e protege em runtime.
 
 ---
 
-## 🚀 Próximos Passos
+## 🚀 Próximos Passos (Cronograma)
 
+### **Sprint Atual: Melhorias do Chatbot**
+Foco: Completar tarefas pendentes do CHATBOT_IMPROVEMENTS_COMPLETED.md
+
+### **Sprint Futura: UX/Polish do Builder**
 1. **Integrar no Chatbot Builder UI:**
-   - Desabilitar nodes incompatíveis no painel lateral
+   - Desabilitar visualmente nodes incompatíveis no painel lateral
    - Adicionar badges visuais (Experimental/Indisponível)
    - Tooltips explicando restrições
+   - Filtro/toggle para mostrar/ocultar experimentais
 
 2. **Melhorias Futuras:**
-   - Permitir admin forçar uso de node experimental
+   - Permitir admin forçar uso de node experimental (flag override)
    - Dashboard mostrando quais nodes são usados em quais chatbots
    - Alertas quando número mudar de official → qrcode (chatbots podem quebrar)
+   - Preview de compatibilidade ao associar chatbot com número WhatsApp
 
 ---
 
