@@ -302,7 +302,7 @@ export default function CustomNode({ data }: NodeProps) {
   const needsTooltip = fullText && fullText.length > 30;
 
   return (
-    <div className="relative">
+    <>
       {/* Target Handle (entrada) - apenas se não for 'start' */}
       {hasTargetHandle && (
         <Handle
@@ -383,6 +383,6 @@ export default function CustomNode({ data }: NodeProps) {
           className="w-3 h-3 !bg-gray-400 dark:!bg-gray-500 border-2 border-white dark:border-gray-800"
         />
       )}
-    </div>
+    </>
   );
 }
