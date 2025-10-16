@@ -230,7 +230,7 @@ await self._send_error_message(
 
 ## 🎯 Resumo de Progresso
 
-### **Tarefas Concluídas (16/25):**
+### **Tarefas Concluídas (19/25):**
 ✅ Condition Node (ramificação if/else)
 ✅ Handoff Node (transferir para agente humano)
 ✅ Validação de responseType (text, number, email, phone, options)
@@ -247,6 +247,9 @@ await self._send_error_message(
 ✅ API Call Node (chamadas HTTP com retry e error handling)
 ✅ AI Prompt Node (OpenAI, Anthropic, Custom APIs)
 ✅ Database Query Node (PostgreSQL, MySQL, MongoDB, SQLite)
+✅ WhatsApp Template Node (templates oficiais Meta)
+✅ Interactive Buttons Node (botões interativos WhatsApp)
+✅ Interactive List Node (listas/menus interativos WhatsApp)
 
 ### **Proteções Implementadas:**
 🛡️ Detecção de loops infinitos (10 visitas ao mesmo node)
@@ -1744,5 +1747,278 @@ Message: "Última visita: {{user_stats.last_login}}"
 
 ---
 
-**Status Final:** 🟢 16/25 tarefas concluídas (64% de progresso)
+### 17. **WhatsApp Template Node - Templates Oficiais** 📋
+
+**Prioridade:** ALTA
+**Arquivo:** `backend/app/services/whatsapp_service.py`
+
+**Funcionalidade:**
+- Envia templates oficiais aprovados pelo WhatsApp (Meta Cloud API)
+- Necessário para mensagens fora da janela de 24 horas
+- Substituição de variáveis em parâmetros do template
+- Fallback para texto simples na Evolution API (QR Code)
+- Suporta componentes: body, header, footer, buttons
+
+**Formato do Node Data:**
+```json
+{
+  "templateName": "welcome_message",
+  "languageCode": "pt_BR",
+  "components": [
+    {
+      "type": "body",
+      "parameters": [
+        {"type": "text", "text": "{{user_name}}"},
+        {"type": "text", "text": "{{order_id}}"}
+      ]
+    }
+  ]
+}
+```
+
+**Exemplo de Template (Meta):**
+```
+Template aprovado: welcome_message
+Body: "Olá {{1}}! Seu pedido {{2}} foi confirmado."
+
+Uso no fluxo:
+{
+  "templateName": "welcome_message",
+  "components": [
+    {
+      "type": "body",
+      "parameters": [
+        {"type": "text", "text": "{{user_name}}"},
+        {"type": "text", "text": "{{order_id}}"}
+      ]
+    }
+  ]
+}
+```
+
+**Recursos:**
+- ✅ Meta Cloud API: Envia template oficial
+- ✅ Evolution API: Fallback para texto simples (extrai body)
+- ✅ Substituição de `{{variáveis}}` em parâmetros
+- ✅ Componentes HEADER, BODY, FOOTER, BUTTONS
+- ✅ Language code configurável (pt_BR, en_US, etc.)
+- ✅ Logs: `📋 Template '{name}' enviado via Meta API`
+
+**Casos de Uso:**
+1. **Mensagens de Notificação (24h+):**
+   - Confirmação de pedido
+   - Lembrete de agendamento
+   - Códigos de verificação (OTP)
+   - Status de entrega
+
+2. **Campanhas Marketing:**
+   - Promoções
+   - Lançamento de produtos
+   - Anúncios
+
+**Importante:**
+- Templates devem ser pré-aprovados pelo Meta
+- Criação via `create_template()` na Meta API
+- Aguardar status APPROVED antes de usar
+- Limitações de conteúdo (sem spam, sem ofertas enganosas)
+
+---
+
+### 18. **Interactive Buttons Node - Botões Interativos** 🔘
+
+**Prioridade:** ALTA
+**Arquivo:** `backend/app/services/whatsapp_service.py`
+
+**Funcionalidade:**
+- Envia mensagens com botões clicáveis no WhatsApp
+- Máximo de 3 botões por mensagem (limite da Meta API)
+- Suporta header (título) e footer (rodapé) opcionais
+- Compatible com Meta Cloud API e Evolution API
+- Substituição de variáveis em todos os textos
+
+**Formato do Node Data:**
+```json
+{
+  "bodyText": "Escolha uma opção:",
+  "headerText": "Menu Principal",
+  "footerText": "PyTake - Automação WhatsApp",
+  "buttons": [
+    {"id": "btn_vendas", "title": "Falar com Vendas"},
+    {"id": "btn_suporte", "title": "Suporte Técnico"},
+    {"id": "btn_info", "title": "Mais Informações"}
+  ]
+}
+```
+
+**Limitações:**
+- Máximo: 3 botões
+- Título do botão: 20 caracteres max
+- Header: 60 caracteres max
+- Footer: 60 caracteres max
+
+**Exemplo de Uso:**
+```
+Start
+  ↓
+Interactive Buttons:
+  Header: "Bem-vindo!"
+  Body: "Como podemos ajudar você hoje, {{user_name}}?"
+  Footer: "Atendimento 24/7"
+  Buttons:
+    - "Comprar Produtos"
+    - "Ver Pedidos"
+    - "Suporte"
+  ↓
+(Usuário clica em botão → resposta registrada em variável)
+  ↓
+Condition: resposta == "Comprar Produtos"
+  ├─ true → Jump (flow: "Catálogo de Produtos")
+  └─ false → Continue
+```
+
+**Recursos:**
+- ✅ Substituição de `{{variáveis}}` em body e header
+- ✅ Auto-truncamento de textos longos
+- ✅ Validação automática (máx 3 botões)
+- ✅ Meta API: Botões reply nativos
+- ✅ Evolution API: Botões via Baileys
+- ✅ Logs: `🔘 Botões interativos enviados ({n} botões)`
+
+**Vantagens:**
+- Melhor UX (usuário clica, não digita)
+- Reduz erros de digitação
+- Coleta dados estruturados
+- Analytics: rastreamento de escolhas
+
+---
+
+### 19. **Interactive List Node - Listas de Seleção** 📝
+
+**Prioridade:** ALTA
+**Arquivo:** `backend/app/services/whatsapp_service.py`
+
+**Funcionalidade:**
+- Envia listas/menus interativos com múltiplas opções
+- Organização em seções (categorias)
+- Máximo: 10 seções, 10 itens total (Meta API)
+- Cada item pode ter título + descrição
+- Compatible com Meta Cloud API e Evolution API
+
+**Formato do Node Data:**
+```json
+{
+  "bodyText": "Escolha um produto do catálogo:",
+  "buttonText": "Ver Produtos",
+  "headerText": "Catálogo 2025",
+  "footerText": "Entrega grátis acima de R$ 100",
+  "sections": [
+    {
+      "title": "Eletrônicos",
+      "rows": [
+        {
+          "id": "prod_001",
+          "title": "Smartphone XYZ",
+          "description": "R$ 1.299,00 - 128GB"
+        },
+        {
+          "id": "prod_002",
+          "title": "Notebook ABC",
+          "description": "R$ 3.499,00 - 16GB RAM"
+        }
+      ]
+    },
+    {
+      "title": "Acessórios",
+      "rows": [
+        {
+          "id": "prod_101",
+          "title": "Fone Bluetooth",
+          "description": "R$ 199,00 - Cancelamento de ruído"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Limitações:**
+- Máximo: 10 seções
+- Máximo total: 10 itens (rows) em todas as seções
+- Título da seção: 24 caracteres max
+- Título do item: 24 caracteres max
+- Descrição: 72 caracteres max
+- Texto do botão: 20 caracteres max
+
+**Exemplo de Uso:**
+```
+Start
+  ↓
+Interactive List:
+  Body: "Escolha o departamento"
+  Button: "Ver Opções"
+  Sections:
+    - "Vendas" → [Produtos, Orçamento, Promoções]
+    - "Suporte" → [Técnico, Financeiro, Dúvidas]
+    - "RH" → [Vagas, Candidaturas, Contato]
+  ↓
+(Usuário seleciona item → ID salvo em variável)
+  ↓
+Condition: selected_id == "prod_001"
+  ├─ true → Message: "Você escolheu Smartphone XYZ. Adicionar ao carrinho?"
+  └─ false → Continue
+```
+
+**Recursos:**
+- ✅ Múltiplas seções para organização
+- ✅ Títulos + descrições para cada opção
+- ✅ Auto-truncamento de textos longos
+- ✅ Validação automática de limites
+- ✅ Meta API: Listas nativas
+- ✅ Evolution API: Listas via Baileys
+- ✅ Logs: `📝 Lista enviada ({n} seções, {m} itens)`
+
+**Casos de Uso:**
+1. **Catálogo de Produtos:**
+   - Seções: Categorias
+   - Itens: Produtos com preço
+
+2. **Menu de Serviços:**
+   - Seções: Departamentos
+   - Itens: Serviços disponíveis
+
+3. **FAQ Interativo:**
+   - Seções: Tópicos
+   - Itens: Perguntas frequentes
+
+4. **Seletor de Horários:**
+   - Seções: Dias da semana
+   - Itens: Horários disponíveis
+
+**Vantagens sobre Buttons:**
+- Mais opções (até 10 vs 3)
+- Organização em categorias
+- Descrições detalhadas
+- Melhor para catálogos extensos
+
+---
+
+## 🔧 Arquivos Modificados (WhatsApp Nodes)
+
+**Meta Cloud API (`backend/app/integrations/meta_api.py`):**
+- Método `send_interactive_buttons()` (linha ~511-605)
+- Método `send_interactive_list()` (linha ~607-722)
+
+**Evolution API (`backend/app/integrations/evolution_api.py`):**
+- Método `send_buttons()` (linha ~312-360)
+- Método `send_list()` (linha ~362-413)
+
+**WhatsApp Service (`backend/app/services/whatsapp_service.py`):**
+- Método `_execute_whatsapp_template()` (linha ~2568-2703)
+- Método `_execute_interactive_buttons()` (linha ~2705-2830)
+- Método `_execute_interactive_list()` (linha ~2832-2955)
+- Modificação em `_execute_node()` (linha ~181-197)
+
+---
+
+**Status Final:** 🟢 19/25 tarefas concluídas (76% de progresso)
 **Próximo Milestone:** 20/25 tarefas (80%)
