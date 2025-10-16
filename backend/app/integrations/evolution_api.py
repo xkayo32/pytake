@@ -309,6 +309,109 @@ class EvolutionAPIClient:
             logger.error(f"Error restarting instance: {e}")
             return False
 
+    async def send_buttons(
+        self,
+        instance_name: str,
+        phone_number: str,
+        title: str,
+        description: str,
+        buttons: list,
+        footer: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Send interactive buttons message
+
+        Args:
+            instance_name: Instance identifier
+            phone_number: Recipient phone number
+            title: Message title
+            description: Message description
+            buttons: List of buttons [{"displayText": "Button 1"}, ...]
+            footer: Optional footer text
+
+        Returns:
+            Message send result
+        """
+        payload = {
+            "number": phone_number,
+            "title": title,
+            "description": description,
+            "buttons": buttons
+        }
+
+        if footer:
+            payload["footer"] = footer
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self.api_url}/message/sendButtons/{instance_name}",
+                    json=payload,
+                    headers=self.headers
+                )
+                response.raise_for_status()
+                data = response.json()
+
+                logger.info(f"Buttons message sent via Evolution API to {phone_number}")
+                return data
+
+        except httpx.HTTPError as e:
+            logger.error(f"Error sending buttons: {e}")
+            raise EvolutionAPIError(f"Failed to send buttons: {str(e)}")
+
+    async def send_list(
+        self,
+        instance_name: str,
+        phone_number: str,
+        title: str,
+        description: str,
+        button_text: str,
+        sections: list,
+        footer: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Send interactive list message
+
+        Args:
+            instance_name: Instance identifier
+            phone_number: Recipient phone number
+            title: Message title
+            description: Message description
+            button_text: List button text
+            sections: List sections with rows
+            footer: Optional footer text
+
+        Returns:
+            Message send result
+        """
+        payload = {
+            "number": phone_number,
+            "title": title,
+            "description": description,
+            "buttonText": button_text,
+            "sections": sections
+        }
+
+        if footer:
+            payload["footer"] = footer
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self.api_url}/message/sendList/{instance_name}",
+                    json=payload,
+                    headers=self.headers
+                )
+                response.raise_for_status()
+                data = response.json()
+
+                logger.info(f"List message sent via Evolution API to {phone_number}")
+                return data
+
+        except httpx.HTTPError as e:
+            logger.error(f"Error sending list: {e}")
+            raise EvolutionAPIError(f"Failed to send list: {str(e)}")
+
 
 def generate_instance_name(organization_id: str, phone_number: str) -> str:
     """

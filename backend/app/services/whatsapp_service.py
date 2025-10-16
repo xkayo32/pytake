@@ -178,6 +178,24 @@ class WhatsAppService:
             await self._execute_database_query(conversation, node, flow, incoming_message, node_data)
             return
 
+        # WHATSAPP TEMPLATE NODE: Enviar template oficial do WhatsApp
+        if node.node_type == "whatsapp_template":
+            logger.info(f"📋 Executando WhatsApp Template Node")
+            await self._execute_whatsapp_template(conversation, node, flow, incoming_message, node_data)
+            return
+
+        # INTERACTIVE BUTTONS NODE: Enviar botões interativos
+        if node.node_type == "interactive_buttons":
+            logger.info(f"🔘 Executando Interactive Buttons Node")
+            await self._execute_interactive_buttons(conversation, node, flow, incoming_message, node_data)
+            return
+
+        # INTERACTIVE LIST NODE: Enviar lista/menu interativo
+        if node.node_type == "interactive_list":
+            logger.info(f"📝 Executando Interactive List Node")
+            await self._execute_interactive_list(conversation, node, flow, incoming_message, node_data)
+            return
+
         content_text = None
 
         if node.node_type == "question":
@@ -2546,6 +2564,395 @@ class WhatsAppService:
         else:
             # Formato desconhecido, retorna lista
             return result
+
+    async def _execute_whatsapp_template(self, conversation, node, flow, incoming_message, node_data):
+        """
+        Executa WhatsApp Template Node - Envia template oficial do WhatsApp
+
+        Node Data Format:
+        {
+            "templateName": "welcome_message",
+            "languageCode": "pt_BR",
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": "{{user_name}}"}
+                    ]
+                }
+            ]
+        }
+        """
+        from app.repositories.conversation import ConversationRepository
+        import re
+
+        logger.info(f"📋 Executando WhatsApp Template Node")
+
+        # Extrair dados do template
+        template_name = node_data.get("templateName", "")
+        language_code = node_data.get("languageCode", "pt_BR")
+        components = node_data.get("components", [])
+
+        if not template_name:
+            logger.error("❌ Template name não especificado")
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
+            return
+
+        # Substituir variáveis nos componentes
+        context_vars = conversation.context_variables or {}
+        variables_pattern = r'\{\{(\w+)\}\}'
+
+        # Processar componentes e substituir variáveis
+        processed_components = []
+        for component in components:
+            comp_copy = component.copy()
+
+            if comp_copy.get("type") == "body" and "parameters" in comp_copy:
+                processed_params = []
+                for param in comp_copy["parameters"]:
+                    if param.get("type") == "text":
+                        text = param.get("text", "")
+                        # Substituir variáveis
+                        for var_name in re.findall(variables_pattern, text):
+                            value = str(context_vars.get(var_name, f"{{{{{var_name}}}}}"))
+                            text = text.replace(f"{{{{{var_name}}}}}", value)
+                        processed_params.append({"type": "text", "text": text})
+                    else:
+                        processed_params.append(param)
+                comp_copy["parameters"] = processed_params
+
+            processed_components.append(comp_copy)
+
+        # Buscar WhatsApp number da conversa
+        whatsapp_number = await self.repo.get(conversation.whatsapp_number_id)
+        if not whatsapp_number:
+            logger.error("❌ WhatsApp number não encontrado")
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
+            return
+
+        contact_phone = conversation.contact_whatsapp_id
+
+        try:
+            if whatsapp_number.connection_type == "official":
+                # Meta Cloud API
+                from app.integrations.meta_api import MetaCloudAPI
+
+                api = MetaCloudAPI(
+                    phone_number_id=whatsapp_number.phone_number_id,
+                    access_token=whatsapp_number.access_token
+                )
+
+                response = await api.send_template_message(
+                    to=contact_phone,
+                    template_name=template_name,
+                    language_code=language_code,
+                    components=processed_components if processed_components else None
+                )
+
+                logger.info(f"✅ Template '{template_name}' enviado via Meta API")
+
+            else:
+                # Evolution API (QR Code) - Templates não são suportados nativamente
+                # Vamos fazer fallback para mensagem de texto simples
+                logger.warning(f"⚠️ Templates não são suportados via Evolution API. Enviando como texto simples.")
+
+                # Extrair texto do body component
+                body_text = f"Template: {template_name}"
+                for comp in processed_components:
+                    if comp.get("type") == "body" and "parameters" in comp:
+                        params_text = " ".join([p.get("text", "") for p in comp["parameters"] if p.get("type") == "text"])
+                        body_text = params_text
+                        break
+
+                from app.integrations.evolution_api import EvolutionAPIClient
+
+                evo_client = EvolutionAPIClient(
+                    api_url=whatsapp_number.evolution_api_url,
+                    api_key=whatsapp_number.evolution_api_key
+                )
+
+                await evo_client.send_text_message(
+                    instance_name=whatsapp_number.evolution_instance_name,
+                    phone_number=contact_phone,
+                    message=body_text
+                )
+
+                logger.info(f"✅ Template enviado como texto via Evolution API")
+
+            # Salvar mensagem no banco
+            from app.repositories.conversation import ConversationRepository
+            conv_repo = ConversationRepository(self.db)
+            await conv_repo.create_message({
+                "conversation_id": conversation.id,
+                "direction": "outbound",
+                "sender_type": "bot",
+                "message_type": "template",
+                "content": {
+                    "template_name": template_name,
+                    "language_code": language_code,
+                    "components": processed_components
+                },
+                "status": "sent"
+            })
+            await self.db.commit()
+
+        except Exception as e:
+            logger.error(f"❌ Erro ao enviar template: {e}")
+
+        # Avançar para próximo node
+        await self._advance_to_next_node(conversation, node, flow, incoming_message)
+
+    async def _execute_interactive_buttons(self, conversation, node, flow, incoming_message, node_data):
+        """
+        Executa Interactive Buttons Node - Envia botões interativos no WhatsApp
+
+        Node Data Format:
+        {
+            "bodyText": "Escolha uma opção:",
+            "headerText": "Menu Principal",  // Opcional
+            "footerText": "Powered by PyTake",  // Opcional
+            "buttons": [
+                {"id": "btn1", "title": "Opção 1"},
+                {"id": "btn2", "title": "Opção 2"},
+                {"id": "btn3", "title": "Opção 3"}
+            ]
+        }
+        """
+        from app.repositories.conversation import ConversationRepository
+        import re
+
+        logger.info(f"🔘 Executando Interactive Buttons Node")
+
+        # Extrair dados
+        body_text = node_data.get("bodyText", "")
+        header_text = node_data.get("headerText")
+        footer_text = node_data.get("footerText")
+        buttons = node_data.get("buttons", [])
+
+        if not body_text or not buttons:
+            logger.error("❌ Body text ou buttons não especificados")
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
+            return
+
+        # Validar quantidade de botões (máximo 3 para Meta API)
+        if len(buttons) > 3:
+            logger.warning(f"⚠️ Máximo de 3 botões permitidos. Usando apenas os 3 primeiros.")
+            buttons = buttons[:3]
+
+        # Substituir variáveis
+        context_vars = conversation.context_variables or {}
+        variables_pattern = r'\{\{(\w+)\}\}'
+
+        for var_name in re.findall(variables_pattern, body_text):
+            value = str(context_vars.get(var_name, f"{{{{{var_name}}}}}"))
+            body_text = body_text.replace(f"{{{{{var_name}}}}}", value)
+
+        if header_text:
+            for var_name in re.findall(variables_pattern, header_text):
+                value = str(context_vars.get(var_name, f"{{{{{var_name}}}}}"))
+                header_text = header_text.replace(f"{{{{{var_name}}}}}", value)
+
+        # Buscar WhatsApp number
+        whatsapp_number = await self.repo.get(conversation.whatsapp_number_id)
+        if not whatsapp_number:
+            logger.error("❌ WhatsApp number não encontrado")
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
+            return
+
+        contact_phone = conversation.contact_whatsapp_id
+
+        try:
+            if whatsapp_number.connection_type == "official":
+                # Meta Cloud API
+                from app.integrations.meta_api import MetaCloudAPI
+
+                api = MetaCloudAPI(
+                    phone_number_id=whatsapp_number.phone_number_id,
+                    access_token=whatsapp_number.access_token
+                )
+
+                await api.send_interactive_buttons(
+                    to=contact_phone,
+                    body_text=body_text,
+                    buttons=buttons,
+                    header_text=header_text,
+                    footer_text=footer_text
+                )
+
+                logger.info(f"✅ Botões interativos enviados via Meta API ({len(buttons)} botões)")
+
+            else:
+                # Evolution API (QR Code)
+                from app.integrations.evolution_api import EvolutionAPIClient
+
+                evo_client = EvolutionAPIClient(
+                    api_url=whatsapp_number.evolution_api_url,
+                    api_key=whatsapp_number.evolution_api_key
+                )
+
+                # Formatar botões para Evolution API
+                evo_buttons = [{"displayText": btn["title"]} for btn in buttons]
+
+                await evo_client.send_buttons(
+                    instance_name=whatsapp_number.evolution_instance_name,
+                    phone_number=contact_phone,
+                    title=header_text or "Menu",
+                    description=body_text,
+                    buttons=evo_buttons,
+                    footer=footer_text
+                )
+
+                logger.info(f"✅ Botões enviados via Evolution API ({len(buttons)} botões)")
+
+            # Salvar mensagem no banco
+            from app.repositories.conversation import ConversationRepository
+            conv_repo = ConversationRepository(self.db)
+            await conv_repo.create_message({
+                "conversation_id": conversation.id,
+                "direction": "outbound",
+                "sender_type": "bot",
+                "message_type": "interactive",
+                "content": {
+                    "type": "buttons",
+                    "body": body_text,
+                    "header": header_text,
+                    "footer": footer_text,
+                    "buttons": buttons
+                },
+                "status": "sent"
+            })
+            await self.db.commit()
+
+        except Exception as e:
+            logger.error(f"❌ Erro ao enviar botões interativos: {e}")
+
+        # Avançar para próximo node
+        await self._advance_to_next_node(conversation, node, flow, incoming_message)
+
+    async def _execute_interactive_list(self, conversation, node, flow, incoming_message, node_data):
+        """
+        Executa Interactive List Node - Envia lista/menu interativo no WhatsApp
+
+        Node Data Format:
+        {
+            "bodyText": "Escolha uma opção da lista:",
+            "buttonText": "Ver Opções",
+            "headerText": "Produtos Disponíveis",  // Opcional
+            "footerText": "Powered by PyTake",  // Opcional
+            "sections": [
+                {
+                    "title": "Categoria 1",
+                    "rows": [
+                        {"id": "opt1", "title": "Opção 1", "description": "Descrição da opção 1"},
+                        {"id": "opt2", "title": "Opção 2", "description": "Descrição da opção 2"}
+                    ]
+                }
+            ]
+        }
+        """
+        from app.repositories.conversation import ConversationRepository
+        import re
+
+        logger.info(f"📝 Executando Interactive List Node")
+
+        # Extrair dados
+        body_text = node_data.get("bodyText", "")
+        button_text = node_data.get("buttonText", "Ver opções")
+        header_text = node_data.get("headerText")
+        footer_text = node_data.get("footerText")
+        sections = node_data.get("sections", [])
+
+        if not body_text or not sections:
+            logger.error("❌ Body text ou sections não especificados")
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
+            return
+
+        # Substituir variáveis
+        context_vars = conversation.context_variables or {}
+        variables_pattern = r'\{\{(\w+)\}\}'
+
+        for var_name in re.findall(variables_pattern, body_text):
+            value = str(context_vars.get(var_name, f"{{{{{var_name}}}}}"))
+            body_text = body_text.replace(f"{{{{{var_name}}}}}", value)
+
+        # Buscar WhatsApp number
+        whatsapp_number = await self.repo.get(conversation.whatsapp_number_id)
+        if not whatsapp_number:
+            logger.error("❌ WhatsApp number não encontrado")
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
+            return
+
+        contact_phone = conversation.contact_whatsapp_id
+
+        try:
+            if whatsapp_number.connection_type == "official":
+                # Meta Cloud API
+                from app.integrations.meta_api import MetaCloudAPI
+
+                api = MetaCloudAPI(
+                    phone_number_id=whatsapp_number.phone_number_id,
+                    access_token=whatsapp_number.access_token
+                )
+
+                await api.send_interactive_list(
+                    to=contact_phone,
+                    body_text=body_text,
+                    button_text=button_text,
+                    sections=sections,
+                    header_text=header_text,
+                    footer_text=footer_text
+                )
+
+                total_rows = sum(len(s.get("rows", [])) for s in sections)
+                logger.info(f"✅ Lista interativa enviada via Meta API ({len(sections)} seções, {total_rows} itens)")
+
+            else:
+                # Evolution API (QR Code)
+                from app.integrations.evolution_api import EvolutionAPIClient
+
+                evo_client = EvolutionAPIClient(
+                    api_url=whatsapp_number.evolution_api_url,
+                    api_key=whatsapp_number.evolution_api_key
+                )
+
+                await evo_client.send_list(
+                    instance_name=whatsapp_number.evolution_instance_name,
+                    phone_number=contact_phone,
+                    title=header_text or "Menu",
+                    description=body_text,
+                    button_text=button_text,
+                    sections=sections,
+                    footer=footer_text
+                )
+
+                total_rows = sum(len(s.get("rows", [])) for s in sections)
+                logger.info(f"✅ Lista enviada via Evolution API ({len(sections)} seções, {total_rows} itens)")
+
+            # Salvar mensagem no banco
+            from app.repositories.conversation import ConversationRepository
+            conv_repo = ConversationRepository(self.db)
+            await conv_repo.create_message({
+                "conversation_id": conversation.id,
+                "direction": "outbound",
+                "sender_type": "bot",
+                "message_type": "interactive",
+                "content": {
+                    "type": "list",
+                    "body": body_text,
+                    "button": button_text,
+                    "header": header_text,
+                    "footer": footer_text,
+                    "sections": sections
+                },
+                "status": "sent"
+            })
+            await self.db.commit()
+
+        except Exception as e:
+            logger.error(f"❌ Erro ao enviar lista interativa: {e}")
+
+        # Avançar para próximo node
+        await self._advance_to_next_node(conversation, node, flow, incoming_message)
 
     async def get_by_id(
         self, number_id: UUID, organization_id: UUID

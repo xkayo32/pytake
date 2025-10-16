@@ -507,3 +507,216 @@ class MetaCloudAPI:
             except httpx.RequestError as e:
                 logger.error(f"HTTP request failed: {e}")
                 raise MetaAPIError(f"Network error: {str(e)}")
+
+    async def send_interactive_buttons(
+        self,
+        to: str,
+        body_text: str,
+        buttons: List[Dict[str, str]],
+        header_text: Optional[str] = None,
+        footer_text: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Send an interactive message with buttons
+
+        Args:
+            to: Recipient WhatsApp ID
+            body_text: Main message body
+            buttons: List of buttons (max 3) with format: [{"id": "btn1", "title": "Button 1"}]
+            header_text: Optional header text
+            footer_text: Optional footer text
+
+        Returns:
+            Response from Meta API
+
+        Raises:
+            MetaAPIError: If API request fails
+        """
+        if len(buttons) > 3:
+            raise MetaAPIError("Maximum of 3 buttons allowed")
+
+        url = f"{self.base_url}/{self.phone_number_id}/messages"
+
+        # Formatar botões para o padrão da Meta API
+        formatted_buttons = []
+        for btn in buttons:
+            formatted_buttons.append({
+                "type": "reply",
+                "reply": {
+                    "id": btn.get("id", f"btn_{len(formatted_buttons)}"),
+                    "title": btn.get("title", "")[:20]  # Max 20 chars
+                }
+            })
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": to,
+            "type": "interactive",
+            "interactive": {
+                "type": "button",
+                "body": {
+                    "text": body_text
+                },
+                "action": {
+                    "buttons": formatted_buttons
+                }
+            }
+        }
+
+        # Adicionar header se fornecido
+        if header_text:
+            payload["interactive"]["header"] = {
+                "type": "text",
+                "text": header_text[:60]  # Max 60 chars
+            }
+
+        # Adicionar footer se fornecido
+        if footer_text:
+            payload["interactive"]["footer"] = {
+                "text": footer_text[:60]  # Max 60 chars
+            }
+
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+
+        logger.info(f"Sending interactive buttons to {to} ({len(buttons)} buttons)")
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            try:
+                response = await client.post(url, json=payload, headers=headers)
+                response_data = response.json()
+
+                if response.status_code != 200:
+                    error_message = response_data.get("error", {}).get("message", "Unknown error")
+                    error_code = response_data.get("error", {}).get("code")
+                    raise MetaAPIError(
+                        message=error_message,
+                        error_code=str(error_code) if error_code else None,
+                        status_code=response.status_code
+                    )
+
+                logger.info(f"✅ Interactive buttons sent successfully")
+                return response_data
+
+            except httpx.RequestError as e:
+                raise MetaAPIError(f"Network error: {str(e)}")
+
+    async def send_interactive_list(
+        self,
+        to: str,
+        body_text: str,
+        button_text: str,
+        sections: List[Dict[str, Any]],
+        header_text: Optional[str] = None,
+        footer_text: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Send an interactive message with list/menu
+
+        Args:
+            to: Recipient WhatsApp ID
+            body_text: Main message body
+            button_text: Text for the list button (e.g., "Ver opções")
+            sections: List sections with format:
+                [
+                    {
+                        "title": "Section 1",
+                        "rows": [
+                            {"id": "opt1", "title": "Option 1", "description": "Description"}
+                        ]
+                    }
+                ]
+            header_text: Optional header text
+            footer_text: Optional footer text
+
+        Returns:
+            Response from Meta API
+
+        Raises:
+            MetaAPIError: If API request fails
+        """
+        # Validações
+        if len(sections) > 10:
+            raise MetaAPIError("Maximum of 10 sections allowed")
+
+        total_rows = sum(len(section.get("rows", [])) for section in sections)
+        if total_rows > 10:
+            raise MetaAPIError("Maximum of 10 total rows allowed across all sections")
+
+        url = f"{self.base_url}/{self.phone_number_id}/messages"
+
+        # Formatar sections para o padrão da Meta API
+        formatted_sections = []
+        for section in sections:
+            formatted_rows = []
+            for row in section.get("rows", []):
+                formatted_rows.append({
+                    "id": row.get("id", f"row_{len(formatted_rows)}"),
+                    "title": row.get("title", "")[:24],  # Max 24 chars
+                    "description": row.get("description", "")[:72]  # Max 72 chars
+                })
+
+            formatted_sections.append({
+                "title": section.get("title", "")[:24],  # Max 24 chars
+                "rows": formatted_rows
+            })
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": to,
+            "type": "interactive",
+            "interactive": {
+                "type": "list",
+                "body": {
+                    "text": body_text
+                },
+                "action": {
+                    "button": button_text[:20],  # Max 20 chars
+                    "sections": formatted_sections
+                }
+            }
+        }
+
+        # Adicionar header se fornecido
+        if header_text:
+            payload["interactive"]["header"] = {
+                "type": "text",
+                "text": header_text[:60]  # Max 60 chars
+            }
+
+        # Adicionar footer se fornecido
+        if footer_text:
+            payload["interactive"]["footer"] = {
+                "text": footer_text[:60]  # Max 60 chars
+            }
+
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+
+        logger.info(f"Sending interactive list to {to} ({len(sections)} sections, {total_rows} total rows)")
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            try:
+                response = await client.post(url, json=payload, headers=headers)
+                response_data = response.json()
+
+                if response.status_code != 200:
+                    error_message = response_data.get("error", {}).get("message", "Unknown error")
+                    error_code = response_data.get("error", {}).get("code")
+                    raise MetaAPIError(
+                        message=error_message,
+                        error_code=str(error_code) if error_code else None,
+                        status_code=response.status_code
+                    )
+
+                logger.info(f"✅ Interactive list sent successfully")
+                return response_data
+
+            except httpx.RequestError as e:
+                raise MetaAPIError(f"Network error: {str(e)}")
