@@ -285,7 +285,7 @@ export default function CustomNode({ data }: NodeProps) {
 
   const nodeType = data.nodeType || 'default';
   const Icon = ICON_MAP[nodeType] || MessageSquare;
-  const color = COLOR_MAP[nodeType] || '#6b7280';
+  const color = data.color || COLOR_MAP[nodeType] || '#6b7280';
   const bgClass = BG_CLASS_MAP[nodeType] || 'bg-white dark:bg-gray-800';
   const label = LABEL_MAP[nodeType] || 'Node';
   const previewText = getPreviewText(nodeType, data);
