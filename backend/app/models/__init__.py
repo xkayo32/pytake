@@ -12,6 +12,7 @@ from app.models.contact import Contact, Tag
 from app.models.conversation import Conversation, Message
 from app.models.department import Department
 from app.models.campaign import Campaign
+from app.models.ai_custom_model import AICustomModel
 
 __all__ = [
     "Base",
@@ -31,4 +32,5 @@ __all__ = [
     "Message",
     "Department",
     "Campaign",
+    "AICustomModel",
 ]
