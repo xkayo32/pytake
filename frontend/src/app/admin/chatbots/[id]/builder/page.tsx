@@ -468,6 +468,7 @@ export default function ChatbotBuilderPage() {
   }
 
   return (
+    <>
     <div className="h-screen flex overflow-hidden bg-gray-50 dark:bg-gray-900">
         {/* Left Sidebar - Node Palette with Categories */}
         <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
@@ -900,8 +901,9 @@ export default function ChatbotBuilderPage() {
           )}
         </div>
       </div>
+    </div>
 
-      {/* Flow Simulator Modal */}
+    {/* Flow Simulator Modal */}
       {showSimulator && (
         <FlowSimulator
           nodes={nodes}
@@ -930,8 +932,8 @@ export default function ChatbotBuilderPage() {
         />
       )}
 
-      {/* Session Expired Modal */}
-      {showExpiredModal && <SessionExpiredModal onClose={hideModal} />}
-    </div>
+    {/* Session Expired Modal */}
+    {showExpiredModal && <SessionExpiredModal onClose={hideModal} />}
+    </>
   );
 }
