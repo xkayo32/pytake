@@ -19,6 +19,7 @@ import {
   Info,
 } from 'lucide-react';
 import { aiAssistantAPI } from '@/lib/api';
+import AddCustomModelModal from '@/components/AddCustomModelModal';
 
 // Validation Schema
 const aiSettingsSchema = z.object({
@@ -562,6 +563,13 @@ export default function AIAssistantSettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Add Custom Model Modal */}
+      <AddCustomModelModal
+        isOpen={showAddModelModal}
+        onClose={() => setShowAddModelModal(false)}
+        onSuccess={loadModels}
+      />
     </div>
   );
 }
