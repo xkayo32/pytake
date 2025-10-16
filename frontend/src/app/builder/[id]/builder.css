@@ -1,0 +1,19 @@
+/* Remove default React Flow node background */
+.react-flow__node {
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__node-default {
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Ensure handles are visible */
+.react-flow__handle {
+  z-index: 10;
+}

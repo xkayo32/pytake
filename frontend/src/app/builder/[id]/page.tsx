@@ -17,6 +17,7 @@ import {
   MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import './builder.css';
 import {
   Save,
   Play,
