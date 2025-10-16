@@ -9,6 +9,7 @@ from app.repositories.whatsapp import WhatsAppNumberRepository
 from app.schemas.whatsapp import WhatsAppNumberCreate, WhatsAppNumberUpdate, ConnectionType
 from app.core.exceptions import ConflictException, NotFoundException
 from app.integrations.evolution_api import EvolutionAPIClient, generate_instance_name, EvolutionAPIError
+from app.utils.node_availability import NodeAvailability
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,31 @@ class WhatsAppService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.repo = WhatsAppNumberRepository(db)
+
+    def _enrich_number_with_node_info(
+        self,
+        number: WhatsAppNumber
+    ) -> WhatsAppNumber:
+        """
+        Enrich WhatsApp number with available node types and metadata.
+
+        Args:
+            number: WhatsAppNumber model instance
+
+        Returns:
+            WhatsAppNumber with available_node_types and node_metadata fields populated
+        """
+        connection_type = number.connection_type.value if hasattr(number.connection_type, 'value') else str(number.connection_type)
+
+        # Get available nodes for this connection type
+        available_nodes = NodeAvailability.get_available_nodes(connection_type)
+        node_metadata = NodeAvailability.get_node_metadata(connection_type)
+
+        # Add to model (these fields are in the schema)
+        number.available_node_types = available_nodes
+        number.node_metadata = node_metadata
+
+        return number
 
     async def _trigger_chatbot(self, conversation, new_message):
         """
@@ -124,6 +150,36 @@ class WhatsAppService:
         import re
 
         logger.info(f"🎬 Executando node {node.node_type}: {node.label}")
+
+        # Validar compatibilidade do node com o tipo de conexão WhatsApp
+        whatsapp_number = await self.repo.get(conversation.whatsapp_number_id)
+        if whatsapp_number:
+            connection_type = whatsapp_number.connection_type.value if hasattr(whatsapp_number.connection_type, 'value') else str(whatsapp_number.connection_type)
+            is_available = NodeAvailability.is_node_available(node.node_type, connection_type)
+
+            if not is_available:
+                logger.error(
+                    f"❌ Node '{node.node_type}' não está disponível para conexão '{connection_type}'. "
+                    f"Este node requer Meta Cloud API (official)."
+                )
+                # Transferir para agente humano
+                await self._execute_handoff(
+                    conversation,
+                    {
+                        "transferMessage": (
+                            "Desculpe, esta funcionalidade não está disponível "
+                            "no momento. Vou transferir você para um agente humano."
+                        ),
+                        "sendTransferMessage": True,
+                        "priority": "high"
+                    }
+                )
+                return
+
+            # Log warning for experimental nodes
+            warning = NodeAvailability.get_node_warning(node.node_type, connection_type)
+            if warning:
+                logger.warning(f"⚠️ {warning}")
 
         # Extrair conteúdo baseado no tipo do node
         node_data = node.data or {}
@@ -2961,11 +3017,12 @@ class WhatsAppService:
         number = await self.repo.get(number_id)
         if not number or number.organization_id != organization_id:
             raise NotFoundException("WhatsApp number not found")
-        return number
+        return self._enrich_number_with_node_info(number)
 
     async def list_numbers(self, organization_id: UUID) -> List[WhatsAppNumber]:
         """List all WhatsApp numbers"""
-        return await self.repo.get_by_organization(organization_id)
+        numbers = await self.repo.get_by_organization(organization_id)
+        return [self._enrich_number_with_node_info(num) for num in numbers]
 
     async def create_number(
         self, data: WhatsAppNumberCreate, organization_id: UUID
@@ -2980,7 +3037,8 @@ class WhatsAppService:
         number_data["organization_id"] = organization_id
         number_data["is_active"] = True
 
-        return await self.repo.create(number_data)
+        number = await self.repo.create(number_data)
+        return self._enrich_number_with_node_info(number)
 
     async def update_number(
         self, number_id: UUID, data: WhatsAppNumberUpdate, organization_id: UUID
@@ -2988,7 +3046,8 @@ class WhatsAppService:
         """Update WhatsApp number"""
         number = await self.get_by_id(number_id, organization_id)
         update_data = data.model_dump(exclude_unset=True)
-        return await self.repo.update(number_id, update_data)
+        updated_number = await self.repo.update(number_id, update_data)
+        return self._enrich_number_with_node_info(updated_number)
 
     async def delete_number(
         self, number_id: UUID, organization_id: UUID

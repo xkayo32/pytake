@@ -96,7 +96,8 @@ class WhatsAppNumberInDB(WhatsAppNumberBase):
 
 class WhatsAppNumber(WhatsAppNumberInDB):
     """Public WhatsApp number schema"""
-    pass
+    available_node_types: List[str] = Field(default_factory=list)
+    node_metadata: Optional[Dict] = Field(default_factory=dict)
 
 
 class WhatsAppNumberWithStats(WhatsAppNumber):
