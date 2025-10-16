@@ -44,6 +44,14 @@ import {
   List,
   Library,
   Sparkles,
+  Boxes,
+  UserPlus,
+  MessageCircle,
+  Cloud,
+  XCircle,
+  ChevronDown,
+  ChevronRight,
+  SquareMousePointer,
 } from 'lucide-react';
 import { chatbotsAPI, flowsAPI } from '@/lib/api/chatbots';
 import type { Chatbot, Flow } from '@/types/chatbot';
@@ -75,28 +83,70 @@ import { useToast } from '@/store/notificationStore';
 import FlowTemplateGallery from '@/components/admin/templates/FlowTemplateGallery';
 import AIFlowAssistant from '@/components/admin/ai-assistant/AIFlowAssistant';
 
-// Palette of node types available to drag
-const NODE_TYPES_PALETTE = [
-  { type: 'start', label: 'Início', icon: Play, color: 'green', description: 'Ponto de entrada do fluxo' },
-  { type: 'message', label: 'Mensagem', icon: MessageSquare, color: 'blue', description: 'Enviar uma mensagem' },
-  { type: 'question', label: 'Pergunta', icon: HelpCircle, color: 'purple', description: 'Capturar resposta do usuário' },
-  { type: 'condition', label: 'Condição', icon: GitBranch, color: 'orange', description: 'Decisão condicional' },
-  { type: 'action', label: 'Ação', icon: Zap, color: 'yellow', description: 'Executar uma ação' },
-  { type: 'delay', label: 'Delay', icon: Clock, color: 'cyan', description: 'Adicionar atraso temporal' },
-  { type: 'api_call', label: 'API', icon: Globe, color: 'indigo', description: 'Chamar API externa' },
-  { type: 'ai_prompt', label: 'IA', icon: Brain, color: 'pink', description: 'Prompt para IA (GPT-4)' },
-  { type: 'database_query', label: 'Database', icon: Database, color: 'emerald', description: 'Consultar banco de dados' },
-  { type: 'script', label: 'Script', icon: Code, color: 'violet', description: 'Executar código Python' },
-  { type: 'set_variable', label: 'Variável', icon: Variable, color: 'slate', description: 'Definir/atualizar variável' },
-  { type: 'random', label: 'Aleatório', icon: Shuffle, color: 'lime', description: 'Caminho aleatório (A/B test)' },
-  { type: 'datetime', label: 'Data/Hora', icon: Calendar, color: 'amber', description: 'Manipular datas e horários' },
-  { type: 'analytics', label: 'Analytics', icon: BarChart3, color: 'rose', description: 'Rastrear eventos' },
-  { type: 'whatsapp_template', label: 'Template', icon: FileText, color: 'sky', description: 'Template WhatsApp oficial' },
-  { type: 'interactive_buttons', label: 'Botões', icon: MousePointerClick, color: 'fuchsia', description: 'Botões interativos' },
-  { type: 'interactive_list', label: 'Lista', icon: List, color: 'teal', description: 'Lista de seleção' },
-  { type: 'jump', label: 'Pular', icon: ArrowRight, color: 'gray', description: 'Pular para outro fluxo' },
-  { type: 'end', label: 'Fim', icon: StopCircle, color: 'red', description: 'Finalizar fluxo' },
-  { type: 'handoff', label: 'Transferir', icon: Users, color: 'brown', description: 'Transferir para humano' },
+// Categorized node types palette
+const NODE_CATEGORIES = [
+  {
+    id: 'basics',
+    label: 'Básicos',
+    icon: Boxes,
+    nodeTypes: [
+      { type: 'start', label: 'Início', icon: Play, color: 'green', description: 'Ponto de entrada do fluxo' },
+      { type: 'message', label: 'Mensagem', icon: MessageSquare, color: 'blue', description: 'Enviar uma mensagem' },
+      { type: 'question', label: 'Pergunta', icon: HelpCircle, color: 'purple', description: 'Capturar resposta do usuário' },
+      { type: 'end', label: 'Fim', icon: XCircle, color: 'red', description: 'Finalizar fluxo' },
+    ],
+  },
+  {
+    id: 'logic',
+    label: 'Lógica & Controle',
+    icon: GitBranch,
+    nodeTypes: [
+      { type: 'condition', label: 'Condição', icon: GitBranch, color: 'orange', description: 'Decisão condicional' },
+      { type: 'jump', label: 'Pular', icon: ArrowRight, color: 'gray', description: 'Pular para outro fluxo' },
+      { type: 'delay', label: 'Delay', icon: Clock, color: 'cyan', description: 'Adicionar atraso temporal' },
+      { type: 'set_variable', label: 'Variável', icon: Variable, color: 'slate', description: 'Definir/atualizar variável' },
+      { type: 'script', label: 'Script', icon: Code, color: 'violet', description: 'Executar código Python' },
+      { type: 'random', label: 'Aleatório', icon: Shuffle, color: 'lime', description: 'Caminho aleatório (A/B test)' },
+    ],
+  },
+  {
+    id: 'ai_integrations',
+    label: 'IA & Integrações',
+    icon: Sparkles,
+    nodeTypes: [
+      { type: 'ai_prompt', label: 'IA', icon: Brain, color: 'pink', description: 'Prompt para IA (GPT-4)' },
+      { type: 'api_call', label: 'API', icon: Cloud, color: 'indigo', description: 'Chamar API externa' },
+      { type: 'action', label: 'Ação', icon: Zap, color: 'yellow', description: 'Executar uma ação' },
+    ],
+  },
+  {
+    id: 'human_service',
+    label: 'Atendimento Humano',
+    icon: UserPlus,
+    nodeTypes: [
+      { type: 'handoff', label: 'Transferir', icon: UserPlus, color: 'brown', description: 'Transferir para humano' },
+    ],
+  },
+  {
+    id: 'whatsapp',
+    label: 'WhatsApp',
+    icon: MessageCircle,
+    nodeTypes: [
+      { type: 'whatsapp_template', label: 'Template', icon: FileText, color: 'sky', description: 'Template WhatsApp oficial' },
+      { type: 'interactive_buttons', label: 'Botões', icon: SquareMousePointer, color: 'fuchsia', description: 'Botões interativos' },
+      { type: 'interactive_list', label: 'Lista', icon: List, color: 'teal', description: 'Lista de seleção' },
+    ],
+  },
+  {
+    id: 'data',
+    label: 'Dados & Armazenamento',
+    icon: Database,
+    nodeTypes: [
+      { type: 'database_query', label: 'Database', icon: Database, color: 'emerald', description: 'Consultar banco de dados' },
+      { type: 'datetime', label: 'Data/Hora', icon: Calendar, color: 'amber', description: 'Manipular datas e horários' },
+      { type: 'analytics', label: 'Analytics', icon: BarChart3, color: 'rose', description: 'Rastrear eventos' },
+    ],
+  },
 ];
 
 const COLOR_MAP: Record<string, string> = {
@@ -160,6 +210,17 @@ export default function ChatbotBuilderPage() {
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(() => {
+    // Load from localStorage or default all to true
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('builder-expanded-categories');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    }
+    // Default: all categories expanded
+    return NODE_CATEGORIES.reduce((acc, cat) => ({ ...acc, [cat.id]: true }), {});
+  });
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -288,7 +349,18 @@ export default function ChatbotBuilderPage() {
     }
   };
 
-  const handleAddNode = (nodeType: typeof NODE_TYPES_PALETTE[0]) => {
+  const toggleCategory = (categoryId: string) => {
+    setExpandedCategories((prev) => {
+      const newState = { ...prev, [categoryId]: !prev[categoryId] };
+      // Save to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('builder-expanded-categories', JSON.stringify(newState));
+      }
+      return newState;
+    });
+  };
+
+  const handleAddNode = (nodeType: any) => {
     const newNodeId = `node-${++nodeIdCounter}`;
     const Icon = nodeType.icon;
 
@@ -462,7 +534,7 @@ export default function ChatbotBuilderPage() {
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Node Palette */}
+        {/* Left Sidebar - Node Palette with Categories */}
         <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
           <div className="p-4">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
@@ -470,29 +542,62 @@ export default function ChatbotBuilderPage() {
               Adicionar Nó
             </h3>
             <div className="space-y-2">
-              {NODE_TYPES_PALETTE.map((nodeType) => {
-                const Icon = nodeType.icon;
+              {NODE_CATEGORIES.map((category) => {
+                const CategoryIcon = category.icon;
+                const isExpanded = expandedCategories[category.id];
+
                 return (
-                  <button
-                    key={nodeType.type}
-                    onClick={() => handleAddNode(nodeType)}
-                    className="w-full flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-700 transition-all hover:shadow-md text-left"
-                  >
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: `${COLOR_MAP[nodeType.color]}20` }}
+                  <div key={category.id} className="space-y-1">
+                    {/* Category Header */}
+                    <button
+                      onClick={() => toggleCategory(category.id)}
+                      className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors text-left"
                     >
-                      <Icon className="w-4 h-4" style={{ color: COLOR_MAP[nodeType.color] }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm text-gray-900 dark:text-white">
-                        {nodeType.label}
+                      {isExpanded ? (
+                        <ChevronDown className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                      )}
+                      <CategoryIcon className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {category.label}
+                      </span>
+                      <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">
+                        {category.nodeTypes.length}
+                      </span>
+                    </button>
+
+                    {/* Category Nodes */}
+                    {isExpanded && (
+                      <div className="space-y-1 pl-2">
+                        {category.nodeTypes.map((nodeType) => {
+                          const NodeIcon = nodeType.icon;
+                          return (
+                            <button
+                              key={nodeType.type}
+                              onClick={() => handleAddNode(nodeType)}
+                              className="w-full flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-700 transition-all hover:shadow-md text-left"
+                            >
+                              <div
+                                className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                                style={{ backgroundColor: `${COLOR_MAP[nodeType.color]}20` }}
+                              >
+                                <NodeIcon className="w-4 h-4" style={{ color: COLOR_MAP[nodeType.color] }} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-sm text-gray-900 dark:text-white">
+                                  {nodeType.label}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                  {nodeType.description}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {nodeType.description}
-                      </div>
-                    </div>
-                  </button>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -517,10 +622,16 @@ export default function ChatbotBuilderPage() {
             <Controls />
             <MiniMap
               nodeColor={(node) => {
-                const nodeType = NODE_TYPES_PALETTE.find(
-                  (t) => t.type === node.data?.nodeType
-                );
-                return nodeType ? COLOR_MAP[nodeType.color] : '#6b7280';
+                // Find node type in categories
+                for (const category of NODE_CATEGORIES) {
+                  const nodeType = category.nodeTypes.find(
+                    (t) => t.type === node.data?.nodeType
+                  );
+                  if (nodeType) {
+                    return COLOR_MAP[nodeType.color];
+                  }
+                }
+                return '#6b7280';
               }}
             />
             <Panel position="top-center" className="bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
