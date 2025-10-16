@@ -33,6 +33,15 @@ import {
   StopCircle,
   Users,
   Variable,
+  Clock,
+  Database,
+  Code,
+  Shuffle,
+  Calendar,
+  BarChart3,
+  FileText,
+  MousePointerClick,
+  List,
 } from 'lucide-react';
 import { chatbotsAPI, flowsAPI } from '@/lib/api/chatbots';
 import type { Chatbot, Flow } from '@/types/chatbot';
@@ -53,11 +62,21 @@ const NODE_TYPES_PALETTE = [
   { type: 'question', label: 'Pergunta', icon: HelpCircle, color: 'purple', description: 'Capturar resposta do usuário' },
   { type: 'condition', label: 'Condição', icon: GitBranch, color: 'orange', description: 'Decisão condicional' },
   { type: 'action', label: 'Ação', icon: Zap, color: 'yellow', description: 'Executar uma ação' },
+  { type: 'delay', label: 'Delay', icon: Clock, color: 'cyan', description: 'Adicionar atraso temporal' },
   { type: 'api_call', label: 'API', icon: Globe, color: 'indigo', description: 'Chamar API externa' },
   { type: 'ai_prompt', label: 'IA', icon: Brain, color: 'pink', description: 'Prompt para IA (GPT-4)' },
+  { type: 'database_query', label: 'Database', icon: Database, color: 'emerald', description: 'Consultar banco de dados' },
+  { type: 'script', label: 'Script', icon: Code, color: 'violet', description: 'Executar código Python' },
+  { type: 'set_variable', label: 'Variável', icon: Variable, color: 'slate', description: 'Definir/atualizar variável' },
+  { type: 'random', label: 'Aleatório', icon: Shuffle, color: 'lime', description: 'Caminho aleatório (A/B test)' },
+  { type: 'datetime', label: 'Data/Hora', icon: Calendar, color: 'amber', description: 'Manipular datas e horários' },
+  { type: 'analytics', label: 'Analytics', icon: BarChart3, color: 'rose', description: 'Rastrear eventos' },
+  { type: 'whatsapp_template', label: 'Template', icon: FileText, color: 'sky', description: 'Template WhatsApp oficial' },
+  { type: 'interactive_buttons', label: 'Botões', icon: MousePointerClick, color: 'fuchsia', description: 'Botões interativos' },
+  { type: 'interactive_list', label: 'Lista', icon: List, color: 'teal', description: 'Lista de seleção' },
   { type: 'jump', label: 'Pular', icon: ArrowRight, color: 'gray', description: 'Pular para outro fluxo' },
   { type: 'end', label: 'Fim', icon: StopCircle, color: 'red', description: 'Finalizar fluxo' },
-  { type: 'handoff', label: 'Transferir', icon: Users, color: 'teal', description: 'Transferir para humano' },
+  { type: 'handoff', label: 'Transferir', icon: Users, color: 'brown', description: 'Transferir para humano' },
 ];
 
 const COLOR_MAP: Record<string, string> = {
@@ -66,11 +85,21 @@ const COLOR_MAP: Record<string, string> = {
   purple: '#8b5cf6',
   orange: '#f97316',
   yellow: '#eab308',
+  cyan: '#06b6d4',
   indigo: '#6366f1',
   pink: '#ec4899',
+  emerald: '#10b981',
+  violet: '#8b5cf6',
+  slate: '#64748b',
+  lime: '#84cc16',
+  amber: '#f59e0b',
+  rose: '#f43f5e',
+  sky: '#0ea5e9',
+  fuchsia: '#d946ef',
+  teal: '#14b8a6',
   gray: '#6b7280',
   red: '#ef4444',
-  teal: '#14b8a6',
+  brown: '#92400e',
 };
 
 let nodeIdCounter = 0;
