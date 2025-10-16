@@ -468,72 +468,7 @@ export default function ChatbotBuilderPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-      {/* Top Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push('/admin/chatbots')}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                {chatbot.name}
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Editor de Fluxos • {selectedFlow?.name || 'Nenhum fluxo selecionado'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowAIAssistant(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium rounded-lg transition-all shadow-lg shadow-purple-500/30"
-            >
-              <Sparkles className="w-4 h-4" />
-              AI Assistant
-            </button>
-            <button
-              onClick={() => setShowTemplateGallery(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors"
-            >
-              <Library className="w-4 h-4" />
-              Templates
-            </button>
-            <button
-              onClick={() => setShowSimulator(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
-            >
-              <Play className="w-4 h-4" />
-              Testar Fluxo
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Salvar
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+    <div className="h-screen flex overflow-hidden bg-gray-50 dark:bg-gray-900">
         {/* Left Sidebar - Node Palette with Categories */}
         <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
           <div className="p-4">
@@ -634,19 +569,90 @@ export default function ChatbotBuilderPage() {
                 return '#6b7280';
               }}
             />
-            <Panel position="top-center" className="bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                💡 Dica: Conecte os nós arrastando das bordas. Use <code className="px-1 bg-gray-100 dark:bg-gray-700 rounded">{`{{variavel}}`}</code> para usar variáveis
-              </p>
+
+            {/* Top Left - Back Button and Title */}
+            <Panel position="top-left" className="bg-white dark:bg-gray-800 px-4 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => router.push('/admin/chatbots')}
+                  className="p-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  title="Voltar"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <div>
+                  <h1 className="text-sm font-bold text-gray-900 dark:text-white">
+                    {chatbot.name}
+                  </h1>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {selectedFlow?.name || 'Nenhum fluxo'}
+                  </p>
+                </div>
+              </div>
             </Panel>
+
+            {/* Top Right - Action Buttons */}
             <Panel position="top-right" className="bg-white dark:bg-gray-800 px-3 py-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-              <button
-                onClick={() => setShowVariablesPanel(!showVariablesPanel)}
-                className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-              >
-                <Variable className="w-4 h-4" />
-                {showVariablesPanel ? 'Ocultar' : 'Mostrar'} Variáveis
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowAIAssistant(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-purple-500/30"
+                  title="AI Assistant"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  AI
+                </button>
+                <button
+                  onClick={() => setShowTemplateGallery(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
+                  title="Templates"
+                >
+                  <Library className="w-3.5 h-3.5" />
+                  Templates
+                </button>
+                <button
+                  onClick={() => setShowSimulator(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+                  title="Testar Fluxo"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  Testar
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Salvar Fluxo"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" />
+                      Salvar
+                    </>
+                  )}
+                </button>
+                <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />
+                <button
+                  onClick={() => setShowVariablesPanel(!showVariablesPanel)}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  title={showVariablesPanel ? 'Ocultar Variáveis' : 'Mostrar Variáveis'}
+                >
+                  <Variable className="w-3.5 h-3.5" />
+                  {showVariablesPanel ? 'Ocultar' : 'Mostrar'}
+                </button>
+              </div>
+            </Panel>
+
+            {/* Bottom Center - Tip */}
+            <Panel position="bottom-center" className="bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                💡 Conecte os nós arrastando das bordas • Use <code className="px-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">{`{{variavel}}`}</code> para usar variáveis
+              </p>
             </Panel>
           </ReactFlow>
         </div>
