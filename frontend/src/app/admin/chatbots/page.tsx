@@ -280,7 +280,7 @@ export default function ChatbotsPage() {
               defaultForNumbers={getDefaultForNumbers(bot.id)}
               onToggleActive={handleToggleActive}
               onDelete={handleDelete}
-              onEdit={() => router.push(`/builder/${bot.id}`)}
+              onEdit={() => router.push(`/admin/chatbots/${bot.id}/builder`)}
               onEditSettings={() => handleOpenEditSettings(bot)}
             />
           ))}
@@ -294,7 +294,7 @@ export default function ChatbotsPage() {
               defaultForNumbers={getDefaultForNumbers(bot.id)}
               onToggleActive={handleToggleActive}
               onDelete={handleDelete}
-              onEdit={() => router.push(`/builder/${bot.id}`)}
+              onEdit={() => router.push(`/admin/chatbots/${bot.id}/builder`)}
               onEditSettings={() => handleOpenEditSettings(bot)}
             />
           ))}
