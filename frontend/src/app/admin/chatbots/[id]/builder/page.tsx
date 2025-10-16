@@ -42,6 +42,7 @@ import {
   FileText,
   MousePointerClick,
   List,
+  Library,
 } from 'lucide-react';
 import { chatbotsAPI, flowsAPI } from '@/lib/api/chatbots';
 import type { Chatbot, Flow } from '@/types/chatbot';
@@ -70,6 +71,7 @@ import FlowSimulator from '@/components/admin/builder/FlowSimulator';
 import SessionExpiredModal from '@/components/admin/SessionExpiredModal';
 import { useSessionExpired } from '@/lib/hooks/useSessionExpired';
 import { useToast } from '@/store/notificationStore';
+import FlowTemplateGallery from '@/components/admin/templates/FlowTemplateGallery';
 
 // Palette of node types available to drag
 const NODE_TYPES_PALETTE = [
@@ -153,6 +155,7 @@ export default function ChatbotBuilderPage() {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [showVariablesPanel, setShowVariablesPanel] = useState(true);
   const [showSimulator, setShowSimulator] = useState(false);
+  const [showTemplateGallery, setShowTemplateGallery] = useState(false);
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
@@ -328,6 +331,23 @@ export default function ChatbotBuilderPage() {
     );
   }, [setNodes]);
 
+  const handleTemplateImportSuccess = useCallback(async (flowId: string) => {
+    // Reload flows to include the new imported flow
+    try {
+      const flowsData = await flowsAPI.list(chatbotId);
+      setFlows(flowsData.items || []);
+
+      // Load the imported flow
+      const importedFlow = flowsData.items?.find((f) => f.id === flowId);
+      if (importedFlow) {
+        setSelectedFlow(importedFlow);
+        loadFlowCanvas(importedFlow);
+      }
+    } catch (error) {
+      console.error('Error reloading flows after import:', error);
+    }
+  }, [chatbotId]);
+
   if (isLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -370,6 +390,13 @@ export default function ChatbotBuilderPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowTemplateGallery(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors"
+            >
+              <Library className="w-4 h-4" />
+              Templates
+            </button>
             <button
               onClick={() => setShowSimulator(true)}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
@@ -729,6 +756,15 @@ export default function ChatbotBuilderPage() {
           edges={edges}
           onClose={() => setShowSimulator(false)}
           onHighlightNode={(nodeId) => setHighlightedNodeId(nodeId)}
+        />
+      )}
+
+      {/* Template Gallery Modal */}
+      {showTemplateGallery && (
+        <FlowTemplateGallery
+          chatbotId={chatbotId}
+          onClose={() => setShowTemplateGallery(false)}
+          onImportSuccess={handleTemplateImportSuccess}
         />
       )}
 
