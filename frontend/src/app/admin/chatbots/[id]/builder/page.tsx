@@ -48,6 +48,22 @@ import type { Chatbot, Flow } from '@/types/chatbot';
 import AIPromptProperties from '@/components/admin/builder/AIPromptProperties';
 import APICallProperties from '@/components/admin/builder/APICallProperties';
 import HandoffProperties from '@/components/admin/builder/HandoffProperties';
+import MessageProperties from '@/components/admin/builder/MessageProperties';
+import QuestionProperties from '@/components/admin/builder/QuestionProperties';
+import ConditionProperties from '@/components/admin/builder/ConditionProperties';
+import ActionProperties from '@/components/admin/builder/ActionProperties';
+import DelayProperties from '@/components/admin/builder/DelayProperties';
+import DatabaseQueryProperties from '@/components/admin/builder/DatabaseQueryProperties';
+import ScriptProperties from '@/components/admin/builder/ScriptProperties';
+import SetVariableProperties from '@/components/admin/builder/SetVariableProperties';
+import RandomProperties from '@/components/admin/builder/RandomProperties';
+import DateTimeProperties from '@/components/admin/builder/DateTimeProperties';
+import AnalyticsProperties from '@/components/admin/builder/AnalyticsProperties';
+import WhatsAppTemplateProperties from '@/components/admin/builder/WhatsAppTemplateProperties';
+import InteractiveButtonsProperties from '@/components/admin/builder/InteractiveButtonsProperties';
+import InteractiveListProperties from '@/components/admin/builder/InteractiveListProperties';
+import JumpProperties from '@/components/admin/builder/JumpProperties';
+import EndProperties from '@/components/admin/builder/EndProperties';
 import CustomNode from '@/components/admin/builder/CustomNode';
 import VariablesPanel from '@/components/admin/builder/VariablesPanel';
 import FlowSimulator from '@/components/admin/builder/FlowSimulator';
@@ -469,14 +485,50 @@ export default function ChatbotBuilderPage() {
             {selectedNode ? (
               <div>
                 {/* Render specific properties component based on node type */}
-                {selectedNode.data?.nodeType === 'ai_prompt' && (
-                  <AIPromptProperties
+                {selectedNode.data?.nodeType === 'message' && (
+                  <MessageProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'question' && (
+                  <QuestionProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'condition' && (
+                  <ConditionProperties
                     nodeId={selectedNode.id}
                     data={selectedNode.data}
                     onChange={handleNodeDataChange}
                     chatbotId={chatbotId}
                     nodes={nodes}
                     edges={edges}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'action' && (
+                  <ActionProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'delay' && (
+                  <DelayProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
                   />
                 )}
 
@@ -491,6 +543,119 @@ export default function ChatbotBuilderPage() {
                   />
                 )}
 
+                {selectedNode.data?.nodeType === 'ai_prompt' && (
+                  <AIPromptProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                    nodes={nodes}
+                    edges={edges}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'database_query' && (
+                  <DatabaseQueryProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'script' && (
+                  <ScriptProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'set_variable' && (
+                  <SetVariableProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'random' && (
+                  <RandomProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                    nodes={nodes}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'datetime' && (
+                  <DateTimeProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'analytics' && (
+                  <AnalyticsProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'whatsapp_template' && (
+                  <WhatsAppTemplateProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'interactive_buttons' && (
+                  <InteractiveButtonsProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'interactive_list' && (
+                  <InteractiveListProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'jump' && (
+                  <JumpProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                    nodes={nodes}
+                    edges={edges}
+                  />
+                )}
+
+                {selectedNode.data?.nodeType === 'end' && (
+                  <EndProperties
+                    nodeId={selectedNode.id}
+                    data={selectedNode.data}
+                    onChange={handleNodeDataChange}
+                    chatbotId={chatbotId}
+                  />
+                )}
+
                 {selectedNode.data?.nodeType === 'handoff' && (
                   <HandoffProperties
                     nodeId={selectedNode.id}
@@ -500,8 +665,8 @@ export default function ChatbotBuilderPage() {
                   />
                 )}
 
-                {/* Generic properties for other node types */}
-                {!['ai_prompt', 'api_call', 'handoff'].includes(selectedNode.data?.nodeType) && (
+                {/* Generic fallback for 'start' or any unknown node type */}
+                {!['message', 'question', 'condition', 'action', 'delay', 'api_call', 'ai_prompt', 'database_query', 'script', 'set_variable', 'random', 'datetime', 'analytics', 'whatsapp_template', 'interactive_buttons', 'interactive_list', 'jump', 'end', 'handoff'].includes(selectedNode.data?.nodeType) && (
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">
                       Propriedades do Nó
@@ -525,7 +690,9 @@ export default function ChatbotBuilderPage() {
                       </div>
                       <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          💡 Editor de propriedades para este tipo de nó será implementado em breve
+                          {selectedNode.data?.nodeType === 'start'
+                            ? '🚀 Este é o nó inicial do fluxo. Não requer configuração adicional.'
+                            : '💡 Tipo de nó não reconhecido ou sem propriedades configuráveis'}
                         </p>
                       </div>
                     </div>
