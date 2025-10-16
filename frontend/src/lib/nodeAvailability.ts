@@ -143,6 +143,7 @@ export function formatNodeType(nodeType: string): string {
     ai_prompt: 'AI Prompt',
     database_query: 'Database Query',
     script: 'Script',
+    set_variable: 'Set Variable',
     whatsapp_template: 'WhatsApp Template',
     interactive_buttons: 'Interactive Buttons',
     interactive_list: 'Interactive List',

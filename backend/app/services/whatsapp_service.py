@@ -240,6 +240,12 @@ class WhatsAppService:
             await self._execute_script(conversation, node, flow, incoming_message, node_data)
             return
 
+        # SET VARIABLE NODE: Definir/atualizar variáveis do contexto
+        if node.node_type == "set_variable":
+            logger.info(f"🔧 Executando Set Variable Node")
+            await self._execute_set_variable(conversation, node, flow, incoming_message, node_data)
+            return
+
         # WHATSAPP TEMPLATE NODE: Enviar template oficial do WhatsApp
         if node.node_type == "whatsapp_template":
             logger.info(f"📋 Executando WhatsApp Template Node")
@@ -2839,6 +2845,109 @@ __result__ = __script_func__()
         except Exception as e:
             logger.error(f"Erro na execução do script: {str(e)}")
             raise
+
+    async def _execute_set_variable(self, conversation, node, flow, incoming_message, node_data):
+        """
+        Executa Set Variable Node - Define/atualiza variáveis no contexto da conversa
+
+        Node Data Format:
+        {
+            "variables": [
+                {
+                    "name": "user_name",
+                    "valueType": "static",     # "static", "variable", "expression"
+                    "value": "João Silva",
+                    "variableSource": null,    # Nome da variável para copiar
+                    "expression": null         # Expressão para avaliar
+                }
+            ]
+        }
+
+        Value Types:
+        - static: Valor fixo/literal
+        - variable: Copiar valor de outra variável
+        - expression: Avaliar expressão simples (ex: "{{first_name}} {{last_name}}")
+        """
+        from app.repositories.conversation import ConversationRepository
+        import re
+
+        logger.info(f"🔧 Set Variable Node - Configurando variáveis")
+
+        # Obter variáveis configuradas
+        variables_config = node_data.get("variables", [])
+
+        if not variables_config:
+            logger.warning("⚠️ Nenhuma variável configurada no Set Variable Node")
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
+            return
+
+        # Obter contexto atual
+        conv_repo = ConversationRepository(self.db)
+        context_vars = conversation.context_variables or {}
+
+        logger.info(f"📦 Contexto atual: {list(context_vars.keys())}")
+
+        # Processar cada variável
+        for var_config in variables_config:
+            var_name = var_config.get("name")
+            value_type = var_config.get("valueType", "static")
+
+            if not var_name:
+                logger.warning("⚠️ Nome de variável vazio, pulando")
+                continue
+
+            try:
+                # Determinar valor baseado no tipo
+                if value_type == "static":
+                    # Valor estático/literal
+                    value = var_config.get("value")
+                    logger.info(f"✏️ Definindo '{var_name}' = '{value}' (static)")
+
+                elif value_type == "variable":
+                    # Copiar de outra variável
+                    source_var = var_config.get("variableSource")
+                    if source_var and source_var in context_vars:
+                        value = context_vars[source_var]
+                        logger.info(f"📋 Copiando '{var_name}' <- '{source_var}' = '{value}'")
+                    else:
+                        logger.warning(f"⚠️ Variável source '{source_var}' não encontrada, usando null")
+                        value = None
+
+                elif value_type == "expression":
+                    # Avaliar expressão com substituição de variáveis
+                    expression = var_config.get("expression", "")
+
+                    # Substituir placeholders {{variable}} pelos valores
+                    def replace_placeholder(match):
+                        var = match.group(1)
+                        return str(context_vars.get(var, ""))
+
+                    value = re.sub(r'\{\{(\w+)\}\}', replace_placeholder, expression)
+                    logger.info(f"🔢 Avaliando expressão '{var_name}' = '{expression}' → '{value}'")
+
+                else:
+                    logger.warning(f"⚠️ Tipo de valor '{value_type}' desconhecido, usando null")
+                    value = None
+
+                # Salvar no contexto
+                context_vars[var_name] = value
+
+            except Exception as e:
+                logger.error(f"❌ Erro ao processar variável '{var_name}': {str(e)}")
+                context_vars[var_name] = None
+
+        # Atualizar contexto da conversa
+        try:
+            await conv_repo.update(
+                conversation.id,
+                {"context_variables": context_vars}
+            )
+            logger.info(f"✅ Variáveis atualizadas: {list(context_vars.keys())}")
+        except Exception as e:
+            logger.error(f"❌ Erro ao salvar contexto: {str(e)}")
+
+        # Avançar para próximo node
+        await self._advance_to_next_node(conversation, node, flow, incoming_message)
 
     async def _execute_whatsapp_template(self, conversation, node, flow, incoming_message, node_data):
         """

@@ -27,6 +27,7 @@ class NodeAvailability:
         "ai_prompt",
         "database_query",
         "script",
+        "set_variable",
         "whatsapp_template",
         "interactive_buttons",
         "interactive_list",
@@ -47,6 +48,7 @@ class NodeAvailability:
         "ai_prompt",
         "database_query",
         "script",
+        "set_variable",
     ]
 
     # Nodes EXCLUSIVE to Meta Cloud API (official)
