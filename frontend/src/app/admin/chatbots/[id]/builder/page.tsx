@@ -900,7 +900,6 @@ export default function ChatbotBuilderPage() {
             </div>
           )}
         </div>
-      </div>
     </div>
 
     {/* Flow Simulator Modal */}
