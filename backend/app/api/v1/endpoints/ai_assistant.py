@@ -49,7 +49,7 @@ async def get_ai_settings(
 
     Returns None if not configured.
     """
-    org_repo = OrganizationRepository(Organization, db)
+    org_repo = OrganizationRepository(db)
     org = await org_repo.get(current_user.organization_id)
 
     if not org:
@@ -91,7 +91,7 @@ async def update_ai_settings(
             detail="Only admins can update AI settings"
         )
 
-    org_repo = OrganizationRepository(Organization, db)
+    org_repo = OrganizationRepository(db)
     org = await org_repo.get(current_user.organization_id)
 
     if not org:
@@ -181,7 +181,7 @@ async def suggest_improvements(
         flow_id = UUID(request.flow_id)
 
         # Check flow ownership
-        flow_repo = FlowRepository(Flow, db)
+        flow_repo = FlowRepository(db)
         flow = await flow_repo.get(flow_id)
 
         if not flow or flow.organization_id != current_user.organization_id:
@@ -319,7 +319,7 @@ async def import_template(
 
     # Verify chatbot ownership
     chatbot_id = UUID(request.chatbot_id)
-    chatbot_repo = ChatbotRepository(Chatbot, db)
+    chatbot_repo = ChatbotRepository(db)
     chatbot = await chatbot_repo.get(chatbot_id)
 
     if not chatbot or chatbot.organization_id != current_user.organization_id:
@@ -329,7 +329,7 @@ async def import_template(
         )
 
     # Create flow from template
-    flow_repo = FlowRepository(Flow, db)
+    flow_repo = FlowRepository(db)
 
     flow_name = request.flow_name or template.name
     flow_data = template.flow_data
