@@ -234,6 +234,12 @@ class WhatsAppService:
             await self._execute_database_query(conversation, node, flow, incoming_message, node_data)
             return
 
+        # SCRIPT NODE: Executar código Python customizado
+        if node.node_type == "script":
+            logger.info(f"📜 Executando Script Node")
+            await self._execute_script(conversation, node, flow, incoming_message, node_data)
+            return
+
         # WHATSAPP TEMPLATE NODE: Enviar template oficial do WhatsApp
         if node.node_type == "whatsapp_template":
             logger.info(f"📋 Executando WhatsApp Template Node")
@@ -2620,6 +2626,219 @@ class WhatsAppService:
         else:
             # Formato desconhecido, retorna lista
             return result
+
+    async def _execute_script(self, conversation, node, flow, incoming_message, node_data):
+        """
+        Executa Script Node - Roda código Python customizado para transformação de dados
+
+        Node Data Format:
+        {
+            "language": "python",  # Apenas Python suportado no backend
+            "code": "return int(user_age) >= 18",
+            "inputVariables": ["user_age"],  # Opcional: lista de variáveis que o script usa
+            "outputVariable": "is_adult",
+            "timeout": 5,  # Segundos (padrão: 5)
+            "errorHandling": {
+                "onError": "continue",  # continue ou stop
+                "fallbackValue": null
+            }
+        }
+        """
+        from app.repositories.conversation import ConversationRepository
+        import asyncio
+        import json
+
+        logger.info(f"📜 Executando Script Node")
+
+        conv_repo = ConversationRepository(self.db)
+
+        # Extrair configurações
+        language = node_data.get("language", "python")
+        code = node_data.get("code", "")
+        input_variables = node_data.get("inputVariables", [])
+        output_variable = node_data.get("outputVariable")
+        timeout = node_data.get("timeout", 5)
+        error_handling = node_data.get("errorHandling", {})
+        on_error = error_handling.get("onError", "continue")
+        fallback_value = error_handling.get("fallbackValue")
+
+        # Validações
+        if not code:
+            logger.error("❌ Script Node sem código definido")
+            await self._advance_to_next_node(conversation, node, flow, incoming_message)
+            return
+
+        if language != "python":
+            logger.warning(f"⚠️ Linguagem '{language}' não suportada. Apenas Python é suportado no backend.")
+            if on_error == "stop":
+                await self._execute_handoff(
+                    conversation,
+                    {
+                        "transferMessage": "Erro ao processar script. Transferindo para agente.",
+                        "sendTransferMessage": True,
+                        "priority": "high"
+                    }
+                )
+                return
+            else:
+                # Continue com fallback
+                if output_variable and fallback_value is not None:
+                    context_vars = conversation.context_variables or {}
+                    context_vars[output_variable] = fallback_value
+                    await conv_repo.update(conversation.id, {"context_variables": context_vars})
+                await self._advance_to_next_node(conversation, node, flow, incoming_message)
+                return
+
+        # Obter variáveis do contexto
+        context_vars = conversation.context_variables or {}
+
+        # Preparar namespace para execução do script
+        # Criar namespace seguro com apenas variáveis necessárias
+        script_namespace = {
+            # Bibliotecas Python padrão permitidas
+            '__builtins__': {
+                'abs': abs,
+                'all': all,
+                'any': any,
+                'bool': bool,
+                'dict': dict,
+                'enumerate': enumerate,
+                'filter': filter,
+                'float': float,
+                'int': int,
+                'len': len,
+                'list': list,
+                'map': map,
+                'max': max,
+                'min': min,
+                'range': range,
+                'reversed': reversed,
+                'round': round,
+                'sorted': sorted,
+                'str': str,
+                'sum': sum,
+                'tuple': tuple,
+                'zip': zip,
+                'True': True,
+                'False': False,
+                'None': None,
+            },
+            # Adicionar variáveis do contexto
+            **context_vars
+        }
+
+        # Logs
+        logger.info(f"  📝 Código Python ({len(code)} caracteres)")
+        logger.info(f"  🔧 Timeout: {timeout}s")
+        if input_variables:
+            logger.info(f"  📥 Variáveis de entrada: {input_variables}")
+        if output_variable:
+            logger.info(f"  📤 Variável de saída: {output_variable}")
+
+        try:
+            # Executar código Python com timeout
+            result = await asyncio.wait_for(
+                self._run_python_script(code, script_namespace),
+                timeout=timeout
+            )
+
+            logger.info(f"  ✅ Script executado com sucesso")
+            logger.info(f"  💾 Resultado: {result}")
+
+            # Salvar resultado na variável de output
+            if output_variable:
+                context_vars[output_variable] = result
+                await conv_repo.update(conversation.id, {"context_variables": context_vars})
+                await self.db.commit()
+                logger.info(f"  💾 Resultado salvo em '{output_variable}'")
+
+        except asyncio.TimeoutError:
+            logger.error(f"  ⏰ Timeout! Script excedeu {timeout}s")
+
+            if on_error == "stop":
+                await self._execute_handoff(
+                    conversation,
+                    {
+                        "transferMessage": "Tempo de processamento excedido. Transferindo para agente.",
+                        "sendTransferMessage": True,
+                        "priority": "high"
+                    }
+                )
+                return
+            else:
+                # Continue com fallback
+                if output_variable and fallback_value is not None:
+                    context_vars[output_variable] = fallback_value
+                    await conv_repo.update(conversation.id, {"context_variables": context_vars})
+                    await self.db.commit()
+
+        except Exception as e:
+            logger.error(f"  ❌ Erro ao executar script: {str(e)}")
+
+            if on_error == "stop":
+                await self._execute_handoff(
+                    conversation,
+                    {
+                        "transferMessage": "Erro ao processar dados. Transferindo para agente.",
+                        "sendTransferMessage": True,
+                        "priority": "high"
+                    }
+                )
+                return
+            else:
+                # Continue com fallback
+                if output_variable and fallback_value is not None:
+                    context_vars[output_variable] = fallback_value
+                    await conv_repo.update(conversation.id, {"context_variables": context_vars})
+                    await self.db.commit()
+
+        logger.info(f"✅ Script Node concluído")
+
+        # Avançar para próximo node
+        await self._advance_to_next_node(conversation, node, flow, incoming_message)
+
+    async def _run_python_script(self, code: str, namespace: dict) -> any:
+        """
+        Executa código Python em um namespace restrito.
+
+        Args:
+            code: Código Python a ser executado
+            namespace: Namespace (variáveis disponíveis)
+
+        Returns:
+            Resultado retornado pelo script (via return)
+        """
+        import asyncio
+
+        # Se o código não tem return explícito, adicionar return na última linha se for expressão
+        code_lines = code.strip().split('\n')
+        if code_lines and not any(line.strip().startswith('return') for line in code_lines):
+            # Se é uma única expressão, adicionar return
+            if len(code_lines) == 1 and not ':' in code_lines[0]:
+                code = f"return {code}"
+
+        # Wrapper para capturar o return
+        wrapped_code = f"""
+def __script_func__():
+    {chr(10).join('    ' + line for line in code.split(chr(10)))}
+
+__result__ = __script_func__()
+"""
+
+        try:
+            # Executar em thread separada para não bloquear o event loop
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None,
+                lambda: exec(wrapped_code, namespace)
+            )
+
+            # Retornar resultado
+            return namespace.get('__result__')
+
+        except Exception as e:
+            logger.error(f"Erro na execução do script: {str(e)}")
+            raise
 
     async def _execute_whatsapp_template(self, conversation, node, flow, incoming_message, node_data):
         """
