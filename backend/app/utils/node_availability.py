@@ -30,6 +30,7 @@ class NodeAvailability:
         "set_variable",
         "random",
         "datetime",
+        "analytics",
         "whatsapp_template",
         "interactive_buttons",
         "interactive_list",
@@ -53,6 +54,7 @@ class NodeAvailability:
         "set_variable",
         "random",
         "datetime",
+        "analytics",
     ]
 
     # Nodes EXCLUSIVE to Meta Cloud API (official)

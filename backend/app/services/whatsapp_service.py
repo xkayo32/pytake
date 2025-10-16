@@ -258,6 +258,12 @@ class WhatsAppService:
             await self._execute_datetime(conversation, node, flow, incoming_message, node_data)
             return
 
+        # ANALYTICS NODE: Tracking de métricas e eventos customizados
+        if node.node_type == "analytics":
+            logger.info(f"📊 Executando Analytics Node")
+            await self._execute_analytics(conversation, node, flow, incoming_message, node_data)
+            return
+
         # WHATSAPP TEMPLATE NODE: Enviar template oficial do WhatsApp
         if node.node_type == "whatsapp_template":
             logger.info(f"📋 Executando WhatsApp Template Node")
@@ -3232,6 +3238,134 @@ __result__ = __script_func__()
                     conversation.id,
                     {"context_variables": context_vars}
                 )
+
+        # Avançar para próximo node
+        await self._advance_to_next_node(conversation, node, flow, incoming_message)
+
+    async def _execute_analytics(self, conversation, node, flow, incoming_message, node_data):
+        """
+        Executa Analytics Node - Tracking de eventos e métricas customizadas
+
+        Node Data Format:
+        {
+            "eventType": "conversion",  # Tipo de evento (conversion, goal, custom)
+            "eventName": "purchase_completed",  # Nome específico do evento
+            "eventValue": null,  # Valor numérico opcional
+            "eventValueVariable": null,  # Ou pegar valor de variável
+            "eventProperties": {},  # Propriedades adicionais
+            "tags": ["high_value", "premium"],  # Tags para adicionar
+            "incrementCounter": "total_purchases",  # Contador para incrementar
+            "saveToVariable": "event_id"  # Salvar ID do evento em variável
+        }
+        """
+        from app.repositories.conversation import ConversationRepository
+        from app.core.mongodb import get_mongodb_client
+        from datetime import datetime
+        import uuid
+
+        logger.info(f"📊 Analytics Node - Rastreando evento")
+
+        event_type = node_data.get("eventType", "custom")
+        event_name = node_data.get("eventName", "unnamed_event")
+        event_value = node_data.get("eventValue")
+        event_value_variable = node_data.get("eventValueVariable")
+        event_properties = node_data.get("eventProperties", {})
+        tags = node_data.get("tags", [])
+        increment_counter = node_data.get("incrementCounter")
+        save_to_variable = node_data.get("saveToVariable")
+
+        # Obter contexto
+        conv_repo = ConversationRepository(self.db)
+        context_vars = conversation.context_variables or {}
+
+        try:
+            # Obter valor do evento de variável se especificado
+            if event_value_variable and event_value_variable in context_vars:
+                event_value = context_vars[event_value_variable]
+                logger.info(f"💰 Valor do evento obtido de '{event_value_variable}': {event_value}")
+
+            # Preparar documento do evento para MongoDB
+            event_id = str(uuid.uuid4())
+            event_document = {
+                "_id": event_id,
+                "event_type": event_type,
+                "event_name": event_name,
+                "event_value": event_value,
+                "event_properties": event_properties,
+                "tags": tags,
+                "conversation_id": str(conversation.id),
+                "contact_id": str(conversation.contact_id),
+                "organization_id": str(conversation.organization_id),
+                "chatbot_id": str(conversation.chatbot_id) if conversation.chatbot_id else None,
+                "node_id": node.get("id"),
+                "node_label": node.get("data", {}).get("label", ""),
+                "timestamp": datetime.utcnow(),
+                "context_variables": context_vars  # Snapshot do contexto
+            }
+
+            # Salvar no MongoDB
+            try:
+                mongodb_client = get_mongodb_client()
+                if mongodb_client and mongodb_client.db:
+                    events_collection = mongodb_client.db["chatbot_events"]
+                    events_collection.insert_one(event_document)
+                    logger.info(f"✅ Evento '{event_name}' salvo no MongoDB (ID: {event_id})")
+                else:
+                    logger.warning("⚠️ MongoDB não disponível, evento não salvo")
+            except Exception as mongo_error:
+                logger.error(f"❌ Erro ao salvar evento no MongoDB: {str(mongo_error)}")
+
+            # Adicionar tags à conversa
+            if tags:
+                current_tags = list(conversation.tags or [])
+                for tag in tags:
+                    if tag not in current_tags:
+                        current_tags.append(tag)
+
+                try:
+                    await conv_repo.update(
+                        conversation.id,
+                        {"tags": current_tags}
+                    )
+                    logger.info(f"🏷️ Tags adicionadas: {tags}")
+                except Exception as tag_error:
+                    logger.error(f"❌ Erro ao adicionar tags: {str(tag_error)}")
+
+            # Incrementar contador na conversa
+            if increment_counter:
+                extra_data = conversation.extra_data or {}
+                counters = extra_data.get("counters", {})
+                counters[increment_counter] = counters.get(increment_counter, 0) + 1
+                extra_data["counters"] = counters
+
+                try:
+                    await conv_repo.update(
+                        conversation.id,
+                        {"extra_data": extra_data}
+                    )
+                    logger.info(f"🔢 Contador '{increment_counter}' incrementado: {counters[increment_counter]}")
+                except Exception as counter_error:
+                    logger.error(f"❌ Erro ao incrementar contador: {str(counter_error)}")
+
+            # Salvar ID do evento em variável
+            if save_to_variable:
+                context_vars[save_to_variable] = event_id
+                try:
+                    await conv_repo.update(
+                        conversation.id,
+                        {"context_variables": context_vars}
+                    )
+                    logger.info(f"💾 Event ID salvo em '{save_to_variable}' = '{event_id}'")
+                except Exception as var_error:
+                    logger.error(f"❌ Erro ao salvar event ID: {str(var_error)}")
+
+            logger.info(
+                f"📈 Analytics registrado: {event_type}/{event_name} "
+                f"(valor: {event_value}, tags: {len(tags)})"
+            )
+
+        except Exception as e:
+            logger.error(f"❌ Erro no Analytics Node: {str(e)}")
 
         # Avançar para próximo node
         await self._advance_to_next_node(conversation, node, flow, incoming_message)
