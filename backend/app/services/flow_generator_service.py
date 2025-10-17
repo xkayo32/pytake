@@ -42,8 +42,8 @@ class FlowGeneratorService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.chatbot_repo = ChatbotRepository(Chatbot, db)
-        self.org_repo = OrganizationRepository(Organization, db)
+        self.chatbot_repo = ChatbotRepository(db)
+        self.org_repo = OrganizationRepository(db)
 
     async def get_ai_settings(self, organization_id: UUID) -> Optional[AIAssistantSettings]:
         """
@@ -202,9 +202,8 @@ class FlowGeneratorService:
             raise ValueError("AI Assistant não está configurado ou habilitado")
 
         # Get flow
-        from app.repositories.flow import FlowRepository
-        from app.models.chatbot import Flow
-        flow_repo = FlowRepository(Flow, self.db)
+        from app.repositories.chatbot import FlowRepository
+        flow_repo = FlowRepository(self.db)
         flow = await flow_repo.get(flow_id)
 
         if not flow or flow.organization_id != organization_id:
