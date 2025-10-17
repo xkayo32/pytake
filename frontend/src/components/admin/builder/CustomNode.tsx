@@ -299,6 +299,12 @@ export default function CustomNode({ data }: NodeProps) {
   const hasTargetHandle = nodeType !== 'start'; // Início não tem entrada
   const hasSourceHandle = nodeType !== 'end';   // Fim não tem saída
 
+  // Para nó de condição, criar múltiplos handles de saída
+  const isConditionNode = nodeType === 'condition';
+  const conditions = isConditionNode ? (data.conditions || []) : [];
+  const hasDefaultRoute = isConditionNode ? (data.hasDefaultRoute ?? true) : false;
+  const totalOutputs = isConditionNode ? conditions.length + (hasDefaultRoute ? 1 : 0) : 1;
+
   const needsTooltip = fullText && fullText.length > 30;
 
   return (
@@ -379,14 +385,57 @@ export default function CustomNode({ data }: NodeProps) {
         </div>
       )}
 
-      {/* Source Handle (saída) - apenas se não for 'end' */}
-      {hasSourceHandle && (
+      {/* Source Handles (saída) */}
+      {hasSourceHandle && !isConditionNode && (
+        // Single output handle para nós normais
         <Handle
           type="source"
           position={Position.Bottom}
           className="custom-handle custom-handle-source"
           style={{ background: color }}
         />
+      )}
+
+      {/* Multiple output handles para nó Condition */}
+      {hasSourceHandle && isConditionNode && totalOutputs > 0 && (
+        <>
+          {conditions.map((condition: any, index: number) => {
+            // Calcular posição horizontal do handle (distribuir uniformemente)
+            const spacing = 100 / (totalOutputs + 1);
+            const leftPercent = spacing * (index + 1);
+
+            return (
+              <Handle
+                key={`condition-${index}`}
+                type="source"
+                position={Position.Bottom}
+                id={`condition-${index}`}
+                className="custom-handle custom-handle-source"
+                style={{
+                  background: color,
+                  left: `${leftPercent}%`,
+                }}
+                title={condition.label || `Condição ${index + 1}`}
+              />
+            );
+          })}
+
+          {/* Default route handle (senão) */}
+          {hasDefaultRoute && (
+            <Handle
+              key="condition-default"
+              type="source"
+              position={Position.Bottom}
+              id="condition-default"
+              className="custom-handle custom-handle-source"
+              style={{
+                background: '#6b7280', // Gray para rota padrão
+                left: `${100 / (totalOutputs + 1) * totalOutputs}%`,
+              }}
+              title="Senão (rota padrão)"
+            />
+          )}
+        </>
       )}
     </>
   );
