@@ -427,45 +427,42 @@ export default function CustomNode({ data }: NodeProps) {
         </div>
       )}
 
+      {/* Footer com labels das saídas (apenas para nós de condição) */}
+      {isConditionNode && (
+        <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 relative">
+          <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+            Saídas:
+          </div>
+          <div className="space-y-1.5">
+            {conditions.map((condition: any, index: number) => {
+              const labelText = condition.label || `Condição ${index + 1}`;
+              return (
+                <div
+                  key={`label-${index}`}
+                  className="flex items-center gap-1.5 text-[11px] text-gray-700 dark:text-gray-300"
+                >
+                  <div
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="truncate">{truncate(labelText, 25)}</span>
+                </div>
+              );
+            })}
+            {hasDefaultRoute && (
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-600 dark:text-gray-400">
+                <div className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
+                <span>Senão (padrão)</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Tooltip icon */}
       {needsTooltip && (
         <div className="absolute top-2.5 right-3 z-10">
           <Info className="w-3.5 h-3.5 text-gray-400 opacity-60 hover:opacity-100 transition-opacity" />
-        </div>
-      )}
-
-      {/* Labels das condições - alinhadas com handles de saída (dentro do card) */}
-      {isConditionNode && conditions.map((condition: any, index: number) => {
-        const spacing = 100 / (totalOutputs + 1);
-        const topPercent = spacing * (index + 1);
-        const labelText = condition.label || `Condição ${index + 1}`;
-
-        return (
-          <div
-            key={`label-${index}`}
-            className="absolute pointer-events-none bg-white dark:bg-gray-800 px-2 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700 whitespace-nowrap text-[10px] font-medium text-gray-700 dark:text-gray-300 z-10"
-            style={{
-              top: `${topPercent}%`,
-              right: '16px',
-              transform: 'translateY(-50%)',
-            }}
-          >
-            {truncate(labelText, 15)}
-          </div>
-        );
-      })}
-
-      {/* Label "Senão" - alinhada com handle padrão */}
-      {isConditionNode && hasDefaultRoute && (
-        <div
-          className="absolute pointer-events-none bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm border border-gray-300 dark:border-gray-600 whitespace-nowrap text-[10px] font-medium text-gray-600 dark:text-gray-400 z-10"
-          style={{
-            top: `${100 / (totalOutputs + 1) * totalOutputs}%`,
-            right: '16px',
-            transform: 'translateY(-50%)',
-          }}
-        >
-          Senão
         </div>
       )}
 
@@ -479,12 +476,17 @@ export default function CustomNode({ data }: NodeProps) {
         />
       )}
 
-      {/* Multiple source handles - nós de condição */}
+      {/* Multiple source handles - nós de condição - alinhados com o footer */}
       {hasSourceHandle && isConditionNode && totalOutputs > 0 && (
         <>
           {conditions.map((condition: any, index: number) => {
-            const spacing = 100 / (totalOutputs + 1);
-            const topPercent = spacing * (index + 1);
+            // Posicionar de baixo para cima
+            // Footer base: 12px (padding) + 18px (título "Saídas:") = 30px
+            // Cada linha: 20px de altura + 6px de espaçamento = 26px
+            const baseOffset = 30; // offset inicial do footer
+            const lineHeight = 26; // altura de cada linha
+            const reverseIndex = totalOutputs - index - 1; // inverter para começar de baixo
+            const bottomPx = baseOffset + (reverseIndex * lineHeight);
 
             return (
               <Handle
@@ -495,13 +497,14 @@ export default function CustomNode({ data }: NodeProps) {
                 className="custom-handle custom-handle-source"
                 style={{
                   background: color,
-                  top: `${topPercent}%`,
+                  top: 'auto',
+                  bottom: `${bottomPx}px`,
                 }}
               />
             );
           })}
 
-          {/* Default route handle (senão) */}
+          {/* Default route handle (senão) - primeira linha do footer */}
           {hasDefaultRoute && (
             <Handle
               key="condition-default"
@@ -511,7 +514,8 @@ export default function CustomNode({ data }: NodeProps) {
               className="custom-handle custom-handle-source"
               style={{
                 background: '#6b7280',
-                top: `${100 / (totalOutputs + 1) * totalOutputs}%`,
+                top: 'auto',
+                bottom: '30px', // alinhado com a primeira linha (senão)
               }}
             />
           )}
