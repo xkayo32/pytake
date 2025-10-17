@@ -483,11 +483,17 @@ export default function CustomNode({ data }: NodeProps) {
       {hasSourceHandle && isConditionNode && totalOutputs > 0 && (
         <>
           {conditions.map((condition: any, index: number) => {
-            // Começar de baixo: padding (8px) + metade da linha (10px) = 18px base
-            // Cada linha: 20px de altura + 6px de espaçamento (space-y-1.5) = 26px
-            const basePadding = 18; // ponto inicial (fim do card)
-            const lineHeight = 26; // altura total de cada linha
-            const bottomPx = basePadding + (index * lineHeight);
+            // Medidas precisas Tailwind:
+            // - py-2 = 8px padding bottom
+            // - text-[11px] com line-height padrão ≈ 16px
+            // - space-y-1.5 = 6px gap
+            // - Ponto central da linha: 8px (altura do texto / 2)
+
+            const paddingBottom = 8; // py-2
+            const lineCenterOffset = 8; // metade da altura da linha (~16px / 2)
+            const lineHeightWithGap = 22; // 16px (linha) + 6px (gap)
+
+            const bottomPx = paddingBottom + lineCenterOffset + (index * lineHeightWithGap);
 
             return (
               <Handle
@@ -516,7 +522,7 @@ export default function CustomNode({ data }: NodeProps) {
               style={{
                 background: '#6b7280',
                 top: 'auto',
-                bottom: `${18 + (conditions.length * 26)}px`,
+                bottom: `${8 + 8 + (conditions.length * 22)}px`,
               }}
             />
           )}
