@@ -292,6 +292,291 @@ O PyTake é uma plataforma completa de automação e atendimento via WhatsApp qu
 - Caminhos mais usados
 - Taxa de handoff
 
+#### 2.8 AI Flow Assistant (Geração Automática de Fluxos)
+
+**Rota:** `/admin/chatbots/[id]/builder` (painel lateral direito)
+
+**Visão Geral:**
+- Assistente AI que gera fluxos de chatbot automaticamente baseado em descrições em linguagem natural
+- Usa modelos de linguagem (LLMs) para entender requisitos e criar estruturas de fluxo completas
+- Suporta conversação multi-round para clarificação de requisitos
+- Integrado diretamente no builder de fluxos
+
+**Funcionalidades Principais:**
+
+**1. Geração de Fluxos por Descrição:**
+- Input em linguagem natural (português)
+- Exemplos:
+  - "Crie um fluxo de atendimento para vendas de imóveis"
+  - "Quero um chatbot que qualifica leads e agenda reuniões"
+  - "Preciso de um fluxo de suporte técnico com FAQ"
+- AI analisa descrição e gera estrutura completa de nós e conexões
+
+**2. Detecção Inteligente de Contexto:**
+- Detecta automaticamente o tipo de número WhatsApp conectado (oficial ou QR Code)
+- Ajusta sugestões de componentes baseado no tipo de conexão:
+  - WhatsApp Oficial: sugere templates, botões interativos, listas
+  - QR Code (Evolution API): foca em mensagens de texto e perguntas
+- Considera setor/indústria da organização (se configurado)
+
+**3. Clarificação de Requisitos:**
+- Se descrição for vaga, AI faz perguntas de clarificação
+- Tipos de perguntas:
+  - Múltipla escolha (radio buttons)
+  - Texto livre (inputs)
+- Exemplos de clarificação:
+  - "Qual o objetivo principal do fluxo?"
+  - "Quantas opções você quer no menu principal?"
+  - "Deseja transferir para atendimento humano ao final?"
+- Após respostas, AI gera fluxo refinado
+
+**4. Preview Visual do Fluxo Gerado:**
+- Card de preview com informações do fluxo:
+  - Nome do fluxo
+  - Descrição
+  - Estatísticas (quantidade de nós e conexões)
+  - Tags dos tipos de nós usados
+- Toggle "Ver Preview Visual":
+  - Abre canvas interativo (200px altura)
+  - Visualização read-only com React Flow
+  - Mostra estrutura completa do grafo
+  - Permite validar antes de importar
+- Opção de renomear fluxo (clique no nome)
+- Botão "Tentar novamente" para regenerar
+
+**5. Importação para Builder:**
+- Botão "Importar Flow" adiciona nós e conexões ao canvas
+- Preserva posições e estrutura do fluxo gerado
+- Fluxo pode ser editado normalmente após importação
+- Auto-save automático após importação
+
+**6. Chat Interface:**
+- Interface de chat conversacional (similar ChatGPT)
+- Mensagens do usuário (bolhas azuis, lado direito)
+- Mensagens do assistente (bolhas cinzas, lado esquerdo, com Markdown)
+- Avatares:
+  - Usuário: ícone User
+  - AI: ícone Sparkles (✨)
+- Timestamps em formato local
+- Auto-scroll para nova mensagem
+- Histórico completo da conversa
+
+**7. Suporte Markdown nas Respostas:**
+- Respostas da AI com formatação rica:
+  - **Negrito** e *itálico*
+  - Listas numeradas e com marcadores
+  - `Código inline`
+  - Blocos de código
+  - Quebras de linha
+- Componentes customizados com Tailwind
+- Estilo consistente com o tema roxo do assistente
+
+**Configurações Disponíveis:**
+
+**Seleção de Modelo:**
+- GPT-4 (OpenAI)
+- GPT-3.5-turbo (OpenAI)
+- Claude 3 Opus (Anthropic)
+- Claude 3 Sonnet (Anthropic)
+- Gemini Pro (Google)
+
+**Parâmetros do Modelo:**
+- Temperatura (0.0 - 1.0)
+  - Baixa (0.2): Respostas mais consistentes
+  - Média (0.7): Balanceado
+  - Alta (1.0): Mais criativo
+- Configurável por organização
+
+**Contexto Enviado à AI:**
+- Descrição do usuário
+- Tipo de conexão WhatsApp
+- Setor da organização
+- Templates disponíveis (se WhatsApp oficial)
+- Respostas de clarificação (se houver)
+
+**Estados de Interação:**
+
+**1. Idle (Ocioso):**
+- Campo de input disponível
+- Botão "Gerar Flow" habilitado
+- Placeholder: "Descreva o fluxo que você deseja criar..."
+
+**2. Gerando:**
+- Loading spinner
+- Botão desabilitado
+- Texto: "Gerando flow..."
+
+**3. Clarificação:**
+- Formulário com perguntas da AI
+- Inputs/radio buttons
+- Botão "Enviar Respostas"
+- Validação: todas perguntas devem ser respondidas
+
+**4. Fluxo Gerado:**
+- Card de preview do fluxo
+- Botões de ação disponíveis:
+  - "Importar Flow" (primário)
+  - "Tentar novamente" (secundário)
+
+**5. Erro:**
+- Mensagem de erro em texto
+- Opção de tentar novamente
+- Erros comuns:
+  - "Falha na conexão com AI"
+  - "Modelo não disponível"
+  - "Requisição inválida"
+
+**Estrutura do Fluxo Gerado:**
+
+**Formato JSON:**
+```json
+{
+  "name": "Nome do Fluxo",
+  "description": "Descrição detalhada",
+  "canvas_data": {
+    "nodes": [
+      {
+        "id": "node-uuid",
+        "type": "customNode",
+        "position": { "x": 100, "y": 100 },
+        "data": {
+          "nodeType": "start",
+          "label": "Início",
+          "config": { /* configurações específicas */ }
+        }
+      }
+      // ... mais nós
+    ],
+    "edges": [
+      {
+        "id": "edge-uuid",
+        "source": "node-uuid-1",
+        "target": "node-uuid-2",
+        "type": "smoothstep"
+      }
+      // ... mais conexões
+    ]
+  }
+}
+```
+
+**Tipos de Nós Gerados:**
+- Start (sempre presente)
+- Message (mensagens de texto)
+- Question (captura de dados)
+- Condition (ramificações lógicas)
+- Action (ações como salvar contato)
+- Handoff (transferência para humano)
+- End (finalização)
+- WhatsApp Template (se conexão oficial)
+- Interactive Buttons (se conexão oficial)
+- Interactive List (se conexão oficial)
+
+**Posicionamento Automático:**
+- Layout hierárquico (top-down)
+- Espaçamento horizontal: 250px
+- Espaçamento vertical: 150px
+- Centralização automática
+
+**Exemplos de Uso:**
+
+**Exemplo 1 - Fluxo de Vendas Simples:**
+```
+Usuário: "Crie um fluxo para vender cursos online"
+
+AI: "Vou criar um fluxo de vendas. Preciso saber:
+1. Quantos cursos você oferece?
+2. Deseja capturar email do lead?
+3. Após apresentar os cursos, o que fazer?"
+
+Usuário: [Responde formulário]
+- 3 cursos
+- Sim, capturar email
+- Transferir para vendedor
+
+AI: [Gera fluxo com]:
+- Start
+- Message: Boas-vindas
+- Interactive List: Selecionar curso
+- Question: Capturar email
+- Message: Confirmar interesse
+- Handoff: Transferir para vendedor
+- End
+```
+
+**Exemplo 2 - Fluxo de Suporte:**
+```
+Usuário: "Preciso de um chatbot de suporte técnico com FAQ"
+
+AI: [Gera fluxo com]:
+- Start
+- Message: Boas-vindas
+- Interactive Buttons: "Problema técnico" ou "Falar com atendente"
+- Condition: Verifica escolha
+  - Se "Problema técnico":
+    - Interactive List: Tipos de problema
+    - Message: Solução do FAQ
+    - Question: "Resolveu seu problema?"
+    - Condition: Se "Não" → Handoff
+  - Se "Falar com atendente":
+    - Handoff direto
+- End
+```
+
+**Melhorias e Otimizações:**
+
+**✅ Implementado:**
+- Interface de chat conversacional (commit `cc56648`)
+- Clarificação com formulários interativos (ClarificationForm)
+- Preview visual com React Flow (FlowPreview)
+- Suporte Markdown nas mensagens (ChatMessage)
+- Detecção de tipo de conexão WhatsApp
+- Importação direta para canvas
+- Renomeação de fluxos antes de importar
+- Estados de loading e erro
+
+**🔄 Futuro:**
+- Histórico de fluxos gerados (salvos localmente)
+- Exportar/importar conversas com AI
+- Templates de prompts pré-definidos
+- Sugestões baseadas em fluxos existentes
+- Refinamento iterativo de fluxos
+- Categorização automática de exemplos
+- Analytics de uso do assistente
+
+**Requisitos Técnicos:**
+
+**Backend:**
+- Endpoint: `POST /api/v1/ai-assistant/generate-flow`
+- Serviço: `AIFlowAssistantService` (business logic)
+- Integração: OpenAI, Anthropic, Google AI APIs
+- Rate limiting: 10 requests/min por organização
+- Timeout: 30s
+
+**Frontend:**
+- Componentes:
+  - `AIFlowAssistant.tsx` - Container principal
+  - `ChatMessage.tsx` - Mensagens individuais
+  - `ClarificationForm.tsx` - Formulário de perguntas
+  - `FlowPreview.tsx` - Preview do fluxo
+- Dependências:
+  - `react-markdown@9` - Renderização Markdown
+  - `@xyflow/react` - Preview visual
+  - `lucide-react` - Ícones
+
+**Segurança:**
+- API keys armazenadas criptografadas (AES-256)
+- Rate limiting por organização
+- Validação de entrada (max 2000 caracteres)
+- Sanitização de JSON gerado
+- Logs de uso para auditoria
+
+**Performance:**
+- Geração média: 5-10 segundos
+- Cache de configurações (Redis)
+- Retry automático (até 2 tentativas)
+- Feedback visual durante geração
+
 ---
 
 ## 💬 3. Inbox (Atendimento Humano)

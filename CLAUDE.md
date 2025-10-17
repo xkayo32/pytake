@@ -1178,6 +1178,174 @@ stats = await repo.get_usage_stats(organization_id)
 
 See [AI_MODELS.md](AI_MODELS.md) for complete documentation.
 
+---
+
+### AI Flow Assistant (October 2025)
+
+**COMPLETED ✅ - Intelligent Flow Generation with Advanced Features**
+
+An AI-powered conversational assistant that generates complete chatbot flows from natural language descriptions, with smart component selection based on WhatsApp type.
+
+#### Core Features Implemented
+
+**1. Conversational Flow Generation**
+- **Natural Language Processing**: Describe flows in plain language (Portuguese or English)
+- **Smart WhatsApp Detection**: Automatically detects chatbot's WhatsApp type (Official API vs QR Code)
+- **Intelligent Component Selection**:
+  - **Official API (Meta Cloud)**: Generates `interactive_buttons` and `interactive_list` nodes
+  - **QR Code (Evolution)**: Generates text-based numbered options (e.g., "1 - Cliente\n2 - Suporte")
+- **Industry Context**: Optional industry/sector selection for better context
+
+**2. Clarification Questions UI** ✅
+- **Interactive Question Form**: `ClarificationForm.tsx` component with radio buttons and text inputs
+- **Multiple Choice Support**: Radio button selection for predefined options
+- **Free Text Input**: Text fields for open-ended clarifications
+- **Multi-Round Clarifications**: Supports iterative clarification process
+- **Answer Persistence**: Stores last description and sends with clarifications
+
+**3. Visual Flow Preview** ✅
+- **Graph Miniature**: React Flow-powered visual preview of generated flow
+- **Toggle View**: "Ver Preview Visual" button to show/hide thumbnail
+- **Read-Only Preview**: Non-interactive visualization (no drag, zoom, or selection)
+- **200px Height Canvas**: Compact preview with fitView for optimal display
+- **Background Grid**: Visual background for professional appearance
+
+**4. Markdown Support in Messages** ✅
+- **Rich Formatting**: Supports **bold**, lists (ordered/unordered), and `inline code`
+- **Assistant-Only**: Markdown rendering only for AI responses
+- **Custom Styling**: Tailwind prose classes with custom component overrides
+- **Compact Display**: Optimized spacing for chat interface
+
+#### Technical Architecture
+
+**Backend:**
+```
+backend/app/
+├── services/flow_generator_service.py      # Core AI flow generation service
+│   ├── generate_flow_from_description()    # Main generation method
+│   ├── suggest_improvements()              # Flow improvement suggestions
+│   ├── _build_system_prompt()              # Dynamic prompt based on WhatsApp type
+│   └── _call_anthropic() / _call_openai()  # AI provider integration
+├── schemas/ai_assistant.py                 # Pydantic schemas
+│   ├── GenerateFlowRequest
+│   ├── GenerateFlowResponse
+│   ├── ClarificationQuestion
+│   └── FlowImprovement
+└── api/v1/endpoints/ai_assistant.py        # REST endpoints
+    ├── POST /generate-flow                 # Generate flow from description
+    └── POST /suggest-improvements          # Analyze and suggest improvements
+```
+
+**Frontend:**
+```
+frontend/src/components/admin/ai-assistant/
+├── AIFlowAssistant.tsx          # Main assistant modal component
+├── ClarificationForm.tsx        # NEW: Interactive clarification UI
+├── FlowPreview.tsx              # Enhanced with visual graph preview
+├── ChatMessage.tsx              # Enhanced with Markdown support
+├── IndustrySelect.tsx           # Industry/sector selection
+└── ExamplesModal.tsx            # Pre-built example prompts
+```
+
+#### API Endpoints
+
+```bash
+# Generate flow from description
+POST /api/v1/ai-assistant/generate-flow
+{
+  "description": "Crie um chatbot de vendas...",
+  "industry": "E-commerce",
+  "language": "pt-BR",
+  "chatbot_id": "uuid-here",        # NEW: For WhatsApp type detection
+  "clarifications": {                # NEW: Clarification answers
+    "field1": "answer1",
+    "field2": "answer2"
+  }
+}
+
+# Response types:
+# 1. Success with flow
+{
+  "status": "success",
+  "flow_data": {
+    "name": "Flow de Vendas",
+    "description": "...",
+    "canvas_data": {
+      "nodes": [...],
+      "edges": [...]
+    }
+  }
+}
+
+# 2. Needs clarification
+{
+  "status": "needs_clarification",
+  "clarification_questions": [
+    {
+      "question": "Qual tipo de produtos você vende?",
+      "options": ["Físicos", "Digitais", "Serviços"],
+      "field": "product_type"
+    }
+  ]
+}
+```
+
+#### Key Improvements (Latest)
+
+**🔧 Bug Fixes:**
+- **JSX Label Fix** (`e782b8e`): Fixed 500 error when saving flows - labels were being saved as JSX objects instead of strings
+  - Added `sanitizeNodesForSave()` function to convert JSX labels → text
+  - Applied to both admin and non-admin builders
+
+**🎯 Smart Component Selection** (`73aaae5`):
+- **WhatsApp Type Detection**: Automatically detects Official API vs QR Code
+- **Dynamic Prompts**: AI receives different instructions based on WhatsApp type
+- **Component Optimization**:
+  - Official → `interactive_buttons` (≤3 options) or `interactive_list` (4+ options)
+  - QR Code → Text messages with numbered options (1 - Option, 2 - Option)
+
+**✨ UX Enhancements** (`cc56648`):
+- **Clarification Questions**: Complete interactive form with validation
+- **Visual Preview**: Graph miniature with React Flow
+- **Markdown Rendering**: Rich text formatting in AI responses
+
+#### Usage Flow
+
+```
+1. User describes desired flow in natural language
+   ↓
+2. Frontend sends description + chatbot_id to backend
+   ↓
+3. Backend detects WhatsApp type (official/qrcode) from chatbot
+   ↓
+4. AI generates flow with appropriate components
+   ↓
+5. If unclear → Shows clarification form
+   ↓
+6. User answers questions → Re-generates with clarifications
+   ↓
+7. Shows visual preview + import button
+   ↓
+8. User imports flow to chatbot builder
+```
+
+#### Dependencies
+
+- **Backend**: `openai==1.54.5`, `anthropic==0.39.0`
+- **Frontend**: `react-markdown@9`, `@xyflow/react` (React Flow)
+
+#### Future Enhancements
+
+- [ ] Template selection with industry-specific flows
+- [ ] Multi-language flow generation (beyond pt-BR)
+- [ ] Flow version history and comparison
+- [ ] Collaborative flow editing with AI suggestions
+- [ ] Export/Import flows as JSON templates
+
+**Status:** Fully functional with intelligent component selection! 🤖✨
+
+---
+
 ## Additional Documentation
 
 Comprehensive documentation available:
