@@ -2,10 +2,11 @@
  * ChatMessage Component
  *
  * Displays individual messages in the AI Flow Assistant chat
- * Supports user and assistant messages with avatars and timestamps
+ * Supports user and assistant messages with avatars, timestamps, and Markdown formatting
  */
 
 import { User, Sparkles } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 export interface ChatMessageProps {
   type: 'user' | 'assistant';
@@ -38,7 +39,27 @@ export default function ChatMessage({ type, content, timestamp }: ChatMessagePro
               : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
           }`}
         >
-          <p className="text-sm whitespace-pre-wrap break-words">{content}</p>
+          {isUser ? (
+            <p className="text-sm whitespace-pre-wrap break-words">{content}</p>
+          ) : (
+            <ReactMarkdown
+              className="text-sm prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0"
+              components={{
+                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                li: ({ children }) => <li className="mb-1">{children}</li>,
+                strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                code: ({ children }) => (
+                  <code className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded text-xs font-mono">
+                    {children}
+                  </code>
+                ),
+              }}
+            >
+              {content}
+            </ReactMarkdown>
+          )}
         </div>
         <span className="text-xs text-gray-500 dark:text-gray-400 mt-1 px-1">
           {timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}

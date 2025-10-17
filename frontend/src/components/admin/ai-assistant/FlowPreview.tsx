@@ -1,11 +1,13 @@
 /**
  * FlowPreview Component
  *
- * Displays a preview card of a generated flow with import action
+ * Displays a preview card of a generated flow with import action and visual thumbnail
  */
 
 import { useState } from 'react';
-import { FileText, Download, RotateCcw, Layers } from 'lucide-react';
+import { FileText, Download, RotateCcw, Layers, Eye } from 'lucide-react';
+import { ReactFlow, Background, Controls } from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 
 export interface FlowPreviewProps {
   flowData: {
@@ -23,6 +25,7 @@ export interface FlowPreviewProps {
 export default function FlowPreview({ flowData, onImport, onRetry }: FlowPreviewProps) {
   const [customName, setCustomName] = useState(flowData.name);
   const [showRenameInput, setShowRenameInput] = useState(false);
+  const [showVisualPreview, setShowVisualPreview] = useState(false);
 
   const nodeCount = flowData.canvas_data.nodes.length;
   const edgeCount = flowData.canvas_data.edges.length;
@@ -105,6 +108,36 @@ export default function FlowPreview({ flowData, onImport, onRetry }: FlowPreview
               +{nodeTypes.length - 5}
             </span>
           )}
+        </div>
+      )}
+
+      {/* Visual Preview Toggle */}
+      <button
+        onClick={() => setShowVisualPreview(!showVisualPreview)}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2 mb-3 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-sm font-medium rounded-lg border border-indigo-200 dark:border-indigo-800 transition-colors"
+      >
+        <Eye className="w-4 h-4" />
+        {showVisualPreview ? 'Ocultar Preview Visual' : 'Ver Preview Visual'}
+      </button>
+
+      {/* Visual Flow Preview */}
+      {showVisualPreview && (
+        <div className="mb-3 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-900" style={{ height: '200px' }}>
+          <ReactFlow
+            nodes={flowData.canvas_data.nodes}
+            edges={flowData.canvas_data.edges}
+            fitView
+            nodesDraggable={false}
+            nodesConnectable={false}
+            elementsSelectable={false}
+            zoomOnScroll={false}
+            panOnScroll={false}
+            zoomOnPinch={false}
+            zoomOnDoubleClick={false}
+            preventScrolling={false}
+          >
+            <Background />
+          </ReactFlow>
         </div>
       )}
 

@@ -30,6 +30,7 @@ import ChatMessage from './ChatMessage';
 import FlowPreview from './FlowPreview';
 import IndustrySelect from './IndustrySelect';
 import ExamplesModal from './ExamplesModal';
+import ClarificationForm from './ClarificationForm';
 
 interface Message {
   id: string;
@@ -79,6 +80,7 @@ export default function AIFlowAssistant({
   const [clarificationQuestions, setClarificationQuestions] = useState<
     ClarificationQuestion[]
   >([]);
+  const [lastDescription, setLastDescription] = useState(''); // Store last description for clarifications
   const [isImporting, setIsImporting] = useState(false);
   const [showExamplesModal, setShowExamplesModal] = useState(false);
   const [aiEnabled, setAiEnabled] = useState<boolean | null>(null);
@@ -228,6 +230,7 @@ export default function AIFlowAssistant({
       addMessage('user', inputValue);
       const userInput = inputValue;
       setInputValue('');
+      setLastDescription(userInput); // Store for clarifications
 
       // Call API
       const response = await aiFlowAssistantAPI.generateFlow({
@@ -310,6 +313,60 @@ export default function AIFlowAssistant({
   const handleRetry = () => {
     setGeneratedFlow(null);
     addMessage('assistant', 'Vamos tentar novamente. Por favor, descreva o flow que você deseja criar.');
+  };
+
+  const handleSubmitClarifications = async (answers: Record<string, string>) => {
+    try {
+      setIsGenerating(true);
+      setClarificationQuestions([]);
+
+      // Add user answers as message
+      const answersText = Object.entries(answers)
+        .map(([field, answer]) => `${field}: ${answer}`)
+        .join('\n');
+      addMessage('user', `Respostas:\n${answersText}`);
+
+      // Call API with clarifications - backend expects Dict[str, str] format
+      const response = await aiFlowAssistantAPI.generateFlow({
+        description: lastDescription,
+        industry: industry || undefined,
+        language: 'pt-BR',
+        chatbot_id: chatbotId,
+        clarifications: answers, // Send answers as clarifications
+      });
+
+      if (response.status === 'success' && response.flow_data) {
+        setGeneratedFlow(response.flow_data);
+        addMessage(
+          'assistant',
+          `Flow "${response.flow_data.name}" gerado com sucesso! Confira o preview abaixo.`
+        );
+      } else if (response.status === 'needs_clarification' && response.clarification_questions) {
+        // More clarifications needed
+        setClarificationQuestions(response.clarification_questions);
+        const questionsText = response.clarification_questions
+          .map((q, i) => `${i + 1}. ${q.question}`)
+          .join('\n');
+        addMessage(
+          'assistant',
+          `Preciso de mais algumas informações:\n\n${questionsText}`
+        );
+      } else if (response.status === 'error') {
+        addMessage(
+          'assistant',
+          `Erro: ${response.error_message || 'Erro desconhecido'}`
+        );
+        toast.error(response.error_message || 'Erro ao gerar flow');
+      }
+    } catch (error: any) {
+      console.error('Error submitting clarifications:', error);
+      const errorMessage =
+        error.response?.data?.detail || error.message || 'Erro ao enviar respostas';
+      addMessage('assistant', `Erro: ${errorMessage}`);
+      toast.error(errorMessage);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleClearChat = () => {
@@ -423,6 +480,17 @@ export default function AIFlowAssistant({
               {messages.map((message) => (
                 <ChatMessage key={message.id} {...message} />
               ))}
+
+              {/* Clarification Form */}
+              {clarificationQuestions.length > 0 && (
+                <div className="mt-4">
+                  <ClarificationForm
+                    questions={clarificationQuestions}
+                    onSubmit={handleSubmitClarifications}
+                    isLoading={isGenerating}
+                  />
+                </div>
+              )}
 
               {/* Flow Preview */}
               {generatedFlow && (
