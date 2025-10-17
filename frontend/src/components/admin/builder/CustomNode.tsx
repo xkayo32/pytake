@@ -427,38 +427,6 @@ export default function CustomNode({ data }: NodeProps) {
         </div>
       )}
 
-      {/* Footer com labels das saídas (apenas para nós de condição) */}
-      {isConditionNode && (
-        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 relative">
-          <div className="space-y-1.5 flex flex-col-reverse">
-            {/* Senão no topo (renderizado por último devido ao flex-col-reverse) */}
-            {hasDefaultRoute && (
-              <div className="flex items-center justify-end gap-1.5 text-[10px] text-gray-600 dark:text-gray-400">
-                <span>Senão (padrão)</span>
-                <div className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
-              </div>
-            )}
-            {/* Condições de baixo para cima (ordem invertida) */}
-            {[...conditions].reverse().map((condition: any, index: number) => {
-              const originalIndex = conditions.length - index - 1;
-              const labelText = condition.label || `Condição ${originalIndex + 1}`;
-              return (
-                <div
-                  key={`label-${originalIndex}`}
-                  className="flex items-center justify-end gap-1.5 text-[10px] text-gray-700 dark:text-gray-300"
-                >
-                  <span className="truncate">{truncate(labelText, 22)}</span>
-                  <div
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: color }}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Tooltip icon */}
       {needsTooltip && (
         <div className="absolute top-2.5 right-3 z-10">
@@ -476,56 +444,84 @@ export default function CustomNode({ data }: NodeProps) {
         />
       )}
 
-      {/* Multiple source handles - nós de condição - ordem invertida para alinhar com labels */}
+      {/* Multiple source handles - nós de condição com labels ao lado */}
       {hasSourceHandle && isConditionNode && totalOutputs > 0 && (
         <>
-          {/* Senão no topo (se existir) */}
-          {hasDefaultRoute && (
-            <Handle
-              key="condition-default"
-              type="source"
-              position={Position.Right}
-              id="condition-default"
-              className="custom-handle custom-handle-source"
-              style={{
-                background: '#6b7280',
-                top: 'auto',
-                bottom: `${8 + 7 + (conditions.length * 20)}px`,
-              }}
-            />
-          )}
-
-          {/* Handles em ordem reversa (de baixo para cima) para corresponder com as labels */}
-          {[...conditions].reverse().map((condition: any, index: number) => {
-            // index aqui é da lista reversa, então:
-            // index 0 = última condição (embaixo)
-            // index 1 = penúltima condição
-            // etc.
-
-            const paddingBottom = 8;
-            const lineCenter = 7;
-            const lineSpacing = 20;
-
-            const bottomPx = paddingBottom + lineCenter + (index * lineSpacing);
-
-            // ID original da condição (para manter compatibilidade com edges)
-            const originalIndex = conditions.length - index - 1;
+          {conditions.map((condition: any, index: number) => {
+            const spacing = 100 / (totalOutputs + 1);
+            const topPercent = spacing * (index + 1);
+            const labelText = condition.label || `Condição ${index + 1}`;
 
             return (
-              <Handle
-                key={`condition-${originalIndex}`}
-                type="source"
-                position={Position.Right}
-                id={`condition-${originalIndex}`}
-                className="custom-handle custom-handle-source"
-                style={{
-                  background: color,
-                  top: 'auto',
-                  bottom: `${bottomPx}px`,
-                }}
-              />
+              <div key={`handle-wrapper-${index}`}>
+                {/* Label ao lado do handle */}
+                <div
+                  className="absolute pointer-events-none z-20"
+                  style={{
+                    top: `${topPercent}%`,
+                    right: '20px',
+                    transform: 'translateY(-50%)',
+                  }}
+                >
+                  <div className="flex items-center gap-1.5 bg-white dark:bg-gray-800 px-2 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700">
+                    <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                      {truncate(labelText, 18)}
+                    </span>
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: color }}
+                    />
+                  </div>
+                </div>
+
+                {/* Handle */}
+                <Handle
+                  type="source"
+                  position={Position.Right}
+                  id={`condition-${index}`}
+                  className="custom-handle custom-handle-source"
+                  style={{
+                    background: color,
+                    top: `${topPercent}%`,
+                  }}
+                />
+              </div>
             );
           })}
+
+          {/* Default route handle (senão) */}
+          {hasDefaultRoute && (
+            <div key="handle-wrapper-default">
+              {/* Label ao lado do handle senão */}
+              <div
+                className="absolute pointer-events-none z-20"
+                style={{
+                  top: `${100 / (totalOutputs + 1) * totalOutputs}%`,
+                  right: '20px',
+                  transform: 'translateY(-50%)',
+                }}
+              >
+                <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm border border-gray-300 dark:border-gray-600">
+                  <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                    Senão
+                  </span>
+                  <div className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
+                </div>
+              </div>
+
+              {/* Handle */}
+              <Handle
+                type="source"
+                position={Position.Right}
+                id="condition-default"
+                className="custom-handle custom-handle-source"
+                style={{
+                  background: '#6b7280',
+                  top: `${100 / (totalOutputs + 1) * totalOutputs}%`,
+                }}
+              />
+            </div>
+          )}
         </>
       )}
 
