@@ -453,12 +453,13 @@ export default function CustomNode({ data }: NodeProps) {
         />
       )}
 
-      {/* Multiple source handles - nós de condição com labels grudadas à esquerda */}
+      {/* Multiple source handles - nós de condição - de baixo para cima */}
       {hasSourceHandle && isConditionNode && totalOutputs > 0 && (
         <>
           {conditions.map((condition: any, index: number) => {
-            const spacing = 100 / (totalOutputs + 1);
-            const topPercent = spacing * (index + 1);
+            // Posicionar de baixo para cima
+            const lineHeight = 28; // espaçamento entre handles (igual ao espaço vazio)
+            const bottomPx = 14 + (index * lineHeight); // 14px do fim + index * 28px
             const labelText = condition.label || `Condição ${index + 1}`;
 
             return (
@@ -467,9 +468,9 @@ export default function CustomNode({ data }: NodeProps) {
                 <div
                   className="absolute pointer-events-none z-20"
                   style={{
-                    top: `${topPercent}%`,
+                    bottom: `${bottomPx}px`,
                     right: '16px', // Grudada na borda direita (à esquerda do handle)
-                    transform: 'translateY(-50%)',
+                    transform: 'translateY(50%)',
                   }}
                 >
                   <div className="flex items-center gap-1.5 bg-white dark:bg-gray-800 px-2 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700">
@@ -487,23 +488,24 @@ export default function CustomNode({ data }: NodeProps) {
                   className="custom-handle custom-handle-source"
                   style={{
                     background: color,
-                    top: `${topPercent}%`,
+                    top: 'auto',
+                    bottom: `${bottomPx}px`,
                   }}
                 />
               </div>
             );
           })}
 
-          {/* Default route handle (senão) com label */}
+          {/* Default route handle (senão) com label - no topo */}
           {hasDefaultRoute && (
             <div key="handle-wrapper-default">
               {/* Label grudada no handle senão - À ESQUERDA dentro do card */}
               <div
                 className="absolute pointer-events-none z-20"
                 style={{
-                  top: `${100 / (totalOutputs + 1) * totalOutputs}%`,
+                  bottom: `${14 + (conditions.length * 28)}px`,
                   right: '16px', // Grudada na borda direita (à esquerda do handle)
-                  transform: 'translateY(-50%)',
+                  transform: 'translateY(50%)',
                 }}
               >
                 <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm border border-gray-300 dark:border-gray-600">
@@ -521,7 +523,8 @@ export default function CustomNode({ data }: NodeProps) {
                 className="custom-handle custom-handle-source"
                 style={{
                   background: '#6b7280',
-                  top: `${100 / (totalOutputs + 1) * totalOutputs}%`,
+                  top: 'auto',
+                  bottom: `${14 + (conditions.length * 28)}px`,
                 }}
               />
             </div>
