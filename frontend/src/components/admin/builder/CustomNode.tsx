@@ -147,38 +147,55 @@ const getPreviewText = (nodeType: string, data: any): JSX.Element | string | nul
     case 'message':
       const messageText = data.messageText || 'Sem mensagem configurada';
       return hasVariables(messageText)
-        ? highlightVariables(truncate(messageText))
-        : truncate(messageText);
+        ? highlightVariables(truncate(messageText, 40))
+        : truncate(messageText, 40);
 
     case 'question':
       const questionText = data.questionText || 'Sem pergunta configurada';
       return hasVariables(questionText)
-        ? highlightVariables(truncate(questionText))
-        : truncate(questionText);
+        ? highlightVariables(truncate(questionText, 40))
+        : truncate(questionText, 40);
 
     case 'condition':
       const conditionsCount = data.conditions?.length || 0;
       if (conditionsCount === 0) return 'Sem condições';
+      // Mostrar primeira condição se houver
+      if (data.conditions && data.conditions.length > 0) {
+        const firstCondition = data.conditions[0];
+        const conditionPreview = `${firstCondition.variable || '?'} ${firstCondition.operator || '='} ${firstCondition.value || '?'}`;
+        return `${truncate(conditionPreview, 25)} ${conditionsCount > 1 ? `(+${conditionsCount - 1})` : ''}`;
+      }
       return `${conditionsCount} condição${conditionsCount > 1 ? 'ões' : ''}`;
 
     case 'api_call':
       if (!data.url) return 'Sem URL configurada';
-      return `${data.method || 'GET'} ${truncate(data.url, 20)}`;
+      const apiName = data.name || truncate(data.url, 25);
+      return `${data.method || 'GET'} ${apiName}`;
 
     case 'ai_prompt':
-      return truncate(data.prompt || 'Sem prompt configurado');
+      return truncate(data.prompt || 'Sem prompt configurado', 40);
 
     case 'whatsapp_template':
-      return truncate(data.templateName || 'Sem template selecionado');
+      return truncate(data.templateName || 'Sem template selecionado', 30);
 
     case 'interactive_buttons':
       const buttonsCount = data.buttons?.length || 0;
       if (buttonsCount === 0) return 'Sem botões';
+      // Mostrar primeiro botão
+      if (data.buttons && data.buttons.length > 0) {
+        const firstButton = data.buttons[0].text || data.buttons[0].label;
+        return `${truncate(firstButton, 20)} ${buttonsCount > 1 ? `(+${buttonsCount - 1})` : ''}`;
+      }
       return `${buttonsCount} botão${buttonsCount > 1 ? 'ões' : ''}`;
 
     case 'interactive_list':
       const itemsCount = data.listItems?.length || 0;
       if (itemsCount === 0) return 'Sem itens';
+      // Mostrar primeiro item
+      if (data.listItems && data.listItems.length > 0) {
+        const firstItem = data.listItems[0].title || data.listItems[0].text;
+        return `${truncate(firstItem, 20)} ${itemsCount > 1 ? `(+${itemsCount - 1})` : ''}`;
+      }
       return `${itemsCount} item${itemsCount > 1 ? 'ns' : ''}`;
 
     case 'delay':
@@ -187,13 +204,15 @@ const getPreviewText = (nodeType: string, data: any): JSX.Element | string | nul
       return `Aguardar ${data.duration}${unit}`;
 
     case 'set_variable':
-      return data.variableName ? `{{${data.variableName}}}` : 'Sem variável';
+      if (!data.variableName) return 'Sem variável';
+      const valuePreview = data.value ? ` = ${truncate(data.value, 15)}` : '';
+      return `{{${data.variableName}}}${valuePreview}`;
 
     case 'jump':
       if (data.jumpType === 'flow') {
-        return data.targetFlow ? `→ ${data.targetFlow}` : 'Selecione um fluxo';
+        return data.targetFlow ? `→ Fluxo: ${truncate(data.targetFlow, 20)}` : 'Selecione um fluxo';
       }
-      return data.targetNode ? `→ ${data.targetNode}` : 'Selecione um nó';
+      return data.targetNode ? `→ Nó: ${truncate(data.targetNode, 20)}` : 'Selecione um nó';
 
     case 'handoff':
       const handoffTypes: Record<string, string> = {
@@ -201,7 +220,15 @@ const getPreviewText = (nodeType: string, data: any): JSX.Element | string | nul
         department: 'Departamento',
         agent: 'Agente específico',
       };
-      return handoffTypes[data.handoffType] || 'Transferir';
+      const handoffType = handoffTypes[data.handoffType] || 'Transferir';
+
+      // Adicionar detalhes específicos
+      if (data.handoffType === 'department' && data.departmentId) {
+        return `${handoffType}: ${truncate(data.departmentName || data.departmentId, 20)}`;
+      } else if (data.handoffType === 'agent' && data.agentId) {
+        return `${handoffType}: ${truncate(data.agentName || data.agentId, 20)}`;
+      }
+      return handoffType;
 
     case 'end':
       const endTypes: Record<string, string> = {
@@ -218,7 +245,15 @@ const getPreviewText = (nodeType: string, data: any): JSX.Element | string | nul
         webhook: 'Chamar webhook',
         update_crm: 'Atualizar CRM',
       };
-      return actionTypes[data.actionType] || 'Executar ação';
+      const actionType = actionTypes[data.actionType] || 'Executar ação';
+
+      // Adicionar detalhes específicos
+      if (data.actionType === 'send_email' && data.emailTo) {
+        return `${actionType}: ${truncate(data.emailTo, 20)}`;
+      } else if (data.actionType === 'webhook' && data.webhookUrl) {
+        return `${actionType}: ${truncate(data.webhookUrl, 20)}`;
+      }
+      return actionType;
 
     case 'database_query':
       const dbTypes: Record<string, string> = {
@@ -229,13 +264,52 @@ const getPreviewText = (nodeType: string, data: any): JSX.Element | string | nul
       };
       const dbType = dbTypes[data.connectionType] || data.connectionType || 'Banco';
       if (!data.query && !data.database) return `${dbType} - Sem configuração`;
-      if (!data.query) return `${dbType} ${data.database ? `(${data.database})` : ''} - Sem query`;
-      const queryPreview = truncate(data.query, 20);
-      return `${dbType}: ${queryPreview}`;
+
+      // Mostrar nome do banco se disponível
+      const dbName = data.database ? `${data.database}` : '';
+
+      if (!data.query) return `${dbType}${dbName ? ` (${dbName})` : ''} - Sem query`;
+
+      // Extrair primeira palavra da query (SELECT, INSERT, UPDATE, DELETE)
+      const queryFirstWord = data.query.trim().split(/\s+/)[0].toUpperCase();
+      const queryPreview = truncate(data.query, 25);
+
+      return (
+        <>
+          <span className="font-semibold">{queryFirstWord}</span>
+          {dbName && <span className="text-[10px] opacity-75"> ({dbName})</span>}
+          <br />
+          <span className="text-[10px] opacity-75">{queryPreview}</span>
+        </>
+      );
 
     case 'script':
       if (!data.scriptCode) return 'Sem código configurado';
-      return data.description || truncate(data.scriptCode, 25);
+
+      // Se tem descrição, mostrar ela
+      if (data.description) {
+        return (
+          <>
+            <span className="font-semibold">{truncate(data.description, 30)}</span>
+            <br />
+            <span className="text-[10px] opacity-75">{data.language || 'JavaScript'}</span>
+          </>
+        );
+      }
+
+      // Senão, mostrar primeira linha do código
+      const firstLine = data.scriptCode.split('\n')[0];
+      return (
+        <>
+          <span className="text-[10px] opacity-75">{data.language || 'JavaScript'}</span>
+          <br />
+          <span className="font-mono text-[10px]">{truncate(firstLine, 30)}</span>
+        </>
+      );
+
+    case 'start':
+      // Adicionar preview para o nó Start
+      return data.description || 'Início do fluxo';
 
     default:
       return null;
@@ -338,7 +412,7 @@ export default function CustomNode({ data }: NodeProps) {
 
         {/* Preview Text */}
         {previewText && (
-          <div className="text-xs text-gray-700 dark:text-gray-200 leading-relaxed pl-6 font-medium break-words">
+          <div className="text-[13px] text-gray-800 dark:text-gray-100 leading-snug pl-6 font-medium break-words mt-1.5">
             {previewText}
           </div>
         )}
