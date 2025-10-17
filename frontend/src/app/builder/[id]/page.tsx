@@ -457,6 +457,7 @@ export default function ChatbotBuilderPage() {
     // Create new flow with AI-generated data
     try {
       const newFlow = await flowsAPI.create(chatbotId, {
+        chatbot_id: chatbotId,
         name: flowName,
         description: flowData.description,
         canvas_data: flowData.canvas_data,
