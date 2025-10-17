@@ -480,6 +480,47 @@ class ChatbotService:
     # HELPER METHODS
     # ============================================
 
+    def _extract_label_from_jsx(self, label: any) -> str:
+        """
+        Extract text label from JSX object or return string as-is
+
+        React Flow labels can be JSX objects with structure like:
+        {'type': 'div', 'props': {'children': [{'type': 'span', 'props': {'children': 'Text'}}]}}
+
+        Args:
+            label: Label value (string or JSX object)
+
+        Returns:
+            String label
+        """
+        # If it's already a string, return it
+        if isinstance(label, str):
+            return label
+
+        # If it's a dict (JSX object), try to extract text
+        if isinstance(label, dict):
+            # Try to find text in children
+            props = label.get('props', {})
+            children = props.get('children')
+
+            if isinstance(children, str):
+                return children
+            elif isinstance(children, list):
+                # Recursively extract text from all children
+                text_parts = []
+                for child in children:
+                    if isinstance(child, str):
+                        text_parts.append(child)
+                    elif isinstance(child, dict):
+                        # Recurse into nested JSX
+                        child_text = self._extract_label_from_jsx(child)
+                        if child_text:
+                            text_parts.append(child_text)
+                return ' '.join(text_parts)
+
+        # Fallback: convert to string
+        return str(label) if label else ""
+
     async def _sync_nodes_from_canvas(
         self, flow_id: UUID, organization_id: UUID, canvas_data: dict
     ):
@@ -516,13 +557,17 @@ class ChatbotService:
             node_type = node_info.get("nodeType", "custom")  # start, message, question, etc.
             position = node_data.get("position", {})
 
+            # Extract label (sanitize JSX objects to strings)
+            raw_label = node_info.get("label", f"Node {idx + 1}")
+            sanitized_label = self._extract_label_from_jsx(raw_label)
+
             # Create Node instance
             node = Node(
                 flow_id=flow_id,
                 organization_id=organization_id,
                 node_id=react_flow_id,  # React Flow ID (e.g., "node-1")
                 node_type=node_type,  # Node type (start, message, question, end, etc.)
-                label=node_info.get("label", f"Node {idx + 1}"),
+                label=sanitized_label,  # Sanitized string label
                 data=node_info,  # Store all node data as JSONB
                 position_x=position.get("x", 0),
                 position_y=position.get("y", 0),
