@@ -444,7 +444,7 @@ export default function CustomNode({ data }: NodeProps) {
         />
       )}
 
-      {/* Multiple source handles - nós de condição com labels grudadas */}
+      {/* Multiple source handles - nós de condição com labels à esquerda */}
       {hasSourceHandle && isConditionNode && totalOutputs > 0 && (
         <>
           {conditions.map((condition: any, index: number) => {
@@ -454,16 +454,16 @@ export default function CustomNode({ data }: NodeProps) {
 
             return (
               <div key={`handle-wrapper-${index}`}>
-                {/* Label grudada no handle - FORA do card */}
+                {/* Label à esquerda do handle - DENTRO do card */}
                 <div
                   className="absolute pointer-events-none z-20"
                   style={{
                     top: `${topPercent}%`,
-                    left: 'calc(100% + 12px)', // 12px fora do card
+                    right: '20px', // Dentro do card, à direita (antes do handle)
                     transform: 'translateY(-50%)',
                   }}
                 >
-                  <div className="flex items-center gap-1.5 bg-white dark:bg-gray-800 px-2 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-end gap-1.5">
                     <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       {truncate(labelText, 18)}
                     </span>
@@ -488,16 +488,16 @@ export default function CustomNode({ data }: NodeProps) {
           {/* Default route handle (senão) com label */}
           {hasDefaultRoute && (
             <div key="handle-wrapper-default">
-              {/* Label grudada no handle senão - FORA do card */}
+              {/* Label à esquerda do handle senão - DENTRO do card */}
               <div
                 className="absolute pointer-events-none z-20"
                 style={{
                   top: `${100 / (totalOutputs + 1) * totalOutputs}%`,
-                  left: 'calc(100% + 12px)', // 12px fora do card
+                  right: '20px', // Dentro do card, à direita (antes do handle)
                   transform: 'translateY(-50%)',
                 }}
               >
-                <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm border border-gray-300 dark:border-gray-600">
+                <div className="flex items-center justify-end gap-1.5">
                   <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">
                     Senão
                   </span>
