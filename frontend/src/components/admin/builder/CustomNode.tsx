@@ -366,7 +366,14 @@ export default function CustomNode({ data }: NodeProps) {
   const needsTooltip = fullText && fullText.length > 30;
 
   return (
-    <>
+    <div
+      className={`min-w-[220px] max-w-[280px] rounded-lg border custom-node bg-white dark:bg-gray-800 relative shadow-sm hover:shadow-md transition-shadow overflow-visible`}
+      style={{
+        borderColor: color,
+        borderWidth: '2px',
+        borderLeftWidth: '4px',
+      }}
+    >
       {/* Target Handle (entrada) - ESQUERDA - apenas se não for 'start' */}
       {hasTargetHandle && (
         <Handle
@@ -377,116 +384,93 @@ export default function CustomNode({ data }: NodeProps) {
         />
       )}
 
+      {/* Header com cor de fundo */}
       <div
-        className={`min-w-[220px] max-w-[280px] rounded-lg border custom-node bg-white dark:bg-gray-800 relative shadow-sm hover:shadow-md transition-shadow overflow-hidden`}
-        style={{
-          borderColor: color,
-          borderWidth: '2px',
-          borderLeftWidth: '4px',
-        }}
+        className="px-4 py-2.5 flex items-center gap-2.5 border-b border-gray-100 dark:border-gray-700"
+        style={{ backgroundColor: `${color}08` }}
       >
-        {/* Header com cor de fundo */}
         <div
-          className="px-4 py-2.5 flex items-center gap-2.5 border-b border-gray-100 dark:border-gray-700"
-          style={{ backgroundColor: `${color}08` }}
+          className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: `${color}20` }}
         >
-          <div
-            className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: `${color}20` }}
-          >
-            <Icon className="w-3.5 h-3.5" style={{ color }} />
-          </div>
-          <span className="font-semibold text-[13px] text-gray-900 dark:text-white truncate">
-            {label}
-          </span>
+          <Icon className="w-3.5 h-3.5" style={{ color }} />
         </div>
+        <span className="font-semibold text-[13px] text-gray-900 dark:text-white truncate">
+          {label}
+        </span>
+      </div>
 
-        {/* Conteúdo Principal */}
-        <div className="px-4 py-3">
-          {previewText && (
-            <div className="text-[13px] text-gray-700 dark:text-gray-200 leading-relaxed break-words">
-              {previewText}
-            </div>
-          )}
-
-          {!previewText && (
-            <div className="text-[12px] text-gray-400 dark:text-gray-500 italic">
-              Não configurado
-            </div>
-          )}
-        </div>
-
-        {/* Footer com metadados (variável de saída) */}
-        {variableOutput && (
-          <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700">
-            <div className="flex items-center gap-1.5">
-              <Edit3 className="w-3 h-3 text-purple-500 dark:text-purple-400 flex-shrink-0" />
-              <span className="text-[11px] font-mono text-purple-700 dark:text-purple-300 truncate">
-                {`{{${variableOutput}}}`}
-              </span>
-            </div>
+      {/* Conteúdo Principal */}
+      <div className="px-4 py-3">
+        {previewText && (
+          <div className="text-[13px] text-gray-700 dark:text-gray-200 leading-relaxed break-words">
+            {previewText}
           </div>
         )}
 
-        {/* Tooltip icon */}
-        {needsTooltip && (
-          <div className="absolute top-2.5 right-3">
-            <Info className="w-3.5 h-3.5 text-gray-400 opacity-60 hover:opacity-100 transition-opacity" />
-          </div>
-        )}
-
-        {/* Labels das condições (apenas para nós de condição) */}
-        {isConditionNode && conditions.map((condition: any, index: number) => {
-          const spacing = 100 / (totalOutputs + 1);
-          const topPercent = spacing * (index + 1);
-          const labelText = condition.label || `Condição ${index + 1}`;
-
-          return (
-            <div
-              key={`label-${index}`}
-              className="absolute pointer-events-none bg-white dark:bg-gray-800 px-2 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700 whitespace-nowrap text-[10px] font-medium text-gray-700 dark:text-gray-300 z-10"
-              style={{
-                top: `${topPercent}%`,
-                right: 'calc(100% + 12px)',
-                transform: 'translateY(-50%)',
-              }}
-            >
-              {truncate(labelText, 20)}
-            </div>
-          );
-        })}
-
-        {/* Label "Senão" (apenas para nós de condição com rota padrão) */}
-        {isConditionNode && hasDefaultRoute && (
-          <div
-            className="absolute pointer-events-none bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm border border-gray-300 dark:border-gray-600 whitespace-nowrap text-[10px] font-medium text-gray-600 dark:text-gray-400 z-10"
-            style={{
-              top: `${100 / (totalOutputs + 1) * totalOutputs}%`,
-              right: 'calc(100% + 12px)',
-              transform: 'translateY(-50%)',
-            }}
-          >
-            Senão
+        {!previewText && (
+          <div className="text-[12px] text-gray-400 dark:text-gray-500 italic">
+            Não configurado
           </div>
         )}
       </div>
 
-      {/* Tooltip expandido */}
-      {showTooltip && fullText && (
-        <div className="absolute z-50 left-full ml-3 top-0 min-w-[220px] max-w-[340px] bg-gray-900 dark:bg-gray-800 text-white text-xs p-4 rounded-lg shadow-2xl border border-gray-700">
-          <div className="flex items-center gap-2 mb-2">
-            <Icon className="w-4 h-4" style={{ color }} />
-            <div className="font-semibold text-gray-100">{label}</div>
-          </div>
-          <div className="text-gray-300 whitespace-pre-wrap break-words leading-relaxed">
-            {fullText}
+      {/* Footer com metadados (variável de saída) */}
+      {variableOutput && (
+        <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-1.5">
+            <Edit3 className="w-3 h-3 text-purple-500 dark:text-purple-400 flex-shrink-0" />
+            <span className="text-[11px] font-mono text-purple-700 dark:text-purple-300 truncate">
+              {`{{${variableOutput}}}`}
+            </span>
           </div>
         </div>
       )}
 
-      {/* Source Handles (saída) - DIREITA */}
+      {/* Tooltip icon */}
+      {needsTooltip && (
+        <div className="absolute top-2.5 right-3 z-10">
+          <Info className="w-3.5 h-3.5 text-gray-400 opacity-60 hover:opacity-100 transition-opacity" />
+        </div>
+      )}
+
+      {/* Labels das condições (apenas para nós de condição) */}
+      {isConditionNode && conditions.map((condition: any, index: number) => {
+        const spacing = 100 / (totalOutputs + 1);
+        const topPercent = spacing * (index + 1);
+        const labelText = condition.label || `Condição ${index + 1}`;
+
+        return (
+          <div
+            key={`label-${index}`}
+            className="absolute pointer-events-none bg-white dark:bg-gray-800 px-2 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700 whitespace-nowrap text-[10px] font-medium text-gray-700 dark:text-gray-300 z-10"
+            style={{
+              top: `${topPercent}%`,
+              right: 'calc(100% + 12px)',
+              transform: 'translateY(-50%)',
+            }}
+          >
+            {truncate(labelText, 20)}
+          </div>
+        );
+      })}
+
+      {/* Label "Senão" (apenas para nós de condição com rota padrão) */}
+      {isConditionNode && hasDefaultRoute && (
+        <div
+          className="absolute pointer-events-none bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm border border-gray-300 dark:border-gray-600 whitespace-nowrap text-[10px] font-medium text-gray-600 dark:text-gray-400 z-10"
+          style={{
+            top: `${100 / (totalOutputs + 1) * totalOutputs}%`,
+            right: 'calc(100% + 12px)',
+            transform: 'translateY(-50%)',
+          }}
+        >
+          Senão
+        </div>
+      )}
+
+      {/* Source Handle (saída) - DIREITA - nós normais */}
       {hasSourceHandle && !isConditionNode && (
-        // Single output handle para nós normais
         <Handle
           type="source"
           position={Position.Right}
@@ -495,7 +479,7 @@ export default function CustomNode({ data }: NodeProps) {
         />
       )}
 
-      {/* Multiple output handles para nó Condition */}
+      {/* Multiple source handles - nós de condição */}
       {hasSourceHandle && isConditionNode && totalOutputs > 0 && (
         <>
           {conditions.map((condition: any, index: number) => {
@@ -533,6 +517,19 @@ export default function CustomNode({ data }: NodeProps) {
           )}
         </>
       )}
-    </>
+
+      {/* Tooltip expandido */}
+      {showTooltip && fullText && (
+        <div className="absolute z-50 left-full ml-3 top-0 min-w-[220px] max-w-[340px] bg-gray-900 dark:bg-gray-800 text-white text-xs p-4 rounded-lg shadow-2xl border border-gray-700">
+          <div className="flex items-center gap-2 mb-2">
+            <Icon className="w-4 h-4" style={{ color }} />
+            <div className="font-semibold text-gray-100">{label}</div>
+          </div>
+          <div className="text-gray-300 whitespace-pre-wrap break-words leading-relaxed">
+            {fullText}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
