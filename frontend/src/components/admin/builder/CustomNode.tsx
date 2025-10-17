@@ -433,12 +433,21 @@ export default function CustomNode({ data }: NodeProps) {
           <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">
             Saídas:
           </div>
-          <div className="space-y-1.5">
-            {conditions.map((condition: any, index: number) => {
-              const labelText = condition.label || `Condição ${index + 1}`;
+          <div className="space-y-1.5 flex flex-col-reverse">
+            {/* Senão no topo (renderizado por último devido ao flex-col-reverse) */}
+            {hasDefaultRoute && (
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-600 dark:text-gray-400">
+                <div className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
+                <span>Senão (padrão)</span>
+              </div>
+            )}
+            {/* Condições de baixo para cima (ordem invertida) */}
+            {[...conditions].reverse().map((condition: any, index: number) => {
+              const originalIndex = conditions.length - index - 1;
+              const labelText = condition.label || `Condição ${originalIndex + 1}`;
               return (
                 <div
-                  key={`label-${index}`}
+                  key={`label-${originalIndex}`}
                   className="flex items-center gap-1.5 text-[11px] text-gray-700 dark:text-gray-300"
                 >
                   <div
@@ -449,12 +458,6 @@ export default function CustomNode({ data }: NodeProps) {
                 </div>
               );
             })}
-            {hasDefaultRoute && (
-              <div className="flex items-center gap-1.5 text-[11px] text-gray-600 dark:text-gray-400">
-                <div className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
-                <span>Senão (padrão)</span>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -476,17 +479,15 @@ export default function CustomNode({ data }: NodeProps) {
         />
       )}
 
-      {/* Multiple source handles - nós de condição - alinhados com o footer */}
+      {/* Multiple source handles - nós de condição - alinhados de baixo para cima */}
       {hasSourceHandle && isConditionNode && totalOutputs > 0 && (
         <>
           {conditions.map((condition: any, index: number) => {
-            // Posicionar de baixo para cima
-            // Footer base: 12px (padding) + 18px (título "Saídas:") = 30px
-            // Cada linha: 20px de altura + 6px de espaçamento = 26px
-            const baseOffset = 30; // offset inicial do footer
-            const lineHeight = 26; // altura de cada linha
-            const reverseIndex = totalOutputs - index - 1; // inverter para começar de baixo
-            const bottomPx = baseOffset + (reverseIndex * lineHeight);
+            // Começar de baixo: padding (8px) + metade da linha (10px) = 18px base
+            // Cada linha: 20px de altura + 6px de espaçamento (space-y-1.5) = 26px
+            const basePadding = 18; // ponto inicial (fim do card)
+            const lineHeight = 26; // altura total de cada linha
+            const bottomPx = basePadding + (index * lineHeight);
 
             return (
               <Handle
@@ -504,7 +505,7 @@ export default function CustomNode({ data }: NodeProps) {
             );
           })}
 
-          {/* Default route handle (senão) - primeira linha do footer */}
+          {/* Default route handle (senão) - no topo das labels */}
           {hasDefaultRoute && (
             <Handle
               key="condition-default"
@@ -515,7 +516,7 @@ export default function CustomNode({ data }: NodeProps) {
               style={{
                 background: '#6b7280',
                 top: 'auto',
-                bottom: '30px', // alinhado com a primeira linha (senão)
+                bottom: `${18 + (conditions.length * 26)}px`,
               }}
             />
           )}
