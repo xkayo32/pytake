@@ -434,6 +434,41 @@ export default function CustomNode({ data }: NodeProps) {
             <Info className="w-3.5 h-3.5 text-gray-400 opacity-60 hover:opacity-100 transition-opacity" />
           </div>
         )}
+
+        {/* Labels das condições (apenas para nós de condição) */}
+        {isConditionNode && conditions.map((condition: any, index: number) => {
+          const spacing = 100 / (totalOutputs + 1);
+          const topPercent = spacing * (index + 1);
+          const labelText = condition.label || `Condição ${index + 1}`;
+
+          return (
+            <div
+              key={`label-${index}`}
+              className="absolute pointer-events-none bg-white dark:bg-gray-800 px-2 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700 whitespace-nowrap text-[10px] font-medium text-gray-700 dark:text-gray-300 z-10"
+              style={{
+                top: `${topPercent}%`,
+                right: 'calc(100% + 12px)',
+                transform: 'translateY(-50%)',
+              }}
+            >
+              {truncate(labelText, 20)}
+            </div>
+          );
+        })}
+
+        {/* Label "Senão" (apenas para nós de condição com rota padrão) */}
+        {isConditionNode && hasDefaultRoute && (
+          <div
+            className="absolute pointer-events-none bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm border border-gray-300 dark:border-gray-600 whitespace-nowrap text-[10px] font-medium text-gray-600 dark:text-gray-400 z-10"
+            style={{
+              top: `${100 / (totalOutputs + 1) * totalOutputs}%`,
+              right: 'calc(100% + 12px)',
+              transform: 'translateY(-50%)',
+            }}
+          >
+            Senão
+          </div>
+        )}
       </div>
 
       {/* Tooltip expandido */}
@@ -460,69 +495,41 @@ export default function CustomNode({ data }: NodeProps) {
         />
       )}
 
-      {/* Multiple output handles para nó Condition - COM LABELS */}
+      {/* Multiple output handles para nó Condition */}
       {hasSourceHandle && isConditionNode && totalOutputs > 0 && (
         <>
           {conditions.map((condition: any, index: number) => {
-            // Calcular posição vertical do handle (distribuir uniformemente)
             const spacing = 100 / (totalOutputs + 1);
             const topPercent = spacing * (index + 1);
-            const label = condition.label || `Condição ${index + 1}`;
 
             return (
-              <div key={`condition-wrapper-${index}`} className="absolute" style={{ top: `${topPercent}%`, right: 0, transform: 'translateY(-50%)' }}>
-                <Handle
-                  type="source"
-                  position={Position.Right}
-                  id={`condition-${index}`}
-                  className="custom-handle custom-handle-source"
-                  style={{
-                    background: color,
-                    position: 'relative',
-                    transform: 'none',
-                  }}
-                />
-                {/* Label ao lado do handle */}
-                <div
-                  className="absolute right-full mr-2 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 px-2 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700 whitespace-nowrap text-[10px] font-medium text-gray-700 dark:text-gray-300"
-                  style={{ pointerEvents: 'none' }}
-                >
-                  {truncate(label, 20)}
-                </div>
-              </div>
+              <Handle
+                key={`condition-${index}`}
+                type="source"
+                position={Position.Right}
+                id={`condition-${index}`}
+                className="custom-handle custom-handle-source"
+                style={{
+                  background: color,
+                  top: `${topPercent}%`,
+                }}
+              />
             );
           })}
 
-          {/* Default route handle (senão) - COM LABEL */}
+          {/* Default route handle (senão) */}
           {hasDefaultRoute && (
-            <div
-              key="condition-default-wrapper"
-              className="absolute"
+            <Handle
+              key="condition-default"
+              type="source"
+              position={Position.Right}
+              id="condition-default"
+              className="custom-handle custom-handle-source"
               style={{
+                background: '#6b7280',
                 top: `${100 / (totalOutputs + 1) * totalOutputs}%`,
-                right: 0,
-                transform: 'translateY(-50%)',
               }}
-            >
-              <Handle
-                type="source"
-                position={Position.Right}
-                id="condition-default"
-                className="custom-handle custom-handle-source"
-                style={{
-                  background: '#6b7280', // Gray para rota padrão
-                  position: 'relative',
-                  transform: 'none',
-                }}
-              />
-              {/* Label "Senão" */}
-              <div
-                className="absolute right-full mr-2 top-1/2 -translate-y-1/2 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm border border-gray-300 dark:border-gray-600 whitespace-nowrap text-[10px] font-medium text-gray-600 dark:text-gray-400"
-                style={{ pointerEvents: 'none' }}
-              >
-                Senão
-              </div>
-            </div>
+            />
           )}
         </>
       )}
