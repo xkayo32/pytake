@@ -444,43 +444,29 @@ export default function CustomNode({ data }: NodeProps) {
         />
       )}
 
-      {/* Espaço vazio no card (sem conteúdo) - apenas para nós de condição */}
-      {isConditionNode && (
-        <div
-          style={{
-            height: `${totalOutputs * 24}px` // ~24px por saída
-          }}
-        />
-      )}
-
-      {/* Multiple source handles - nós de condição - de baixo para cima */}
+      {/* Multiple source handles - nós de condição com labels grudadas */}
       {hasSourceHandle && isConditionNode && totalOutputs > 0 && (
         <>
           {conditions.map((condition: any, index: number) => {
-            // Começar do fim do card para cima
-            const lineHeight = 24; // espaçamento entre handles
-            const bottomPx = 12 + (index * lineHeight); // 12px do fim + index * 24px
+            const spacing = 100 / (totalOutputs + 1);
+            const topPercent = spacing * (index + 1);
             const labelText = condition.label || `Condição ${index + 1}`;
 
             return (
               <div key={`handle-wrapper-${index}`}>
-                {/* Label flutuante DENTRO do card, à direita */}
+                {/* Label grudada no handle - FORA do card */}
                 <div
                   className="absolute pointer-events-none z-20"
                   style={{
-                    bottom: `${bottomPx}px`,
-                    right: '16px', // dentro do card, à direita
-                    transform: 'translateY(50%)',
+                    top: `${topPercent}%`,
+                    left: 'calc(100% + 12px)', // 12px fora do card
+                    transform: 'translateY(-50%)',
                   }}
                 >
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 bg-white dark:bg-gray-800 px-2 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700">
                     <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       {truncate(labelText, 18)}
                     </span>
-                    <div
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: color }}
-                    />
                   </div>
                 </div>
 
@@ -492,31 +478,29 @@ export default function CustomNode({ data }: NodeProps) {
                   className="custom-handle custom-handle-source"
                   style={{
                     background: color,
-                    top: 'auto',
-                    bottom: `${bottomPx}px`,
+                    top: `${topPercent}%`,
                   }}
                 />
               </div>
             );
           })}
 
-          {/* Default route handle (senão) com label - no topo */}
+          {/* Default route handle (senão) com label */}
           {hasDefaultRoute && (
             <div key="handle-wrapper-default">
-              {/* Label flutuante DENTRO do card, à direita */}
+              {/* Label grudada no handle senão - FORA do card */}
               <div
                 className="absolute pointer-events-none z-20"
                 style={{
-                  bottom: `${12 + (conditions.length * 24)}px`,
-                  right: '16px', // dentro do card, à direita
-                  transform: 'translateY(50%)',
+                  top: `${100 / (totalOutputs + 1) * totalOutputs}%`,
+                  left: 'calc(100% + 12px)', // 12px fora do card
+                  transform: 'translateY(-50%)',
                 }}
               >
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm border border-gray-300 dark:border-gray-600">
                   <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">
                     Senão
                   </span>
-                  <div className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
                 </div>
               </div>
 
@@ -528,8 +512,7 @@ export default function CustomNode({ data }: NodeProps) {
                 className="custom-handle custom-handle-source"
                 style={{
                   background: '#6b7280',
-                  top: 'auto',
-                  bottom: `${12 + (conditions.length * 24)}px`,
+                  top: `${100 / (totalOutputs + 1) * totalOutputs}%`,
                 }}
               />
             </div>
