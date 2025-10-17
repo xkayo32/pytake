@@ -476,39 +476,10 @@ export default function CustomNode({ data }: NodeProps) {
         />
       )}
 
-      {/* Multiple source handles - nós de condição - alinhados de baixo para cima */}
+      {/* Multiple source handles - nós de condição - ordem invertida para alinhar com labels */}
       {hasSourceHandle && isConditionNode && totalOutputs > 0 && (
         <>
-          {conditions.map((condition: any, index: number) => {
-            // Cálculo simplificado sem título:
-            // - py-2 = 8px padding bottom
-            // - text-[10px] com flex items-center ≈ 14px altura total
-            // - space-y-1.5 = 6px gap entre linhas
-            // - Centro da linha: 7px (14px / 2)
-
-            const paddingBottom = 8;
-            const lineCenter = 7;
-            const lineSpacing = 20; // 14px (linha) + 6px (gap)
-
-            const bottomPx = paddingBottom + lineCenter + (index * lineSpacing);
-
-            return (
-              <Handle
-                key={`condition-${index}`}
-                type="source"
-                position={Position.Right}
-                id={`condition-${index}`}
-                className="custom-handle custom-handle-source"
-                style={{
-                  background: color,
-                  top: 'auto',
-                  bottom: `${bottomPx}px`,
-                }}
-              />
-            );
-          })}
-
-          {/* Default route handle (senão) - no topo das labels */}
+          {/* Senão no topo (se existir) */}
           {hasDefaultRoute && (
             <Handle
               key="condition-default"
@@ -523,6 +494,38 @@ export default function CustomNode({ data }: NodeProps) {
               }}
             />
           )}
+
+          {/* Handles em ordem reversa (de baixo para cima) para corresponder com as labels */}
+          {[...conditions].reverse().map((condition: any, index: number) => {
+            // index aqui é da lista reversa, então:
+            // index 0 = última condição (embaixo)
+            // index 1 = penúltima condição
+            // etc.
+
+            const paddingBottom = 8;
+            const lineCenter = 7;
+            const lineSpacing = 20;
+
+            const bottomPx = paddingBottom + lineCenter + (index * lineSpacing);
+
+            // ID original da condição (para manter compatibilidade com edges)
+            const originalIndex = conditions.length - index - 1;
+
+            return (
+              <Handle
+                key={`condition-${originalIndex}`}
+                type="source"
+                position={Position.Right}
+                id={`condition-${originalIndex}`}
+                className="custom-handle custom-handle-source"
+                style={{
+                  background: color,
+                  top: 'auto',
+                  bottom: `${bottomPx}px`,
+                }}
+              />
+            );
+          })}
         </>
       )}
 
