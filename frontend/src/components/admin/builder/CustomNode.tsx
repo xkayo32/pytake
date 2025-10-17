@@ -145,115 +145,91 @@ const highlightVariables = (text: string): JSX.Element | string => {
 const getPreviewText = (nodeType: string, data: any): JSX.Element | string | null => {
   switch (nodeType) {
     case 'message':
-      const messageText = data.messageText || 'Sem mensagem configurada';
+      const messageText = data.messageText || 'Configure a mensagem...';
       return hasVariables(messageText)
-        ? highlightVariables(truncate(messageText, 40))
-        : truncate(messageText, 40);
+        ? highlightVariables(truncate(messageText, 50))
+        : truncate(messageText, 50);
 
     case 'question':
-      const questionText = data.questionText || 'Sem pergunta configurada';
+      const questionText = data.questionText || 'Configure a pergunta...';
       return hasVariables(questionText)
-        ? highlightVariables(truncate(questionText, 40))
-        : truncate(questionText, 40);
+        ? highlightVariables(truncate(questionText, 50))
+        : truncate(questionText, 50);
 
     case 'condition':
       const conditionsCount = data.conditions?.length || 0;
-      if (conditionsCount === 0) return 'Sem condições';
-      // Mostrar primeira condição se houver
-      if (data.conditions && data.conditions.length > 0) {
-        const firstCondition = data.conditions[0];
-        const conditionPreview = `${firstCondition.variable || '?'} ${firstCondition.operator || '='} ${firstCondition.value || '?'}`;
-        return `${truncate(conditionPreview, 25)} ${conditionsCount > 1 ? `(+${conditionsCount - 1})` : ''}`;
-      }
-      return `${conditionsCount} condição${conditionsCount > 1 ? 'ões' : ''}`;
+      if (conditionsCount === 0) return 'Configure as condições';
+
+      // Mostrar apenas a contagem de forma limpa
+      return `${conditionsCount} ${conditionsCount === 1 ? 'condição' : 'condições'}`;
 
     case 'api_call':
-      if (!data.url) return 'Sem URL configurada';
-      const apiName = data.name || truncate(data.url, 25);
-      return `${data.method || 'GET'} ${apiName}`;
+      if (!data.url && !data.name) return 'Configure a chamada de API';
+      const apiName = data.name || 'API Externa';
+      const method = data.method || 'GET';
+      return (
+        <>
+          <span className="font-semibold text-xs px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 rounded">{method}</span>
+          <span className="ml-1">{truncate(apiName, 25)}</span>
+        </>
+      );
 
     case 'ai_prompt':
-      return truncate(data.prompt || 'Sem prompt configurado', 40);
+      if (!data.prompt) return 'Configure o prompt de IA';
+      return truncate(data.prompt, 45);
 
     case 'whatsapp_template':
-      return truncate(data.templateName || 'Sem template selecionado', 30);
+      return data.templateName ? truncate(data.templateName, 35) : 'Selecione um template';
 
     case 'interactive_buttons':
       const buttonsCount = data.buttons?.length || 0;
-      if (buttonsCount === 0) return 'Sem botões';
-      // Mostrar primeiro botão
-      if (data.buttons && data.buttons.length > 0) {
-        const firstButton = data.buttons[0].text || data.buttons[0].label;
-        return `${truncate(firstButton, 20)} ${buttonsCount > 1 ? `(+${buttonsCount - 1})` : ''}`;
-      }
-      return `${buttonsCount} botão${buttonsCount > 1 ? 'ões' : ''}`;
+      if (buttonsCount === 0) return 'Adicione botões';
+      return `${buttonsCount} ${buttonsCount === 1 ? 'botão' : 'botões'}`;
 
     case 'interactive_list':
       const itemsCount = data.listItems?.length || 0;
-      if (itemsCount === 0) return 'Sem itens';
-      // Mostrar primeiro item
-      if (data.listItems && data.listItems.length > 0) {
-        const firstItem = data.listItems[0].title || data.listItems[0].text;
-        return `${truncate(firstItem, 20)} ${itemsCount > 1 ? `(+${itemsCount - 1})` : ''}`;
-      }
-      return `${itemsCount} item${itemsCount > 1 ? 'ns' : ''}`;
+      if (itemsCount === 0) return 'Adicione itens à lista';
+      return `${itemsCount} ${itemsCount === 1 ? 'item' : 'itens'}`;
 
     case 'delay':
-      if (!data.duration) return 'Sem delay';
-      const unit = data.unit === 'seconds' ? 's' : data.unit === 'minutes' ? 'min' : 'h';
-      return `Aguardar ${data.duration}${unit}`;
+      if (!data.duration) return 'Configure o tempo de espera';
+      const unit = data.unit === 'seconds' ? 'segundo(s)' : data.unit === 'minutes' ? 'minuto(s)' : 'hora(s)';
+      return `${data.duration} ${unit}`;
 
     case 'set_variable':
-      if (!data.variableName) return 'Sem variável';
-      const valuePreview = data.value ? ` = ${truncate(data.value, 15)}` : '';
-      return `{{${data.variableName}}}${valuePreview}`;
+      if (!data.variableName) return 'Configure a variável';
+      return `{{${data.variableName}}}`;
 
     case 'jump':
       if (data.jumpType === 'flow') {
-        return data.targetFlow ? `→ Fluxo: ${truncate(data.targetFlow, 20)}` : 'Selecione um fluxo';
+        return data.targetFlow ? `Ir para fluxo` : 'Selecione o fluxo destino';
       }
-      return data.targetNode ? `→ Nó: ${truncate(data.targetNode, 20)}` : 'Selecione um nó';
+      return data.targetNode ? `Ir para nó` : 'Selecione o nó destino';
 
     case 'handoff':
       const handoffTypes: Record<string, string> = {
-        queue: 'Fila',
-        department: 'Departamento',
-        agent: 'Agente específico',
+        queue: 'Transferir para fila',
+        department: 'Transferir para departamento',
+        agent: 'Transferir para agente',
       };
-      const handoffType = handoffTypes[data.handoffType] || 'Transferir';
-
-      // Adicionar detalhes específicos
-      if (data.handoffType === 'department' && data.departmentId) {
-        return `${handoffType}: ${truncate(data.departmentName || data.departmentId, 20)}`;
-      } else if (data.handoffType === 'agent' && data.agentId) {
-        return `${handoffType}: ${truncate(data.agentName || data.agentId, 20)}`;
-      }
-      return handoffType;
+      return handoffTypes[data.handoffType] || 'Configure a transferência';
 
     case 'end':
       const endTypes: Record<string, string> = {
-        simple: 'Finalização simples',
-        farewell: 'Com despedida',
+        simple: 'Finalizar conversa',
+        farewell: 'Finalizar com despedida',
         handoff: 'Transferir para humano',
       };
       return endTypes[data.endType] || 'Fim do fluxo';
 
     case 'action':
       const actionTypes: Record<string, string> = {
-        save_contact: 'Salvar contato',
+        save_contact: 'Salvar dados do contato',
         send_email: 'Enviar email',
         webhook: 'Chamar webhook',
         update_crm: 'Atualizar CRM',
       };
-      const actionType = actionTypes[data.actionType] || 'Executar ação';
-
-      // Adicionar detalhes específicos
-      if (data.actionType === 'send_email' && data.emailTo) {
-        return `${actionType}: ${truncate(data.emailTo, 20)}`;
-      } else if (data.actionType === 'webhook' && data.webhookUrl) {
-        return `${actionType}: ${truncate(data.webhookUrl, 20)}`;
-      }
-      return actionType;
+      return actionTypes[data.actionType] || 'Configure a ação';
 
     case 'database_query':
       const dbTypes: Record<string, string> = {
@@ -262,54 +238,36 @@ const getPreviewText = (nodeType: string, data: any): JSX.Element | string | nul
         mongodb: 'MongoDB',
         sqlite: 'SQLite',
       };
-      const dbType = dbTypes[data.connectionType] || data.connectionType || 'Banco';
-      if (!data.query && !data.database) return `${dbType} - Sem configuração`;
+      const dbType = dbTypes[data.connectionType] || 'Banco de Dados';
 
-      // Mostrar nome do banco se disponível
-      const dbName = data.database ? `${data.database}` : '';
-
-      if (!data.query) return `${dbType}${dbName ? ` (${dbName})` : ''} - Sem query`;
+      if (!data.query) return `${dbType} - Configure a consulta`;
 
       // Extrair primeira palavra da query (SELECT, INSERT, UPDATE, DELETE)
       const queryFirstWord = data.query.trim().split(/\s+/)[0].toUpperCase();
-      const queryPreview = truncate(data.query, 25);
 
       return (
         <>
-          <span className="font-semibold">{queryFirstWord}</span>
-          {dbName && <span className="text-[10px] opacity-75"> ({dbName})</span>}
-          <br />
-          <span className="text-[10px] opacity-75">{queryPreview}</span>
+          <span className="font-semibold text-xs px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/30 rounded">{queryFirstWord}</span>
+          <span className="ml-1 text-xs opacity-75">{dbType}</span>
         </>
       );
 
     case 'script':
-      if (!data.scriptCode) return 'Sem código configurado';
+      if (!data.scriptCode) return 'Configure o script';
 
-      // Se tem descrição, mostrar ela
-      if (data.description) {
-        return (
-          <>
-            <span className="font-semibold">{truncate(data.description, 30)}</span>
-            <br />
-            <span className="text-[10px] opacity-75">{data.language || 'JavaScript'}</span>
-          </>
-        );
-      }
+      const language = data.language || 'JavaScript';
+      const description = data.description || 'Executar código';
 
-      // Senão, mostrar primeira linha do código
-      const firstLine = data.scriptCode.split('\n')[0];
       return (
         <>
-          <span className="text-[10px] opacity-75">{data.language || 'JavaScript'}</span>
+          <span className="font-semibold">{truncate(description, 30)}</span>
           <br />
-          <span className="font-mono text-[10px]">{truncate(firstLine, 30)}</span>
+          <span className="text-xs opacity-75">{language}</span>
         </>
       );
 
     case 'start':
-      // Adicionar preview para o nó Start
-      return data.description || 'Início do fluxo';
+      return 'Início do fluxo';
 
     default:
       return null;
@@ -394,17 +352,21 @@ export default function CustomNode({ data }: NodeProps) {
       )}
 
       <div
-        className={`px-3 py-2.5 min-w-[180px] max-w-[220px] rounded-lg border custom-node ${bgClass} relative`}
+        className={`px-3.5 py-3 min-w-[200px] max-w-[240px] rounded-xl border-2 custom-node ${bgClass} relative shadow-sm hover:shadow-md transition-shadow`}
         style={{
           borderColor: color,
-          borderWidth: '1.5px'
         }}
         onMouseEnter={() => needsTooltip && setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
       >
         {/* Header: Icon + Label */}
-        <div className="flex items-center gap-2 mb-1">
-          <Icon className="w-4 h-4 flex-shrink-0" style={{ color }} />
+        <div className="flex items-center gap-2 mb-2">
+          <div
+            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: `${color}20` }}
+          >
+            <Icon className="w-4 h-4" style={{ color }} />
+          </div>
           <span className="font-semibold text-sm text-gray-900 dark:text-white">
             {label}
           </span>
@@ -412,48 +374,34 @@ export default function CustomNode({ data }: NodeProps) {
 
         {/* Preview Text */}
         {previewText && (
-          <div className="text-[13px] text-gray-800 dark:text-gray-100 leading-snug pl-6 font-medium break-words mt-1.5">
+          <div className="text-[12px] text-gray-700 dark:text-gray-200 leading-relaxed break-words">
             {previewText}
           </div>
         )}
 
         {/* Badges Row */}
-        {(variableOutput || usesVariables) && (
-          <div className="mt-2 pl-6 flex flex-wrap gap-1.5">
-            {/* Variable Output Badge (variável que este nó cria) */}
-            {variableOutput && (
-              <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-[10px] font-mono">
-                <Edit3 className="w-2.5 h-2.5" />
-                {`{{${variableOutput}}}`}
-              </div>
-            )}
-
-            {/* Uses Variables Badge (este nó usa variáveis) */}
-            {usesVariables && (
-              <div
-                className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-[10px] font-medium"
-                title="Este nó usa variáveis. Use 'Testar Fluxo' para ver valores substituídos."
-              >
-                <Edit3 className="w-2.5 h-2.5" />
-                Usa variáveis
-              </div>
-            )}
+        {variableOutput && (
+          <div className="mt-2.5 pt-2.5 border-t border-gray-200 dark:border-gray-700">
+            <div className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-md text-[10px] font-mono">
+              <Edit3 className="w-3 h-3" />
+              {`{{${variableOutput}}}`}
+            </div>
           </div>
         )}
 
         {/* Tooltip icon */}
         {needsTooltip && (
-          <div className="absolute top-2 right-2">
-            <Info className="w-3 h-3 text-gray-400" />
+          <div className="absolute top-2.5 right-2.5">
+            <Info className="w-3.5 h-3.5 text-gray-400" />
           </div>
         )}
       </div>
 
       {/* Tooltip */}
       {showTooltip && fullText && (
-        <div className="absolute z-50 left-full ml-2 top-0 min-w-[200px] max-w-[300px] bg-gray-900 dark:bg-gray-800 text-white text-xs p-3 rounded-lg shadow-xl border border-gray-700">
-          <div className="font-medium mb-1">{label}</div>
-          <div className="text-gray-300 whitespace-pre-wrap break-words">
+        <div className="absolute z-50 left-full ml-3 top-0 min-w-[200px] max-w-[320px] bg-gray-900 dark:bg-gray-800 text-white text-xs p-3 rounded-lg shadow-xl border border-gray-700">
+          <div className="font-semibold mb-1.5 text-gray-100">{label}</div>
+          <div className="text-gray-300 whitespace-pre-wrap break-words leading-relaxed">
             {fullText}
           </div>
         </div>
