@@ -102,6 +102,7 @@ export default function AIFlowAssistant({
   useEffect(() => {
     if (isOpen) {
       loadChatHistory();
+      loadGeneratedFlow();
     }
   }, [isOpen]);
 
@@ -111,6 +112,11 @@ export default function AIFlowAssistant({
       saveChatHistory();
     }
   }, [messages]);
+
+  // Save generated flow to localStorage
+  useEffect(() => {
+    saveGeneratedFlow();
+  }, [generatedFlow]);
 
   const checkAIEnabled = async () => {
     try {
@@ -146,6 +152,30 @@ export default function AIFlowAssistant({
       localStorage.setItem(`ai_chat_history_${chatbotId}`, JSON.stringify(messages));
     } catch (error) {
       console.error('Error saving chat history:', error);
+    }
+  };
+
+  const loadGeneratedFlow = () => {
+    try {
+      const saved = localStorage.getItem(`ai_generated_flow_${chatbotId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setGeneratedFlow(parsed);
+      }
+    } catch (error) {
+      console.error('Error loading generated flow:', error);
+    }
+  };
+
+  const saveGeneratedFlow = () => {
+    try {
+      if (generatedFlow) {
+        localStorage.setItem(`ai_generated_flow_${chatbotId}`, JSON.stringify(generatedFlow));
+      } else {
+        localStorage.removeItem(`ai_generated_flow_${chatbotId}`);
+      }
+    } catch (error) {
+      console.error('Error saving generated flow:', error);
     }
   };
 
@@ -289,6 +319,7 @@ export default function AIFlowAssistant({
     setInputValue('');
     try {
       localStorage.removeItem(`ai_chat_history_${chatbotId}`);
+      localStorage.removeItem(`ai_generated_flow_${chatbotId}`);
     } catch (error) {
       console.error('Error clearing chat history:', error);
     }
