@@ -444,12 +444,11 @@ export default function CustomNode({ data }: NodeProps) {
         />
       )}
 
-      {/* Espaço vazio no card para as labels flutuantes (apenas para nós de condição) */}
+      {/* Espaço vazio no card (sem conteúdo) - apenas para nós de condição */}
       {isConditionNode && (
         <div
-          className="px-3"
           style={{
-            height: `${totalOutputs * 24}px` // ~24px por saída (espaço para cada label)
+            height: `${totalOutputs * 24}px` // ~24px por saída
           }}
         />
       )}
@@ -465,23 +464,23 @@ export default function CustomNode({ data }: NodeProps) {
 
             return (
               <div key={`handle-wrapper-${index}`}>
-                {/* Label flutuante ao lado do handle */}
+                {/* Label flutuante FORA do card, ao lado do handle */}
                 <div
                   className="absolute pointer-events-none z-20"
                   style={{
                     bottom: `${bottomPx}px`,
-                    right: '20px',
+                    left: 'calc(100% + 8px)', // 8px fora do card
                     transform: 'translateY(50%)',
                   }}
                 >
-                  <div className="flex items-center gap-1.5 bg-white dark:bg-gray-800 px-2 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700">
-                    <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                      {truncate(labelText, 18)}
-                    </span>
+                  <div className="flex items-center gap-1.5 bg-white dark:bg-gray-800 px-2 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700 whitespace-nowrap">
                     <div
                       className="w-2 h-2 rounded-full flex-shrink-0"
                       style={{ backgroundColor: color }}
                     />
+                    <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300">
+                      {truncate(labelText, 18)}
+                    </span>
                   </div>
                 </div>
 
@@ -504,20 +503,20 @@ export default function CustomNode({ data }: NodeProps) {
           {/* Default route handle (senão) com label - no topo */}
           {hasDefaultRoute && (
             <div key="handle-wrapper-default">
-              {/* Label flutuante ao lado do handle senão */}
+              {/* Label flutuante FORA do card, ao lado do handle senão */}
               <div
                 className="absolute pointer-events-none z-20"
                 style={{
                   bottom: `${12 + (conditions.length * 24)}px`,
-                  right: '20px',
+                  left: 'calc(100% + 8px)', // 8px fora do card
                   transform: 'translateY(50%)',
                 }}
               >
-                <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm border border-gray-300 dark:border-gray-600">
-                  <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm border border-gray-300 dark:border-gray-600 whitespace-nowrap">
+                  <div className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
+                  <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400">
                     Senão
                   </span>
-                  <div className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
                 </div>
               </div>
 
