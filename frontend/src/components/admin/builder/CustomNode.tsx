@@ -208,11 +208,37 @@ const getPreviewText = (nodeType: string, data: any): JSX.Element | string | nul
 
     case 'handoff':
       const handoffTypes: Record<string, string> = {
-        queue: 'Transferir para fila',
-        department: 'Transferir para departamento',
-        agent: 'Transferir para agente',
+        queue: 'Fila de atendimento',
+        department: 'Departamento',
+        agent: 'Agente específico',
       };
-      return handoffTypes[data.handoffType] || 'Configure a transferência';
+
+      const handoffType = handoffTypes[data.handoffType];
+
+      if (!handoffType) return 'Configure a transferência';
+
+      // Mostrar detalhes específicos se configurado
+      if (data.handoffType === 'department' && data.departmentName) {
+        return (
+          <>
+            <span className="text-xs opacity-75">{handoffType}:</span>
+            <br />
+            <span className="font-semibold">{truncate(data.departmentName, 30)}</span>
+          </>
+        );
+      }
+
+      if (data.handoffType === 'agent' && data.agentName) {
+        return (
+          <>
+            <span className="text-xs opacity-75">{handoffType}:</span>
+            <br />
+            <span className="font-semibold">{truncate(data.agentName, 30)}</span>
+          </>
+        );
+      }
+
+      return handoffType;
 
     case 'end':
       const endTypes: Record<string, string> = {
@@ -341,11 +367,11 @@ export default function CustomNode({ data }: NodeProps) {
 
   return (
     <>
-      {/* Target Handle (entrada) - apenas se não for 'start' */}
+      {/* Target Handle (entrada) - ESQUERDA - apenas se não for 'start' */}
       {hasTargetHandle && (
         <Handle
           type="target"
-          position={Position.Top}
+          position={Position.Left}
           className="custom-handle custom-handle-target"
           style={{ background: color }}
         />
@@ -423,55 +449,80 @@ export default function CustomNode({ data }: NodeProps) {
         </div>
       )}
 
-      {/* Source Handles (saída) */}
+      {/* Source Handles (saída) - DIREITA */}
       {hasSourceHandle && !isConditionNode && (
         // Single output handle para nós normais
         <Handle
           type="source"
-          position={Position.Bottom}
+          position={Position.Right}
           className="custom-handle custom-handle-source"
           style={{ background: color }}
         />
       )}
 
-      {/* Multiple output handles para nó Condition */}
+      {/* Multiple output handles para nó Condition - COM LABELS */}
       {hasSourceHandle && isConditionNode && totalOutputs > 0 && (
         <>
           {conditions.map((condition: any, index: number) => {
-            // Calcular posição horizontal do handle (distribuir uniformemente)
+            // Calcular posição vertical do handle (distribuir uniformemente)
             const spacing = 100 / (totalOutputs + 1);
-            const leftPercent = spacing * (index + 1);
+            const topPercent = spacing * (index + 1);
+            const label = condition.label || `Condição ${index + 1}`;
 
             return (
-              <Handle
-                key={`condition-${index}`}
-                type="source"
-                position={Position.Bottom}
-                id={`condition-${index}`}
-                className="custom-handle custom-handle-source"
-                style={{
-                  background: color,
-                  left: `${leftPercent}%`,
-                }}
-                title={condition.label || `Condição ${index + 1}`}
-              />
+              <div key={`condition-wrapper-${index}`} className="absolute" style={{ top: `${topPercent}%`, right: 0, transform: 'translateY(-50%)' }}>
+                <Handle
+                  type="source"
+                  position={Position.Right}
+                  id={`condition-${index}`}
+                  className="custom-handle custom-handle-source"
+                  style={{
+                    background: color,
+                    position: 'relative',
+                    transform: 'none',
+                  }}
+                />
+                {/* Label ao lado do handle */}
+                <div
+                  className="absolute right-full mr-2 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 px-2 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700 whitespace-nowrap text-[10px] font-medium text-gray-700 dark:text-gray-300"
+                  style={{ pointerEvents: 'none' }}
+                >
+                  {truncate(label, 20)}
+                </div>
+              </div>
             );
           })}
 
-          {/* Default route handle (senão) */}
+          {/* Default route handle (senão) - COM LABEL */}
           {hasDefaultRoute && (
-            <Handle
-              key="condition-default"
-              type="source"
-              position={Position.Bottom}
-              id="condition-default"
-              className="custom-handle custom-handle-source"
+            <div
+              key="condition-default-wrapper"
+              className="absolute"
               style={{
-                background: '#6b7280', // Gray para rota padrão
-                left: `${100 / (totalOutputs + 1) * totalOutputs}%`,
+                top: `${100 / (totalOutputs + 1) * totalOutputs}%`,
+                right: 0,
+                transform: 'translateY(-50%)',
               }}
-              title="Senão (rota padrão)"
-            />
+            >
+              <Handle
+                type="source"
+                position={Position.Right}
+                id="condition-default"
+                className="custom-handle custom-handle-source"
+                style={{
+                  background: '#6b7280', // Gray para rota padrão
+                  position: 'relative',
+                  transform: 'none',
+                }}
+              />
+              {/* Label "Senão" */}
+              <div
+                className="absolute right-full mr-2 top-1/2 -translate-y-1/2 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm border border-gray-300 dark:border-gray-600 whitespace-nowrap text-[10px] font-medium text-gray-600 dark:text-gray-400"
+                style={{ pointerEvents: 'none' }}
+              >
+                Senão
+              </div>
+            </div>
           )}
         </>
       )}

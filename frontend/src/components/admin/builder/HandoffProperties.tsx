@@ -100,10 +100,21 @@ export default function HandoffProperties({
       isFirstMount.current = false;
       return;
     }
+
+    // Obter o nome do departamento ou agente selecionado
+    const departmentName = departmentId
+      ? departments.find((d) => d.id === departmentId)?.name || ''
+      : '';
+    const agentName = agentId
+      ? agents.find((a) => a.id === agentId)?.full_name || ''
+      : '';
+
     onChange(nodeId, {
       handoffType,
       departmentId,
+      departmentName, // Adiciona o nome do departamento
       agentId,
+      agentName, // Adiciona o nome do agente
       priority,
       contextMessage,
       generateSummary,
@@ -111,7 +122,7 @@ export default function HandoffProperties({
       nodeType,
       label,
     });
-  }, [nodeId, handoffType, departmentId, agentId, priority, contextMessage, generateSummary, outputVariable]);
+  }, [nodeId, handoffType, departmentId, agentId, priority, contextMessage, generateSummary, outputVariable, departments, agents]);
 
   const tabs: Tab[] = [
     {
