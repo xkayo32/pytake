@@ -446,7 +446,7 @@ export default function CustomNode({ data }: NodeProps) {
             className="absolute pointer-events-none bg-white dark:bg-gray-800 px-2 py-0.5 rounded shadow-sm border border-gray-200 dark:border-gray-700 whitespace-nowrap text-[10px] font-medium text-gray-700 dark:text-gray-300 z-10"
             style={{
               top: `${topPercent}%`,
-              right: 'calc(100% + 12px)',
+              left: 'calc(100% + 12px)',
               transform: 'translateY(-50%)',
             }}
           >
@@ -461,7 +461,7 @@ export default function CustomNode({ data }: NodeProps) {
           className="absolute pointer-events-none bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm border border-gray-300 dark:border-gray-600 whitespace-nowrap text-[10px] font-medium text-gray-600 dark:text-gray-400 z-10"
           style={{
             top: `${100 / (totalOutputs + 1) * totalOutputs}%`,
-            right: 'calc(100% + 12px)',
+            left: 'calc(100% + 12px)',
             transform: 'translateY(-50%)',
           }}
         >
