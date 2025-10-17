@@ -327,17 +327,36 @@ Um flow consiste em:
 - **Nodes** (nós): Unidades de ação (message, question, condition, action, api_call, ai_prompt, jump, handoff, end)
 - **Edges** (conexões): Links entre nodes
 
-Tipos de nodes disponíveis:
+Tipos de nodes disponíveis (sempre use type="default" e especifique nodeType em data):
 1. **start**: Início do flow
+   - data: {{"label": "Início", "nodeType": "start"}}
+
 2. **message**: Envia mensagem ao usuário
+   - data: {{"label": "Nome descritivo", "nodeType": "message", "messageText": "Texto da mensagem"}}
+
 3. **question**: Faz pergunta e armazena resposta em variável
+   - data: {{"label": "Nome descritivo", "nodeType": "question", "questionText": "Sua pergunta?", "outputVariable": "nome_variavel"}}
+
 4. **condition**: Ramificação baseada em condições
+   - data: {{"label": "Nome descritivo", "nodeType": "condition", "conditions": [...]}}
+
 5. **action**: Executa ações (salvar contato, enviar email, webhook)
+   - data: {{"label": "Nome descritivo", "nodeType": "action", "actionType": "save_contact"}}
+
 6. **api_call**: Chama APIs externas
+   - data: {{"label": "Nome descritivo", "nodeType": "api_call", "url": "https://...", "method": "GET"}}
+
 7. **ai_prompt**: Usa IA para processar informações
+   - data: {{"label": "Nome descritivo", "nodeType": "ai_prompt", "prompt": "Prompt para IA", "outputVariable": "resultado"}}
+
 8. **jump**: Navega para outro node/flow
+   - data: {{"label": "Nome descritivo", "nodeType": "jump", "jumpType": "node", "targetNode": "node_id"}}
+
 9. **handoff**: Transfere para atendente humano
+   - data: {{"label": "Nome descritivo", "nodeType": "handoff", "handoffType": "queue"}}
+
 10. **end**: Finaliza flow
+    - data: {{"label": "Nome descritivo", "nodeType": "end", "endType": "simple"}}
 
 Regras importantes:
 - Todo flow DEVE começar com node type="start"
@@ -351,6 +370,8 @@ Idioma do flow: {language}
 
 SEMPRE retorne APENAS JSON válido no seguinte formato:
 
+IMPORTANTE: Todos os nodes devem ter type="default" e o tipo real (start, message, etc) vai em data.nodeType
+
 ```json
 {{
   "flow": {{
@@ -360,19 +381,32 @@ SEMPRE retorne APENAS JSON válido no seguinte formato:
       "nodes": [
         {{
           "id": "node_1",
-          "type": "start",
+          "type": "default",
           "position": {{"x": 250, "y": 50}},
-          "data": {{"label": "Início"}}
+          "data": {{
+            "label": "Início",
+            "nodeType": "start"
+          }}
         }},
         {{
           "id": "node_2",
-          "type": "message",
+          "type": "default",
           "position": {{"x": 250, "y": 150}},
           "data": {{
             "label": "Mensagem de Boas-vindas",
-            "content": {{
-              "text": "Olá! Bem-vindo ao nosso atendimento."
-            }}
+            "nodeType": "message",
+            "messageText": "Olá! Bem-vindo ao nosso atendimento."
+          }}
+        }},
+        {{
+          "id": "node_3",
+          "type": "default",
+          "position": {{"x": 250, "y": 250}},
+          "data": {{
+            "label": "Capturar Nome",
+            "nodeType": "question",
+            "questionText": "Qual é o seu nome?",
+            "outputVariable": "user_name"
           }}
         }}
       ],
@@ -381,6 +415,11 @@ SEMPRE retorne APENAS JSON válido no seguinte formato:
           "id": "edge_1",
           "source": "node_1",
           "target": "node_2"
+        }},
+        {{
+          "id": "edge_2",
+          "source": "node_2",
+          "target": "node_3"
         }}
       ]
     }}
