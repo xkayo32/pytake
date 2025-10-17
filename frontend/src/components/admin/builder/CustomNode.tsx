@@ -429,16 +429,13 @@ export default function CustomNode({ data }: NodeProps) {
 
       {/* Footer com labels das saídas (apenas para nós de condição) */}
       {isConditionNode && (
-        <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 relative">
-          <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">
-            Saídas:
-          </div>
+        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 relative">
           <div className="space-y-1.5 flex flex-col-reverse">
             {/* Senão no topo (renderizado por último devido ao flex-col-reverse) */}
             {hasDefaultRoute && (
-              <div className="flex items-center gap-1.5 text-[11px] text-gray-600 dark:text-gray-400">
-                <div className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
+              <div className="flex items-center justify-end gap-1.5 text-[10px] text-gray-600 dark:text-gray-400">
                 <span>Senão (padrão)</span>
+                <div className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
               </div>
             )}
             {/* Condições de baixo para cima (ordem invertida) */}
@@ -448,13 +445,13 @@ export default function CustomNode({ data }: NodeProps) {
               return (
                 <div
                   key={`label-${originalIndex}`}
-                  className="flex items-center gap-1.5 text-[11px] text-gray-700 dark:text-gray-300"
+                  className="flex items-center justify-end gap-1.5 text-[10px] text-gray-700 dark:text-gray-300"
                 >
+                  <span className="truncate">{truncate(labelText, 22)}</span>
                   <div
                     className="w-2 h-2 rounded-full flex-shrink-0"
                     style={{ backgroundColor: color }}
                   />
-                  <span className="truncate">{truncate(labelText, 25)}</span>
                 </div>
               );
             })}
@@ -483,17 +480,17 @@ export default function CustomNode({ data }: NodeProps) {
       {hasSourceHandle && isConditionNode && totalOutputs > 0 && (
         <>
           {conditions.map((condition: any, index: number) => {
-            // Medidas precisas Tailwind:
+            // Cálculo simplificado sem título:
             // - py-2 = 8px padding bottom
-            // - text-[11px] com line-height padrão ≈ 16px
-            // - space-y-1.5 = 6px gap
-            // - Ponto central da linha: 8px (altura do texto / 2)
+            // - text-[10px] com flex items-center ≈ 14px altura total
+            // - space-y-1.5 = 6px gap entre linhas
+            // - Centro da linha: 7px (14px / 2)
 
-            const paddingBottom = 8; // py-2
-            const lineCenterOffset = 8; // metade da altura da linha (~16px / 2)
-            const lineHeightWithGap = 22; // 16px (linha) + 6px (gap)
+            const paddingBottom = 8;
+            const lineCenter = 7;
+            const lineSpacing = 20; // 14px (linha) + 6px (gap)
 
-            const bottomPx = paddingBottom + lineCenterOffset + (index * lineHeightWithGap);
+            const bottomPx = paddingBottom + lineCenter + (index * lineSpacing);
 
             return (
               <Handle
@@ -522,7 +519,7 @@ export default function CustomNode({ data }: NodeProps) {
               style={{
                 background: '#6b7280',
                 top: 'auto',
-                bottom: `${8 + 8 + (conditions.length * 22)}px`,
+                bottom: `${8 + 7 + (conditions.length * 20)}px`,
               }}
             />
           )}
