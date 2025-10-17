@@ -13,6 +13,7 @@ import {
   type Connection,
   type Edge,
   type Node,
+  type ReactFlowInstance,
   Panel,
   MarkerType,
 } from '@xyflow/react';
@@ -230,6 +231,7 @@ export default function ChatbotBuilderPage() {
     return NODE_CATEGORIES.reduce((acc, cat) => ({ ...acc, [cat.id]: true }), {});
   });
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const reactFlowInstanceRef = useRef<any>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -297,6 +299,25 @@ export default function ChatbotBuilderPage() {
     if (flow.canvas_data?.nodes && flow.canvas_data?.edges) {
       setNodes(flow.canvas_data.nodes);
       setEdges(flow.canvas_data.edges);
+
+      // Sync nodeIdCounter with the highest existing node ID to avoid duplicates
+      let maxId = 0;
+      flow.canvas_data.nodes.forEach((node) => {
+        // Extract numeric part from IDs like "node-1", "node-2", etc.
+        const match = node.id.match(/node-(\d+)/);
+        if (match) {
+          const numId = parseInt(match[1], 10);
+          if (numId > maxId) {
+            maxId = numId;
+          }
+        }
+        // Also check for simple numeric IDs
+        const numId = parseInt(node.id, 10);
+        if (!isNaN(numId) && numId > maxId) {
+          maxId = numId;
+        }
+      });
+      nodeIdCounter = maxId;
     } else {
       // Create default start node
       setNodes([
@@ -402,13 +423,32 @@ export default function ChatbotBuilderPage() {
     const newNodeId = `node-${++nodeIdCounter}`;
     const Icon = nodeType.icon;
 
+    // Calculate position at viewport center if reactFlowInstance is available
+    let position = { x: 250, y: 250 }; // Default fallback
+
+    if (reactFlowInstanceRef.current) {
+      try {
+        // Get the center of the visible viewport in flow coordinates
+        const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
+        if (reactFlowBounds) {
+          const centerX = reactFlowBounds.width / 2;
+          const centerY = reactFlowBounds.height / 2;
+
+          // Convert screen coordinates to flow coordinates
+          position = reactFlowInstanceRef.current.screenToFlowPosition({
+            x: centerX,
+            y: centerY,
+          });
+        }
+      } catch (error) {
+        console.warn('Could not calculate viewport center, using default position', error);
+      }
+    }
+
     const newNode: Node = {
       id: newNodeId,
       type: 'default',
-      position: {
-        x: Math.random() * 400 + 100,
-        y: Math.random() * 400 + 100,
-      },
+      position,
       data: {
         label: (
           <div className="flex items-center gap-2 px-3 py-2">
@@ -616,6 +656,9 @@ export default function ChatbotBuilderPage() {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onNodeClick={onNodeClick}
+            onInit={(instance: ReactFlowInstance) => {
+              reactFlowInstanceRef.current = instance;
+            }}
             nodeTypes={nodeTypes}
             defaultEdgeOptions={defaultEdgeOptions}
             fitView
