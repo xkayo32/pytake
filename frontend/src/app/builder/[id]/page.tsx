@@ -333,14 +333,48 @@ export default function ChatbotBuilderPage() {
     [setEdges]
   );
 
+  // Sanitize nodes before saving - extract text from JSX labels
+  const sanitizeNodesForSave = (nodes: Node[]) => {
+    return nodes.map((node) => {
+      // If label is a React element, extract the text content
+      if (typeof node.data?.label === 'object' && node.data?.label !== null) {
+        // Find the text label from the node type
+        const nodeType = node.data?.nodeType;
+        let textLabel = nodeType || 'Node';
+
+        // Try to find in NODE_CATEGORIES
+        for (const category of NODE_CATEGORIES) {
+          const found = category.nodeTypes.find((t) => t.type === nodeType);
+          if (found) {
+            textLabel = found.label;
+            break;
+          }
+        }
+
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            label: textLabel,
+          },
+        };
+      }
+      return node;
+    });
+  };
+
   const handleSave = async () => {
     if (!selectedFlow) return;
 
     try {
       setIsSaving(true);
+
+      // Sanitize nodes to remove JSX labels
+      const sanitizedNodes = sanitizeNodesForSave(nodes);
+
       await flowsAPI.update(selectedFlow.id, {
         canvas_data: {
-          nodes,
+          nodes: sanitizedNodes,
           edges,
         },
       });
