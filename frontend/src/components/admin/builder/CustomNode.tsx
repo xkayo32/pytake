@@ -352,55 +352,71 @@ export default function CustomNode({ data }: NodeProps) {
       )}
 
       <div
-        className={`px-3.5 py-3 min-w-[200px] max-w-[240px] rounded-xl border-2 custom-node ${bgClass} relative shadow-sm hover:shadow-md transition-shadow`}
+        className={`min-w-[220px] max-w-[280px] rounded-lg border custom-node bg-white dark:bg-gray-800 relative shadow-sm hover:shadow-md transition-shadow overflow-hidden`}
         style={{
           borderColor: color,
+          borderWidth: '2px',
+          borderLeftWidth: '4px',
         }}
-        onMouseEnter={() => needsTooltip && setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
       >
-        {/* Header: Icon + Label */}
-        <div className="flex items-center gap-2 mb-2">
+        {/* Header com cor de fundo */}
+        <div
+          className="px-4 py-2.5 flex items-center gap-2.5 border-b border-gray-100 dark:border-gray-700"
+          style={{ backgroundColor: `${color}08` }}
+        >
           <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+            className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: `${color}20` }}
           >
-            <Icon className="w-4 h-4" style={{ color }} />
+            <Icon className="w-3.5 h-3.5" style={{ color }} />
           </div>
-          <span className="font-semibold text-sm text-gray-900 dark:text-white">
+          <span className="font-semibold text-[13px] text-gray-900 dark:text-white truncate">
             {label}
           </span>
         </div>
 
-        {/* Preview Text */}
-        {previewText && (
-          <div className="text-[12px] text-gray-700 dark:text-gray-200 leading-relaxed break-words">
-            {previewText}
-          </div>
-        )}
+        {/* Conteúdo Principal */}
+        <div className="px-4 py-3">
+          {previewText && (
+            <div className="text-[13px] text-gray-700 dark:text-gray-200 leading-relaxed break-words">
+              {previewText}
+            </div>
+          )}
 
-        {/* Badges Row */}
+          {!previewText && (
+            <div className="text-[12px] text-gray-400 dark:text-gray-500 italic">
+              Não configurado
+            </div>
+          )}
+        </div>
+
+        {/* Footer com metadados (variável de saída) */}
         {variableOutput && (
-          <div className="mt-2.5 pt-2.5 border-t border-gray-200 dark:border-gray-700">
-            <div className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-md text-[10px] font-mono">
-              <Edit3 className="w-3 h-3" />
-              {`{{${variableOutput}}}`}
+          <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700">
+            <div className="flex items-center gap-1.5">
+              <Edit3 className="w-3 h-3 text-purple-500 dark:text-purple-400 flex-shrink-0" />
+              <span className="text-[11px] font-mono text-purple-700 dark:text-purple-300 truncate">
+                {`{{${variableOutput}}}`}
+              </span>
             </div>
           </div>
         )}
 
         {/* Tooltip icon */}
         {needsTooltip && (
-          <div className="absolute top-2.5 right-2.5">
-            <Info className="w-3.5 h-3.5 text-gray-400" />
+          <div className="absolute top-2.5 right-3">
+            <Info className="w-3.5 h-3.5 text-gray-400 opacity-60 hover:opacity-100 transition-opacity" />
           </div>
         )}
       </div>
 
-      {/* Tooltip */}
+      {/* Tooltip expandido */}
       {showTooltip && fullText && (
-        <div className="absolute z-50 left-full ml-3 top-0 min-w-[200px] max-w-[320px] bg-gray-900 dark:bg-gray-800 text-white text-xs p-3 rounded-lg shadow-xl border border-gray-700">
-          <div className="font-semibold mb-1.5 text-gray-100">{label}</div>
+        <div className="absolute z-50 left-full ml-3 top-0 min-w-[220px] max-w-[340px] bg-gray-900 dark:bg-gray-800 text-white text-xs p-4 rounded-lg shadow-2xl border border-gray-700">
+          <div className="flex items-center gap-2 mb-2">
+            <Icon className="w-4 h-4" style={{ color }} />
+            <div className="font-semibold text-gray-100">{label}</div>
+          </div>
           <div className="text-gray-300 whitespace-pre-wrap break-words leading-relaxed">
             {fullText}
           </div>
