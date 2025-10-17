@@ -434,6 +434,15 @@ export default function CustomNode({ data }: NodeProps) {
         </div>
       )}
 
+      {/* Espaço vazio no card para as labels flutuantes (apenas para nós de condição) */}
+      {isConditionNode && (
+        <div
+          style={{
+            height: `${totalOutputs * 28}px` // ~28px por saída
+          }}
+        />
+      )}
+
       {/* Source Handle (saída) - DIREITA - nós normais */}
       {hasSourceHandle && !isConditionNode && (
         <Handle
