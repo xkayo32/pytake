@@ -539,6 +539,51 @@ See [PROPERTY_MODAL_USAGE_EXAMPLE.md](PROPERTY_MODAL_USAGE_EXAMPLE.md) for compl
 - **Variables**: Support for variable substitution using `{{variable_name}}` syntax
 - **Simulator**: Real-time flow testing with FlowSimulator component
 
+#### Builder UI Design (LangFlow-Style)
+
+The chatbot builder features a clean, minimal design inspired by LangFlow for professional appearance and optimal UX.
+
+**Design Principles:**
+- Clean and minimal aesthetics
+- Subtle interactions without excessive animations
+- Professional appearance suitable for enterprise use
+- Optimized handle sizes for easy connection creation
+
+**Node Styling:**
+- Rounded corners (rounded-lg) for modern look
+- Thin borders (1.5px) for clean appearance
+- Single-layer subtle shadow for depth
+- Background colors matching node type (message=blue, question=purple, etc.)
+- Hover effect: Slightly elevated shadow
+- Selected state: Colored ring (2px) without excessive emphasis
+
+**Handle (Connector) Styling:**
+- Small size (8px) for clean, unobtrusive appearance
+- White border (2px) for visibility against any background
+- Hover: Minimal growth to 10px
+- Positioned at top (input) and bottom (output) of nodes
+- Color-coded to match parent node type
+
+**Connection Lines (Edges):**
+- Thin stroke (2px) for clean appearance
+- Hover: Subtle thickness increase to 2.5px
+- Selected: 3px stroke width
+- Smooth step curves for natural flow visualization
+
+**Critical CSS Files:**
+- `frontend/src/app/builder/[id]/builder.css` - Custom overrides for React Flow defaults
+- Removes default React Flow backgrounds and wrappers
+- Applies LangFlow-inspired minimal design
+
+**Key Fixes Applied:**
+1. **Double border bug** - Removed inline styles from node creation that conflicted with CustomNode styles
+2. **Background wrapper bug** - Removed extra `<div>` wrapper, using Fragment (`<>`) instead
+3. **React Flow defaults** - Override default node backgrounds, padding, and borders with transparent/minimal values
+
+**Component:** `frontend/src/components/admin/builder/CustomNode.tsx` - Renders individual nodes with consistent styling
+
+**Page:** `frontend/src/app/builder/[id]/page.tsx` - Main builder canvas with React Flow integration
+
 ### Queue System
 
 Conversations can be in queue for agent pickup:
@@ -693,6 +738,16 @@ pytest -k test_authentication             # Run specific test pattern
 6. **24-hour window**: Remember template-only restriction outside conversation window
 7. **bcrypt version**: Use bcrypt==4.0.1 (not 4.1.1) for passlib compatibility
 8. **MongoDB boolean checks**: Use `if mongodb_client.db is None:` NOT `if not mongodb_client.db:`
+9. **Repository initialization**: Repositories only accept `db` parameter, NOT model class
+   ```python
+   # ❌ WRONG
+   ChatbotRepository(Chatbot, db)
+   FlowRepository(Flow, db)
+
+   # ✅ CORRECT
+   ChatbotRepository(db)
+   FlowRepository(db)
+   ```
 
 ### Frontend
 

@@ -255,12 +255,18 @@ async def generate_flow(
     service = FlowGeneratorService(db)
 
     try:
+        # Parse chatbot_id if provided
+        chatbot_id = None
+        if request.chatbot_id:
+            chatbot_id = UUID(request.chatbot_id)
+
         response = await service.generate_flow_from_description(
             organization_id=current_user.organization_id,
             description=request.description,
             industry=request.industry,
             language=request.language,
-            clarifications=None  # TODO: Support clarifications in future
+            clarifications=None,  # TODO: Support clarifications in future
+            chatbot_id=chatbot_id
         )
 
         return response

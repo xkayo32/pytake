@@ -84,7 +84,8 @@ class FlowGeneratorService:
         description: str,
         industry: Optional[str] = None,
         language: str = "pt-BR",
-        clarifications: Optional[Dict[str, str]] = None
+        clarifications: Optional[Dict[str, str]] = None,
+        chatbot_id: Optional[UUID] = None
     ) -> GenerateFlowResponse:
         """
         Generate a flow from natural language description.
@@ -108,8 +109,24 @@ class FlowGeneratorService:
                 error_message="AI Assistant não está configurado ou habilitado para esta organização"
             )
 
+        # Detect WhatsApp type from chatbot
+        whatsapp_type = None  # 'official' or 'qrcode'
+        if chatbot_id:
+            try:
+                chatbot = await self.chatbot_repo.get(chatbot_id)
+                if chatbot and chatbot.whatsapp_number_id:
+                    # Fetch WhatsApp number to get connection_type
+                    from app.repositories.whatsapp import WhatsAppNumberRepository
+                    whatsapp_repo = WhatsAppNumberRepository(self.db)
+                    whatsapp_number = await whatsapp_repo.get(chatbot.whatsapp_number_id)
+                    if whatsapp_number:
+                        whatsapp_type = whatsapp_number.connection_type
+                        logger.info(f"Detected WhatsApp type: {whatsapp_type} for chatbot {chatbot_id}")
+            except Exception as e:
+                logger.warning(f"Could not detect WhatsApp type for chatbot {chatbot_id}: {e}")
+
         # Build prompt
-        system_prompt = self._build_system_prompt(language)
+        system_prompt = self._build_system_prompt(language, whatsapp_type)
         user_prompt = self._build_user_prompt(
             description=description,
             industry=industry,
@@ -317,8 +334,34 @@ class FlowGeneratorService:
 
     # ==================== Prompt Building ====================
 
-    def _build_system_prompt(self, language: str) -> str:
+    def _build_system_prompt(self, language: str, whatsapp_type: Optional[str] = None) -> str:
         """Build system prompt for flow generation"""
+
+        # WhatsApp type-specific instructions
+        whatsapp_instructions = ""
+        if whatsapp_type == "official":
+            whatsapp_instructions = """
+**IMPORTANTE - WhatsApp Official API detectado:**
+Para opções de escolha do usuário, SEMPRE use nodes interativos:
+- **interactive_buttons**: Para até 3 opções (botões clicáveis)
+  - data: {{"label": "Escolha", "nodeType": "interactive_buttons", "bodyText": "Pergunta?", "buttons": [{{"id": "1", "title": "Opção 1"}}, {{"id": "2", "title": "Opção 2"}}]}}
+- **interactive_list**: Para 4+ opções (lista selecionável)
+  - data: {{"label": "Escolha", "nodeType": "interactive_list", "bodyText": "Pergunta?", "buttonText": "Ver opções", "sections": [{{"title": "Categoria", "rows": [{{"id": "1", "title": "Opção 1"}}]}}]}}
+
+NUNCA use mensagens de texto simples com opções numeradas quando o WhatsApp oficial está configurado.
+"""
+        elif whatsapp_type == "qrcode":
+            whatsapp_instructions = """
+**IMPORTANTE - WhatsApp QR Code (Evolution API) detectado:**
+Para opções de escolha do usuário, use mensagens de texto com numeração:
+- Use node **message** com texto formatado
+  - Exemplo: "Escolha uma opção:\\n\\n1 - Cliente\\n2 - Quero ser cliente\\n3 - Suporte"
+- Depois use node **question** para capturar a resposta numérica
+- Use node **condition** para validar a opção escolhida
+
+NÃO use interactive_buttons ou interactive_list, pois o WhatsApp QR Code não suporta componentes interativos.
+"""
+
         return f"""Você é um especialista em automação de WhatsApp e design de chatbots.
 
 Sua tarefa é gerar flows de chatbots estruturados em formato JSON baseado em descrições em linguagem natural.
@@ -326,7 +369,7 @@ Sua tarefa é gerar flows de chatbots estruturados em formato JSON baseado em de
 Um flow consiste em:
 - **Nodes** (nós): Unidades de ação (message, question, condition, action, api_call, ai_prompt, jump, handoff, end)
 - **Edges** (conexões): Links entre nodes
-
+{whatsapp_instructions}
 Tipos de nodes disponíveis (sempre use type="default" e especifique nodeType em data):
 1. **start**: Início do flow
    - data: {{"label": "Início", "nodeType": "start"}}
@@ -357,6 +400,12 @@ Tipos de nodes disponíveis (sempre use type="default" e especifique nodeType em
 
 10. **end**: Finaliza flow
     - data: {{"label": "Nome descritivo", "nodeType": "end", "endType": "simple"}}
+
+11. **interactive_buttons**: Botões interativos WhatsApp (apenas Official API)
+    - data: {{"label": "Nome descritivo", "nodeType": "interactive_buttons", "bodyText": "Texto", "buttons": [...]}}
+
+12. **interactive_list**: Lista interativa WhatsApp (apenas Official API)
+    - data: {{"label": "Nome descritivo", "nodeType": "interactive_list", "bodyText": "Texto", "buttonText": "Ver opções", "sections": [...]}}
 
 Regras importantes:
 - Todo flow DEVE começar com node type="start"
