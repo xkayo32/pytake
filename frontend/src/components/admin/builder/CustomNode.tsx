@@ -309,19 +309,15 @@ export default function CustomNode({ data }: NodeProps) {
           type="target"
           position={Position.Top}
           className="custom-handle custom-handle-target"
-          style={{
-            background: color,
-            boxShadow: `0 0 0 3px rgba(255, 255, 255, 0.9), 0 0 12px ${color}40`
-          }}
+          style={{ background: color }}
         />
       )}
 
       <div
-        className={`px-4 py-3 min-w-[200px] max-w-[240px] rounded-2xl border-2 custom-node ${bgClass} relative backdrop-blur-sm`}
+        className={`px-3 py-2.5 min-w-[180px] max-w-[220px] rounded-lg border custom-node ${bgClass} relative`}
         style={{
           borderColor: color,
-          boxShadow: `0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04), 0 0 0 1px ${color}20`,
-          background: `linear-gradient(135deg, ${bgClass.includes('dark:') ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.9)'}, ${bgClass.includes('dark:') ? 'rgba(255, 255, 255, 0.01)' : 'rgba(255, 255, 255, 0.7)'})`
+          borderWidth: '1.5px'
         }}
         onMouseEnter={() => needsTooltip && setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
@@ -389,10 +385,7 @@ export default function CustomNode({ data }: NodeProps) {
           type="source"
           position={Position.Bottom}
           className="custom-handle custom-handle-source"
-          style={{
-            background: color,
-            boxShadow: `0 0 0 3px rgba(255, 255, 255, 0.9), 0 0 12px ${color}40`
-          }}
+          style={{ background: color }}
         />
       )}
     </>

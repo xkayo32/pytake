@@ -13,154 +13,56 @@
   box-shadow: none !important;
 }
 
-/* Custom Node Styles - Modern Design */
+/* Custom Node Styles - LangFlow Style (Clean & Minimal) */
 .custom-node {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
   position: relative;
   overflow: visible;
-}
-
-.custom-node::before {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: inherit;
-  padding: 2px;
-  background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.1));
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .custom-node:hover {
-  transform: scale(1.02);
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.12),
-    0 4px 8px rgba(0, 0, 0, 0.08),
-    0 0 0 1px currentColor !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
-.custom-node:hover::before {
-  opacity: 1;
-}
-
-/* Selected state */
+/* Selected state - subtle ring */
 .react-flow__node.selected .custom-node {
   box-shadow:
-    0 0 0 3px currentColor,
-    0 12px 32px rgba(0, 0, 0, 0.16),
-    0 6px 12px rgba(0, 0, 0, 0.12) !important;
-  transform: scale(1.03);
+    0 0 0 2px currentColor,
+    0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.react-flow__node.selected .custom-node::before {
-  opacity: 1;
-}
-
-/* Custom Handles - Modern & Bigger */
+/* Custom Handles - LangFlow Style (Small & Clean) */
 .custom-handle {
-  width: 14px !important;
-  height: 14px !important;
-  border: 3px solid rgba(255, 255, 255, 0.95) !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  width: 8px !important;
+  height: 8px !important;
+  border: 2px solid white !important;
+  transition: all 0.2s ease !important;
   z-index: 10 !important;
   cursor: crosshair !important;
-  position: relative !important;
-}
-
-.custom-handle::before {
-  content: '';
-  position: absolute;
-  inset: -6px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  z-index: -1;
 }
 
 .custom-handle:hover {
-  transform: scale(1.4);
-  border-width: 4px !important;
-  box-shadow:
-    0 0 0 4px rgba(255, 255, 255, 0.9),
-    0 0 20px currentColor,
-    0 0 40px currentColor !important;
-}
-
-.custom-handle:hover::before {
-  opacity: 0.15;
-  animation: pulse-handle 1.5s infinite;
+  width: 10px !important;
+  height: 10px !important;
+  border-width: 2px !important;
 }
 
 .custom-handle.connecting {
-  animation: pulse-handle 1s infinite;
+  width: 10px !important;
+  height: 10px !important;
 }
 
-/* Handle animations */
-@keyframes pulse-handle {
-  0%, 100% {
-    opacity: 0.15;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.25;
-    transform: scale(1.3);
-  }
-}
-
-/* Connection line styles */
+/* Connection line styles - Clean */
 .react-flow__edge-path {
-  stroke-width: 2.5px !important;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+  stroke-width: 2px !important;
   transition: stroke-width 0.2s ease;
 }
 
 .react-flow__edge:hover .react-flow__edge-path {
-  stroke-width: 3.5px !important;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+  stroke-width: 2.5px !important;
 }
 
 .react-flow__edge.selected .react-flow__edge-path {
-  stroke-width: 4px !important;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.2));
-}
-
-/* Edge markers (arrows) */
-.react-flow__edge .react-flow__edge-marker {
-  transition: all 0.2s ease;
-}
-
-.react-flow__edge:hover .react-flow__edge-marker {
-  transform: scale(1.2);
-}
-
-/* Smooth animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.custom-node {
-  animation: fadeIn 0.3s ease-out;
-}
-
-/* Dark mode adjustments */
-@media (prefers-color-scheme: dark) {
-  .custom-node {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)) !important;
-  }
-
-  .custom-handle {
-    border-color: rgba(0, 0, 0, 0.4) !important;
-  }
+  stroke-width: 3px !important;
 }
