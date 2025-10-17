@@ -561,8 +561,21 @@ The chatbot builder features a clean, minimal design inspired by LangFlow for pr
 - Small size (8px) for clean, unobtrusive appearance
 - White border (2px) for visibility against any background
 - Hover: Minimal growth to 10px
-- Positioned at top (input) and bottom (output) of nodes
+- **Standard nodes**: Input handle at left, output handle at right
+- **Condition nodes**: Multiple output handles aligned from bottom to top
 - Color-coded to match parent node type
+
+**Condition Node Special Layout:**
+Condition nodes have a unique layout to display multiple conditional outputs:
+- **Reserved space**: Empty area at the bottom of the card (28px per output)
+- **Output handles**: Positioned at the right edge, starting from bottom (`bottom: 14px`)
+- **Labels**: Floating absolutely positioned, aligned with each handle
+- **Positioning**: Uses `bottom` in pixels (not `top` percentage) for precise alignment
+- **Example**: For 3 outputs:
+  - 1st condition: `bottom: 14px`
+  - 2nd condition: `bottom: 42px` (14 + 28)
+  - 3rd condition: `bottom: 70px` (14 + 56)
+  - "Senão" (default): `bottom: 98px` (14 + 84)
 
 **Connection Lines (Edges):**
 - Thin stroke (2px) for clean appearance
@@ -579,6 +592,7 @@ The chatbot builder features a clean, minimal design inspired by LangFlow for pr
 1. **Double border bug** - Removed inline styles from node creation that conflicted with CustomNode styles
 2. **Background wrapper bug** - Removed extra `<div>` wrapper, using Fragment (`<>`) instead
 3. **React Flow defaults** - Override default node backgrounds, padding, and borders with transparent/minimal values
+4. **Condition handles alignment** - Aligned handles from bottom-to-top with labels (commits: `5065f13`, `9f5dd3f`, `b44d670`, `d509011`, `cd35abc`, `e21a259`, `8af7139`, `4b93ddf`, `5a503bb`, `b65e511`, `2469289`, `5b8f5ee`, `ec6c75b`, `6c7cdb6`, `3282e47`, `513670b`, `74c93e5`)
 
 **Component:** `frontend/src/components/admin/builder/CustomNode.tsx` - Renders individual nodes with consistent styling
 
