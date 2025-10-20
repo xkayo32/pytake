@@ -11,7 +11,7 @@
 services:
   # PostgreSQL - Main Database
   postgres:
-    image: postgres:15-alpine
+    image: docker.io/library/postgres:15-alpine
     container_name: pytake-postgres
     restart: unless-stopped
     environment:
@@ -30,7 +30,7 @@ services:
 
   # Redis - Cache & Queue
   redis:
-    image: redis:7-alpine
+    image: docker.io/library/redis:7-alpine
     container_name: pytake-redis
     restart: unless-stopped
     ports:
@@ -45,7 +45,7 @@ services:
 
   # MongoDB - Logs & Analytics
   mongodb:
-    image: mongo:7
+    image: docker.io/library/mongo:7
     container_name: pytake-mongodb
     restart: unless-stopped
     environment:
@@ -88,27 +88,27 @@ services:
       mongodb:
         condition: service_healthy
 
-  # Frontend - Next.js (Production Build)
+  # Frontend - Next.js (Development Mode for Podman compatibility)
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-        - DOCKER=true
+    image: docker.io/library/node:20-alpine
     container_name: pytake-frontend
-    restart: unless-stopped
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    volumes:
+      - ./frontend:/app:z
     ports:
       - "${FRONTEND_PORT:-3001}:3000"
     environment:
-      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      - NODE_ENV=development
       - DOCKER=true
+    restart: unless-stopped
     depends_on:
       - backend
 
   # Nginx - Reverse Proxy
   nginx:
-    image: nginx:latest
+    image: docker.io/library/nginx:latest
     container_name: pytake-nginx
     restart: unless-stopped
     ports:

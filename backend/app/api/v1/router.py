@@ -6,7 +6,7 @@ Combines all v1 endpoints
 from fastapi import APIRouter, Request, Query, HTTPException
 from fastapi.responses import PlainTextResponse
 
-from app.api.v1.endpoints import auth, organizations, users, contacts, conversations, whatsapp, chatbots, campaigns, analytics, queue, secrets, database, departments, ai_assistant
+from app.api.v1.endpoints import auth, organizations, users, contacts, conversations, whatsapp, chatbots, campaigns, analytics, queue, departments, ai_assistant  # secrets, database
 
 api_router = APIRouter()
 
@@ -165,8 +165,8 @@ api_router.include_router(whatsapp.router, prefix="/whatsapp", tags=["WhatsApp"]
 api_router.include_router(chatbots.router, prefix="/chatbots", tags=["Chatbots"])
 api_router.include_router(campaigns.router, prefix="/campaigns", tags=["Campaigns"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
-api_router.include_router(secrets.router, prefix="/secrets", tags=["Secrets"])
-api_router.include_router(database.router, prefix="/database", tags=["Database"])
+# api_router.include_router(secrets.router, prefix="/secrets", tags=["Secrets"])  # TODO: Implement secrets endpoint
+# api_router.include_router(database.router, prefix="/database", tags=["Database"])  # TODO: Implement database endpoint
 api_router.include_router(ai_assistant.router, prefix="/ai-assistant", tags=["AI Assistant"])
 
 # Future routers will be added here:
