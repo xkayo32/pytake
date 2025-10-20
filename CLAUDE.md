@@ -29,6 +29,10 @@ docker-compose down
 # 6. Restart a specific service after code changes
 docker-compose restart backend
 docker-compose restart frontend
+
+# 7. Initial setup (first time only)
+# After starting containers, run migrations:
+docker exec pytake-backend alembic upgrade head
 ```
 
 ## Project Overview
@@ -123,13 +127,16 @@ docker exec -it pytake-frontend sh
 
 # Inside container
 npm install                      # Install new dependencies (after package.json changes)
-npm run build                    # Build for production
+npm run dev                      # Start dev server (already runs by default in container)
+npm run build                    # Build for production with Turbopack
 npm run lint                     # ESLint check
 
 # Or run directly from host
 docker exec pytake-frontend npm install
 docker exec pytake-frontend npm run build
 docker exec pytake-frontend npm run lint
+
+# Note: Frontend uses Turbopack for faster builds (--turbopack flag)
 ```
 
 ### Database Access
