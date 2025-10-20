@@ -100,3 +100,6 @@ media/certbot/
 CLAUDE.md
 *.claude.md
 nul
+
+# SSL Certificates (Let's Encrypt)
+certbot/
