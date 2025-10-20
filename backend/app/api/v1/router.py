@@ -6,7 +6,7 @@ Combines all v1 endpoints
 from fastapi import APIRouter, Request, Query, HTTPException
 from fastapi.responses import PlainTextResponse
 
-from app.api.v1.endpoints import auth, organizations, users, contacts, conversations, whatsapp, chatbots, campaigns, analytics, queue, departments, ai_assistant  # secrets, database
+from app.api.v1.endpoints import auth, organizations, users, contacts, conversations, whatsapp, chatbots, campaigns, analytics, queue, queues, departments, ai_assistant  # secrets, database
 
 api_router = APIRouter()
 
@@ -160,6 +160,7 @@ api_router.include_router(users.router, prefix="/users", tags=["Users"])
 api_router.include_router(contacts.router, prefix="/contacts", tags=["Contacts"])
 api_router.include_router(conversations.router, prefix="/conversations", tags=["Conversations"])
 api_router.include_router(queue.router, prefix="/queue", tags=["Queue"])
+api_router.include_router(queues.router, prefix="/queues", tags=["Queues"])
 api_router.include_router(departments.router, prefix="/departments", tags=["Departments"])
 api_router.include_router(whatsapp.router, prefix="/whatsapp", tags=["WhatsApp"])
 api_router.include_router(chatbots.router, prefix="/chatbots", tags=["Chatbots"])

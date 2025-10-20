@@ -174,20 +174,38 @@ class ConversationService:
         self,
         organization_id: UUID,
         department_id: Optional[UUID] = None,
+        queue_id: Optional[UUID] = None,
         skip: int = 0,
         limit: int = 100,
     ) -> List[Conversation]:
-        """Get conversations in queue"""
-        return await self.repo.list_conversations(
-            organization_id=organization_id,
-            status="queued",
-            assigned_department_id=department_id,
-            skip=skip,
-            limit=limit,
-        )
+        """Get conversations in queue (optionally filtered by department and/or queue)"""
+        # Build filters
+        filters = {
+            "organization_id": organization_id,
+            "status": "queued",
+            "skip": skip,
+            "limit": limit,
+        }
+
+        if department_id:
+            filters["assigned_department_id"] = department_id
+
+        # Note: Need to update list_conversations to support queue_id filter
+        # For now, if queue_id is provided, we'll filter after fetching
+        conversations = await self.repo.list_conversations(**filters)
+
+        # Filter by queue_id if provided
+        if queue_id:
+            conversations = [c for c in conversations if c.queue_id == queue_id]
+
+        return conversations
 
     async def pull_from_queue(
-        self, organization_id: UUID, agent_id: UUID, department_id: Optional[UUID] = None
+        self,
+        organization_id: UUID,
+        agent_id: UUID,
+        department_id: Optional[UUID] = None,
+        queue_id: Optional[UUID] = None,
     ) -> Optional[Conversation]:
         """Pull next conversation from queue and assign to agent"""
         from sqlalchemy import select
@@ -203,6 +221,9 @@ class ConversationService:
 
         if department_id:
             query = query.where(ConversationModel.department_id == department_id)
+
+        if queue_id:
+            query = query.where(ConversationModel.queue_id == queue_id)
 
         # Order by priority (desc) and queued_at (asc)
         query = query.order_by(

@@ -102,6 +102,7 @@ class Department(Base, TimestampMixin, SoftDeleteMixin):
 
     # Relationships
     organization = relationship("Organization", back_populates="departments")
+    queues = relationship("Queue", back_populates="department", cascade="all, delete-orphan")
     # conversations = relationship("Conversation", back_populates="department")
     # contacts_assigned = relationship("Contact", back_populates="assigned_department")
 

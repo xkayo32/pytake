@@ -70,6 +70,13 @@ class Conversation(Base, TimestampMixin, SoftDeleteMixin):
         index=True,
     )
 
+    queue_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("queues.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Chatbot
     active_chatbot_id = Column(
         UUID(as_uuid=True),
@@ -193,6 +200,7 @@ class Conversation(Base, TimestampMixin, SoftDeleteMixin):
     whatsapp_number = relationship("WhatsAppNumber", back_populates="conversations")
     current_agent = relationship("User", foreign_keys=[current_agent_id])
     department = relationship("Department")
+    queue = relationship("Queue")
     active_chatbot = relationship("Chatbot")
     active_flow = relationship("Flow")
     current_node = relationship("Node")
@@ -247,7 +255,7 @@ class Conversation(Base, TimestampMixin, SoftDeleteMixin):
         self.queued_at = None
         self.queue_position = None
 
-    def add_to_queue(self, department_id: UUID = None, priority: int = 0):
+    def add_to_queue(self, department_id: UUID = None, queue_id: UUID = None, priority: int = 0):
         """Add conversation to queue"""
         from datetime import datetime
 
@@ -255,6 +263,7 @@ class Conversation(Base, TimestampMixin, SoftDeleteMixin):
         self.queued_at = datetime.utcnow()
         self.queue_priority = priority
         self.department_id = department_id
+        self.queue_id = queue_id
 
     def close_conversation(self):
         """Close the conversation"""
