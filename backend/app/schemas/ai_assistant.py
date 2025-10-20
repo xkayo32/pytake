@@ -59,8 +59,9 @@ class AIAssistantSettings(BaseModel):
     {
         "ai_assistant": {
             "enabled": true,
-            "provider": "anthropic",
-            "api_key": "sk-ant-...",
+            "default_provider": "anthropic",
+            "openai_api_key": "sk-...",
+            "anthropic_api_key": "sk-ant-...",
             "model": "claude-3-5-sonnet-20241022",
             "max_tokens": 8192,
             "temperature": 0.7
@@ -71,14 +72,19 @@ class AIAssistantSettings(BaseModel):
         default=False,
         description="Enable/disable AI Flow Assistant feature"
     )
-    provider: AIProvider = Field(
+    default_provider: AIProvider = Field(
         default=AIProvider.ANTHROPIC,
-        description="AI provider (openai or anthropic)"
+        description="Default AI provider (openai or anthropic)"
     )
-    api_key: str = Field(
-        ...,
+    openai_api_key: Optional[str] = Field(
+        None,
         min_length=10,
-        description="API key for the selected provider"
+        description="OpenAI API key"
+    )
+    anthropic_api_key: Optional[str] = Field(
+        None,
+        min_length=10,
+        description="Anthropic API key"
     )
     model: str = Field(
         default="claude-3-5-sonnet-20241022",
@@ -111,8 +117,9 @@ class AIAssistantSettings(BaseModel):
 class AIAssistantSettingsUpdate(BaseModel):
     """Schema for updating AI Assistant settings"""
     enabled: Optional[bool] = None
-    provider: Optional[AIProvider] = None
-    api_key: Optional[str] = Field(None, min_length=10)
+    default_provider: Optional[AIProvider] = None
+    openai_api_key: Optional[str] = Field(None, min_length=10)
+    anthropic_api_key: Optional[str] = Field(None, min_length=10)
     model: Optional[str] = None
     max_tokens: Optional[int] = Field(None, ge=1024, le=200000)
     temperature: Optional[float] = Field(None, ge=0.0, le=1.0)
