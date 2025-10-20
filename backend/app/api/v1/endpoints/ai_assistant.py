@@ -239,6 +239,141 @@ async def update_ai_settings(
     return validated_settings
 
 
+@router.post("/test")
+async def test_ai_connection(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Test AI connection with current settings.
+
+    Validates API keys and makes a simple test call to verify connectivity.
+    """
+    # Check permission
+    if current_user.role not in ["org_admin", "super_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can test AI connection"
+        )
+
+    # Get organization settings
+    org_repo = OrganizationRepository(db)
+    org = await org_repo.get(current_user.organization_id)
+
+    if not org:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found"
+        )
+
+    ai_settings = org.settings.get('ai_assistant')
+
+    if not ai_settings:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="AI Assistant not configured. Please configure API keys first."
+        )
+
+    try:
+        settings = AIAssistantSettings(**ai_settings)
+    except Exception as e:
+        logger.error(f"Error parsing AI settings: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Invalid AI settings configuration"
+        )
+
+    # Test connection based on provider
+    try:
+        if settings.default_provider == "anthropic":
+            # Test Anthropic API
+            if not settings.anthropic_api_key:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Anthropic API key not configured"
+                )
+
+            # Import here to avoid loading if not needed
+            from anthropic import Anthropic
+
+            client = Anthropic(api_key=settings.anthropic_api_key)
+
+            # Make a minimal test call
+            response = client.messages.create(
+                model="claude-3-5-haiku-20241022",  # Smallest/cheapest model
+                max_tokens=10,
+                messages=[{"role": "user", "content": "Hi"}]
+            )
+
+            return {
+                "success": True,
+                "provider": "anthropic",
+                "message": "Connection successful! Anthropic API is working.",
+                "model_tested": "claude-3-5-haiku-20241022"
+            }
+
+        elif settings.default_provider == "openai":
+            # Test OpenAI API
+            if not settings.openai_api_key:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="OpenAI API key not configured"
+                )
+
+            # Import here to avoid loading if not needed
+            from openai import OpenAI
+
+            client = OpenAI(api_key=settings.openai_api_key)
+
+            # Make a minimal test call
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",  # Smallest/cheapest model
+                max_tokens=10,
+                messages=[{"role": "user", "content": "Hi"}]
+            )
+
+            return {
+                "success": True,
+                "provider": "openai",
+                "message": "Connection successful! OpenAI API is working.",
+                "model_tested": "gpt-4o-mini"
+            }
+
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported provider: {settings.default_provider}"
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error testing AI connection: {e}")
+        error_msg = str(e)
+
+        # Parse common errors
+        if "authentication" in error_msg.lower() or "api key" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid API key. Please check your credentials."
+            )
+        elif "rate limit" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Rate limit exceeded. Please try again later."
+            )
+        elif "quota" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail="API quota exceeded. Please check your billing."
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error testing connection: {error_msg}"
+            )
+
+
 # ==================== Flow Generation ====================
 
 @router.post("/generate-flow", response_model=GenerateFlowResponse)
