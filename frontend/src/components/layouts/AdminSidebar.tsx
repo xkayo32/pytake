@@ -13,6 +13,7 @@ import {
   Phone,
   UserPlus,
   Layers,
+  ListTodo,
   Key
 } from 'lucide-react';
 import { useUnreadCount } from '@/hooks/useUnreadCount';
@@ -31,7 +32,8 @@ const navigation: NavItem[] = [
   { name: 'Chatbots', href: '/admin/chatbots', icon: Bot },
   { name: 'Campanhas', href: '/admin/campaigns', icon: Send },
   { name: 'Usuários', href: '/admin/users', icon: Users },
-  { name: 'Filas', href: '/admin/queues', icon: Layers },
+  { name: 'Departamentos', href: '/admin/departments', icon: Users },
+  { name: 'Filas', href: '/admin/queues', icon: ListTodo },
   { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { name: 'WhatsApp', href: '/admin/whatsapp', icon: Phone },
   { name: 'Secrets', href: '/admin/secrets', icon: Key },

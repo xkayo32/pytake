@@ -127,8 +127,8 @@ export function DepartmentModal({
         offline_message: '',
       });
     } catch (error) {
-      console.error('Erro ao salvar fila:', error);
-      setErrors({ submit: 'Erro ao salvar fila. Tente novamente.' });
+      console.error('Erro ao salvar departamento:', error);
+      setErrors({ submit: 'Erro ao salvar departamento. Tente novamente.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -159,8 +159,8 @@ export function DepartmentModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={mode === 'create' ? 'Criar Fila' : 'Editar Fila'}
-      description={mode === 'create' ? 'Configure uma nova fila de atendimento' : 'Atualize as configurações da fila'}
+      title={mode === 'create' ? 'Criar Departamento' : 'Editar Departamento'}
+      description={mode === 'create' ? 'Configure um novo departamento de atendimento' : 'Atualize as configurações do departamento'}
       size="lg"
     >
       <form onSubmit={handleSubmit}>
@@ -176,7 +176,7 @@ export function DepartmentModal({
               {/* Nome */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Nome da Fila *
+                  Nome do Departamento *
                 </label>
                 <input
                   type="text"
@@ -218,7 +218,7 @@ export function DepartmentModal({
                   className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 dark:focus:ring-white"
                 />
                 <label htmlFor="is_active" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                  Fila ativa (aceita novas conversas)
+                  Departamento ativo (aceita novas conversas)
                 </label>
               </div>
             </div>
@@ -284,7 +284,7 @@ export function DepartmentModal({
               <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Preview:</p>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ backgroundColor: formData.color + '20', color: formData.color }}>
                 <span className="text-lg">{ICONS.find(i => i.value === formData.icon)?.icon}</span>
-                <span className="font-medium">{formData.name || 'Nome da Fila'}</span>
+                <span className="font-medium">{formData.name || 'Nome do Departamento'}</span>
               </div>
             </div>
           </div>
@@ -428,7 +428,7 @@ export function DepartmentModal({
             type="submit"
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Salvando...' : mode === 'create' ? 'Criar Fila' : 'Salvar Alterações'}
+            {isSubmitting ? 'Salvando...' : mode === 'create' ? 'Criar Departamento' : 'Salvar Alterações'}
           </ActionButton>
         </ModalActions>
       </form>
