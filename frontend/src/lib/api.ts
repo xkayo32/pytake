@@ -335,6 +335,31 @@ export const departmentsAPI = {
     api.delete(`/departments/${departmentId}/agents/${agentId}`),
 };
 
+// Queues API
+export const queuesAPI = {
+  list: (params?: {
+    department_id?: string;
+    is_active?: boolean;
+    search?: string;
+    skip?: number;
+    limit?: number;
+  }) => api.get('/queues/', { params }),
+
+  get: (id: string) => api.get(`/queues/${id}`),
+
+  getBySlug: (slug: string, params?: { department_id?: string }) =>
+    api.get(`/queues/by-slug/${slug}`, { params }),
+
+  create: (data: any) => api.post('/queues/', data),
+
+  update: (id: string, data: any) => api.put(`/queues/${id}`, data),
+
+  delete: (id: string) => api.delete(`/queues/${id}`),
+
+  bulkDelete: (queue_ids: string[]) =>
+    api.post('/queues/bulk-delete', { queue_ids }),
+};
+
 // Users API
 export const usersAPI = {
   list: (params?: { skip?: number; limit?: number; role?: string; is_active?: boolean }) =>

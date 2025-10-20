@@ -4,45 +4,43 @@ import { useEffect, useState } from 'react';
 import {
   ListTodo,
   Users,
-  Clock,
+  Layers,
   AlertCircle,
   Settings,
   Plus,
   Edit,
   Trash2,
-  MoreVertical,
+  Zap,
 } from 'lucide-react';
 import { StatsCard } from '@/components/admin/StatsCard';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { ActionButton } from '@/components/admin/ActionButton';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
-import { DepartmentModal } from '@/components/admin/DepartmentModal';
-import { queueAPI, departmentsAPI } from '@/lib/api';
-import { Conversation } from '@/types/conversation';
-import { Department, DepartmentCreate, DepartmentUpdate } from '@/types/department';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { QueueModal } from '@/components/admin/QueueModal';
+import { queuesAPI, departmentsAPI } from '@/lib/api';
+import { Queue, QueueCreate, QueueUpdate } from '@/types/queue';
+import { Department } from '@/types/department';
 
 export default function QueuesPage() {
-  const [queue, setQueue] = useState<Conversation[]>([]);
+  const [queues, setQueues] = useState<Queue[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [isLoadingQueue, setIsLoadingQueue] = useState(true);
+  const [isLoadingQueues, setIsLoadingQueues] = useState(true);
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
 
   // Modal states
-  const [isDepartmentModalOpen, setIsDepartmentModalOpen] = useState(false);
-  const [departmentToEdit, setDepartmentToEdit] = useState<Department | null>(null);
-  const [departmentToDelete, setDepartmentToDelete] = useState<Department | null>(null);
+  const [isQueueModalOpen, setIsQueueModalOpen] = useState(false);
+  const [queueToEdit, setQueueToEdit] = useState<Queue | null>(null);
+  const [queueToDelete, setQueueToDelete] = useState<Queue | null>(null);
 
-  const fetchQueue = async () => {
+  const fetchQueues = async () => {
     try {
-      setIsLoadingQueue(true);
-      const response = await queueAPI.list({ limit: 100 });
-      setQueue(response.data);
+      setIsLoadingQueues(true);
+      const response = await queuesAPI.list({ limit: 100 });
+      setQueues(response.data);
     } catch (error) {
-      console.error('Erro ao carregar fila:', error);
+      console.error('Erro ao carregar filas:', error);
     } finally {
-      setIsLoadingQueue(false);
+      setIsLoadingQueues(false);
     }
   };
 
@@ -59,176 +57,200 @@ export default function QueuesPage() {
   };
 
   useEffect(() => {
-    fetchQueue();
+    fetchQueues();
     fetchDepartments();
 
-    const queueInterval = setInterval(fetchQueue, 10000); // Auto-refresh a cada 10s
-    const departmentsInterval = setInterval(fetchDepartments, 30000); // Auto-refresh a cada 30s
+    const queuesInterval = setInterval(fetchQueues, 30000); // Auto-refresh a cada 30s
+    const departmentsInterval = setInterval(fetchDepartments, 60000); // Auto-refresh a cada 60s
 
     return () => {
-      clearInterval(queueInterval);
+      clearInterval(queuesInterval);
       clearInterval(departmentsInterval);
     };
   }, []);
 
-  const urgentCount = queue.filter(c => c.priority === 'urgent').length;
-  const highCount = queue.filter(c => c.priority === 'high').length;
-
-  const handleCreateDepartment = async (data: DepartmentCreate) => {
+  const handleCreateQueue = async (data: QueueCreate) => {
     try {
-      await departmentsAPI.create(data);
-      await fetchDepartments();
-      setIsDepartmentModalOpen(false);
+      await queuesAPI.create(data);
+      await fetchQueues();
+      setIsQueueModalOpen(false);
     } catch (error) {
-      console.error('Erro ao criar departamento:', error);
+      console.error('Erro ao criar fila:', error);
       throw error;
     }
   };
 
-  const handleUpdateDepartment = async (data: DepartmentUpdate) => {
-    if (!departmentToEdit) return;
+  const handleUpdateQueue = async (data: QueueUpdate) => {
+    if (!queueToEdit) return;
 
     try {
-      await departmentsAPI.update(departmentToEdit.id, data);
-      await fetchDepartments();
-      setDepartmentToEdit(null);
-      setIsDepartmentModalOpen(false);
+      await queuesAPI.update(queueToEdit.id, data);
+      await fetchQueues();
+      setQueueToEdit(null);
+      setIsQueueModalOpen(false);
     } catch (error) {
-      console.error('Erro ao atualizar departamento:', error);
+      console.error('Erro ao atualizar fila:', error);
       throw error;
     }
   };
 
-  const handleDeleteDepartment = async () => {
-    if (!departmentToDelete) return;
+  const handleDeleteQueue = async () => {
+    if (!queueToDelete) return;
 
     try {
-      await departmentsAPI.delete(departmentToDelete.id);
-      await fetchDepartments();
-      setDepartmentToDelete(null);
+      await queuesAPI.delete(queueToDelete.id);
+      await fetchQueues();
+      setQueueToDelete(null);
     } catch (error) {
-      console.error('Erro ao deletar departamento:', error);
+      console.error('Erro ao deletar fila:', error);
     }
   };
 
   const openCreateModal = () => {
-    setDepartmentToEdit(null);
-    setIsDepartmentModalOpen(true);
+    setQueueToEdit(null);
+    setIsQueueModalOpen(true);
   };
 
-  const openEditModal = (department: Department) => {
-    setDepartmentToEdit(department);
-    setIsDepartmentModalOpen(true);
+  const openEditModal = (queue: Queue) => {
+    setQueueToEdit(queue);
+    setIsQueueModalOpen(true);
   };
 
   const getIconEmoji = (icon?: string) => {
     const iconMap: Record<string, string> = {
-      users: '👥',
-      headset: '🎧',
-      shopping: '🛍️',
-      tools: '🔧',
-      money: '💰',
-      chart: '📊',
-      shield: '🛡️',
       star: '⭐',
+      zap: '⚡',
+      clock: '⏰',
+      tools: '🔧',
+      shield: '🛡️',
+      fire: '🔥',
+      trophy: '🏆',
+      rocket: '🚀',
     };
-    return iconMap[icon || 'users'] || '👥';
+    return iconMap[icon || 'star'] || '⭐';
   };
+
+  const getDepartmentName = (departmentId: string) => {
+    const dept = departments.find(d => d.id === departmentId);
+    return dept?.name || 'Departamento não encontrado';
+  };
+
+  const activeQueues = queues.filter(q => q.is_active);
+  const highPriorityQueues = queues.filter(q => q.priority >= 75);
+  const totalInQueues = queues.reduce((sum, q) => sum + q.queued_conversations, 0);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="Filas e Departamentos"
-        description="Gerencie filas de atendimento e distribua conversas entre equipes"
+        title="Filas"
+        description="Gerencie múltiplas filas dentro de cada departamento com priorização e SLA"
       />
 
       {/* Métricas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatsCard
-          title="Total na Fila"
-          value={queue.length}
-          subtitle="Aguardando atendimento"
+          title="Total de Filas"
+          value={queues.length}
+          subtitle={`${activeQueues.length} ativas`}
           icon={ListTodo}
           color="blue"
-          loading={isLoadingQueue}
+          loading={isLoadingQueues}
         />
 
         <StatsCard
-          title="Urgentes"
-          value={urgentCount}
-          subtitle="Alta prioridade"
-          icon={AlertCircle}
-          color="red"
-          loading={isLoadingQueue}
-        />
-
-        <StatsCard
-          title="Altas"
-          value={highCount}
-          subtitle="Média-alta prioridade"
-          icon={Clock}
+          title="Filas Prioritárias"
+          value={highPriorityQueues.length}
+          subtitle="Prioridade ≥ 75"
+          icon={Zap}
           color="orange"
-          loading={isLoadingQueue}
+          loading={isLoadingQueues}
         />
 
         <StatsCard
-          title="Departamentos Ativos"
-          value={departments.filter(d => d.is_active).length}
-          subtitle={`${departments.length} total`}
+          title="Conversas em Fila"
+          value={totalInQueues}
+          subtitle="Aguardando atendimento"
           icon={Users}
+          color="purple"
+          loading={isLoadingQueues}
+        />
+
+        <StatsCard
+          title="Departamentos"
+          value={departments.length}
+          subtitle="Com filas configuradas"
+          icon={Layers}
           color="green"
           loading={isLoadingDepartments}
         />
       </div>
 
-      {/* Departamentos */}
+      {/* Filas */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Departamentos
+              Filas Configuradas
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Configure equipes e regras de distribuição de conversas
+              Organize filas especializadas dentro de cada departamento
             </p>
           </div>
           <ActionButton
             variant="primary"
             onClick={openCreateModal}
             icon={Plus}
+            disabled={departments.length === 0}
           >
             Criar Fila
           </ActionButton>
         </div>
 
         <div className="p-6">
-          {isLoadingDepartments ? (
+          {isLoadingQueues ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
             </div>
           ) : departments.length === 0 ? (
             <div className="text-center py-12">
-              <Settings className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <AlertCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Nenhum departamento criado
               </h3>
               <p className="text-gray-500 dark:text-gray-400 mb-6">
-                Crie seu primeiro departamento para organizar o atendimento
+                Crie primeiro um departamento antes de criar filas
+              </p>
+              <ActionButton
+                variant="primary"
+                onClick={() => window.location.href = '/admin/departments'}
+                icon={Plus}
+              >
+                Ir para Departamentos
+              </ActionButton>
+            </div>
+          ) : queues.length === 0 ? (
+            <div className="text-center py-12">
+              <Settings className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Nenhuma fila criada
+              </h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-6">
+                Crie sua primeira fila para especializar o atendimento
               </p>
               <ActionButton
                 variant="primary"
                 onClick={openCreateModal}
                 icon={Plus}
               >
-                Criar Primeiro Departamento
+                Criar Primeira Fila
               </ActionButton>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {departments.map((dept) => (
+              {queues.map((queue) => (
                 <div
-                  key={dept.id}
+                  key={queue.id}
                   className="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-5 hover:border-gray-300 dark:hover:border-gray-600 transition-all"
                 >
                   {/* Header */}
@@ -236,24 +258,24 @@ export default function QueuesPage() {
                     <div
                       className="px-3 py-1.5 rounded-lg flex items-center gap-2"
                       style={{
-                        backgroundColor: dept.color + '20',
-                        color: dept.color,
+                        backgroundColor: queue.color + '20',
+                        color: queue.color,
                       }}
                     >
-                      <span className="text-lg">{getIconEmoji(dept.icon)}</span>
-                      <span className="font-semibold">{dept.name}</span>
+                      <span className="text-lg">{getIconEmoji(queue.icon)}</span>
+                      <span className="font-semibold">{queue.name}</span>
                     </div>
 
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => openEditModal(dept)}
+                        onClick={() => openEditModal(queue)}
                         className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                         title="Editar"
                       >
                         <Edit className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                       </button>
                       <button
-                        onClick={() => setDepartmentToDelete(dept)}
+                        onClick={() => setQueueToDelete(queue)}
                         className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                         title="Excluir"
                       >
@@ -262,10 +284,15 @@ export default function QueuesPage() {
                     </div>
                   </div>
 
+                  {/* Department */}
+                  <div className="mb-3 px-2 py-1 bg-gray-100 dark:bg-gray-900 rounded text-xs text-gray-600 dark:text-gray-400">
+                    Departamento: {getDepartmentName(queue.department_id)}
+                  </div>
+
                   {/* Description */}
-                  {dept.description && (
+                  {queue.description && (
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      {dept.description}
+                      {queue.description}
                     </p>
                   )}
 
@@ -273,18 +300,18 @@ export default function QueuesPage() {
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
                       <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {dept.total_agents}
+                        {queue.queued_conversations}
                       </div>
                       <div className="text-xs text-gray-600 dark:text-gray-400">
-                        Agentes
+                        Na Fila
                       </div>
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
                       <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {dept.queued_conversations}
+                        {queue.priority}
                       </div>
                       <div className="text-xs text-gray-600 dark:text-gray-400">
-                        Na Fila
+                        Prioridade
                       </div>
                     </div>
                   </div>
@@ -294,31 +321,34 @@ export default function QueuesPage() {
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-gray-600 dark:text-gray-400">Status</span>
                       <span className={`px-2 py-0.5 rounded-full font-semibold ${
-                        dept.is_active
+                        queue.is_active
                           ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                           : 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
                       }`}>
-                        {dept.is_active ? 'Ativo' : 'Inativo'}
+                        {queue.is_active ? 'Ativa' : 'Inativa'}
                       </span>
                     </div>
+                    {queue.sla_minutes && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-600 dark:text-gray-400">SLA</span>
+                        <span className="text-gray-900 dark:text-white font-medium">
+                          {queue.sla_minutes} min
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-gray-600 dark:text-gray-400">Roteamento</span>
                       <span className="text-gray-900 dark:text-white font-medium">
-                        {dept.routing_mode === 'round_robin' && '🔄 Round Robin'}
-                        {dept.routing_mode === 'load_balance' && '⚖️ Balanceamento'}
-                        {dept.routing_mode === 'manual' && '👆 Manual'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-600 dark:text-gray-400">Auto-atribuir</span>
-                      <span className="text-gray-900 dark:text-white font-medium">
-                        {dept.auto_assign_conversations ? 'Sim' : 'Não'}
+                        {queue.routing_mode === 'round_robin' && '🔄 Round Robin'}
+                        {queue.routing_mode === 'load_balance' && '⚖️ Balanceamento'}
+                        {queue.routing_mode === 'manual' && '👆 Manual'}
+                        {queue.routing_mode === 'skills_based' && '🎯 Skills'}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-gray-600 dark:text-gray-400">Máx. por agente</span>
                       <span className="text-gray-900 dark:text-white font-medium">
-                        {dept.max_conversations_per_agent}
+                        {queue.max_conversations_per_agent}
                       </span>
                     </div>
                   </div>
@@ -329,78 +359,25 @@ export default function QueuesPage() {
         </div>
       </div>
 
-      {/* Lista de Conversas na Fila */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Conversas Aguardando
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Conversas em fila aguardando distribuição
-          </p>
-        </div>
-
-        <div className="divide-y divide-gray-200 dark:divide-gray-700">
-          {queue.length === 0 ? (
-            <div className="p-12 text-center">
-              <ListTodo className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-gray-500">Nenhuma conversa na fila</p>
-            </div>
-          ) : (
-            queue.map((conversation) => (
-              <div key={conversation.id} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold text-gray-900 dark:text-white">
-                        {conversation.contact_name || 'Sem nome'}
-                      </h3>
-                      {conversation.priority && (
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                          conversation.priority === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                          conversation.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                          'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                        }`}>
-                          {conversation.priority === 'urgent' ? 'Urgente' : conversation.priority === 'high' ? 'Alta' : 'Normal'}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Aguardando há {formatDistanceToNow(new Date(conversation.created_at), { locale: ptBR })}
-                    </p>
-                  </div>
-                  <div className="text-right text-sm text-gray-500">
-                    {conversation.unread_count > 0 && (
-                      <div className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full w-6 h-6 flex items-center justify-center text-xs font-semibold">
-                        {conversation.unread_count}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
       {/* Modais */}
-      <DepartmentModal
-        isOpen={isDepartmentModalOpen}
+      <QueueModal
+        isOpen={isQueueModalOpen}
         onClose={() => {
-          setIsDepartmentModalOpen(false);
-          setDepartmentToEdit(null);
+          setIsQueueModalOpen(false);
+          setQueueToEdit(null);
         }}
-        onSubmit={departmentToEdit ? handleUpdateDepartment : handleCreateDepartment}
-        initialData={departmentToEdit || undefined}
-        mode={departmentToEdit ? 'edit' : 'create'}
+        onSubmit={queueToEdit ? handleUpdateQueue : handleCreateQueue}
+        departments={departments}
+        initialData={queueToEdit || undefined}
+        mode={queueToEdit ? 'edit' : 'create'}
       />
 
       <ConfirmDialog
-        isOpen={!!departmentToDelete}
-        onClose={() => setDepartmentToDelete(null)}
-        onConfirm={handleDeleteDepartment}
-        title="Excluir Departamento"
-        description={`Tem certeza que deseja excluir o departamento "${departmentToDelete?.name}"? Esta ação não pode ser desfeita.`}
+        isOpen={!!queueToDelete}
+        onClose={() => setQueueToDelete(null)}
+        onConfirm={handleDeleteQueue}
+        title="Excluir Fila"
+        description={`Tem certeza que deseja excluir a fila "${queueToDelete?.name}"? Esta ação não pode ser desfeita.`}
         confirmText="Excluir"
         confirmVariant="danger"
       />
