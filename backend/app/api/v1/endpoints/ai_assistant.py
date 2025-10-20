@@ -214,6 +214,22 @@ async def update_ai_settings(
 
     # Update with new values
     update_data = settings.model_dump(exclude_unset=True)
+
+    # BACKWARD COMPATIBILITY: Convert old format to new format
+    # If 'provider' is present (old format), convert to 'default_provider'
+    if 'provider' in update_data and 'default_provider' not in update_data:
+        update_data['default_provider'] = update_data.pop('provider')
+
+    # If 'api_key' is present (old format), distribute to provider-specific keys
+    if 'api_key' in update_data:
+        api_key = update_data.pop('api_key')
+        provider = update_data.get('default_provider', current_settings.get('default_provider', 'anthropic'))
+
+        if provider == 'openai':
+            update_data['openai_api_key'] = api_key
+        elif provider == 'anthropic':
+            update_data['anthropic_api_key'] = api_key
+
     current_settings.update(update_data)
 
     # Validate complete settings

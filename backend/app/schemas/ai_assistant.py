@@ -117,9 +117,14 @@ class AIAssistantSettings(BaseModel):
 class AIAssistantSettingsUpdate(BaseModel):
     """Schema for updating AI Assistant settings"""
     enabled: Optional[bool] = None
+    # New format (preferred)
     default_provider: Optional[AIProvider] = None
     openai_api_key: Optional[str] = Field(None, min_length=10)
     anthropic_api_key: Optional[str] = Field(None, min_length=10)
+    # Old format (backward compatibility)
+    provider: Optional[AIProvider] = None  # Will be converted to default_provider
+    api_key: Optional[str] = Field(None, min_length=10)  # Will be converted to provider-specific key
+    # Common fields
     model: Optional[str] = None
     max_tokens: Optional[int] = Field(None, ge=1024, le=200000)
     temperature: Optional[float] = Field(None, ge=0.0, le=1.0)
