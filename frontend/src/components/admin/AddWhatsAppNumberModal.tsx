@@ -91,7 +91,7 @@ export function AddWhatsAppNumberModal({
       setAccessToken('');
       setAppSecret('');
       setSelectedCountry(defaultCountry);
-      setWebhookUrl(defaultWebhookUrl);
+      setWebhookUrl(getDefaultWebhookUrl());
       setWebhookVerifyToken('');
     } catch (err: any) {
       console.error('Failed to create WhatsApp number:', err);
@@ -107,9 +107,24 @@ export function AddWhatsAppNumberModal({
 
   const handleCopy = async (text: string, field: string) => {
     try {
-      await navigator.clipboard.writeText(text);
-      setCopiedField(field);
-      setTimeout(() => setCopiedField(null), 2000);
+      // Check if clipboard API is available
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        setCopiedField(field);
+        setTimeout(() => setCopiedField(null), 2000);
+      } else {
+        // Fallback for browsers that don't support clipboard API
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setCopiedField(field);
+        setTimeout(() => setCopiedField(null), 2000);
+      }
     } catch (err) {
       console.error('Failed to copy:', err);
     }
