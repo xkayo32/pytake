@@ -6,19 +6,15 @@ import {
   Users,
   Layers,
   AlertCircle,
-  Settings,
-  Plus,
-  Edit,
-  Trash2,
+  Settings as SettingsIcon,
   Zap,
+  ArrowRight,
 } from 'lucide-react';
+import Link from 'next/link';
 import { StatsCard } from '@/components/admin/StatsCard';
 import { PageHeader } from '@/components/admin/PageHeader';
-import { ActionButton } from '@/components/admin/ActionButton';
-import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
-import { QueueModal } from '@/components/admin/QueueModal';
 import { queuesAPI, departmentsAPI } from '@/lib/api';
-import { Queue, QueueCreate, QueueUpdate } from '@/types/queue';
+import { Queue } from '@/types/queue';
 import { Department } from '@/types/department';
 
 export default function QueuesPage() {
@@ -26,11 +22,6 @@ export default function QueuesPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoadingQueues, setIsLoadingQueues] = useState(true);
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
-
-  // Modal states
-  const [isQueueModalOpen, setIsQueueModalOpen] = useState(false);
-  const [queueToEdit, setQueueToEdit] = useState<Queue | null>(null);
-  const [queueToDelete, setQueueToDelete] = useState<Queue | null>(null);
 
   const fetchQueues = async () => {
     try {
@@ -68,53 +59,6 @@ export default function QueuesPage() {
       clearInterval(departmentsInterval);
     };
   }, []);
-
-  const handleCreateQueue = async (data: QueueCreate) => {
-    try {
-      await queuesAPI.create(data);
-      await fetchQueues();
-      setIsQueueModalOpen(false);
-    } catch (error) {
-      console.error('Erro ao criar fila:', error);
-      throw error;
-    }
-  };
-
-  const handleUpdateQueue = async (data: QueueUpdate) => {
-    if (!queueToEdit) return;
-
-    try {
-      await queuesAPI.update(queueToEdit.id, data);
-      await fetchQueues();
-      setQueueToEdit(null);
-      setIsQueueModalOpen(false);
-    } catch (error) {
-      console.error('Erro ao atualizar fila:', error);
-      throw error;
-    }
-  };
-
-  const handleDeleteQueue = async () => {
-    if (!queueToDelete) return;
-
-    try {
-      await queuesAPI.delete(queueToDelete.id);
-      await fetchQueues();
-      setQueueToDelete(null);
-    } catch (error) {
-      console.error('Erro ao deletar fila:', error);
-    }
-  };
-
-  const openCreateModal = () => {
-    setQueueToEdit(null);
-    setIsQueueModalOpen(true);
-  };
-
-  const openEditModal = (queue: Queue) => {
-    setQueueToEdit(queue);
-    setIsQueueModalOpen(true);
-  };
 
   const getIconEmoji = (icon?: string) => {
     const iconMap: Record<string, string> = {
@@ -194,17 +138,17 @@ export default function QueuesPage() {
               Filas Configuradas
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Organize filas especializadas dentro de cada departamento
+              Visualização de filas • Para criar ou editar, acesse Configurações → Organização
             </p>
           </div>
-          <ActionButton
-            variant="primary"
-            onClick={openCreateModal}
-            icon={Plus}
-            disabled={departments.length === 0}
+          <Link
+            href="/admin/settings/organization?tab=queues"
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
-            Criar Fila
-          </ActionButton>
+            <SettingsIcon className="w-4 h-4" />
+            <span>Gerenciar</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
 
         <div className="p-6">
@@ -219,32 +163,34 @@ export default function QueuesPage() {
                 Nenhum departamento criado
               </h3>
               <p className="text-gray-500 dark:text-gray-400 mb-6">
-                Crie primeiro um departamento antes de criar filas
+                Acesse Configurações → Organização para criar primeiro um departamento antes de criar filas
               </p>
-              <ActionButton
-                variant="primary"
-                onClick={() => window.location.href = '/admin/departments'}
-                icon={Plus}
+              <Link
+                href="/admin/settings/organization"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
               >
-                Ir para Departamentos
-              </ActionButton>
+                <SettingsIcon className="w-4 h-4" />
+                <span>Ir para Configurações</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
           ) : queues.length === 0 ? (
             <div className="text-center py-12">
-              <Settings className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <SettingsIcon className="w-16 h-16 mx-auto mb-4 text-gray-300" />
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Nenhuma fila criada
               </h3>
               <p className="text-gray-500 dark:text-gray-400 mb-6">
-                Crie sua primeira fila para especializar o atendimento
+                Acesse Configurações → Organização para criar sua primeira fila
               </p>
-              <ActionButton
-                variant="primary"
-                onClick={openCreateModal}
-                icon={Plus}
+              <Link
+                href="/admin/settings/organization?tab=queues"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
               >
-                Criar Primeira Fila
-              </ActionButton>
+                <SettingsIcon className="w-4 h-4" />
+                <span>Ir para Configurações</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -264,23 +210,6 @@ export default function QueuesPage() {
                     >
                       <span className="text-lg">{getIconEmoji(queue.icon)}</span>
                       <span className="font-semibold">{queue.name}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => openEditModal(queue)}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                        title="Editar"
-                      >
-                        <Edit className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                      </button>
-                      <button
-                        onClick={() => setQueueToDelete(queue)}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                      </button>
                     </div>
                   </div>
 
@@ -358,29 +287,6 @@ export default function QueuesPage() {
           )}
         </div>
       </div>
-
-      {/* Modais */}
-      <QueueModal
-        isOpen={isQueueModalOpen}
-        onClose={() => {
-          setIsQueueModalOpen(false);
-          setQueueToEdit(null);
-        }}
-        onSubmit={queueToEdit ? handleUpdateQueue : handleCreateQueue}
-        departments={departments}
-        initialData={queueToEdit || undefined}
-        mode={queueToEdit ? 'edit' : 'create'}
-      />
-
-      <ConfirmDialog
-        isOpen={!!queueToDelete}
-        onClose={() => setQueueToDelete(null)}
-        onConfirm={handleDeleteQueue}
-        title="Excluir Fila"
-        description={`Tem certeza que deseja excluir a fila "${queueToDelete?.name}"? Esta ação não pode ser desfeita.`}
-        confirmText="Excluir"
-        confirmVariant="danger"
-      />
     </div>
   );
 }

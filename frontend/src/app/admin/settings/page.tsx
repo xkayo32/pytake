@@ -31,7 +31,7 @@ const settingsCards: SettingsCard[] = [
   },
   {
     title: 'Organização',
-    description: 'Dados da empresa, faturamento e plano',
+    description: 'Dados da empresa, departamentos, filas e plano',
     href: '/admin/settings/organization',
     icon: Building2,
   },

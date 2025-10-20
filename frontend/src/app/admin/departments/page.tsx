@@ -6,20 +6,15 @@ import {
   Users,
   Clock,
   AlertCircle,
-  Settings,
-  Plus,
-  Edit,
-  Trash2,
-  MoreVertical,
+  Settings as SettingsIcon,
+  ArrowRight,
 } from 'lucide-react';
+import Link from 'next/link';
 import { StatsCard } from '@/components/admin/StatsCard';
 import { PageHeader } from '@/components/admin/PageHeader';
-import { ActionButton } from '@/components/admin/ActionButton';
-import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
-import { DepartmentModal } from '@/components/admin/DepartmentModal';
 import { queueAPI, departmentsAPI } from '@/lib/api';
 import { Conversation } from '@/types/conversation';
-import { Department, DepartmentCreate, DepartmentUpdate } from '@/types/department';
+import { Department } from '@/types/department';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -28,11 +23,6 @@ export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoadingQueue, setIsLoadingQueue] = useState(true);
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
-
-  // Modal states
-  const [isDepartmentModalOpen, setIsDepartmentModalOpen] = useState(false);
-  const [departmentToEdit, setDepartmentToEdit] = useState<Department | null>(null);
-  const [departmentToDelete, setDepartmentToDelete] = useState<Department | null>(null);
 
   const fetchQueue = async () => {
     try {
@@ -73,53 +63,6 @@ export default function DepartmentsPage() {
 
   const urgentCount = queue.filter(c => c.priority === 'urgent').length;
   const highCount = queue.filter(c => c.priority === 'high').length;
-
-  const handleCreateDepartment = async (data: DepartmentCreate) => {
-    try {
-      await departmentsAPI.create(data);
-      await fetchDepartments();
-      setIsDepartmentModalOpen(false);
-    } catch (error) {
-      console.error('Erro ao criar departamento:', error);
-      throw error;
-    }
-  };
-
-  const handleUpdateDepartment = async (data: DepartmentUpdate) => {
-    if (!departmentToEdit) return;
-
-    try {
-      await departmentsAPI.update(departmentToEdit.id, data);
-      await fetchDepartments();
-      setDepartmentToEdit(null);
-      setIsDepartmentModalOpen(false);
-    } catch (error) {
-      console.error('Erro ao atualizar departamento:', error);
-      throw error;
-    }
-  };
-
-  const handleDeleteDepartment = async () => {
-    if (!departmentToDelete) return;
-
-    try {
-      await departmentsAPI.delete(departmentToDelete.id);
-      await fetchDepartments();
-      setDepartmentToDelete(null);
-    } catch (error) {
-      console.error('Erro ao deletar departamento:', error);
-    }
-  };
-
-  const openCreateModal = () => {
-    setDepartmentToEdit(null);
-    setIsDepartmentModalOpen(true);
-  };
-
-  const openEditModal = (department: Department) => {
-    setDepartmentToEdit(department);
-    setIsDepartmentModalOpen(true);
-  };
 
   const getIconEmoji = (icon?: string) => {
     const iconMap: Record<string, string> = {
@@ -190,16 +133,17 @@ export default function DepartmentsPage() {
               Departamentos
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Configure equipes e regras de distribuição de conversas
+              Visualização de departamentos • Para criar ou editar, acesse Configurações → Organização
             </p>
           </div>
-          <ActionButton
-            variant="primary"
-            onClick={openCreateModal}
-            icon={Plus}
+          <Link
+            href="/admin/settings/organization"
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
-            Criar Departamento
-          </ActionButton>
+            <SettingsIcon className="w-4 h-4" />
+            <span>Gerenciar</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
 
         <div className="p-6">
@@ -209,20 +153,21 @@ export default function DepartmentsPage() {
             </div>
           ) : departments.length === 0 ? (
             <div className="text-center py-12">
-              <Settings className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <SettingsIcon className="w-16 h-16 mx-auto mb-4 text-gray-300" />
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Nenhum departamento criado
               </h3>
               <p className="text-gray-500 dark:text-gray-400 mb-6">
-                Crie seu primeiro departamento para organizar o atendimento
+                Acesse Configurações → Organização para criar seu primeiro departamento
               </p>
-              <ActionButton
-                variant="primary"
-                onClick={openCreateModal}
-                icon={Plus}
+              <Link
+                href="/admin/settings/organization"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
               >
-                Criar Primeiro Departamento
-              </ActionButton>
+                <SettingsIcon className="w-4 h-4" />
+                <span>Ir para Configurações</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -242,23 +187,6 @@ export default function DepartmentsPage() {
                     >
                       <span className="text-lg">{getIconEmoji(dept.icon)}</span>
                       <span className="font-semibold">{dept.name}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => openEditModal(dept)}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                        title="Editar"
-                      >
-                        <Edit className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                      </button>
-                      <button
-                        onClick={() => setDepartmentToDelete(dept)}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                      </button>
                     </div>
                   </div>
 
@@ -382,28 +310,6 @@ export default function DepartmentsPage() {
           )}
         </div>
       </div>
-
-      {/* Modais */}
-      <DepartmentModal
-        isOpen={isDepartmentModalOpen}
-        onClose={() => {
-          setIsDepartmentModalOpen(false);
-          setDepartmentToEdit(null);
-        }}
-        onSubmit={departmentToEdit ? handleUpdateDepartment : handleCreateDepartment}
-        initialData={departmentToEdit || undefined}
-        mode={departmentToEdit ? 'edit' : 'create'}
-      />
-
-      <ConfirmDialog
-        isOpen={!!departmentToDelete}
-        onClose={() => setDepartmentToDelete(null)}
-        onConfirm={handleDeleteDepartment}
-        title="Excluir Departamento"
-        description={`Tem certeza que deseja excluir o departamento "${departmentToDelete?.name}"? Esta ação não pode ser desfeita.`}
-        confirmText="Excluir"
-        confirmVariant="danger"
-      />
     </div>
   );
 }
