@@ -4,18 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Quick Start
 
-**⚠️ IMPORTANT: This project ALWAYS runs in Docker. Do not attempt local development outside of containers.**
+**⚠️ IMPORTANT: This project ALWAYS runs in containers (Podman or Docker). Do not attempt local development outside of containers.**
+
+### Using Podman (Recommended)
 
 ```bash
-# 1. Start all services with Docker Compose (REQUIRED)
-docker-compose up -d
+# 1. Start all services with Podman Compose (REQUIRED)
+podman-compose up -d          # Using podman-compose tool
+# OR
+podman compose up -d          # Using podman compose plugin
 
 # 2. Verify all services are running
-docker ps
+podman ps
 
 # 3. View logs if needed
-docker-compose logs -f backend
-docker-compose logs -f frontend
+podman-compose logs -f backend frontend
+# OR
+podman compose logs -f backend frontend
 
 # 4. Access the application
 # - Frontend: http://localhost:3001
@@ -24,16 +29,44 @@ docker-compose logs -f frontend
 # - Default login: admin@pytake.com / Admin123
 
 # 5. Stop all services
-docker-compose down
+podman-compose down
+# OR
+podman compose down
 
 # 6. Restart a specific service after code changes
-docker-compose restart backend
-docker-compose restart frontend
+podman restart pytake-backend
+podman restart pytake-frontend
 
 # 7. Initial setup (first time only)
 # After starting containers, run migrations:
+podman exec pytake-backend alembic upgrade head
+```
+
+### Using Docker (Alternative)
+
+```bash
+# 1. Start all services with Docker Compose
+docker compose up -d          # Compose v2
+# OR
+docker-compose up -d          # Legacy Compose v1
+
+# 2. Verify all services are running
+docker ps
+
+# 3. View logs if needed
+docker compose logs -f backend frontend
+
+# 4. Stop all services
+docker compose down
+
+# 5. Restart a specific service
+docker restart pytake-backend
+
+# 6. Initial setup (first time only)
 docker exec pytake-backend alembic upgrade head
 ```
+
+**Note:** This project uses `compose.yaml` which is compatible with both Podman and Docker Compose v2+.
 
 ## Project Overview
 
@@ -56,43 +89,72 @@ docker exec pytake-backend alembic upgrade head
 
 ## Development Commands
 
-**All commands must be executed inside Docker containers using `docker exec`.**
+**All commands must be executed inside containers using `podman exec` or `docker exec`.**
 
-### Docker Management
+### Container Management
 
+**Using Podman (Recommended):**
 ```bash
 # Start all services
-docker-compose up -d
+podman-compose up -d                      # Using podman-compose tool
+podman compose up -d                      # Using podman compose plugin
 
 # Stop all services
-docker-compose down
+podman-compose down
+podman compose down
 
 # Rebuild containers after dependency changes
-docker-compose up -d --build
+podman-compose up -d --build
+podman compose up -d --build
 
 # View logs
-docker-compose logs -f                    # All services
-docker-compose logs -f backend            # Backend only
-docker-compose logs -f frontend           # Frontend only
+podman-compose logs -f                    # All services
+podman-compose logs -f backend            # Backend only
+podman-compose logs -f frontend           # Frontend only
 
 # Restart a service
-docker-compose restart backend
-docker-compose restart frontend
+podman restart pytake-backend
+podman restart pytake-frontend
 
 # Access container shell
-docker exec -it pytake-backend bash       # Backend container
-docker exec -it pytake-frontend sh        # Frontend container
+podman exec -it pytake-backend bash       # Backend container
+podman exec -it pytake-frontend sh        # Frontend container
 
 # Check container status
-docker ps                                 # Running containers
-docker-compose ps                         # All project containers
+podman ps                                 # Running containers
+podman-compose ps                         # All project containers
+```
+
+**Using Docker (Alternative):**
+```bash
+# Start all services
+docker compose up -d
+
+# Stop all services
+docker compose down
+
+# Rebuild containers
+docker compose up -d --build
+
+# View logs
+docker compose logs -f backend
+
+# Restart a service
+docker restart pytake-backend
+
+# Access container shell
+docker exec -it pytake-backend bash
+
+# Check container status
+docker ps
 ```
 
 ### Backend Commands (Inside Container)
 
+**Using Podman:**
 ```bash
 # Execute commands in backend container
-docker exec -it pytake-backend bash
+podman exec -it pytake-backend bash
 
 # Database migrations (inside container)
 alembic upgrade head                           # Apply migrations
@@ -103,27 +165,37 @@ alembic current                                # Show current revision
 alembic history                                # Show migration history
 
 # Or run directly from host
-docker exec pytake-backend alembic upgrade head
-docker exec pytake-backend alembic revision --autogenerate -m "add_new_field"
+podman exec pytake-backend alembic upgrade head
+podman exec pytake-backend alembic revision --autogenerate -m "add_new_field"
 
 # Testing (inside container)
-docker exec pytake-backend pytest                            # All tests
-docker exec pytake-backend pytest tests/unit                 # Unit tests
-docker exec pytake-backend pytest tests/integration          # Integration tests
-docker exec pytake-backend pytest -v --cov=app              # With coverage
+podman exec pytake-backend pytest                            # All tests
+podman exec pytake-backend pytest tests/unit                 # Unit tests
+podman exec pytake-backend pytest tests/integration          # Integration tests
+podman exec pytake-backend pytest -v --cov=app              # With coverage
 
 # Code quality (inside container)
-docker exec pytake-backend black app/                        # Format code
-docker exec pytake-backend isort app/                        # Sort imports
-docker exec pytake-backend flake8 app/                       # Lint
-docker exec pytake-backend mypy app/                         # Type checking
+podman exec pytake-backend black app/                        # Format code
+podman exec pytake-backend isort app/                        # Sort imports
+podman exec pytake-backend flake8 app/                       # Lint
+podman exec pytake-backend mypy app/                         # Type checking
+```
+
+**Using Docker:**
+```bash
+# All commands are the same, just replace 'podman' with 'docker':
+docker exec -it pytake-backend bash
+docker exec pytake-backend alembic upgrade head
+docker exec pytake-backend pytest
+# etc.
 ```
 
 ### Frontend Commands (Inside Container)
 
+**Using Podman:**
 ```bash
 # Execute commands in frontend container
-docker exec -it pytake-frontend sh
+podman exec -it pytake-frontend sh
 
 # Inside container
 npm install                      # Install new dependencies (after package.json changes)
@@ -132,15 +204,36 @@ npm run build                    # Build for production with Turbopack
 npm run lint                     # ESLint check
 
 # Or run directly from host
-docker exec pytake-frontend npm install
-docker exec pytake-frontend npm run build
-docker exec pytake-frontend npm run lint
+podman exec pytake-frontend npm install
+podman exec pytake-frontend npm run build
+podman exec pytake-frontend npm run lint
 
 # Note: Frontend uses Turbopack for faster builds (--turbopack flag)
 ```
 
+**Using Docker:**
+```bash
+# All commands are the same, just replace 'podman' with 'docker':
+docker exec -it pytake-frontend sh
+docker exec pytake-frontend npm install
+# etc.
+```
+
 ### Database Access
 
+**Using Podman:**
+```bash
+# PostgreSQL
+podman exec -it pytake-postgres psql -U pytake -d pytake
+
+# Redis
+podman exec -it pytake-redis redis-cli
+
+# MongoDB
+podman exec -it pytake-mongodb mongosh pytake_logs
+```
+
+**Using Docker:**
 ```bash
 # PostgreSQL
 docker exec -it pytake-postgres psql -U pytake -d pytake
@@ -153,11 +246,14 @@ docker exec -it pytake-mongodb mongosh pytake_logs
 ```
 
 **Important Notes:**
-- Frontend runs on port **3001** in Docker
+- Frontend runs on port **3001** (mapped from container port 3000)
 - MongoDB is mapped to port **27018** (not default 27017) to avoid conflicts with other local MongoDB instances
 - Backend uses `backend/.env.docker` for configuration (not `.env`)
-- Root `.env` file controls Docker Compose port mappings
+- Root `.env` file controls Compose port mappings
 - All file changes on host are synced to containers via volume mounts (hot reload enabled)
+- **Volume SELinux labels** (Podman-specific):
+  - `:Z` - Private volume, not shared between containers
+  - `:z` - Shared volume between multiple containers
 - **API Access**: Two options available:
   - Direct frontend access (port 3001): Uses `NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1`
   - Via Nginx proxy (port 8080): Uses `NEXT_PUBLIC_API_URL=/api/v1` (relative URL)
@@ -974,18 +1070,37 @@ login: async (email: string, password: string) => {
 
 ## Platform Notes
 
-This project is being developed on **Windows** but runs entirely in Docker containers, making it platform-agnostic.
+This project is being developed on **Windows** but runs entirely in containers (Podman or Docker), making it platform-agnostic.
 
 **Windows Requirements:**
-- Docker Desktop installed and running
+- **Podman Desktop** (recommended) or Docker Desktop installed and running
 - Git for Windows (or Git Bash)
 - Any code editor (VS Code recommended)
 
+**Linux Requirements:**
+- **Podman** (recommended) or Docker Engine
+- podman-compose tool: `pip install podman-compose` (if not using podman compose plugin)
+- Git
+- Any code editor
+
+**macOS Requirements:**
+- **Podman Desktop** (recommended) or Docker Desktop
+- Podman Machine must be initialized: `podman machine init && podman machine start`
+- Git (pre-installed)
+- Any code editor
+
 **All platforms:**
-- Docker and Docker Compose are the only requirements
+- Podman or Docker are the only requirements
 - No need for Python, Node.js, or database installations on host
 - All development happens inside containers
 - Hot reload works across all platforms via volume mounts
+
+**Why Podman?**
+- Rootless by default (more secure)
+- Daemonless architecture
+- Drop-in replacement for Docker
+- Better resource management
+- Fully compatible with Docker images and Dockerfiles
 
 ## Recent Implementation Status
 
@@ -1396,7 +1511,8 @@ Refer to these files for deep dives into specific areas.
 
 ### Core Principles
 
-- **Docker-First:** This project ALWAYS runs in Docker. Never suggest local Python/Node.js installations or running services outside containers.
+- **Container-First:** This project ALWAYS runs in containers (Podman or Docker). Never suggest local Python/Node.js installations or running services outside containers.
+- **Podman Preferred:** Use Podman commands by default in new documentation or examples. Docker commands are acceptable as alternatives.
 - **No Automated Testing:** DO NOT use MCP tools (Playwright, browser automation, etc.) for testing. The developer handles ALL testing manually.
 - **Windows Paths:** This project is developed on Windows (D:\pytake\) but all paths inside containers use Unix format.
 - **Code Changes Only:** Focus on code implementation, architecture, and bug fixes. Leave testing and validation to the developer.
