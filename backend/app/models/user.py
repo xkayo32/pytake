@@ -79,6 +79,14 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     reset_password_token = Column(String(255), nullable=True)
     reset_password_expires = Column(DateTime(timezone=True), nullable=True)
 
+    # Relationships
+    skills = relationship(
+        "AgentSkill",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
     # Agent-specific fields
     # Department assignment for agents
     department_ids = Column(
