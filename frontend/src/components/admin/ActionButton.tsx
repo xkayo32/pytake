@@ -9,6 +9,8 @@ import { LucideIcon, Loader2 } from 'lucide-react';
 interface ActionButtonProps {
   children: React.ReactNode;
   onClick?: () => void;
+  // button type attribute
+  type?: 'button' | 'submit' | 'reset';
   icon?: LucideIcon;
   variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
@@ -26,6 +28,7 @@ export function ActionButton({
   loading = false,
   disabled = false,
   className = '',
+  type = 'button',
 }: ActionButtonProps) {
   const variantClasses = {
     primary:
@@ -54,6 +57,7 @@ export function ActionButton({
 
   return (
     <button
+      type={type}
       onClick={onClick}
       disabled={disabled || loading}
       className={`

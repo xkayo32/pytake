@@ -21,22 +21,22 @@ export default function MessageList({ messages, isLoading, isTyping }: MessageLi
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-gray-500">Carregando mensagens...</div>
+      <div className="h-full flex items-center justify-center">
+        <div className="text-gray-500 dark:text-gray-400">Carregando mensagens...</div>
       </div>
     );
   }
 
   if (messages.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-gray-500">Nenhuma mensagem ainda</div>
+      <div className="h-full flex items-center justify-center">
+        <div className="text-gray-500 dark:text-gray-400">Nenhuma mensagem ainda</div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="h-full overflow-y-auto p-4 space-y-4">
       {messages.map((message) => (
         <MessageBubble key={message.id} message={message} />
       ))}
@@ -44,14 +44,14 @@ export default function MessageList({ messages, isLoading, isTyping }: MessageLi
       {/* Typing Indicator */}
       {isTyping && (
         <div className="flex justify-start">
-          <div className="max-w-[70%] rounded-lg px-4 py-3 bg-white border border-gray-200">
+          <div className="max-w-[70%] rounded-lg px-4 py-3 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
             <div className="flex items-center space-x-2">
               <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
               </div>
-              <span className="text-xs text-gray-500">digitando...</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">digitando...</span>
             </div>
           </div>
         </div>
@@ -160,23 +160,23 @@ function MessageBubble({ message }: MessageBubbleProps) {
       <div
         className={`max-w-[70%] rounded-lg px-4 py-2 ${
           isInbound
-            ? 'bg-white border border-gray-200'
+            ? 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white'
             : message.status === 'failed'
-            ? 'bg-red-100 border border-red-300'
-            : 'bg-purple-600 text-white'
+            ? 'bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 text-gray-900 dark:text-white'
+            : 'bg-purple-600 dark:bg-purple-700 text-white'
         }`}
       >
         <div className="break-words">{getMessageContent()}</div>
 
         <div className={`flex items-center justify-end space-x-1 mt-1 text-xs ${
-          isInbound ? 'text-gray-500' : 'text-white/70'
+          isInbound ? 'text-gray-500 dark:text-gray-400' : 'text-white/70'
         }`}>
           <span>{getTimestamp()}</span>
           {getStatusIcon()}
         </div>
 
         {message.status === 'failed' && message.error_message && (
-          <div className="mt-2 text-xs text-red-600 border-t border-red-300 pt-2">
+          <div className="mt-2 text-xs text-red-600 dark:text-red-400 border-t border-red-300 dark:border-red-800 pt-2">
             Erro: {message.error_message}
           </div>
         )}
