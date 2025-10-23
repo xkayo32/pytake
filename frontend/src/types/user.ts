@@ -48,3 +48,12 @@ export interface UserStats {
   conversations_resolved: number;
   conversations_active: number;
 }
+
+// Agent Skill Types (match backend schemas)
+export interface AgentSkill {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  skill_name: string;
+  proficiency_level: number; // 1..5
+}

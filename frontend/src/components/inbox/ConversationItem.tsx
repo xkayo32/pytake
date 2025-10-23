@@ -5,6 +5,7 @@ import { ptBR } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 import { useUserStatus } from '@/hooks/useUserStatus';
 import UserStatusIndicator from '@/components/common/UserStatusIndicator';
+import AdminConversationActions from './AdminConversationActions';
 
 interface Contact {
   id: string;
@@ -27,7 +28,7 @@ interface Conversation {
   status: string;
   last_message_at?: string;
   total_messages: number;
-  messages_from_contact: number;
+  messages_from_contact?: number;
   unread_count?: number;
   current_agent_id?: string;
   is_bot_active: boolean;
@@ -38,12 +39,16 @@ interface ConversationItemProps {
   conversation: Conversation;
   isSelected?: boolean;
   basePath?: string; // '/admin/conversations' or '/agent/conversations'
+  compact?: boolean;
+  onActionRefresh?: () => void;
 }
 
 export default function ConversationItem({
   conversation,
   isSelected = false,
   basePath = '/admin/conversations',
+  compact = false,
+  onActionRefresh,
 }: ConversationItemProps) {
   const router = useRouter();
   const { isUserOnline } = useUserStatus();
@@ -120,18 +125,23 @@ export default function ConversationItem({
     router.push(`${basePath}/${conversation.id}`);
   };
 
+  const now = Date.now();
+  const overflow = conversation.last_message_at
+    ? now - new Date(conversation.last_message_at).getTime() > 10 * 60 * 1000
+    : false;
+
   return (
     <div
       onClick={handleClick}
-      className={`
-        relative flex items-start gap-3 p-4 border-b border-gray-200 cursor-pointer
+      className={
+        `relative flex items-start gap-3 ${compact ? 'p-2' : 'p-4'} border-b border-gray-200 cursor-pointer
         transition-all duration-200 hover:bg-gray-50
-        ${isSelected ? 'bg-purple-50 border-l-4 border-l-purple-600' : ''}
-      `}
+        ${isSelected ? 'bg-purple-50 border-l-4 border-l-purple-600' : ''}`
+      }
     >
       {/* Avatar */}
       <div className="flex-shrink-0">
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white font-semibold text-lg shadow-md">
+        <div className={`${compact ? 'w-8 h-8 text-sm' : 'w-12 h-12 text-lg'} rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white font-semibold shadow-md`}> 
           {getContactInitial()}
         </div>
 
@@ -143,12 +153,16 @@ export default function ConversationItem({
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between mb-1">
+        <div className="absolute right-3 top-3 z-10">
+          {/* Actions (admin) */}
+          <AdminConversationActions conversationId={conversation.id} onAction={onActionRefresh} />
+        </div>
+        <div className={`flex items-start justify-between ${compact ? 'mb-0' : 'mb-1'}`}>
           <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-gray-900 truncate">
+            <h3 className={`text-sm font-semibold text-gray-900 truncate ${compact ? 'text-sm' : ''}`}>
               {conversation.contact?.name || conversation.contact?.whatsapp_id || 'Contato'}
             </h3>
-            {conversation.contact?.name && (
+            {conversation.contact?.name && !compact && (
               <p className="text-xs text-gray-500 truncate">
                 {conversation.contact.whatsapp_id}
               </p>
@@ -172,7 +186,7 @@ export default function ConversationItem({
           conversation.last_message?.direction === 'inbound'
             ? 'text-gray-900 font-medium'
             : 'text-gray-600'
-        }`}>
+        } ${compact ? 'text-xs' : ''}`}>
           {conversation.last_message?.direction === 'outbound' && (
             <span className="text-gray-400 mr-1">Você: </span>
           )}
@@ -180,7 +194,7 @@ export default function ConversationItem({
         </p>
 
         {/* Status and tags */}
-        <div className="flex items-center gap-2 mt-2">
+        <div className={`flex items-center gap-2 ${compact ? 'mt-1' : 'mt-2'}`}>
           <span className={`
             inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border
             ${getStatusColor(conversation.status)}
@@ -188,7 +202,7 @@ export default function ConversationItem({
             {getStatusLabel(conversation.status)}
           </span>
 
-          {conversation.is_bot_active && (
+          {conversation.is_bot_active && !compact && (
             <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
               🤖 Bot
             </span>
@@ -198,6 +212,12 @@ export default function ConversationItem({
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
               👤 Atribuída
               <UserStatusIndicator isOnline={agentOnline} />
+            </span>
+          )}
+
+          {overflow && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+              ⚠️ Overflow
             </span>
           )}
         </div>

@@ -11,6 +11,7 @@ export interface Contact {
   email: string | null;
   tags: string[];
   attributes: Record<string, any>;
+  is_vip?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -21,9 +22,10 @@ export interface Conversation {
   contact_id: string;
   whatsapp_number_id: string;
   contact: Contact;
-  status: 'open' | 'pending' | 'resolved' | 'closed';
+  status: 'open' | 'pending' | 'resolved' | 'closed' | 'queued';
   current_agent_id: string | null;
   department_id: string | null;
+  queue_id: string | null;
   channel: string;
   window_expires_at: string | null;
   last_message_at: string | null;
@@ -35,6 +37,19 @@ export interface Conversation {
   total_messages: number;
   tags: string[];
   attributes: Record<string, any>;
+  
+  // Queue fields
+  queued_at: string | null;
+  queue_priority: number;
+  assigned_at: string | null;
+  closed_at: string | null;
+  
+  // Unread count
+  unread_count: number;
+  
+  // Bot flag
+  is_bot_active: boolean;
+  
   created_at: string;
   updated_at: string;
 }

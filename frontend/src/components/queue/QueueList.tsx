@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import QueueItem from './QueueItem';
 import { queueAPI } from '@/lib/api';
+import { QueueSelector } from '@/components/admin/QueueSelector';
 
 interface Conversation {
   id: string;
@@ -34,11 +35,25 @@ export default function QueueList({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPulling, setIsPulling] = useState(false);
+  
+  // Filtros
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
+  const [selectedQueueId, setSelectedQueueId] = useState<string | null>(null);
 
   // Load queue
   const loadQueue = async () => {
     try {
-      const response = await queueAPI.list({ limit: 100 });
+      const params: any = { limit: 100 };
+      
+      if (selectedDepartmentId) {
+        params.department_id = selectedDepartmentId;
+      }
+      
+      if (selectedQueueId) {
+        params.queue_id = selectedQueueId;
+      }
+      
+      const response = await queueAPI.list(params);
       setConversations(response.data);
       setError(null);
     } catch (err: any) {
@@ -55,7 +70,17 @@ export default function QueueList({
 
     setIsPulling(true);
     try {
-      const response = await queueAPI.pull();
+      const params: any = {};
+      
+      if (selectedDepartmentId) {
+        params.department_id = selectedDepartmentId;
+      }
+      
+      if (selectedQueueId) {
+        params.queue_id = selectedQueueId;
+      }
+      
+      const response = await queueAPI.pull(params);
       const pulledConversation = response.data;
 
       // Redirect to conversation
@@ -75,7 +100,7 @@ export default function QueueList({
   // Initial load
   useEffect(() => {
     loadQueue();
-  }, []);
+  }, [selectedDepartmentId, selectedQueueId]);
 
   // Auto-refresh
   useEffect(() => {
@@ -86,7 +111,7 @@ export default function QueueList({
     }, refreshInterval);
 
     return () => clearInterval(interval);
-  }, [autoRefresh, refreshInterval]);
+  }, [autoRefresh, refreshInterval, selectedDepartmentId, selectedQueueId]);
 
   if (error && isLoading) {
     return (
@@ -108,7 +133,7 @@ export default function QueueList({
     <div className="flex flex-col h-full bg-white">
       {/* Header */}
       <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-green-100">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">
               Fila de Atendimento
@@ -139,6 +164,17 @@ export default function QueueList({
           </button>
         </div>
 
+        {/* Queue Selector */}
+        <div className="mb-4">
+          <QueueSelector
+            selectedDepartmentId={selectedDepartmentId}
+            selectedQueueId={selectedQueueId}
+            onDepartmentChange={setSelectedDepartmentId}
+            onQueueChange={setSelectedQueueId}
+            showAllOption={true}
+          />
+        </div>
+
         {/* Pull Next Button */}
         {conversations.length > 0 && (
           <button
@@ -167,7 +203,10 @@ export default function QueueList({
                 Pegando...
               </span>
             ) : (
-              '⚡ Pegar Próxima da Fila'
+              <>
+                ⚡ Pegar Próxima 
+                {selectedQueueId ? ' da Fila Selecionada' : selectedDepartmentId ? ' do Departamento' : ' da Fila'}
+              </>
             )}
           </button>
         )}

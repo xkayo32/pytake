@@ -1,7 +1,11 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { SLABadge } from '@/components/admin/SLABadge';
+import { queuesAPI } from '@/lib/api';
+import type { Queue } from '@/types/queue';
 
 interface Contact {
   id: string;
@@ -14,6 +18,7 @@ interface Conversation {
   contact: Contact;
   status: string;
   queued_at?: string;
+  queue_id?: string | null;
   queue_priority: number;
   total_messages: number;
   messages_from_contact: number;
@@ -26,6 +31,16 @@ interface QueueItemProps {
 }
 
 export default function QueueItem({ conversation, onPull }: QueueItemProps) {
+  const [queue, setQueue] = useState<Queue | null>(null);
+
+  useEffect(() => {
+    if (conversation.queue_id) {
+      queuesAPI.get(conversation.queue_id)
+        .then(response => setQueue(response.data))
+        .catch(err => console.error('Error loading queue:', err));
+    }
+  }, [conversation.queue_id]);
+
   const getPriorityColor = (priority: number) => {
     if (priority >= 5) return 'bg-red-100 text-red-800 border-red-300';
     if (priority >= 3) return 'bg-yellow-100 text-yellow-800 border-yellow-300';
@@ -104,6 +119,16 @@ export default function QueueItem({ conversation, onPull }: QueueItemProps) {
             />
           </svg>
           <span>Aguardando há {getTimeInQueue()}</span>
+          
+          {/* SLA Badge */}
+          {conversation.queued_at && (
+            <SLABadge 
+              queuedAt={conversation.queued_at}
+              slaMinutes={queue?.sla_minutes}
+              size="sm"
+              className="ml-2"
+            />
+          )}
         </div>
 
         {/* Messages count */}
