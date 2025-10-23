@@ -136,7 +136,6 @@ volumes:
   redis_data:
   mongodb_data:
   backend_venv:
-  frontend_node_modules:
 
 # Network configuration (optional, Podman creates default network)
 # networks:
