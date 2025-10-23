@@ -16,8 +16,8 @@ class QueueRepository(BaseRepository[Queue]):
     """Repository for Queue operations"""
 
     def __init__(self, db: AsyncSession):
-        super().__init__(db)
-        self.model = Queue
+        # Initialize base repository with model and db session
+        super().__init__(Queue, db)
 
     async def create(
         self,
@@ -218,6 +218,25 @@ class QueueRepository(BaseRepository[Queue]):
 
         # Order by priority (desc)
         query = query.order_by(Queue.priority.desc()).limit(1)
+
+        result = await self.db.execute(query)
+        return result.scalars().first()
+
+    async def get_vip_queue(self, organization_id: UUID) -> Optional[Queue]:
+        """
+        Get the VIP queue for an organization.
+        VIP queues are identified by settings.is_vip_queue = true.
+        Returns the highest priority VIP queue if multiple exist.
+        """
+        query = (
+            select(Queue)
+            .where(Queue.organization_id == organization_id)
+            .where(Queue.is_active == True)
+            .where(Queue.deleted_at.is_(None))
+            .where(Queue.settings["is_vip_queue"].astext == "true")
+            .order_by(Queue.priority.desc())
+            .limit(1)
+        )
 
         result = await self.db.execute(query)
         return result.scalars().first()

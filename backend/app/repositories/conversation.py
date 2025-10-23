@@ -3,15 +3,16 @@ Conversation and Message Repositories
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from uuid import UUID
 
-from sqlalchemy import select, func, desc, and_
+from sqlalchemy import select, func, desc, and_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
 
 from app.models.conversation import Conversation, Message
 from app.models.contact import Contact
+from app.models.queue import Queue
 from app.repositories.base import BaseRepository
 
 
@@ -60,6 +61,7 @@ class ConversationRepository(BaseRepository[Conversation]):
         status: Optional[str] = None,
         assigned_agent_id: Optional[UUID] = None,
         assigned_department_id: Optional[UUID] = None,
+        queue_id: Optional[UUID] = None,
         priority: Optional[str] = None,
         unread_only: bool = False,
         skip: int = 0,
@@ -84,6 +86,9 @@ class ConversationRepository(BaseRepository[Conversation]):
         if assigned_department_id:
             stmt = stmt.where(Conversation.assigned_department_id == assigned_department_id)
 
+        if queue_id:
+            stmt = stmt.where(Conversation.queue_id == queue_id)
+
         if priority:
             stmt = stmt.where(Conversation.priority == priority)
 
@@ -106,6 +111,19 @@ class ConversationRepository(BaseRepository[Conversation]):
             await self.db.refresh(conversation)
         return conversation
 
+    async def count_queued_by_queue(
+        self, organization_id: UUID, queue_id: UUID
+    ) -> int:
+        """Count conversations with status 'queued' for a given queue"""
+        stmt = select(func.count(Conversation.id)).where(
+            Conversation.organization_id == organization_id,
+            Conversation.queue_id == queue_id,
+            Conversation.status == "queued",
+            Conversation.deleted_at.is_(None),
+        )
+        result = await self.db.execute(stmt)
+        return int(result.scalar() or 0)
+
     async def increment_message_count(self, conversation_id: UUID) -> None:
         """Increment total message count"""
         conversation = await self.get(conversation_id)
@@ -119,6 +137,83 @@ class ConversationRepository(BaseRepository[Conversation]):
         if conversation:
             conversation.unread_count += 1
             await self.db.commit()
+
+    async def list_sla_alerts(
+        self,
+        organization_id: UUID,
+        department_id: Optional[UUID] = None,
+        queue_id: Optional[UUID] = None,
+        nearing_threshold: float = 0.8,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> List[Tuple[Conversation, Contact, Queue, float, float, str]]:
+        """
+        List queued conversations that exceeded or are nearing SLA.
+
+        Returns a list of tuples: (
+          Conversation, Contact, Queue, waited_minutes, progress, severity
+        ) where:
+          - waited_minutes: minutes since queued_at
+          - progress: waited_minutes / queue.sla_minutes (None-safe)
+          - severity: 'critical' (>=1.0), 'warning' (>=nearing_threshold), else 'ok'
+        """
+        # Only consider conversations that are queued and have queued_at
+        now = func.now()
+
+        # Build base query joining Queue (for sla_minutes) and Contact for display
+        q = (
+            select(
+                Conversation,
+                Contact,
+                Queue,
+                # waited_minutes
+                (func.extract('epoch', now - Conversation.queued_at) / 60.0).label('waited_minutes'),
+                # progress: waited / sla
+                (
+                    (func.extract('epoch', now - Conversation.queued_at) / 60.0)
+                    / func.nullif(Queue.sla_minutes, 0)
+                ).label('progress')
+            )
+            .join(Contact, Contact.id == Conversation.contact_id)
+            .join(Queue, Queue.id == Conversation.queue_id)
+            .where(
+                Conversation.organization_id == organization_id,
+                Conversation.status == 'queued',
+                Conversation.deleted_at.is_(None),
+                Queue.deleted_at.is_(None),
+                Queue.sla_minutes.is_not(None),
+                Conversation.queued_at.is_not(None),
+            )
+        )
+
+        if department_id:
+            q = q.where(Conversation.department_id == department_id)
+
+        if queue_id:
+            q = q.where(Conversation.queue_id == queue_id)
+
+        # Severity computation in SQL is DB-specific; we filter by threshold and order by progress desc
+        # Filter candidates that are either over SLA or nearing
+        q = q.where(
+            (
+                (func.extract('epoch', now - Conversation.queued_at) / 60.0)
+                / func.nullif(Queue.sla_minutes, 0)
+            ) >= nearing_threshold
+        )
+
+        # Order by highest progress then oldest queued
+        q = q.order_by(desc('progress'), Conversation.queued_at.asc()).offset(skip).limit(limit)
+
+        res = await self.db.execute(q)
+        rows = res.all()
+
+        results: List[Tuple[Conversation, Contact, Queue, float, float, str]] = []
+        for conv, contact, queue, waited_minutes, progress in rows:
+            # Determine severity client-side for portability
+            severity = 'critical' if (progress or 0) >= 1.0 else ('warning' if (progress or 0) >= nearing_threshold else 'ok')
+            results.append((conv, contact, queue, float(waited_minutes or 0.0), float(progress or 0.0), severity))
+
+        return results
 
 
 class MessageRepository(BaseRepository[Message]):

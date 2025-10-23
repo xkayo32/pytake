@@ -195,3 +195,32 @@ async def get_queue_by_slug(
         )
 
     return queue
+
+
+@router.get("/{queue_id}/metrics")
+async def get_queue_metrics(
+    queue_id: UUID,
+    days: int = Query(30, ge=1, le=90, description="Number of days for metrics"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get detailed metrics for a queue
+    
+    **Metrics included:**
+    - Volume metrics (total, today, last 7/30 days)
+    - Current status (queued, active)
+    - Time metrics (wait, response, resolution times)
+    - SLA compliance and violations
+    - Resolution rate
+    - Volume distribution by hour (last 24h)
+    
+    **Parameters:**
+    - days: Number of days to calculate metrics (default: 30, max: 90)
+    """
+    service = QueueService(db)
+    return await service.get_queue_metrics(
+        queue_id=queue_id,
+        organization_id=current_user.organization_id,
+        days=days
+    )

@@ -20,6 +20,7 @@ from app.schemas.conversation import (
     MessageCreate,
 )
 from app.schemas.message import MessageSendRequest, MessageResponse
+from app.schemas.sla import SlaAlert
 from app.services.conversation_service import ConversationService
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,10 +33,20 @@ async def list_conversations(
     limit: int = Query(100, ge=1, le=100),
     status: Optional[str] = Query(None, regex="^(open|pending|resolved|closed)$"),
     assigned_to_me: bool = False,
+    department_id: Optional[UUID] = Query(None, description="Filter by department"),
+    queue_id: Optional[UUID] = Query(None, description="Filter by queue"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List conversations"""
+    """
+    List conversations
+    
+    **Filters:**
+    - status: Filter by status (open, pending, resolved, closed)
+    - assigned_to_me: Show only conversations assigned to current user
+    - department_id: Filter by department
+    - queue_id: Filter by specific queue
+    """
     service = ConversationService(db)
 
     assigned_agent_id = current_user.id if assigned_to_me else None
@@ -44,6 +55,8 @@ async def list_conversations(
         organization_id=current_user.organization_id,
         status=status,
         assigned_agent_id=assigned_agent_id,
+        assigned_department_id=department_id,
+        queue_id=queue_id,
         skip=skip,
         limit=limit,
     )
@@ -94,7 +107,7 @@ async def update_conversation(
     )
 
 
-@router.get("/{conversation_id}/messages", response_model=List[Message])
+@router.get("/{conversation_id}/messages", response_model=List[MessageResponse])
 async def get_conversation_messages(
     conversation_id: UUID,
     skip: int = Query(0, ge=0),
@@ -219,4 +232,62 @@ async def close_conversation(
         organization_id=current_user.organization_id,
         reason=data.reason,
         resolved=data.resolved,
+    )
+
+# ============================================
+# SLA ALERTS
+# ============================================
+
+@router.get("/sla-alerts", response_model=List[SlaAlert])
+async def get_sla_alerts(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=200),
+    department_id: Optional[UUID] = Query(None, description="Filter by department"),
+    queue_id: Optional[UUID] = Query(None, description="Filter by queue"),
+    nearing_threshold: float = Query(0.8, ge=0.1, le=1.0, description="Threshold for 'warning' progress"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List conversations that are nearing or exceeding SLA.
+
+    - severity 'critical': progress >= 1.0 (over SLA)
+    - severity 'warning': progress >= nearing_threshold
+    """
+    service = ConversationService(db)
+    return await service.get_sla_alerts(
+        organization_id=current_user.organization_id,
+        department_id=department_id,
+        queue_id=queue_id,
+        nearing_threshold=nearing_threshold,
+        skip=skip,
+        limit=limit,
+    )
+
+
+@router.get('/metrics')
+async def get_conversations_metrics(
+    department_id: Optional[UUID] = Query(None, description='Filter by department'),
+    queue_id: Optional[UUID] = Query(None, description='Filter by queue'),
+    since: Optional[str] = Query(None, description='ISO datetime to filter recent conversations'),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return aggregated conversation metrics for admin dashboards"""
+    from dateutil import parser
+
+    service = ConversationService(db)
+
+    since_dt = None
+    if since:
+        try:
+            since_dt = parser.isoparse(since)
+        except Exception:
+            since_dt = None
+
+    return await service.get_metrics(
+        organization_id=current_user.organization_id,
+        department_id=department_id,
+        queue_id=queue_id,
+        since=since_dt,
     )
