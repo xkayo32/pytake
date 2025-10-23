@@ -11,16 +11,21 @@ import {
   MessageSquare,
   AlertCircle,
   Zap,
+  ArrowRight,
+  Users,
 } from 'lucide-react';
-import type { QueueCreate, QueueUpdate, RoutingMode } from '@/types/queue';
+import type { QueueCreate, QueueUpdate, RoutingMode, Queue } from '@/types/queue';
 import type { Department } from '@/types/department';
+import { queuesAPI } from '@/lib/api';
+import AgentMultiSelect from './AgentMultiSelect';
+import { BusinessHoursEditor, BusinessHoursConfig } from './BusinessHoursEditor';
 
 interface QueueModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: QueueCreate | QueueUpdate) => Promise<void>;
   departments: Department[];
-  initialData?: Partial<QueueCreate>;
+  initialData?: Partial<QueueCreate> & { id?: string };
   mode?: 'create' | 'edit';
 }
 
@@ -37,6 +42,14 @@ export interface QueueFormData {
   routing_mode: RoutingMode;
   auto_assign_conversations: boolean;
   max_conversations_per_agent: number;
+  max_queue_size?: number;
+  overflow_queue_id?: string;
+  settings?: {
+    allowed_agent_ids?: string[];
+    skills_required?: string[];
+    business_hours?: BusinessHoursConfig;
+    is_vip_queue?: boolean;
+  };
 }
 
 const COLORS = [
@@ -61,6 +74,63 @@ const ICONS = [
   { value: 'rocket', label: 'Express', icon: '🚀' },
 ];
 
+// Simple tags input for managing array of strings
+function SkillsTagsInput({
+  values,
+  onChange,
+}: {
+  values: string[];
+  onChange: (values: string[]) => void;
+}) {
+  const [input, setInput] = useState('');
+
+  const addTag = () => {
+    const v = input.trim();
+    if (!v) return;
+    const exists = values.some((x) => x.toLowerCase() === v.toLowerCase());
+    if (!exists) onChange([...values, v]);
+    setInput('');
+  };
+
+  const removeTag = (tag: string) => {
+    onChange(values.filter((t) => t !== tag));
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag();
+    }
+    if (e.key === 'Backspace' && !input && values.length > 0) {
+      onChange(values.slice(0, -1));
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-2 p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg">
+        {values.map((tag) => (
+          <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded">
+            {tag}
+            <button type="button" onClick={() => removeTag(tag)} className="opacity-70 hover:opacity-100">×</button>
+          </span>
+        ))}
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder={values.length ? 'Adicionar skill...' : 'Digite e pressione Enter'}
+          className="flex-1 min-w-[160px] px-2 py-1 text-sm bg-transparent outline-none placeholder-gray-400 dark:text-white"
+        />
+        <button type="button" onClick={addTag} className="px-2 py-1 text-xs bg-gray-900 text-white rounded hover:bg-black dark:bg-white dark:text-black">
+          Adicionar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function QueueModal({
   isOpen,
   onClose,
@@ -82,10 +152,19 @@ export function QueueModal({
     routing_mode: initialData?.routing_mode || 'round_robin',
     auto_assign_conversations: initialData?.auto_assign_conversations ?? true,
     max_conversations_per_agent: initialData?.max_conversations_per_agent || 10,
+    max_queue_size: initialData?.max_queue_size,
+    overflow_queue_id: initialData?.overflow_queue_id,
+    settings: {
+      allowed_agent_ids: initialData?.settings?.allowed_agent_ids || [],
+      skills_required: initialData?.settings?.skills_required || [],
+      business_hours: initialData?.settings?.business_hours || { timezone: 'America/Sao_Paulo', schedule: {} },
+      is_vip_queue: initialData?.settings?.is_vip_queue || false,
+    },
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [availableQueues, setAvailableQueues] = useState<Queue[]>([]);
 
   // Auto-generate slug from name
   useEffect(() => {
@@ -99,6 +178,25 @@ export function QueueModal({
       setFormData(prev => ({ ...prev, slug }));
     }
   }, [formData.name, mode]);
+
+  // Load queues when department changes (for overflow selection)
+  useEffect(() => {
+    const loadQueues = async () => {
+      if (formData.department_id && isOpen) {
+        try {
+          const response = await queuesAPI.list({ limit: 100 });
+          // Filter queues by same department, exclude current queue
+          const filtered = response.data.filter(
+            (q: Queue) => q.department_id === formData.department_id && q.id !== initialData?.id
+          );
+          setAvailableQueues(filtered);
+        } catch (error) {
+          console.error('Error loading queues:', error);
+        }
+      }
+    };
+    loadQueues();
+  }, [formData.department_id, isOpen, initialData?.id]);
 
   const handleChange = (field: keyof QueueFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -492,6 +590,28 @@ export function QueueModal({
                 );
               })}
             </div>
+
+            {/* VIP Queue Toggle */}
+            <div className="mt-2">
+              <label className="inline-flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={!!formData.settings?.is_vip_queue}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    settings: {
+                      ...prev.settings,
+                      is_vip_queue: e.target.checked,
+                    }
+                  }))}
+                  className="w-4 h-4 rounded border-gray-300 text-yellow-600 focus:ring-yellow-600"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Marcar como Fila VIP</span>
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                Contatos marcados como VIP serão roteados automaticamente para esta fila
+              </p>
+            </div>
           </div>
 
           {/* Auto-Assignment */}
@@ -537,6 +657,165 @@ export function QueueModal({
             </div>
           </div>
 
+          {/* Overflow Settings Section */}
+          <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <ArrowRight className="w-5 h-5 text-purple-600" />
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                Configurações de Overflow
+              </h3>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 -mt-2 mb-4">
+              Configure redirecionamento automático quando a fila atingir o limite
+            </p>
+
+            {/* Max Queue Size */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Tamanho máximo da fila
+                <span className="text-gray-500 font-normal ml-1">(opcional)</span>
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="1000"
+                value={formData.max_queue_size || ''}
+                onChange={(e) => handleChange('max_queue_size', e.target.value ? parseInt(e.target.value) : undefined)}
+                placeholder="Ex: 50"
+                className="w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white dark:text-white"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Número máximo de conversas aguardando antes de acionar overflow
+              </p>
+            </div>
+
+            {/* Overflow Queue */}
+            {formData.max_queue_size && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Fila de Overflow
+                  <span className="text-gray-500 font-normal ml-1">(opcional)</span>
+                </label>
+                <select
+                  value={formData.overflow_queue_id || ''}
+                  onChange={(e) => handleChange('overflow_queue_id', e.target.value || undefined)}
+                  className="w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white dark:text-white"
+                >
+                  <option value="">Selecione uma fila (opcional)</option>
+                  {availableQueues.map((queue) => (
+                    <option key={queue.id} value={queue.id}>
+                      {queue.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Conversas serão redirecionadas para esta fila quando o limite for atingido
+                </p>
+                {availableQueues.length === 0 && formData.department_id && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                    ⚠️ Nenhuma outra fila disponível neste departamento
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Agent Restrictions Section */}
+          <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="w-5 h-5 text-blue-600" />
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                Agentes Permitidos
+              </h3>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 -mt-2 mb-4">
+              Restrinja quais agentes podem atender conversas desta fila
+            </p>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Selecionar agentes
+                <span className="text-gray-500 font-normal ml-1">(opcional)</span>
+              </label>
+              <AgentMultiSelect
+                selectedAgentIds={formData.settings?.allowed_agent_ids || []}
+                onChange={(agentIds) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    settings: {
+                      ...prev.settings,
+                      allowed_agent_ids: agentIds,
+                    },
+                  }));
+                }}
+                departmentId={formData.department_id || undefined}
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                {formData.settings?.allowed_agent_ids?.length
+                  ? `${formData.settings.allowed_agent_ids.length} agente(s) selecionado(s)`
+                  : 'Todos os agentes podem atender (padrão)'}
+              </p>
+            </div>
+          </div>
+
+          {/* Skills Required Section */}
+          <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Zap className="w-5 h-5 text-amber-600" />
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                Habilidades Requeridas
+              </h3>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 -mt-2 mb-4">
+              Informe as skills necessárias para atender nesta fila (ex: python, billing). Somente agentes que possuam todas serão elegíveis.
+            </p>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Skills (tags)
+              </label>
+              <SkillsTagsInput
+                values={formData.settings?.skills_required || []}
+                onChange={(values) => setFormData(prev => ({
+                  ...prev,
+                  settings: {
+                    ...prev.settings,
+                    skills_required: values,
+                  },
+                }))}
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                {formData.settings?.skills_required?.length
+                  ? `${formData.settings.skills_required.length} skill(s) exigida(s)`
+                  : 'Sem skills exigidas (qualquer agente com permissão pode atender)'}
+              </p>
+            </div>
+          </div>
+
+          {/* Business Hours Section */}
+          <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="w-5 h-5 text-green-600" />
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                Horário de Funcionamento
+              </h3>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 -mt-2 mb-4">
+              Configure os dias e horários em que esta fila estará ativa. Conversas fora do horário não serão distribuídas automaticamente.
+            </p>
+
+            <BusinessHoursEditor
+              value={formData.settings?.business_hours || { timezone: 'America/Sao_Paulo', schedule: {} }}
+              onChange={(config) => setFormData(prev => ({
+                ...prev,
+                settings: {
+                  ...prev.settings,
+                  business_hours: config,
+                },
+              }))}
+            />
+          </div>
+
           {/* Submit Error */}
           {errors.submit && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
@@ -554,8 +833,9 @@ export function QueueModal({
             variant="primary"
             type="submit"
             disabled={isSubmitting}
+            loading={isSubmitting}
           >
-            {isSubmitting ? 'Salvando...' : mode === 'create' ? 'Criar Fila' : 'Salvar Alterações'}
+            {mode === 'create' ? 'Criar Fila' : 'Salvar Alterações'}
           </ActionButton>
         </ModalActions>
       </form>
