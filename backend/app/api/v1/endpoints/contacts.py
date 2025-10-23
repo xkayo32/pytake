@@ -180,6 +180,38 @@ async def unblock_contact(
     )
 
 
+@router.post("/{contact_id}/vip", response_model=Contact)
+async def mark_as_vip(
+    contact_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Mark a contact as VIP
+    """
+    service = ContactService(db)
+    return await service.mark_as_vip(
+        contact_id=contact_id,
+        organization_id=current_user.organization_id,
+    )
+
+
+@router.delete("/{contact_id}/vip", response_model=Contact)
+async def unmark_as_vip(
+    contact_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Remove VIP status from a contact
+    """
+    service = ContactService(db)
+    return await service.unmark_as_vip(
+        contact_id=contact_id,
+        organization_id=current_user.organization_id,
+    )
+
+
 @router.put("/{contact_id}/tags", response_model=Contact)
 async def update_contact_tags(
     contact_id: UUID,

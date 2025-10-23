@@ -250,3 +250,101 @@ class UserService:
             "conversations_resolved": conversations_resolved,
             "conversations_active": conversations_active,
         }
+
+    async def get_available_skills(self, organization_id: UUID) -> List[str]:
+        """Get all unique skill names used in the organization"""
+        from app.models.agent_skill import AgentSkill
+
+        stmt = (
+            select(AgentSkill.skill_name)
+            .where(
+                AgentSkill.organization_id == organization_id,
+                AgentSkill.deleted_at.is_(None)
+            )
+            .distinct()
+            .order_by(AgentSkill.skill_name)
+        )
+
+        result = await self.db.execute(stmt)
+        return [row[0] for row in result.fetchall()]
+
+    async def get_user_skills(self, user_id: UUID, organization_id: UUID) -> List[dict]:
+        """Get skills for a specific user"""
+        from app.models.agent_skill import AgentSkill
+
+        # Verify user belongs to organization
+        await self.get_by_id(user_id, organization_id)
+
+        stmt = (
+            select(AgentSkill)
+            .where(
+                AgentSkill.user_id == user_id,
+                AgentSkill.organization_id == organization_id,
+                AgentSkill.deleted_at.is_(None)
+            )
+            .order_by(AgentSkill.skill_name)
+        )
+
+        result = await self.db.execute(stmt)
+        skills = result.scalars().all()
+
+        return [
+            {
+                "id": str(skill.id),
+                "skill_name": skill.skill_name,
+                "proficiency_level": skill.proficiency_level,
+            }
+            for skill in skills
+        ]
+
+    async def update_user_skills(
+        self, user_id: UUID, skills: List[dict], organization_id: UUID
+    ) -> List[dict]:
+        """Update skills for a user (replace all existing skills)"""
+        from app.models.agent_skill import AgentSkill
+        from datetime import datetime
+
+        # Verify user belongs to organization
+        await self.get_by_id(user_id, organization_id)
+
+        # Delete existing skills (soft delete)
+        stmt = (
+            select(AgentSkill)
+            .where(
+                AgentSkill.user_id == user_id,
+                AgentSkill.organization_id == organization_id,
+                AgentSkill.deleted_at.is_(None)
+            )
+        )
+        result = await self.db.execute(stmt)
+        existing_skills = result.scalars().all()
+
+        for skill in existing_skills:
+            skill.deleted_at = datetime.utcnow()
+
+        # Create new skills
+        new_skills = []
+        for skill_data in skills:
+            skill = AgentSkill(
+                user_id=user_id,
+                organization_id=organization_id,
+                skill_name=skill_data["skill_name"],
+                proficiency_level=skill_data.get("proficiency_level", 3),
+            )
+            self.db.add(skill)
+            new_skills.append(skill)
+
+        await self.db.commit()
+
+        # Refresh to get IDs
+        for skill in new_skills:
+            await self.db.refresh(skill)
+
+        return [
+            {
+                "id": str(skill.id),
+                "skill_name": skill.skill_name,
+                "proficiency_level": skill.proficiency_level,
+            }
+            for skill in new_skills
+        ]

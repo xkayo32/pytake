@@ -128,6 +128,30 @@ class ContactService:
 
         return await self.repo.update(contact_id, update_data)
 
+    async def mark_as_vip(
+        self, contact_id: UUID, organization_id: UUID
+    ) -> Contact:
+        """Mark a contact as VIP"""
+        contact = await self.get_by_id(contact_id, organization_id)
+
+        update_data = {
+            "is_vip": True,
+        }
+
+        return await self.repo.update(contact_id, update_data)
+
+    async def unmark_as_vip(
+        self, contact_id: UUID, organization_id: UUID
+    ) -> Contact:
+        """Remove VIP status from a contact"""
+        contact = await self.get_by_id(contact_id, organization_id)
+
+        update_data = {
+            "is_vip": False,
+        }
+
+        return await self.repo.update(contact_id, update_data)
+
     async def add_tags(
         self, contact_id: UUID, tag_ids: List[UUID], organization_id: UUID
     ) -> Contact:
