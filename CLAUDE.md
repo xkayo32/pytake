@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Quick Start
 
-**⚠️ IMPORTANT: This project ALWAYS runs in containers (Podman or Docker). Do not attempt local development outside of containers.**
+**⚠️ IMPORTANT: This project ALWAYS runs in containers using Podman. Do not attempt local development outside of containers.**
 
-### Using Podman (Recommended)
+### Container Management with Podman
 
 ```bash
 # 1. Start all services with Podman Compose (REQUIRED)
@@ -42,32 +42,6 @@ podman restart pytake-frontend
 podman exec pytake-backend alembic upgrade head
 ```
 
-### Using Docker (Alternative)
-
-```bash
-# 1. Start all services with Docker Compose
-docker compose up -d          # Compose v2
-# OR
-docker-compose up -d          # Legacy Compose v1
-
-# 2. Verify all services are running
-docker ps
-
-# 3. View logs if needed
-docker compose logs -f backend frontend
-
-# 4. Stop all services
-docker compose down
-
-# 5. Restart a specific service
-docker restart pytake-backend
-
-# 6. Initial setup (first time only)
-docker exec pytake-backend alembic upgrade head
-```
-
-**Note:** This project uses `compose.yaml` which is compatible with both Podman and Docker Compose v2+.
-
 ## Project Overview
 
 **PyTake** is a WhatsApp Business automation platform (SaaS) built with Python/FastAPI backend and Next.js frontend. It provides chatbot builder, live chat, CRM, campaigns, and analytics for WhatsApp automation - similar to Blip and Fortics.
@@ -89,11 +63,9 @@ docker exec pytake-backend alembic upgrade head
 
 ## Development Commands
 
-**All commands must be executed inside containers using `podman exec` or `docker exec`.**
+**All commands must be executed inside containers using `podman exec`.**
 
 ### Container Management
-
-**Using Podman (Recommended):**
 ```bash
 # Start all services
 podman-compose up -d                      # Using podman-compose tool
@@ -125,33 +97,7 @@ podman ps                                 # Running containers
 podman-compose ps                         # All project containers
 ```
 
-**Using Docker (Alternative):**
-```bash
-# Start all services
-docker compose up -d
-
-# Stop all services
-docker compose down
-
-# Rebuild containers
-docker compose up -d --build
-
-# View logs
-docker compose logs -f backend
-
-# Restart a service
-docker restart pytake-backend
-
-# Access container shell
-docker exec -it pytake-backend bash
-
-# Check container status
-docker ps
-```
-
 ### Backend Commands (Inside Container)
-
-**Using Podman:**
 ```bash
 # Execute commands in backend container
 podman exec -it pytake-backend bash
@@ -181,18 +127,7 @@ podman exec pytake-backend flake8 app/                       # Lint
 podman exec pytake-backend mypy app/                         # Type checking
 ```
 
-**Using Docker:**
-```bash
-# All commands are the same, just replace 'podman' with 'docker':
-docker exec -it pytake-backend bash
-docker exec pytake-backend alembic upgrade head
-docker exec pytake-backend pytest
-# etc.
-```
-
 ### Frontend Commands (Inside Container)
-
-**Using Podman:**
 ```bash
 # Execute commands in frontend container
 podman exec -it pytake-frontend sh
@@ -211,17 +146,7 @@ podman exec pytake-frontend npm run lint
 # Note: Frontend uses Turbopack for faster builds (--turbopack flag)
 ```
 
-**Using Docker:**
-```bash
-# All commands are the same, just replace 'podman' with 'docker':
-docker exec -it pytake-frontend sh
-docker exec pytake-frontend npm install
-# etc.
-```
-
 ### Database Access
-
-**Using Podman:**
 ```bash
 # PostgreSQL
 podman exec -it pytake-postgres psql -U pytake -d pytake
@@ -233,22 +158,10 @@ podman exec -it pytake-redis redis-cli
 podman exec -it pytake-mongodb mongosh pytake_logs
 ```
 
-**Using Docker:**
-```bash
-# PostgreSQL
-docker exec -it pytake-postgres psql -U pytake -d pytake
-
-# Redis
-docker exec -it pytake-redis redis-cli
-
-# MongoDB
-docker exec -it pytake-mongodb mongosh pytake_logs
-```
-
 **Important Notes:**
 - Frontend runs on port **3001** (mapped from container port 3000)
 - MongoDB is mapped to port **27018** (not default 27017) to avoid conflicts with other local MongoDB instances
-- Backend uses `backend/.env.docker` for configuration (not `.env`)
+- Backend uses `backend/.env.podman` for configuration (not `.env`)
 - Root `.env` file controls Compose port mappings
 - All file changes on host are synced to containers via volume mounts (hot reload enabled)
 - **Volume SELinux labels** (Podman-specific):
@@ -784,8 +697,8 @@ NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 
 **Critical Notes:**
 - Frontend API URL **must** include `/api/v1` path
-- When using Docker Compose, backend uses `backend/.env.docker` instead of `backend/.env`
-- Root `.env` file controls Docker Compose port mappings and API URL configuration
+- When using Podman Compose, backend uses `backend/.env.podman` instead of `backend/.env`
+- Root `.env` file controls Compose port mappings and API URL configuration
 - See `backend/.env.example` for complete list of 100+ config options (AWS S3, SMTP, Sentry, rate limiting, subscription plans, etc.)
 
 ## Default Credentials
@@ -1070,27 +983,27 @@ login: async (email: string, password: string) => {
 
 ## Platform Notes
 
-This project is being developed on **Windows** but runs entirely in containers (Podman or Docker), making it platform-agnostic.
+This project is being developed on **Windows** but runs entirely in containers using Podman, making it platform-agnostic.
 
 **Windows Requirements:**
-- **Podman Desktop** (recommended) or Docker Desktop installed and running
+- **Podman Desktop** installed and running
 - Git for Windows (or Git Bash)
 - Any code editor (VS Code recommended)
 
 **Linux Requirements:**
-- **Podman** (recommended) or Docker Engine
+- **Podman** installed
 - podman-compose tool: `pip install podman-compose` (if not using podman compose plugin)
 - Git
 - Any code editor
 
 **macOS Requirements:**
-- **Podman Desktop** (recommended) or Docker Desktop
+- **Podman Desktop** installed
 - Podman Machine must be initialized: `podman machine init && podman machine start`
 - Git (pre-installed)
 - Any code editor
 
 **All platforms:**
-- Podman or Docker are the only requirements
+- Podman is the only container runtime requirement
 - No need for Python, Node.js, or database installations on host
 - All development happens inside containers
 - Hot reload works across all platforms via volume mounts
@@ -1098,9 +1011,9 @@ This project is being developed on **Windows** but runs entirely in containers (
 **Why Podman?**
 - Rootless by default (more secure)
 - Daemonless architecture
-- Drop-in replacement for Docker
 - Better resource management
-- Fully compatible with Docker images and Dockerfiles
+- Native support for pods and container orchestration
+- Compatible with Docker images and Dockerfiles
 
 ## Recent Implementation Status
 
@@ -1615,7 +1528,6 @@ Comprehensive documentation available:
 
 ### Deployment & Infrastructure
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Production deployment guide
-- [docs/DOCKER_SETUP.md](docs/DOCKER_SETUP.md) - Docker setup guide
 - [docs/INTEGRATION_GUIDE.md](docs/INTEGRATION_GUIDE.md) - External integrations
 
 ### Frontend Critical Fixes
@@ -1630,8 +1542,8 @@ Refer to these files for deep dives into specific areas.
 
 ### Core Principles
 
-- **Container-First:** This project ALWAYS runs in containers (Podman or Docker). Never suggest local Python/Node.js installations or running services outside containers.
-- **Podman Preferred:** Use Podman commands by default in new documentation or examples. Docker commands are acceptable as alternatives.
+- **Container-First:** This project ALWAYS runs in containers using Podman. Never suggest local Python/Node.js installations or running services outside containers.
+- **Podman Only:** Use Podman commands exclusively in all documentation and examples.
 - **No Automated Testing:** DO NOT use MCP tools (Playwright, browser automation, etc.) for testing. The developer handles ALL testing manually.
 - **Windows Paths:** This project is developed on Windows (D:\pytake\) but all paths inside containers use Unix format.
 - **Code Changes Only:** Focus on code implementation, architecture, and bug fixes. Leave testing and validation to the developer.
