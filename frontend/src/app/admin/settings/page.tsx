@@ -5,6 +5,8 @@ import {
   Settings,
   Sparkles,
   Building2,
+  Users,
+  ListTodo,
   Bell,
   Shield,
   Palette,
@@ -21,6 +23,18 @@ interface SettingsCard {
 }
 
 const settingsCards: SettingsCard[] = [
+  {
+    title: 'Departamentos',
+    description: 'Gerencie equipes e responsabilidades por área',
+    href: '/admin/settings/organization?tab=departments',
+    icon: Users,
+  },
+  {
+    title: 'Filas',
+    description: 'Configure filas de atendimento e priorização',
+    href: '/admin/settings/organization?tab=queues',
+    icon: ListTodo,
+  },
   {
     title: 'AI Assistant',
     description: 'Configure modelos de IA para respostas automáticas inteligentes',

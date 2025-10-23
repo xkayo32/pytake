@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import {
   Building2,
   ListTodo,
   Plus,
   Edit,
   Trash2,
+  ArrowLeft,
 } from 'lucide-react';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { ActionButton } from '@/components/admin/ActionButton';
@@ -20,6 +23,9 @@ import { Queue, QueueCreate, QueueUpdate } from '@/types/queue';
 type Tab = 'departments' | 'queues';
 
 export default function OrganizationSettingsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [activeTab, setActiveTab] = useState<Tab>('departments');
   const [departments, setDepartments] = useState<Department[]>([]);
   const [queues, setQueues] = useState<Queue[]>([]);
@@ -64,6 +70,14 @@ export default function OrganizationSettingsPage() {
     fetchDepartments();
     fetchQueues();
   }, []);
+
+  // Sync aba ativa com query string (?tab=departments|queues)
+  useEffect(() => {
+    const tab = (searchParams.get('tab') || '').toLowerCase();
+    if (tab === 'departments' || tab === 'queues') {
+      setActiveTab(tab as Tab);
+    }
+  }, [searchParams]);
 
   // Department handlers
   const handleCreateDepartment = async (data: DepartmentCreate) => {
@@ -173,12 +187,28 @@ export default function OrganizationSettingsPage() {
         description="Gerencie departamentos e filas de atendimento"
       />
 
+      {/* Back to Settings */}
+      <div className="flex items-center justify-between">
+        <Link
+          href="/admin/settings"
+          className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Voltar para Configurações
+        </Link>
+      </div>
+
       {/* Tabs */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
         <div className="border-b border-gray-200 dark:border-gray-700">
           <nav className="flex">
             <button
-              onClick={() => setActiveTab('departments')}
+              onClick={() => {
+                setActiveTab('departments');
+                const params = new URLSearchParams(searchParams.toString());
+                params.set('tab', 'departments');
+                router.replace(`${pathname}?${params.toString()}`);
+              }}
               className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'departments'
                   ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white'
@@ -191,7 +221,12 @@ export default function OrganizationSettingsPage() {
               </div>
             </button>
             <button
-              onClick={() => setActiveTab('queues')}
+              onClick={() => {
+                setActiveTab('queues');
+                const params = new URLSearchParams(searchParams.toString());
+                params.set('tab', 'queues');
+                router.replace(`${pathname}?${params.toString()}`);
+              }}
               className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'queues'
                   ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white'

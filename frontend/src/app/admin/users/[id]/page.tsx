@@ -24,7 +24,7 @@ import {
 import { StatsCard } from '@/components/admin/StatsCard';
 import { ActionButton } from '@/components/admin/ActionButton';
 import { usersAPI } from '@/lib/api';
-import { User as UserType, UserStats, UserRole } from '@/types/user';
+import { User as UserType, UserStats, UserRole, AgentSkill } from '@/types/user';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -36,6 +36,10 @@ export default function UserDetailPage() {
   const [user, setUser] = useState<UserType | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [skills, setSkills] = useState<AgentSkill[]>([]);
+  const [skillsLoading, setSkillsLoading] = useState(false);
+  const [newSkillName, setNewSkillName] = useState('');
+  const [newSkillLevel, setNewSkillLevel] = useState(3);
 
   const fetchUserDetails = async () => {
     try {
@@ -53,9 +57,65 @@ export default function UserDetailPage() {
     }
   };
 
+  const fetchSkills = async () => {
+    try {
+      setSkillsLoading(true);
+      const resp = await usersAPI.getUserSkills(userId);
+      setSkills(resp.data);
+    } catch (error) {
+      console.error('Erro ao carregar skills:', error);
+    } finally {
+      setSkillsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchUserDetails();
+    fetchSkills();
   }, [userId]);
+
+  const handleAddSkill = async () => {
+    const name = newSkillName.trim();
+    if (!name) return;
+    try {
+      const updated = [
+        ...skills.map(s => ({ skill_name: s.skill_name, proficiency_level: s.proficiency_level })),
+        { skill_name: name, proficiency_level: newSkillLevel },
+      ];
+      await usersAPI.updateUserSkills(userId, updated);
+      setNewSkillName('');
+      setNewSkillLevel(3);
+      await fetchSkills();
+    } catch (error) {
+      console.error('Erro ao adicionar skill:', error);
+    }
+  };
+
+  const handleUpdateSkill = async (skill: AgentSkill, level: number) => {
+    try {
+      const updated = skills.map(s => ({
+        skill_name: s.skill_name,
+        proficiency_level: s.id === skill.id ? level : s.proficiency_level,
+      }));
+      await usersAPI.updateUserSkills(userId, updated);
+      setSkills((prev) => prev.map((s) => (s.id === skill.id ? { ...s, proficiency_level: level } : s)));
+    } catch (error) {
+      console.error('Erro ao atualizar skill:', error);
+    }
+  };
+
+  const handleDeleteSkill = async (skill: AgentSkill) => {
+    if (!confirm(`Remover a skill "${skill.skill_name}"?`)) return;
+    try {
+      const updated = skills
+        .filter(s => s.id !== skill.id)
+        .map(s => ({ skill_name: s.skill_name, proficiency_level: s.proficiency_level }));
+      await usersAPI.updateUserSkills(userId, updated);
+      setSkills((prev) => prev.filter((s) => s.id !== skill.id));
+    } catch (error) {
+      console.error('Erro ao remover skill:', error);
+    }
+  };
 
   const handleActivate = async () => {
     try {
@@ -338,6 +398,66 @@ export default function UserDetailPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Skills do Agente */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Skills do Agente</h2>
+          {skillsLoading && (
+            <span className="text-xs text-gray-500">Carregando...</span>
+          )}
+        </div>
+
+        {/* Adicionar Skill */}
+        <div className="flex flex-col sm:flex-row gap-2 mb-4">
+          <input
+            type="text"
+            value={newSkillName}
+            onChange={(e) => setNewSkillName(e.target.value)}
+            placeholder="Nome da skill (ex: python, billing)"
+            className="flex-1 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+          />
+          <select
+            value={newSkillLevel}
+            onChange={(e) => setNewSkillLevel(parseInt(e.target.value))}
+            className="px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white"
+            title="Nível de proficiência"
+          >
+            {[1,2,3,4,5].map((lvl) => (
+              <option key={lvl} value={lvl}>Nível {lvl}</option>
+            ))}
+          </select>
+          <ActionButton variant="primary" onClick={handleAddSkill}>Adicionar</ActionButton>
+        </div>
+
+        {/* Lista de Skills */}
+        {skills.length === 0 ? (
+          <div className="text-sm text-gray-500">Nenhuma skill cadastrada.</div>
+        ) : (
+          <div className="space-y-2">
+            {skills.map((skill) => (
+              <div key={skill.id} className="flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{skill.skill_name}</span>
+                  <span className="text-xs text-gray-500">nível atual: {skill.proficiency_level}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={skill.proficiency_level}
+                    onChange={(e) => handleUpdateSkill(skill, parseInt(e.target.value))}
+                    className="px-2 py-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded text-sm"
+                  >
+                    {[1,2,3,4,5].map((lvl) => (
+                      <option key={lvl} value={lvl}>Nível {lvl}</option>
+                    ))}
+                  </select>
+                  <ActionButton variant="danger" onClick={() => handleDeleteSkill(skill)}>Remover</ActionButton>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Histórico de Atendimentos */}

@@ -1,24 +1,17 @@
-'use client';
+"use client";
 
 import { useState } from 'react';
 import { Modal, ModalActions } from './Modal';
 import { ActionButton } from './ActionButton';
-import {
-  Building2,
-  Palette,
-  Clock,
-  Users,
-  Settings,
-  MessageSquare,
-  AlertCircle
-} from 'lucide-react';
-import type { DepartmentCreate, DepartmentUpdate, RoutingMode } from '@/types/department';
+import { Building2, Palette, AlertCircle } from 'lucide-react';
+import type { DepartmentCreate, DepartmentUpdate } from '@/types/department';
 
 interface DepartmentModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // aceitar tanto criação quanto atualização para compatibilidade com os handlers
   onSubmit: (data: DepartmentCreate | DepartmentUpdate) => Promise<void>;
-  initialData?: Partial<DepartmentCreate>;
+  initialData?: Partial<DepartmentCreate | DepartmentUpdate>;
   mode?: 'create' | 'edit';
 }
 
@@ -28,10 +21,6 @@ export interface DepartmentFormData {
   color: string;
   icon?: string;
   is_active: boolean;
-  routing_mode: RoutingMode;
-  auto_assign_conversations: boolean;
-  max_conversations_per_agent: number;
-  offline_message?: string;
 }
 
 const COLORS = [
@@ -69,10 +58,6 @@ export function DepartmentModal({
     color: initialData?.color || '#3B82F6',
     icon: initialData?.icon || 'users',
     is_active: initialData?.is_active ?? true,
-    routing_mode: initialData?.routing_mode || 'round_robin',
-    auto_assign_conversations: initialData?.auto_assign_conversations ?? true,
-    max_conversations_per_agent: initialData?.max_conversations_per_agent || 10,
-    offline_message: initialData?.offline_message || '',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,7 +65,6 @@ export function DepartmentModal({
 
   const handleChange = (field: keyof DepartmentFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    // Limpar erro do campo ao editar
     if (errors[field]) {
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -97,10 +81,6 @@ export function DepartmentModal({
       newErrors.name = 'Nome é obrigatório';
     }
 
-    if (formData.max_conversations_per_agent < 1 || formData.max_conversations_per_agent > 100) {
-      newErrors.max_conversations_per_agent = 'Deve estar entre 1 e 100';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -114,46 +94,22 @@ export function DepartmentModal({
     try {
       await onSubmit(formData);
       onClose();
-      // Reset form
       setFormData({
         name: '',
         description: '',
         color: '#3B82F6',
         icon: 'users',
         is_active: true,
-        routing_mode: 'round_robin',
-        auto_assign_conversations: true,
-        max_conversations_per_agent: 10,
-        offline_message: '',
       });
+      setErrors({});
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Erro ao salvar departamento:', error);
       setErrors({ submit: 'Erro ao salvar departamento. Tente novamente.' });
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const routingModes = [
-    {
-      value: 'round_robin',
-      label: 'Round Robin',
-      description: 'Distribuição igualitária entre agentes',
-      icon: '🔄',
-    },
-    {
-      value: 'load_balance',
-      label: 'Balanceamento',
-      description: 'Prioriza agentes com menos conversas',
-      icon: '⚖️',
-    },
-    {
-      value: 'manual',
-      label: 'Manual',
-      description: 'Agentes pegam da fila manualmente',
-      icon: '👆',
-    },
-  ];
 
   return (
     <Modal
@@ -218,7 +174,7 @@ export function DepartmentModal({
                   className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 dark:focus:ring-white"
                 />
                 <label htmlFor="is_active" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                  Departamento ativo (aceita novas conversas)
+                  Departamento ativo (visível na organização)
                 </label>
               </div>
             </div>
@@ -289,126 +245,7 @@ export function DepartmentModal({
             </div>
           </div>
 
-          {/* Configurações de Roteamento */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              Roteamento de Conversas
-            </h3>
-
-            <div className="grid grid-cols-1 gap-3">
-              {routingModes.map((mode) => {
-                const isSelected = formData.routing_mode === mode.value;
-
-                return (
-                  <button
-                    key={mode.value}
-                    type="button"
-                    onClick={() => handleChange('routing_mode', mode.value)}
-                    className={`p-4 border-2 rounded-lg text-left transition-all ${
-                      isSelected
-                        ? 'border-gray-900 dark:border-white bg-gray-50 dark:bg-gray-900'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="text-2xl">{mode.icon}</div>
-                      <div className="flex-1">
-                        <div className="font-semibold text-gray-900 dark:text-white">
-                          {mode.label}
-                        </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                          {mode.description}
-                        </div>
-                      </div>
-                      {isSelected && (
-                        <div className="w-5 h-5 bg-gray-900 dark:bg-white rounded-full flex items-center justify-center">
-                          <svg className="w-3 h-3 text-white dark:text-gray-900" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Configurações de Auto-Atribuição */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Atribuição Automática
-            </h3>
-
-            <div className="space-y-4">
-              {/* Auto-assign checkbox */}
-              <div className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg">
-                <input
-                  type="checkbox"
-                  id="auto_assign"
-                  checked={formData.auto_assign_conversations}
-                  onChange={(e) => handleChange('auto_assign_conversations', e.target.checked)}
-                  className="mt-1 w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 dark:focus:ring-white"
-                />
-                <label htmlFor="auto_assign" className="flex-1 cursor-pointer">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">
-                    Atribuir conversas automaticamente
-                  </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                    Novas conversas serão automaticamente atribuídas a agentes disponíveis
-                  </div>
-                </label>
-              </div>
-
-              {/* Max conversations */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Máximo de conversas por agente
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={formData.max_conversations_per_agent}
-                  onChange={(e) => handleChange('max_conversations_per_agent', parseInt(e.target.value) || 10)}
-                  className={`w-full px-4 py-2 bg-white dark:bg-gray-900 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white dark:text-white ${
-                    errors.max_conversations_per_agent
-                      ? 'border-red-500'
-                      : 'border-gray-200 dark:border-gray-700'
-                  }`}
-                />
-                {errors.max_conversations_per_agent && (
-                  <p className="text-xs text-red-600 mt-1">{errors.max_conversations_per_agent}</p>
-                )}
-                <p className="text-xs text-gray-500 mt-1">
-                  Agentes não receberão novas conversas ao atingir este limite
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Mensagem Offline */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              Mensagem Fora do Horário
-            </h3>
-
-            <div>
-              <textarea
-                value={formData.offline_message}
-                onChange={(e) => handleChange('offline_message', e.target.value)}
-                rows={3}
-                className="w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-white dark:text-white resize-none"
-                placeholder="Olá! Nosso horário de atendimento é de segunda a sexta, das 9h às 18h. Retornaremos em breve!"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Enviada automaticamente quando não há agentes disponíveis
-              </p>
-            </div>
-          </div>
+          {/* Somente informações do departamento: não incluir configurações de filas aqui */}
 
           {/* Erro de submissão */}
           {errors.submit && (
@@ -423,13 +260,13 @@ export function DepartmentModal({
           <ActionButton variant="secondary" onClick={onClose} disabled={isSubmitting}>
             Cancelar
           </ActionButton>
-          <ActionButton
-            variant="primary"
+          <button
             type="submit"
             disabled={isSubmitting}
+            className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:bg-black dark:hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isSubmitting ? 'Salvando...' : mode === 'create' ? 'Criar Departamento' : 'Salvar Alterações'}
-          </ActionButton>
+          </button>
         </ModalActions>
       </form>
     </Modal>

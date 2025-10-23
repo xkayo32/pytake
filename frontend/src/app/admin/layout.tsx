@@ -5,7 +5,7 @@ import { AdminSidebar } from '@/components/layouts/AdminSidebar';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter, usePathname } from 'next/navigation';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Bell, LogOut, MessageSquare, Users as UsersIcon, UserCircle, Bot, Send, BarChart3, ListTodo, PhoneCall, Settings, LayoutDashboard } from 'lucide-react';
+import { Bell, LogOut, MessageSquare, Users as UsersIcon, UserCircle, Bot, Send, BarChart3, ListTodo, PhoneCall, Settings, LayoutDashboard, AlertTriangle, Building2 } from 'lucide-react';
 import { useMemo } from 'react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -20,17 +20,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Map routes to page info
   const pageInfo = useMemo(() => {
-    const routes: Record<string, { title: string; description: string; icon: any; badge?: { text: string; variant: 'green' | 'blue' | 'indigo' | 'purple' | 'yellow' | 'red' } }> = {
+  const routes: Record<string, { title: string; description: string; icon: any; badge?: { text: string; variant: 'green' | 'blue' | 'indigo' | 'purple' | 'yellow' | 'red' } }> = {
       '/admin': { title: 'Dashboard', description: 'Visão geral das métricas da sua organização', icon: LayoutDashboard, badge: { text: 'Ao Vivo', variant: 'green' } },
       '/admin/conversations': { title: 'Conversas', description: 'Gerencie todas as conversas com clientes', icon: MessageSquare, badge: { text: 'Tempo Real', variant: 'green' } },
       '/admin/contacts': { title: 'Contatos', description: 'Gerencie todos os contatos da organização', icon: UserCircle },
       '/admin/users': { title: 'Usuários & Agentes', description: 'Gerencie os membros da sua equipe', icon: UsersIcon },
       '/admin/chatbots': { title: 'Chatbots', description: 'Configure fluxos automatizados', icon: Bot },
       '/admin/campaigns': { title: 'Campanhas', description: 'Crie e gerencie campanhas de mensagens', icon: Send },
-      '/admin/analytics': { title: 'Analytics', description: 'Análise de métricas e relatórios', icon: BarChart3 },
+  '/admin/analytics': { title: 'Analytics', description: 'Análise de métricas e relatórios', icon: BarChart3 },
+  '/admin/sla-alerts': { title: 'Alertas de SLA', description: 'Conversas críticas e próximas do SLA', icon: AlertTriangle, badge: { text: 'Monitoramento', variant: 'red' } },
       '/admin/queues': { title: 'Filas', description: 'Gerencie filas de atendimento', icon: ListTodo },
       '/admin/whatsapp': { title: 'WhatsApp', description: 'Configure números WhatsApp', icon: PhoneCall },
-      '/admin/settings': { title: 'Configurações', description: 'Configurações da organização', icon: Settings },
+  '/admin/settings': { title: 'Configurações', description: 'Configurações da organização', icon: Settings },
+  // Subpáginas de Configurações (mapeadas explicitamente para evitar título genérico "Configurações")
+  '/admin/settings/organization': { title: 'Organização', description: 'Departamentos e filas da organização', icon: Building2 },
+  '/admin/settings/notifications': { title: 'Notificações', description: 'Alertas e notificações do sistema', icon: Settings },
+  '/admin/settings/security': { title: 'Segurança', description: 'Autenticação, permissões e auditoria', icon: Settings },
+  '/admin/settings/appearance': { title: 'Aparência', description: 'Tema, idioma e personalização', icon: Settings },
       '/admin/settings/ai-assistant': { title: 'AI Assistant', description: 'Configure modelos de IA para respostas automáticas', icon: Settings, badge: { text: 'Novo', variant: 'purple' } },
     };
 

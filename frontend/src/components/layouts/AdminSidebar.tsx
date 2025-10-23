@@ -14,7 +14,8 @@ import {
   UserPlus,
   Layers,
   ListTodo,
-  Key
+  Key,
+  AlertTriangle,
 } from 'lucide-react';
 import { useUnreadCount } from '@/hooks/useUnreadCount';
 
@@ -34,10 +35,13 @@ const navigation: NavItem[] = [
   { name: 'Usuários', href: '/admin/users', icon: Users },
   { name: 'Departamentos', href: '/admin/departments', icon: Users },
   { name: 'Filas', href: '/admin/queues', icon: ListTodo },
+  { name: 'SLA Alertas', href: '/admin/sla-alerts', icon: AlertTriangle },
   { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { name: 'WhatsApp', href: '/admin/whatsapp', icon: Phone },
   { name: 'Secrets', href: '/admin/secrets', icon: Key },
-  { name: 'Configurações', href: '/admin/settings', icon: Settings },
+  // Direciona o item de menu "Configurações" diretamente para as Configurações da Organização
+  // com a aba de Departamentos selecionada por padrão
+  { name: 'Configurações', href: '/admin/settings/organization?tab=departments', icon: Settings },
 ];
 
 export function AdminSidebar() {
@@ -61,8 +65,10 @@ export function AdminSidebar() {
           {/* Navigation - Flat Style */}
           <nav className="flex-1 px-3 space-y-0.5">
             {navigation.map((item) => {
-              const isActive = pathname === item.href ||
-                              (item.href !== '/admin' && pathname?.startsWith(item.href));
+              // Ignora querystring ao checar ativo
+              const cleanHref = item.href.split('?')[0];
+              const isActive = pathname === cleanHref ||
+                              (cleanHref !== '/admin' && pathname?.startsWith(cleanHref));
               const Icon = item.icon;
 
               return (

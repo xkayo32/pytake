@@ -12,6 +12,7 @@ import {
 import Link from 'next/link';
 import { StatsCard } from '@/components/admin/StatsCard';
 import { PageHeader } from '@/components/admin/PageHeader';
+import { SLABadge } from '@/components/admin/SLABadge';
 import { queueAPI, departmentsAPI } from '@/lib/api';
 import { Conversation } from '@/types/conversation';
 import { Department } from '@/types/department';
@@ -61,8 +62,9 @@ export default function DepartmentsPage() {
     };
   }, []);
 
-  const urgentCount = queue.filter(c => c.priority === 'urgent').length;
-  const highCount = queue.filter(c => c.priority === 'high').length;
+  // Deriva contagens por prioridade a partir de queue_priority (numérico)
+  const urgentCount = queue.filter(c => (c.queue_priority ?? 0) >= 100).length;
+  const highCount = queue.filter(c => (c.queue_priority ?? 0) >= 80 && (c.queue_priority ?? 0) < 100).length;
 
   const getIconEmoji = (icon?: string) => {
     const iconMap: Record<string, string> = {
@@ -137,7 +139,7 @@ export default function DepartmentsPage() {
             </p>
           </div>
           <Link
-            href="/admin/settings/organization"
+            href="/admin/settings/organization?tab=departments"
             className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
             <SettingsIcon className="w-4 h-4" />
@@ -161,11 +163,11 @@ export default function DepartmentsPage() {
                 Acesse Configurações → Organização para criar seu primeiro departamento
               </p>
               <Link
-                href="/admin/settings/organization"
+                href="/admin/settings/organization?tab=departments"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
               >
                 <SettingsIcon className="w-4 h-4" />
-                <span>Ir para Configurações</span>
+                <span>Ir para Configurações da Organização</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -281,16 +283,30 @@ export default function DepartmentsPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="font-semibold text-gray-900 dark:text-white">
-                        {conversation.contact_name || 'Sem nome'}
+                        {conversation.contact?.name || conversation.contact?.whatsapp_id || 'Sem nome'}
                       </h3>
-                      {conversation.priority && (
+                      {typeof conversation.queue_priority === 'number' && (
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                          conversation.priority === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                          conversation.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                          'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                          conversation.queue_priority >= 100
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            : conversation.queue_priority >= 80
+                              ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                              : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                         }`}>
-                          {conversation.priority === 'urgent' ? 'Urgente' : conversation.priority === 'high' ? 'Alta' : 'Normal'}
+                          {conversation.queue_priority >= 100
+                            ? 'Urgente'
+                            : conversation.queue_priority >= 80
+                              ? 'Alta'
+                              : 'Normal'}
                         </span>
+                      )}
+                      {/* SLA Badge */}
+                      {conversation.queued_at && (
+                        <SLABadge 
+                          queuedAt={conversation.queued_at}
+                          slaMinutes={null} // TODO: Buscar da fila
+                          size="sm"
+                        />
                       )}
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
