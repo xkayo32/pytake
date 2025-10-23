@@ -164,6 +164,23 @@ class SecretWithDecryptedValue(SecretInDB):
     )
 
 
+class SecretWithValue(SecretInDB):
+    """
+    Schema with decrypted value for API responses.
+    
+    ⚠️ WARNING: Contains plaintext secret value. Use with caution.
+    """
+    value: str = Field(
+        ...,
+        description="Decrypted plaintext value"
+    )
+
+
+class Secret(SecretInDB):
+    """Alias for SecretInDB for compatibility"""
+    pass
+
+
 class SecretListResponse(BaseModel):
     """Response for listing secrets"""
     items: list[SecretWithoutValue]
@@ -194,8 +211,10 @@ __all__ = [
     'SecretUpdate',
     'SecretRotateKey',
     'SecretInDB',
+    'Secret',
     'SecretWithoutValue',
     'SecretWithDecryptedValue',
+    'SecretWithValue',
     'SecretListResponse',
     'SecretValidationResponse',
     'SecretUsageStats',

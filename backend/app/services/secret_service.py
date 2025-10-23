@@ -168,23 +168,26 @@ class SecretService:
 
     async def list_secrets(
         self,
-        organization_id: UUID,
-        chatbot_id: Optional[UUID] = None,
-        scope: Optional[SecretScope] = None,
-        is_active: bool = True
+        filters: Dict[str, Any],
+        skip: int = 0,
+        limit: int = 100
     ) -> List[Secret]:
         """
-        List secrets available for a context.
+        List secrets with filters.
 
         Args:
-            organization_id: Organization UUID
-            chatbot_id: Optional chatbot UUID
-            scope: Optional scope filter
-            is_active: Filter by active status
+            filters: Dict of filters (organization_id, scope, chatbot_id, is_active)
+            skip: Number of records to skip
+            limit: Maximum number of records to return
 
         Returns:
             List of secrets (without decrypted values)
         """
+        organization_id = filters.get("organization_id")
+        chatbot_id = filters.get("chatbot_id")
+        scope = filters.get("scope")
+        is_active = filters.get("is_active", True)
+        
         return await self.repository.list_available(
             organization_id,
             chatbot_id,
@@ -418,3 +421,119 @@ class SecretService:
         except Exception as e:
             logger.warning(f"Secret validation failed for {secret_id}: {str(e)}")
             return False
+
+    async def get_secret_with_value(
+        self,
+        secret_id: UUID,
+        organization_id: UUID
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get secret with decrypted value.
+
+        Args:
+            secret_id: Secret UUID
+            organization_id: Organization UUID (for authorization)
+
+        Returns:
+            Dict with secret data and decrypted value
+
+        Raises:
+            DecryptionError: If decryption fails
+        """
+        secret = await self.get_secret(secret_id, organization_id)
+        
+        if not secret:
+            return None
+        
+        # Decrypt value
+        decrypted_value = await self.get_decrypted_value(
+            secret_id,
+            organization_id,
+            track_usage=False
+        )
+        
+        # Return secret with value
+        return {
+            "id": secret.id,
+            "organization_id": secret.organization_id,
+            "chatbot_id": secret.chatbot_id,
+            "name": secret.name,
+            "display_name": secret.display_name,
+            "description": secret.description,
+            "value": decrypted_value,  # Decrypted value
+            "scope": secret.scope,
+            "is_active": secret.is_active,
+            "encryption_provider": secret.encryption_provider,
+            "usage_count": secret.usage_count,
+            "last_used_at": secret.last_used_at,
+            "created_at": secret.created_at,
+            "updated_at": secret.updated_at,
+        }
+
+    async def rotate_secret(
+        self,
+        secret_id: UUID,
+        organization_id: UUID,
+        new_value: str
+    ) -> Optional[Secret]:
+        """
+        Rotate secret with new value (simplified version of rotate_secret_key).
+
+        Args:
+            secret_id: Secret UUID
+            organization_id: Organization UUID (for authorization)
+            new_value: New plaintext value
+
+        Returns:
+            Updated secret
+
+        Raises:
+            ValueError: If secret not found or unauthorized
+            EncryptionError: If re-encryption fails
+        """
+        return await self.update_secret(
+            secret_id=secret_id,
+            organization_id=organization_id,
+            value=new_value
+        )
+
+    async def get_stats(
+        self,
+        organization_id: UUID
+    ) -> Dict[str, Any]:
+        """
+        Get statistics for secrets in organization.
+
+        Args:
+            organization_id: Organization UUID
+
+        Returns:
+            Dict with statistics
+        """
+        secrets = await self.list_secrets(
+            filters={"organization_id": organization_id, "is_active": None}
+        )
+        
+        total = len(secrets)
+        active = sum(1 for s in secrets if s.is_active)
+        inactive = total - active
+        
+        by_scope = {}
+        by_provider = {}
+        
+        for secret in secrets:
+            # Count by scope
+            scope_str = secret.scope.value if hasattr(secret.scope, 'value') else str(secret.scope)
+            by_scope[scope_str] = by_scope.get(scope_str, 0) + 1
+            
+            # Count by provider
+            provider_str = secret.encryption_provider.value if hasattr(secret.encryption_provider, 'value') else str(secret.encryption_provider)
+            by_provider[provider_str] = by_provider.get(provider_str, 0) + 1
+        
+        return {
+            "total": total,
+            "active": active,
+            "inactive": inactive,
+            "by_scope": by_scope,
+            "by_provider": by_provider,
+        }
