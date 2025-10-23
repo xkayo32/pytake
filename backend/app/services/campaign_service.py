@@ -269,14 +269,21 @@ class CampaignService:
         if campaign.total_recipients == 0:
             raise BadRequestException("Campaign has no recipients")
 
+        # Import here to avoid circular imports
+        from app.tasks.campaign_tasks import execute_campaign
+        
+        # Update campaign status to running
         updated_campaign = await self.campaign_repo.start_campaign(campaign_id)
+        
+        # Trigger Celery task for campaign execution
+        task = execute_campaign.delay(str(campaign_id))
 
         return CampaignStartResponse(
             campaign_id=campaign_id,
             status=updated_campaign.status,
             started_at=updated_campaign.started_at,
             total_recipients=campaign.total_recipients,
-            message="Campaign started successfully",
+            message=f"Campaign started successfully. Task ID: {task.id}",
         )
 
     async def pause_campaign(self, campaign_id: UUID, organization_id: UUID) -> Campaign:

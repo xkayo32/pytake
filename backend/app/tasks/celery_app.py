@@ -41,7 +41,10 @@ celery_app.conf.update(
     task_routes={
         "sync_templates_from_meta": {"queue": "templates"},
         "sync_single_number_templates": {"queue": "templates"},
-        "send_campaign_messages": {"queue": "campaigns"},
+        "execute_campaign": {"queue": "campaigns"},
+        "process_batch": {"queue": "campaigns"},
+        "finalize_campaign": {"queue": "campaigns"},
+        "process_scheduled_campaigns": {"queue": "campaigns"},
         "process_webhook": {"queue": "webhooks"},
     },
 )
@@ -59,11 +62,14 @@ celery_app.conf.beat_schedule = {
     },
 
     # Example: Campaign processing - Every 5 minutes
-    # "process-scheduled-campaigns": {
-    #     "task": "process_campaigns",
-    #     "schedule": crontab(minute="*/5"),
-    #     "options": {"queue": "campaigns"},
-    # },
+    "process-scheduled-campaigns": {
+        "task": "process_scheduled_campaigns",
+        "schedule": crontab(minute="*/5"),
+        "options": {
+            "queue": "campaigns",
+            "expires": 300,  # Task expires after 5 minutes
+        },
+    },
 
     # Example: Cleanup old data - Every day at 3 AM
     # "cleanup-old-data": {
@@ -77,8 +83,8 @@ celery_app.conf.beat_schedule = {
 celery_app.autodiscover_tasks(
     [
         "app.tasks.template_sync",
+        "app.tasks.campaign_tasks",
         # Add other task modules here as needed
-        # "app.tasks.campaign_tasks",
         # "app.tasks.webhook_tasks",
     ]
 )
