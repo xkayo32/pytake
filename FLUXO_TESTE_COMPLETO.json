@@ -1,0 +1,603 @@
+{
+  "name": "Fluxo de Teste Completo - Suporte Técnico",
+  "description": "Fluxo abrangente que utiliza a maioria dos componentes disponíveis no chatbot builder",
+  "canvas_data": {
+    "nodes": [
+      {
+        "id": "node-start-1",
+        "type": "custom",
+        "position": { "x": 100, "y": 100 },
+        "data": {
+          "nodeType": "start",
+          "label": "Início",
+          "description": "Ponto de entrada do fluxo"
+        }
+      },
+      {
+        "id": "node-message-1",
+        "type": "custom",
+        "position": { "x": 100, "y": 200 },
+        "data": {
+          "nodeType": "message",
+          "label": "Boas-vindas",
+          "message": "Olá! Bem-vindo ao suporte técnico da PyTake. Como posso ajudá-lo hoje?",
+          "delay": 1000
+        }
+      },
+      {
+        "id": "node-setvariable-1",
+        "type": "custom",
+        "position": { "x": 100, "y": 300 },
+        "data": {
+          "nodeType": "setvariable",
+          "label": "Inicializar Variáveis",
+          "variableName": "contador_tentativas",
+          "variableValue": "0",
+          "valueType": "number"
+        }
+      },
+      {
+        "id": "node-question-1",
+        "type": "custom",
+        "position": { "x": 100, "y": 400 },
+        "data": {
+          "nodeType": "question",
+          "label": "Nome do Cliente",
+          "question": "Por favor, informe seu nome completo:",
+          "variableName": "nome_cliente",
+          "responseType": "text",
+          "validation": {
+            "required": true,
+            "errorMessage": "O nome é obrigatório para continuar"
+          }
+        }
+      },
+      {
+        "id": "node-question-2",
+        "type": "custom",
+        "position": { "x": 100, "y": 500 },
+        "data": {
+          "nodeType": "question",
+          "label": "Email",
+          "question": "Qual seu email de contato?",
+          "variableName": "email_cliente",
+          "responseType": "email",
+          "validation": {
+            "required": true,
+            "errorMessage": "Por favor, forneça um email válido"
+          }
+        }
+      },
+      {
+        "id": "node-question-3",
+        "type": "custom",
+        "position": { "x": 100, "y": 600 },
+        "data": {
+          "nodeType": "question",
+          "label": "Tipo de Problema",
+          "question": "Qual tipo de problema você está enfrentando?\n\n1 - Erro técnico\n2 - Dúvida sobre funcionalidade\n3 - Problema de cobrança\n4 - Outro",
+          "variableName": "tipo_problema",
+          "responseType": "options",
+          "options": [
+            { "value": "1", "label": "Erro técnico" },
+            { "value": "2", "label": "Dúvida sobre funcionalidade" },
+            { "value": "3", "label": "Problema de cobrança" },
+            { "value": "4", "label": "Outro" }
+          ]
+        }
+      },
+      {
+        "id": "node-condition-1",
+        "type": "custom",
+        "position": { "x": 100, "y": 700 },
+        "data": {
+          "nodeType": "condition",
+          "label": "Classificar Problema",
+          "conditions": [
+            {
+              "variable": "tipo_problema",
+              "operator": "==",
+              "value": "1",
+              "label": "Erro Técnico"
+            },
+            {
+              "variable": "tipo_problema",
+              "operator": "==",
+              "value": "3",
+              "label": "Cobrança"
+            }
+          ],
+          "logicOperator": "OR"
+        }
+      },
+      {
+        "id": "node-message-2",
+        "type": "custom",
+        "position": { "x": 300, "y": 800 },
+        "data": {
+          "nodeType": "message",
+          "label": "Problema Urgente",
+          "message": "Entendido, {{nome_cliente}}. Problemas técnicos e de cobrança são prioritários. Vamos direcioná-lo para um especialista."
+        }
+      },
+      {
+        "id": "node-setvariable-2",
+        "type": "custom",
+        "position": { "x": 300, "y": 900 },
+        "data": {
+          "nodeType": "setvariable",
+          "label": "Definir Prioridade Alta",
+          "variableName": "prioridade",
+          "variableValue": "high",
+          "valueType": "text"
+        }
+      },
+      {
+        "id": "node-message-3",
+        "type": "custom",
+        "position": { "x": -100, "y": 800 },
+        "data": {
+          "nodeType": "message",
+          "label": "Problema Normal",
+          "message": "Obrigado, {{nome_cliente}}. Vou coletar mais informações para ajudá-lo melhor."
+        }
+      },
+      {
+        "id": "node-setvariable-3",
+        "type": "custom",
+        "position": { "x": -100, "y": 900 },
+        "data": {
+          "nodeType": "setvariable",
+          "label": "Definir Prioridade Normal",
+          "variableName": "prioridade",
+          "variableValue": "normal",
+          "valueType": "text"
+        }
+      },
+      {
+        "id": "node-question-4",
+        "type": "custom",
+        "position": { "x": 100, "y": 1000 },
+        "data": {
+          "nodeType": "question",
+          "label": "Descrição do Problema",
+          "question": "Por favor, descreva detalhadamente o problema que você está enfrentando:",
+          "variableName": "descricao_problema",
+          "responseType": "text",
+          "validation": {
+            "required": true,
+            "minLength": 10
+          }
+        }
+      },
+      {
+        "id": "node-delay-1",
+        "type": "custom",
+        "position": { "x": 100, "y": 1100 },
+        "data": {
+          "nodeType": "delay",
+          "label": "Processando",
+          "delaySeconds": 2,
+          "sendTypingIndicator": true
+        }
+      },
+      {
+        "id": "node-script-1",
+        "type": "custom",
+        "position": { "x": 100, "y": 1200 },
+        "data": {
+          "nodeType": "script",
+          "label": "Gerar Ticket ID",
+          "scriptLanguage": "javascript",
+          "script": "// Gerar ID único para o ticket\nconst timestamp = Date.now();\nconst random = Math.floor(Math.random() * 1000);\nreturn `TKT-${timestamp}-${random}`;",
+          "outputVariable": "ticket_id"
+        }
+      },
+      {
+        "id": "node-message-4",
+        "type": "custom",
+        "position": { "x": 100, "y": 1300 },
+        "data": {
+          "nodeType": "message",
+          "label": "Confirmação",
+          "message": "✅ Ticket criado com sucesso!\n\n📋 *Resumo do Atendimento*\n━━━━━━━━━━━━━━━━━━\n👤 Cliente: {{nome_cliente}}\n📧 Email: {{email_cliente}}\n🎫 Ticket: {{ticket_id}}\n📝 Problema: {{descricao_problema}}\n⚡ Prioridade: {{prioridade}}"
+        }
+      },
+      {
+        "id": "node-random-1",
+        "type": "custom",
+        "position": { "x": 100, "y": 1400 },
+        "data": {
+          "nodeType": "random",
+          "label": "Escolha Aleatória",
+          "description": "Simula disponibilidade de agentes",
+          "outputCount": 2,
+          "weights": [70, 30]
+        }
+      },
+      {
+        "id": "node-message-5",
+        "type": "custom",
+        "position": { "x": 300, "y": 1500 },
+        "data": {
+          "nodeType": "message",
+          "label": "Agente Disponível",
+          "message": "🎉 Temos um agente disponível agora! Transferindo você para atendimento humano..."
+        }
+      },
+      {
+        "id": "node-handoff-1",
+        "type": "custom",
+        "position": { "x": 300, "y": 1600 },
+        "data": {
+          "nodeType": "handoff",
+          "label": "Transferir para Agente",
+          "handoffType": "queue",
+          "queueId": "QUEUE_UUID_AQUI",
+          "priority": "{{prioridade}}",
+          "contextMessage": "Cliente: {{nome_cliente}}\nEmail: {{email_cliente}}\nTicket: {{ticket_id}}\nTipo: {{tipo_problema}}\nDescrição: {{descricao_problema}}",
+          "transferMessage": "Conectando você com um especialista...",
+          "sendTransferMessage": true,
+          "outputVariable": "handoff_status"
+        }
+      },
+      {
+        "id": "node-message-6",
+        "type": "custom",
+        "position": { "x": -100, "y": 1500 },
+        "data": {
+          "nodeType": "message",
+          "label": "Agentes Ocupados",
+          "message": "No momento todos os nossos agentes estão ocupados. Você prefere:\n\n1 - Aguardar na fila\n2 - Agendar retorno\n3 - Resolver por chatbot"
+        }
+      },
+      {
+        "id": "node-question-5",
+        "type": "custom",
+        "position": { "x": -100, "y": 1600 },
+        "data": {
+          "nodeType": "question",
+          "label": "Escolha do Cliente",
+          "question": "Digite 1, 2 ou 3:",
+          "variableName": "escolha_cliente",
+          "responseType": "options",
+          "options": [
+            { "value": "1", "label": "Aguardar na fila" },
+            { "value": "2", "label": "Agendar retorno" },
+            { "value": "3", "label": "Resolver por chatbot" }
+          ]
+        }
+      },
+      {
+        "id": "node-condition-2",
+        "type": "custom",
+        "position": { "x": -100, "y": 1700 },
+        "data": {
+          "nodeType": "condition",
+          "label": "Decisão do Cliente",
+          "conditions": [
+            {
+              "variable": "escolha_cliente",
+              "operator": "==",
+              "value": "1",
+              "label": "Aguardar Fila"
+            },
+            {
+              "variable": "escolha_cliente",
+              "operator": "==",
+              "value": "2",
+              "label": "Agendar"
+            }
+          ],
+          "logicOperator": "OR"
+        }
+      },
+      {
+        "id": "node-handoff-2",
+        "type": "custom",
+        "position": { "x": -300, "y": 1800 },
+        "data": {
+          "nodeType": "handoff",
+          "label": "Colocar na Fila",
+          "handoffType": "department",
+          "departmentId": "DEPT_UUID_AQUI",
+          "priority": "{{prioridade}}",
+          "contextMessage": "Ticket: {{ticket_id}} - {{descricao_problema}}",
+          "transferMessage": "Você foi adicionado à fila de atendimento. Aguarde que em breve um agente irá atendê-lo.",
+          "sendTransferMessage": true
+        }
+      },
+      {
+        "id": "node-datetime-1",
+        "type": "custom",
+        "position": { "x": -100, "y": 1800 },
+        "data": {
+          "nodeType": "datetime",
+          "label": "Obter Data/Hora",
+          "format": "DD/MM/YYYY HH:mm",
+          "timezone": "America/Sao_Paulo",
+          "outputVariable": "data_agendamento"
+        }
+      },
+      {
+        "id": "node-message-7",
+        "type": "custom",
+        "position": { "x": -100, "y": 1900 },
+        "data": {
+          "nodeType": "message",
+          "label": "Confirmação Agendamento",
+          "message": "✅ Agendamento registrado!\n\nVocê receberá um retorno em até 24 horas.\nData/Hora: {{data_agendamento}}\nTicket: {{ticket_id}}"
+        }
+      },
+      {
+        "id": "node-action-1",
+        "type": "custom",
+        "position": { "x": -100, "y": 2000 },
+        "data": {
+          "nodeType": "action",
+          "label": "Salvar Contato",
+          "actionType": "save_contact",
+          "contactData": {
+            "name": "{{nome_cliente}}",
+            "email": "{{email_cliente}}",
+            "tags": ["suporte", "agendado"]
+          }
+        }
+      },
+      {
+        "id": "node-apicall-1",
+        "type": "custom",
+        "position": { "x": 100, "y": 1800 },
+        "data": {
+          "nodeType": "apicall",
+          "label": "Registrar no CRM",
+          "method": "POST",
+          "url": "https://api.exemplo.com/tickets",
+          "headers": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer {{api_token}}"
+          },
+          "body": {
+            "ticket_id": "{{ticket_id}}",
+            "customer_name": "{{nome_cliente}}",
+            "customer_email": "{{email_cliente}}",
+            "problem_type": "{{tipo_problema}}",
+            "description": "{{descricao_problema}}",
+            "priority": "{{prioridade}}"
+          },
+          "outputVariable": "api_response",
+          "onError": "continue"
+        }
+      },
+      {
+        "id": "node-aiprompt-1",
+        "type": "custom",
+        "position": { "x": 100, "y": 1900 },
+        "data": {
+          "nodeType": "aiprompt",
+          "label": "Sugerir Solução com IA",
+          "provider": "openai",
+          "model": "gpt-4",
+          "prompt": "Baseado na seguinte descrição de problema, sugira uma solução técnica em até 3 passos:\n\nProblema: {{descricao_problema}}",
+          "systemMessage": "Você é um assistente técnico especializado em ajudar clientes com problemas técnicos. Seja claro, objetivo e empático.",
+          "temperature": 0.7,
+          "maxTokens": 300,
+          "outputVariable": "solucao_ia"
+        }
+      },
+      {
+        "id": "node-message-8",
+        "type": "custom",
+        "position": { "x": 100, "y": 2000 },
+        "data": {
+          "nodeType": "message",
+          "label": "Apresentar Solução IA",
+          "message": "🤖 *Sugestão de Solução Automática*\n━━━━━━━━━━━━━━━━━━\n\n{{solucao_ia}}\n\nEsta solução resolve seu problema?"
+        }
+      },
+      {
+        "id": "node-question-6",
+        "type": "custom",
+        "position": { "x": 100, "y": 2100 },
+        "data": {
+          "nodeType": "question",
+          "label": "Problema Resolvido?",
+          "question": "Digite SIM ou NÃO:",
+          "variableName": "problema_resolvido",
+          "responseType": "text"
+        }
+      },
+      {
+        "id": "node-condition-3",
+        "type": "custom",
+        "position": { "x": 100, "y": 2200 },
+        "data": {
+          "nodeType": "condition",
+          "label": "Verificar Resolução",
+          "conditions": [
+            {
+              "variable": "problema_resolvido",
+              "operator": "contains",
+              "value": "sim",
+              "label": "Resolvido"
+            }
+          ],
+          "logicOperator": "OR"
+        }
+      },
+      {
+        "id": "node-analytics-1",
+        "type": "custom",
+        "position": { "x": 300, "y": 2300 },
+        "data": {
+          "nodeType": "analytics",
+          "label": "Registrar Sucesso",
+          "eventName": "problema_resolvido_ia",
+          "eventData": {
+            "ticket_id": "{{ticket_id}}",
+            "tipo_problema": "{{tipo_problema}}",
+            "solucao": "ia"
+          }
+        }
+      },
+      {
+        "id": "node-message-9",
+        "type": "custom",
+        "position": { "x": 300, "y": 2400 },
+        "data": {
+          "nodeType": "message",
+          "label": "Finalizar com Sucesso",
+          "message": "🎉 Que ótimo que conseguimos resolver!\n\nSeu ticket {{ticket_id}} será fechado.\n\nPrecisa de mais alguma ajuda?"
+        }
+      },
+      {
+        "id": "node-end-1",
+        "type": "custom",
+        "position": { "x": 300, "y": 2500 },
+        "data": {
+          "nodeType": "end",
+          "label": "Fim - Sucesso",
+          "endMessage": "Obrigado por usar nosso suporte! 👋"
+        }
+      },
+      {
+        "id": "node-analytics-2",
+        "type": "custom",
+        "position": { "x": -100, "y": 2300 },
+        "data": {
+          "nodeType": "analytics",
+          "label": "Registrar Falha IA",
+          "eventName": "problema_nao_resolvido_ia",
+          "eventData": {
+            "ticket_id": "{{ticket_id}}",
+            "tipo_problema": "{{tipo_problema}}"
+          }
+        }
+      },
+      {
+        "id": "node-handoff-3",
+        "type": "custom",
+        "position": { "x": -100, "y": 2400 },
+        "data": {
+          "nodeType": "handoff",
+          "label": "Escalar para Agente",
+          "handoffType": "agent",
+          "agentId": "AGENT_UUID_AQUI",
+          "priority": "high",
+          "contextMessage": "Ticket: {{ticket_id}}\nProblema não resolvido por IA\nTentativa de solução: {{solucao_ia}}\nDescrição original: {{descricao_problema}}",
+          "transferMessage": "Vou transferir você para um especialista humano que poderá ajudá-lo melhor.",
+          "sendTransferMessage": true
+        }
+      },
+      {
+        "id": "node-end-2",
+        "type": "custom",
+        "position": { "x": -100, "y": 2500 },
+        "data": {
+          "nodeType": "end",
+          "label": "Fim - Transferido",
+          "endMessage": "Você foi transferido para um agente. Aguarde..."
+        }
+      }
+    ],
+    "edges": [
+      { "id": "e1", "source": "node-start-1", "target": "node-message-1" },
+      { "id": "e2", "source": "node-message-1", "target": "node-setvariable-1" },
+      { "id": "e3", "source": "node-setvariable-1", "target": "node-question-1" },
+      { "id": "e4", "source": "node-question-1", "target": "node-question-2" },
+      { "id": "e5", "source": "node-question-2", "target": "node-question-3" },
+      { "id": "e6", "source": "node-question-3", "target": "node-condition-1" },
+      { "id": "e7", "source": "node-condition-1", "target": "node-message-2", "sourceHandle": "true" },
+      { "id": "e8", "source": "node-condition-1", "target": "node-message-3", "sourceHandle": "false" },
+      { "id": "e9", "source": "node-message-2", "target": "node-setvariable-2" },
+      { "id": "e10", "source": "node-message-3", "target": "node-setvariable-3" },
+      { "id": "e11", "source": "node-setvariable-2", "target": "node-question-4" },
+      { "id": "e12", "source": "node-setvariable-3", "target": "node-question-4" },
+      { "id": "e13", "source": "node-question-4", "target": "node-delay-1" },
+      { "id": "e14", "source": "node-delay-1", "target": "node-script-1" },
+      { "id": "e15", "source": "node-script-1", "target": "node-message-4" },
+      { "id": "e16", "source": "node-message-4", "target": "node-random-1" },
+      { "id": "e17", "source": "node-random-1", "target": "node-message-5", "sourceHandle": "output-0" },
+      { "id": "e18", "source": "node-random-1", "target": "node-message-6", "sourceHandle": "output-1" },
+      { "id": "e19", "source": "node-message-5", "target": "node-handoff-1" },
+      { "id": "e20", "source": "node-message-6", "target": "node-question-5" },
+      { "id": "e21", "source": "node-question-5", "target": "node-condition-2" },
+      { "id": "e22", "source": "node-condition-2", "target": "node-handoff-2", "sourceHandle": "true" },
+      { "id": "e23", "source": "node-condition-2", "target": "node-apicall-1", "sourceHandle": "false" },
+      { "id": "e24", "source": "node-handoff-2", "target": "node-datetime-1" },
+      { "id": "e25", "source": "node-datetime-1", "target": "node-message-7" },
+      { "id": "e26", "source": "node-message-7", "target": "node-action-1" },
+      { "id": "e27", "source": "node-apicall-1", "target": "node-aiprompt-1" },
+      { "id": "e28", "source": "node-aiprompt-1", "target": "node-message-8" },
+      { "id": "e29", "source": "node-message-8", "target": "node-question-6" },
+      { "id": "e30", "source": "node-question-6", "target": "node-condition-3" },
+      { "id": "e31", "source": "node-condition-3", "target": "node-analytics-1", "sourceHandle": "true" },
+      { "id": "e32", "source": "node-condition-3", "target": "node-analytics-2", "sourceHandle": "false" },
+      { "id": "e33", "source": "node-analytics-1", "target": "node-message-9" },
+      { "id": "e34", "source": "node-message-9", "target": "node-end-1" },
+      { "id": "e35", "source": "node-analytics-2", "target": "node-handoff-3" },
+      { "id": "e36", "source": "node-handoff-3", "target": "node-end-2" }
+    ]
+  },
+  "variables": {
+    "nome_cliente": "",
+    "email_cliente": "",
+    "tipo_problema": "",
+    "descricao_problema": "",
+    "prioridade": "normal",
+    "ticket_id": "",
+    "contador_tentativas": 0,
+    "escolha_cliente": "",
+    "data_agendamento": "",
+    "api_response": "",
+    "solucao_ia": "",
+    "problema_resolvido": "",
+    "handoff_status": ""
+  },
+  "componentes_utilizados": [
+    "Start - Início do fluxo",
+    "Message - Mensagens ao usuário (9 nodes)",
+    "Question - Coleta de dados (6 nodes)",
+    "SetVariable - Definição de variáveis (3 nodes)",
+    "Condition - Decisões condicionais (3 nodes)",
+    "Delay - Atraso com typing indicator",
+    "Script - Execução de JavaScript",
+    "Random - Escolha aleatória ponderada",
+    "Handoff - Transferência para humano (3 tipos: queue, department, agent)",
+    "DateTime - Obtenção de data/hora formatada",
+    "Action - Salvar contato com tags",
+    "APICall - Chamada HTTP para API externa",
+    "AIPrompt - Geração de solução com IA",
+    "Analytics - Registro de eventos (2 nodes)",
+    "End - Finalização do fluxo (2 nodes)"
+  ],
+  "componentes_nao_utilizados": [
+    "DatabaseQuery - Consulta a banco de dados",
+    "WhatsAppTemplate - Templates oficiais do WhatsApp",
+    "InteractiveButtons - Botões interativos",
+    "InteractiveList - Lista interativa",
+    "Jump - Saltar para outro nó ou fluxo"
+  ],
+  "fluxo_de_navegacao": {
+    "inicio": "Start → Boas-vindas → Coletar dados (nome, email, tipo)",
+    "classificacao": "Condition 1 → Se urgente: prioridade alta, Senão: normal",
+    "coleta_detalhes": "Descrição do problema → Delay → Gerar ticket ID",
+    "disponibilidade": "Random → 70% agente disponível, 30% ocupado",
+    "caminho_disponivel": "Handoff para fila específica (queue)",
+    "caminho_ocupado": "Cliente escolhe → Fila (department) OU Agendar OU IA",
+    "tentativa_ia": "API Call → AI Prompt → Apresentar solução",
+    "resolucao": "Condition → Resolvido: Analytics + End, Não resolvido: Handoff agent",
+    "finalizacao": "Múltiplos fins baseados na resolução"
+  },
+  "observacoes": [
+    "Este fluxo demonstra 15 dos 19 tipos de nodes disponíveis",
+    "Total de 38 nodes interconectados",
+    "3 tipos diferentes de Handoff (queue, department, agent)",
+    "Múltiplas condições e ramificações",
+    "Integração com IA para resolução automática",
+    "Analytics para rastreamento de métricas",
+    "Uso de variáveis em todo o fluxo",
+    "Para testar, substitua QUEUE_UUID_AQUI, DEPT_UUID_AQUI e AGENT_UUID_AQUI por UUIDs reais",
+    "O fluxo simula um sistema completo de suporte com fallbacks e escalações"
+  ]
+}
