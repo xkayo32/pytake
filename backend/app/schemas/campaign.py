@@ -34,6 +34,10 @@ class CampaignBase(BaseModel):
     skip_active_conversations: bool = False
     scheduled_at: Optional[datetime] = None
     settings: dict = Field(default_factory=dict)
+    # Retry configuration
+    retry_max_attempts: int = Field(default=3, ge=1, le=10, description="Maximum retry attempts per message")
+    retry_base_delay: int = Field(default=60, ge=10, le=600, description="Base delay in seconds for exponential backoff")
+    retry_max_delay: int = Field(default=3600, ge=60, le=7200, description="Maximum delay in seconds for exponential backoff")
 
 
 class CampaignCreate(CampaignBase):
@@ -62,6 +66,10 @@ class CampaignUpdate(BaseModel):
     skip_active_conversations: Optional[bool] = None
     scheduled_at: Optional[datetime] = None
     settings: Optional[dict] = None
+    # Retry configuration
+    retry_max_attempts: Optional[int] = Field(None, ge=1, le=10)
+    retry_base_delay: Optional[int] = Field(None, ge=10, le=600)
+    retry_max_delay: Optional[int] = Field(None, ge=60, le=7200)
 
 
 class CampaignInDB(CampaignBase):
@@ -91,6 +99,9 @@ class CampaignInDB(CampaignBase):
     actual_cost: Optional[float] = None
     error_count: int = 0
     last_error_message: Optional[str] = None
+    # Retry tracking fields
+    errors: List[dict] = Field(default_factory=list)
+    message_statuses: dict = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None

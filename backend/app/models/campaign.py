@@ -188,6 +188,48 @@ class Campaign(Base, TimestampMixin, SoftDeleteMixin):
     # Error tracking
     error_count = Column(Integer, default=0, server_default="0")
     last_error_message = Column(Text, nullable=True)
+    
+    # Advanced retry tracking (NEW)
+    errors = Column(
+        JSONB,
+        nullable=False,
+        default=[],
+        server_default=text("'[]'::jsonb"),
+        comment='Array of retry attempt details'
+    )
+    
+    message_statuses = Column(
+        JSONB,
+        nullable=False,
+        default={},
+        server_default=text("'{}'::jsonb"),
+        comment='Status tracking per contact'
+    )
+    
+    # Retry configuration (NEW)
+    retry_max_attempts = Column(
+        Integer,
+        nullable=False,
+        default=3,
+        server_default="3",
+        comment='Maximum retry attempts per failed message'
+    )
+    
+    retry_base_delay = Column(
+        Integer,
+        nullable=False,
+        default=60,
+        server_default="60",
+        comment='Base delay in seconds for exponential backoff'
+    )
+    
+    retry_max_delay = Column(
+        Integer,
+        nullable=False,
+        default=3600,
+        server_default="3600",
+        comment='Maximum delay in seconds for exponential backoff'
+    )
 
     # Settings
     settings = Column(

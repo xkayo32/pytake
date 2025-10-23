@@ -140,6 +140,48 @@ async def get_campaign_progress(
     return progress
 
 
+@router.get("/{campaign_id}/retry-stats")
+async def get_campaign_retry_stats(
+    campaign_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get detailed retry statistics for campaign
+    
+    Returns:
+    - Total contacts and status breakdown
+    - Average attempts per contact
+    - Successful on first attempt vs required retries
+    - Retry rate percentage
+    - Detailed error logs
+    """
+    service = CampaignService(db)
+    
+    # Get campaign
+    campaign = await service.get_campaign_by_id(campaign_id, current_user.organization_id)
+    if not campaign:
+        raise NotFoundException(resource="Campaign", resource_id=campaign_id)
+    
+    # Import retry manager to get stats
+    from app.tasks.campaign_retry import CampaignRetryManager
+    retry_manager = CampaignRetryManager(campaign, db)
+    
+    stats = retry_manager.get_retry_statistics()
+    
+    # Add configuration info
+    stats["configuration"] = {
+        "retry_max_attempts": campaign.retry_max_attempts,
+        "retry_base_delay": campaign.retry_base_delay,
+        "retry_max_delay": campaign.retry_max_delay,
+    }
+    
+    # Add recent errors (last 10)
+    stats["recent_errors"] = campaign.errors[-10:] if campaign.errors else []
+    
+    return stats
+
+
 @router.get("/{campaign_id}/audience/preview", response_model=AudiencePreview)
 async def preview_campaign_audience(
     campaign_id: UUID,

@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.tasks.celery_app import celery_app
 from app.core.database import async_session
 from app.core.whatsapp_rate_limit import get_whatsapp_rate_limiter
+from app.tasks.campaign_retry import CampaignRetryManager
 from app.models.campaign import Campaign
 from app.models.contact import Contact
 from app.models.whatsapp_number import WhatsAppNumber
@@ -310,6 +311,9 @@ async def _process_batch_async(
         result = await db.execute(stmt)
         contacts = result.scalars().all()
         
+        # Initialize retry manager
+        retry_manager = CampaignRetryManager(campaign, db)
+        
         # Process each contact
         sent_count = 0
         failed_count = 0
@@ -346,10 +350,8 @@ async def _process_batch_async(
                         logger.info(f"⏳ Waiting {wait_time}s for rate limit...")
                         await asyncio.sleep(wait_time)
                 
-                # Send message
-                success = await _send_campaign_message(
-                    db=db,
-                    campaign=campaign,
+                # Send message with automatic retry
+                success, message_id = await retry_manager.send_message_with_retry(
                     contact=contact,
                     whatsapp_number=whatsapp_number,
                 )
