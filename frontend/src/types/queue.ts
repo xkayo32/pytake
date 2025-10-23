@@ -19,6 +19,8 @@ export interface Queue {
   routing_mode: RoutingMode;
   auto_assign_conversations: boolean;
   max_conversations_per_agent: number;
+  max_queue_size?: number;
+  overflow_queue_id?: string | null;
 
   // Statistics
   total_conversations: number;
@@ -54,6 +56,8 @@ export interface QueueCreate {
   routing_mode?: RoutingMode;
   auto_assign_conversations?: boolean;
   max_conversations_per_agent?: number;
+  max_queue_size?: number;
+  overflow_queue_id?: string;
   settings?: Record<string, any>;
 }
 
@@ -69,5 +73,53 @@ export interface QueueUpdate {
   routing_mode?: RoutingMode;
   auto_assign_conversations?: boolean;
   max_conversations_per_agent?: number;
+  max_queue_size?: number;
+  overflow_queue_id?: string;
   settings?: Record<string, any>;
+}
+
+// Queue metrics types matching backend schema
+export interface QueueVolumeMetrics {
+  hour: number;
+  count: number;
+}
+
+export interface QueueOccupancyTrend {
+  day: string;
+  queued: number;
+  capacity: number;
+  occupancy_percent: number;
+}
+
+export interface QueueMetrics {
+  // Volume metrics
+  total_conversations: number;
+  conversations_today: number;
+  conversations_7d: number;
+  conversations_30d: number;
+  queued_now: number;
+  active_now: number;
+  closed_today: number;
+  
+  // Time metrics (in seconds)
+  avg_wait_time: number | null;
+  avg_response_time: number | null;
+  avg_resolution_time: number | null;
+  
+  // SLA metrics
+  sla_violations_today: number;
+  sla_violations_7d: number;
+  sla_compliance_rate: number | null;
+  
+  // Quality metrics
+  resolution_rate: number | null;
+  csat_score: number | null;
+  
+  // Volume by hour (last 24h)
+  volume_by_hour: QueueVolumeMetrics[];
+  
+  // Overflow metrics
+  overflow_events: number;
+  overflow_rate: number | null;
+  occupancy_trend: QueueOccupancyTrend[];
 }

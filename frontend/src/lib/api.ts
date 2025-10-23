@@ -175,6 +175,12 @@ export const contactsAPI = {
   unblock: (id: string) =>
     api.post(`/contacts/${id}/unblock`),
 
+  markAsVip: (id: string) =>
+    api.post(`/contacts/${id}/vip`),
+
+  unmarkAsVip: (id: string) =>
+    api.delete(`/contacts/${id}/vip`),
+
   updateTags: (id: string, tag_names: string[]) =>
     api.put(`/contacts/${id}/tags`, tag_names),
 
@@ -229,6 +235,17 @@ export const conversationsAPI = {
 
   close: (conversationId: string, reason?: string, resolved: boolean = true) =>
     api.post(`/conversations/${conversationId}/close`, { reason, resolved }),
+
+  // SLA Alerts
+  getSlaAlerts: (params?: {
+    skip?: number;
+    limit?: number;
+    department_id?: string;
+    queue_id?: string;
+    nearing_threshold?: number;
+  }) => api.get('/conversations/sla-alerts', { params }),
+  getMetrics: (params?: { department_id?: string; queue_id?: string; since?: string }) =>
+    api.get('/conversations/metrics', { params }),
 };
 
 // Campaigns API
@@ -349,6 +366,9 @@ export const queuesAPI = {
 
   getBySlug: (slug: string, params?: { department_id?: string }) =>
     api.get(`/queues/by-slug/${slug}`, { params }),
+  
+  getMetrics: (id: string, params?: { days?: number }) =>
+    api.get(`/queues/${id}/metrics`, { params }),
 
   create: (data: any) => api.post('/queues/', data),
 
@@ -384,6 +404,12 @@ export const usersAPI = {
   deactivate: (id: string) => api.post(`/users/${id}/deactivate`),
 
   delete: (id: string) => api.delete(`/users/${id}`),
+
+  // Agent Skills API
+    getAvailableSkills: () => api.get('/users/skills/available'),
+    getUserSkills: (userId: string) => api.get(`/users/${userId}/skills`),
+    updateUserSkills: (userId: string, skills: Array<{ skill_name: string; proficiency_level: number }>) =>
+      api.put(`/users/${userId}/skills`, skills),
 };
 
 // AI Assistant API
