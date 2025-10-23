@@ -671,3 +671,83 @@ async def sync_templates(
             status_code=e.status_code or 500,
             detail=f"Meta API error: {e.message}"
         )
+
+
+# ============= RATE LIMITING ENDPOINTS =============
+
+@router.get("/{number_id}/rate-limit/usage")
+async def get_rate_limit_usage(
+    number_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get current rate limit usage for WhatsApp number
+    
+    Shows daily, hourly, and minute usage counters.
+    Useful for monitoring and preventing rate limit issues.
+    """
+    from app.core.whatsapp_rate_limit import get_whatsapp_rate_limiter
+    
+    service = WhatsAppService(db)
+    whatsapp_number = await service.get_number(number_id, current_user.organization_id)
+    
+    if not whatsapp_number:
+        raise HTTPException(status_code=404, detail="WhatsApp number not found")
+    
+    # Get rate limiter
+    limiter = await get_whatsapp_rate_limiter(
+        whatsapp_number.id,
+        whatsapp_number.connection_type
+    )
+    
+    # Get usage stats
+    usage = await limiter.get_current_usage()
+    
+    # Check if can send now
+    can_send, reason = await limiter.can_send_message()
+    
+    return {
+        "whatsapp_number_id": str(number_id),
+        "phone_number": whatsapp_number.phone_number,
+        "connection_type": whatsapp_number.connection_type,
+        "usage": usage,
+        "can_send_now": can_send,
+        "rate_limit_reason": reason,
+    }
+
+
+@router.post("/{number_id}/rate-limit/reset")
+async def reset_rate_limit(
+    number_id: UUID,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Reset rate limit counters for WhatsApp number
+    
+    Requires: org_admin or super_admin role
+    
+    Use with caution - only for testing or manual intervention.
+    """
+    from app.core.whatsapp_rate_limit import get_whatsapp_rate_limiter
+    
+    service = WhatsAppService(db)
+    whatsapp_number = await service.get_number(number_id, current_user.organization_id)
+    
+    if not whatsapp_number:
+        raise HTTPException(status_code=404, detail="WhatsApp number not found")
+    
+    # Get rate limiter
+    limiter = await get_whatsapp_rate_limiter(
+        whatsapp_number.id,
+        whatsapp_number.connection_type
+    )
+    
+    # Reset counters
+    await limiter.reset_counters()
+    
+    return {
+        "message": "Rate limit counters reset successfully",
+        "whatsapp_number_id": str(number_id),
+    }

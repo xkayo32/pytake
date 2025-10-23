@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.tasks.celery_app import celery_app
 from app.core.database import async_session
+from app.core.whatsapp_rate_limit import get_whatsapp_rate_limiter
 from app.models.campaign import Campaign
 from app.models.contact import Contact
 from app.models.whatsapp_number import WhatsAppNumber
@@ -290,6 +291,18 @@ async def _process_batch_async(
         result = await db.execute(stmt)
         whatsapp_number = result.scalar_one_or_none()
         
+        # Initialize rate limiter for this WhatsApp number
+        rate_limiter = await get_whatsapp_rate_limiter(
+            whatsapp_number.id,
+            whatsapp_number.connection_type
+        )
+        
+        # Check current usage
+        usage = await rate_limiter.get_current_usage()
+        logger.info(
+            f"📊 WhatsApp {whatsapp_number.id} rate limit usage: {usage}"
+        )
+        
         # Load contacts
         stmt = select(Contact).where(
             Contact.id.in_([UUID(cid) for cid in contact_ids])
@@ -300,9 +313,39 @@ async def _process_batch_async(
         # Process each contact
         sent_count = 0
         failed_count = 0
+        rate_limit_paused = False
         
         for contact in contacts:
             try:
+                # Check rate limit before sending
+                can_send, reason = await rate_limiter.can_send_message()
+                
+                if not can_send:
+                    logger.warning(
+                        f"⚠️ Rate limit hit for batch {batch_index}: {reason}"
+                    )
+                    
+                    # Wait if needed
+                    wait_time = await rate_limiter.wait_if_needed()
+                    
+                    if wait_time > 300:  # More than 5 minutes
+                        # Pause campaign instead of waiting
+                        logger.error(
+                            f"❌ Rate limit exceeded, pausing campaign {campaign_id}"
+                        )
+                        campaign.pause()
+                        campaign.last_error_message = (
+                            f"Rate limit exceeded: {reason}. "
+                            f"Campaign paused. Wait {wait_time/60:.1f} minutes."
+                        )
+                        await db.commit()
+                        rate_limit_paused = True
+                        break
+                    else:
+                        # Wait for shorter periods
+                        logger.info(f"⏳ Waiting {wait_time}s for rate limit...")
+                        await asyncio.sleep(wait_time)
+                
                 # Send message
                 success = await _send_campaign_message(
                     db=db,
@@ -316,6 +359,9 @@ async def _process_batch_async(
                     # Update campaign stats
                     campaign.messages_sent += 1
                     campaign.messages_pending -= 1
+                    
+                    # Record in rate limiter
+                    await rate_limiter.record_message_sent()
                 else:
                     failed_count += 1
                     campaign.messages_failed += 1
@@ -338,14 +384,18 @@ async def _process_batch_async(
                 campaign.last_error_message = str(e)
                 await db.commit()
         
+        # Return results
+        status = "paused" if rate_limit_paused else "completed"
+        
         return {
             "campaign_id": campaign_id,
             "batch_index": batch_index,
             "total": len(contact_ids),
             "sent": sent_count,
             "failed": failed_count,
-            "skipped": 0,
-            "status": "completed",
+            "skipped": len(contact_ids) - sent_count - failed_count,
+            "status": status,
+            "rate_limit_paused": rate_limit_paused,
         }
 
 
