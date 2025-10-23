@@ -21,7 +21,7 @@ from app.models.contact import Contact
 from app.models.whatsapp_number import WhatsAppNumber
 from app.models.conversation import Message
 from app.integrations.meta_api import MetaCloudAPI, MetaAPIError
-from app.integrations.evolution_api import EvolutionAPI
+from app.integrations.evolution_api import EvolutionAPIClient
 
 logger = logging.getLogger(__name__)
 
@@ -289,7 +289,7 @@ class CampaignRetryManager:
                     
                 else:
                     # Use Evolution API (QR Code)
-                    api = EvolutionAPI(
+                    api = EvolutionAPIClient(
                         base_url=whatsapp_number.evolution_api_url,
                         api_key=whatsapp_number.evolution_api_key,
                     )

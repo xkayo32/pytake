@@ -118,6 +118,16 @@ class Settings(BaseSettings):
     # WhatsApp Business API
     WHATSAPP_API_URL: str = Field(default="https://graph.facebook.com/v18.0")
     WHATSAPP_API_VERSION: str = Field(default="v18.0")
+    
+    # Meta Webhook Settings
+    META_WEBHOOK_VERIFY_TOKEN: str = Field(
+        default="pytake_webhook_verify_token_12345",
+        description="Token for Meta webhook verification (set in Meta dashboard)"
+    )
+    META_WEBHOOK_SECRET: Optional[str] = Field(
+        default=None,
+        description="App secret from Meta dashboard for signature verification"
+    )
 
     # Email
     SMTP_HOST: Optional[str] = None
