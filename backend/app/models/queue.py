@@ -79,6 +79,15 @@ class Queue(Base, TimestampMixin, SoftDeleteMixin):
     # Max concurrent conversations per agent in this queue
     max_conversations_per_agent = Column(Integer, default=10, server_default="10")
 
+    # Overflow Settings
+    max_queue_size = Column(Integer, nullable=True)  # Max queued conversations before overflow
+    overflow_queue_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("queues.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Statistics (updated periodically)
     total_conversations = Column(Integer, default=0, server_default="0")
     active_conversations = Column(Integer, default=0, server_default="0")
@@ -96,7 +105,14 @@ class Queue(Base, TimestampMixin, SoftDeleteMixin):
     # - allowed_agent_ids: [uuid1, uuid2, ...] - Only specific agents can pick from this queue
     # - skills_required: ["python", "billing"] - Skills-based routing
     # - overflow_queue_id: uuid - Queue to overflow to when this is full
-    # - business_hours: {...} - Override department business hours
+    # - business_hours: {
+    #     "timezone": "America/Sao_Paulo",
+    #     "schedule": {
+    #       "monday": {"enabled": true, "start": "09:00", "end": "18:00"},
+    #       "tuesday": {"enabled": true, "start": "09:00", "end": "18:00"},
+    #       ...
+    #     }
+    #   }
     settings = Column(
         JSONB,
         nullable=False,
@@ -107,6 +123,7 @@ class Queue(Base, TimestampMixin, SoftDeleteMixin):
     # Relationships
     organization = relationship("Organization", back_populates="queues")
     department = relationship("Department", back_populates="queues")
+    overflow_queue = relationship("Queue", remote_side=[id], foreign_keys=[overflow_queue_id])
     # conversations = relationship("Conversation", back_populates="queue")
 
     def __repr__(self):
@@ -115,13 +132,23 @@ class Queue(Base, TimestampMixin, SoftDeleteMixin):
     @property
     def is_overloaded(self) -> bool:
         """Check if queue is overloaded (has many queued conversations)"""
+        # Use max_queue_size if configured, otherwise fallback to simple check
+        if self.max_queue_size:
+            return self.queued_conversations >= self.max_queue_size
+        
         if self.sla_minutes and self.queued_conversations > 0:
-            # Simple check: more than 10 conversations waiting
+            # Fallback: more than 10 conversations waiting
             return self.queued_conversations > 10
         return False
 
     @property
     def has_capacity(self) -> bool:
         """Check if queue has capacity for new conversations"""
-        # Can be improved with more sophisticated logic
-        return self.is_active and not self.is_overloaded
+        if not self.is_active:
+            return False
+        
+        # Check if queue is at max capacity
+        if self.max_queue_size and self.queued_conversations >= self.max_queue_size:
+            return False
+            
+        return not self.is_overloaded

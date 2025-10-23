@@ -37,6 +37,12 @@ class QueueBase(BaseModel):
     max_conversations_per_agent: int = Field(
         10, ge=1, le=100, description="Max concurrent conversations per agent"
     )
+    max_queue_size: Optional[int] = Field(
+        None, ge=1, description="Maximum queue size before overflow (optional)"
+    )
+    overflow_queue_id: Optional[UUID] = Field(
+        None, description="Queue to redirect to when max_queue_size is reached"
+    )
     settings: Dict[str, Any] = Field(
         default_factory=dict, description="Additional settings (JSONB)"
     )
@@ -145,3 +151,56 @@ class QueueBulkReorder(BaseModel):
     """Schema for bulk reordering queues"""
 
     reorders: list[QueueReorder] = Field(..., min_length=1, max_length=50)
+
+
+# ============================================
+# METRICS SCHEMAS
+# ============================================
+
+
+class QueueVolumeMetrics(BaseModel):
+    """Volume metrics by hour"""
+
+    hour: int = Field(..., ge=0, le=23, description="Hour of day (0-23)")
+    count: int = Field(..., ge=0, description="Number of conversations")
+
+
+class QueueMetrics(BaseModel):
+    """Detailed queue metrics for analytics"""
+
+    queue_id: UUID
+    queue_name: str
+    
+    # Volume metrics
+    total_conversations: int = Field(0, description="Total conversations (all time)")
+    conversations_today: int = Field(0, description="Conversations today")
+    conversations_last_7_days: int = Field(0, description="Conversations last 7 days")
+    conversations_last_30_days: int = Field(0, description="Conversations last 30 days")
+    
+    # Current status
+    queued_conversations: int = Field(0, description="Currently in queue")
+    active_conversations: int = Field(0, description="Currently being handled")
+    
+    # Time metrics (in seconds)
+    average_wait_time_seconds: Optional[float] = Field(None, description="Avg time in queue")
+    average_response_time_seconds: Optional[float] = Field(None, description="Avg first response time")
+    average_resolution_time_seconds: Optional[float] = Field(None, description="Avg resolution time")
+    median_wait_time_seconds: Optional[float] = Field(None, description="Median time in queue")
+    
+    # SLA metrics
+    sla_minutes: Optional[int] = Field(None, description="Configured SLA in minutes")
+    sla_compliance_rate: Optional[float] = Field(None, ge=0, le=100, description="% within SLA")
+    sla_violations: int = Field(0, description="Number of SLA violations")
+    
+    # Quality metrics
+    customer_satisfaction_score: Optional[float] = Field(None, ge=0, le=100, description="CSAT score")
+    resolution_rate: Optional[float] = Field(None, ge=0, le=100, description="% resolved conversations")
+    
+    # Volume by hour (last 24h)
+    volume_by_hour: list[QueueVolumeMetrics] = Field(default_factory=list, description="24h volume distribution")
+    
+    # Period
+    period_start: datetime = Field(..., description="Metrics period start")
+    period_end: datetime = Field(..., description="Metrics period end")
+    
+    model_config = ConfigDict(from_attributes=True)
