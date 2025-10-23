@@ -3,6 +3,8 @@ Authentication endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.api.deps import get_auth_service, get_current_active_user
 from app.models.user import User
@@ -18,9 +20,14 @@ from app.services.auth_service import AuthService
 
 router = APIRouter()
 
+# Rate limiter instance
+limiter = Limiter(key_func=get_remote_address)
+
 
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
+@limiter.limit("3/hour")  # 3 registrations per hour per IP
 async def register(
+    request: Request,
     data: UserRegister,
     auth_service: AuthService = Depends(get_auth_service),
 ):
@@ -45,9 +52,10 @@ async def register(
 
 
 @router.post("/login", response_model=dict)
+@limiter.limit("5/minute")  # 5 login attempts per minute per IP
 async def login(
-    data: UserLogin,
     request: Request,
+    data: UserLogin,
     auth_service: AuthService = Depends(get_auth_service),
 ):
     """
@@ -57,6 +65,8 @@ async def login(
     - **password**: User password
 
     Returns access token and refresh token for subsequent requests.
+    
+    Rate limit: 5 attempts per minute per IP address
     """
     # Get client IP
     ip_address = request.client.host if request.client else None
@@ -71,7 +81,9 @@ async def login(
 
 
 @router.post("/refresh", response_model=Token)
+@limiter.limit("10/minute")  # 10 refresh requests per minute
 async def refresh_token(
+    request: Request,
     data: RefreshTokenRequest,
     auth_service: AuthService = Depends(get_auth_service),
 ):

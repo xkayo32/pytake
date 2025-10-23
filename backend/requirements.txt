@@ -49,6 +49,9 @@ python-socketio==5.10.0
 # Monitoring & Logging
 sentry-sdk==1.38.0
 
+# Rate Limiting
+slowapi==0.1.9
+
 # AI Integrations
 openai==1.54.5
 anthropic==0.39.0

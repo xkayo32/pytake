@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.core.database import close_db, init_db
 from app.core.mongodb import mongodb_client
 from app.core.redis import redis_client
+from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 
 # Import routers
 from app.api.v1.router import api_router
@@ -80,6 +81,21 @@ app = FastAPI(
     redoc_url=f"{settings.API_V1_PREFIX}/redoc" if settings.DEBUG else None,
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json" if settings.DEBUG else None,
 )
+
+# ============================================
+# RATE LIMITING CONFIGURATION
+# ============================================
+
+# Add rate limiter state to app
+app.state.limiter = limiter
+app.add_exception_handler(429, rate_limit_exceeded_handler)
+
+# Configure limiter storage (using Redis)
+try:
+    from slowapi import _rate_limit_exceeded_handler
+    limiter._storage_uri = f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}"
+except Exception as e:
+    print(f"⚠️ Warning: Could not configure rate limiter storage: {e}")
 
 
 # ============================================
