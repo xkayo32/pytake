@@ -2,16 +2,16 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { conversationsAPI } from '@/lib/api';
+import { conversationsAPI, usersAPI, departmentsAPI } from '@/lib/api';
 import { Conversation, Message } from '@/types/conversation';
 import MessageList from '@/components/chat/MessageList';
 import MessageInput from '@/components/chat/MessageInput';
 import TemplateModal from '@/components/chat/TemplateModal';
-import ChatActions from '@/components/inbox/ChatActions';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { socketClient } from '@/lib/socket';
 import { useAuthStore } from '@/store/authStore';
+import { ArrowLeft, User, Clock, MessageSquare, Calendar, Phone, Mail, Building, UserPlus, Send, XCircle, ChevronRight } from 'lucide-react';
 
 export default function ChatPage() {
   const params = useParams();
@@ -25,6 +25,16 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [isContactTyping, setIsContactTyping] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
+
+  // Actions state
+  const [agents, setAgents] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [selectedAgent, setSelectedAgent] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [transferNote, setTransferNote] = useState('');
+  const [closeReason, setCloseReason] = useState('');
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   // Load conversation details
   const loadConversation = useCallback(async () => {
@@ -53,6 +63,23 @@ export default function ChatPage() {
     }
   }, [conversationId]);
 
+  // Load agents and departments
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [agentsRes, deptsRes] = await Promise.all([
+          usersAPI.list({ role: 'agent', is_active: true, limit: 50 }),
+          departmentsAPI.listActive(),
+        ]);
+        setAgents(agentsRes.data || []);
+        setDepartments(deptsRes.data || []);
+      } catch (err) {
+        console.error('Error loading agents/departments:', err);
+      }
+    };
+    loadData();
+  }, []);
+
   // Send message
   const handleSendMessage = async (text: string) => {
     try {
@@ -77,7 +104,53 @@ export default function ChatPage() {
       console.error('Error sending message:', err);
       const errorMessage = err.response?.data?.detail || 'Erro ao enviar mensagem';
       alert(errorMessage);
-      throw err; // Re-throw so MessageInput knows it failed
+      throw err;
+    }
+  };
+
+  // Actions handlers
+  const handleAssign = async () => {
+    if (!selectedAgent) return;
+    setIsActionLoading(true);
+    try {
+      await conversationsAPI.assign(conversationId, selectedAgent);
+      setSelectedAgent('');
+      loadConversation();
+    } catch (err) {
+      console.error('Erro ao atribuir:', err);
+      alert('Erro ao atribuir conversa');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleTransfer = async () => {
+    if (!selectedDepartment) return;
+    setIsActionLoading(true);
+    try {
+      await conversationsAPI.transfer(conversationId, selectedDepartment, transferNote || undefined);
+      setSelectedDepartment('');
+      setTransferNote('');
+      loadConversation();
+    } catch (err) {
+      console.error('Erro ao transferir:', err);
+      alert('Erro ao transferir conversa');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleClose = async () => {
+    setIsActionLoading(true);
+    try {
+      await conversationsAPI.close(conversationId, closeReason || 'Encerrada', true);
+      setCloseReason('');
+      loadConversation();
+    } catch (err) {
+      console.error('Erro ao encerrar:', err);
+      alert('Erro ao encerrar conversa');
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -164,58 +237,14 @@ export default function ChatPage() {
     ? new Date(conversation.window_expires_at) < new Date()
     : false;
 
-  const getWindowExpiryText = () => {
-    if (!conversation?.window_expires_at) return null;
-
-    const expiryDate = new Date(conversation.window_expires_at);
-    const now = new Date();
-
-    if (expiryDate < now) {
-      return (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-yellow-800">
-                ⚠️ Janela de 24h expirada. Use mensagens template para reengajar.
-              </span>
-            </div>
-            <button
-              onClick={() => setShowTemplateModal(true)}
-              className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-medium rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors flex items-center space-x-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span>Enviar Template</span>
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    try {
-      const timeLeft = formatDistanceToNow(expiryDate, {
-        addSuffix: false,
-        locale: ptBR,
-      });
-      return (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
-          ✓ Janela ativa. Expira em {timeLeft}
-        </div>
-      );
-    } catch {
-      return null;
-    }
-  };
-
   if (error) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <div className="text-red-500 text-xl mb-4">❌ {error}</div>
+          <div className="text-red-500 dark:text-red-400 text-xl mb-4">❌ {error}</div>
           <button
             onClick={() => router.push('/admin/conversations')}
-            className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100"
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
             Voltar para conversas
           </button>
@@ -226,98 +255,286 @@ export default function ChatPage() {
 
   if (isLoadingConversation) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-gray-500">Carregando conversa...</div>
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="text-gray-500 dark:text-gray-400">Carregando conversa...</div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
               onClick={() => router.push('/admin/conversations')}
-              className="text-gray-600 hover:text-gray-900"
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ArrowLeft className="w-5 h-5" />
             </button>
 
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-full flex items-center justify-center">
-                <span className="text-white dark:text-gray-900 font-semibold">
+              <div className="w-11 h-11 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-lg">
                   {conversation?.contact?.name?.[0]?.toUpperCase() || '?'}
                 </span>
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-gray-900">
-                  {conversation?.contact?.name || conversation?.contact?.whatsapp_id || 'Contato'}
+                <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {conversation?.contact?.name || 'Sem nome'}
                 </h1>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                  <Phone className="w-3 h-3" />
                   {conversation?.contact?.whatsapp_id}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-              conversation?.status === 'open' ? 'bg-green-100 text-green-800' :
-              conversation?.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-              conversation?.status === 'resolved' ? 'bg-blue-100 text-blue-800' :
-              'bg-gray-100 text-gray-800'
+          <div className="flex items-center gap-3">
+            <span className={`px-3 py-1.5 rounded-full text-xs font-medium ${
+              conversation?.status === 'open' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
+              conversation?.status === 'queued' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' :
+              conversation?.status === 'pending' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
+              'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
             }`}>
               {conversation?.status}
             </span>
+
+            <button
+              onClick={() => setShowSidebar(!showSidebar)}
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <ChevronRight className={`w-5 h-5 transition-transform ${showSidebar ? 'rotate-180' : ''}`} />
+            </button>
           </div>
         </div>
 
-        {/* Window expiry info */}
-        <div className="mt-3">
-          {getWindowExpiryText()}
-        </div>
-      </div>
+        {/* Window expiry banner */}
+        {isWindowExpired && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 px-6 py-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-yellow-800 dark:text-yellow-300 flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Janela de 24h expirada. Use mensagens template para reengajar.
+              </span>
+              <button
+                onClick={() => setShowTemplateModal(true)}
+                className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Enviar Template
+              </button>
+            </div>
+          </div>
+        )}
 
-      {/* Quick Actions */}
-      {conversation && (
-        <div className="bg-white border-b border-gray-200 px-6 py-3">
-          <ChatActions
-            conversationId={conversationId}
-            currentStatus={conversation.status}
-            currentAgentId={conversation.assigned_agent_id}
-            onActionComplete={() => {
-              loadConversation();
-              loadMessages();
-            }}
+        {/* Messages */}
+        <div className="flex-1 overflow-hidden">
+          <MessageList
+            messages={messages}
+            isLoading={isLoadingMessages}
+            isTyping={isContactTyping}
           />
         </div>
-      )}
 
-      {/* Messages */}
-      <div className="flex-1 overflow-hidden">
-        <MessageList
-          messages={messages}
-          isLoading={isLoadingMessages}
-          isTyping={isContactTyping}
+        {/* Input */}
+        <MessageInput
+          onSendMessage={handleSendMessage}
+          disabled={isWindowExpired}
+          placeholder={
+            isWindowExpired
+              ? 'Janela de 24h expirada. Use mensagens template.'
+              : 'Digite sua mensagem...'
+          }
+          onTypingStart={() => socketClient.startTyping(conversationId)}
+          onTypingStop={() => socketClient.stopTyping(conversationId)}
         />
       </div>
 
-      {/* Input */}
-      <MessageInput
-        onSendMessage={handleSendMessage}
-        disabled={isWindowExpired}
-        placeholder={
-          isWindowExpired
-            ? 'Janela de 24h expirada. Use mensagens template.'
-            : 'Digite sua mensagem...'
-        }
-        onTypingStart={() => socketClient.startTyping(conversationId)}
-        onTypingStop={() => socketClient.stopTyping(conversationId)}
-      />
+      {/* Right Sidebar */}
+      {showSidebar && (
+        <div className="w-96 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
+          {/* Contact Info */}
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
+              Informações do Contato
+            </h2>
+            
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg mb-3">
+                <span className="text-white font-bold text-2xl">
+                  {conversation?.contact?.name?.[0]?.toUpperCase() || '?'}
+                </span>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white text-center">
+                {conversation?.contact?.name || 'Sem nome'}
+              </h3>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-sm">
+                <Phone className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                <span className="text-gray-900 dark:text-white">{conversation?.contact?.whatsapp_id}</span>
+              </div>
+              {conversation?.contact?.email && (
+                <div className="flex items-center gap-3 text-sm">
+                  <Mail className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                  <span className="text-gray-900 dark:text-white">{conversation.contact.email}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-3 text-sm">
+                <Calendar className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                <span className="text-gray-600 dark:text-gray-400">
+                  Desde {conversation?.created_at ? format(new Date(conversation.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : '--'}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <MessageSquare className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                <span className="text-gray-600 dark:text-gray-400">
+                  {conversation?.total_messages || 0} mensagens
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
+              Ações Rápidas
+            </h2>
+
+            {/* Assign Agent */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Atribuir Agente
+              </label>
+              <div className="flex gap-2">
+                <select
+                  value={selectedAgent}
+                  onChange={(e) => setSelectedAgent(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                >
+                  <option value="">Selecione um agente...</option>
+                  {agents.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.full_name || agent.email}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleAssign}
+                  disabled={!selectedAgent || isActionLoading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <UserPlus className="w-4 h-4" />
+                </button>
+              </div>
+              {conversation?.assigned_agent_id && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Atualmente atribuída
+                </p>
+              )}
+            </div>
+
+            {/* Transfer Department */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Encaminhar Departamento
+              </label>
+              <div className="space-y-2">
+                <select
+                  value={selectedDepartment}
+                  onChange={(e) => setSelectedDepartment(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                >
+                  <option value="">Selecione um departamento...</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+                <textarea
+                  value={transferNote}
+                  onChange={(e) => setTransferNote(e.target.value)}
+                  placeholder="Motivo (opcional)..."
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+                <button
+                  onClick={handleTransfer}
+                  disabled={!selectedDepartment || isActionLoading}
+                  className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <Send className="w-4 h-4" />
+                  Encaminhar
+                </button>
+              </div>
+            </div>
+
+            {/* Close Conversation */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Encerrar Conversa
+              </label>
+              <div className="space-y-2">
+                <textarea
+                  value={closeReason}
+                  onChange={(e) => setCloseReason(e.target.value)}
+                  placeholder="Motivo do encerramento..."
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+                <button
+                  onClick={handleClose}
+                  disabled={isActionLoading}
+                  className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Encerrar
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Conversation Stats */}
+          {conversation && (
+            <div className="p-6">
+              <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
+                Estatísticas
+              </h2>
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Total de mensagens</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{conversation.total_messages || 0}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Não lidas</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{conversation.unread_count || 0}</span>
+                </div>
+                {conversation.last_message_at && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">Última mensagem</span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {formatDistanceToNow(new Date(conversation.last_message_at), { addSuffix: true, locale: ptBR })}
+                    </span>
+                  </div>
+                )}
+                {conversation.window_expires_at && !isWindowExpired && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">Janela expira em</span>
+                    <span className="font-medium text-green-600 dark:text-green-400">
+                      {formatDistanceToNow(new Date(conversation.window_expires_at), { locale: ptBR })}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Template Modal */}
       {conversation && (
@@ -328,7 +545,7 @@ export default function ChatPage() {
           whatsappNumberId={conversation.whatsapp_number_id}
           onTemplateSent={() => {
             setShowTemplateModal(false);
-            loadMessages(); // Refresh messages to show sent template
+            loadMessages();
           }}
         />
       )}
