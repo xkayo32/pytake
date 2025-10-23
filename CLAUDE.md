@@ -1482,6 +1482,125 @@ POST /api/v1/ai-assistant/generate-flow
 
 ---
 
+### Queue Metrics Dashboard (October 2025)
+
+**COMPLETED ✅ - Advanced Analytics & Visualization**
+
+Comprehensive metrics dashboard for queue performance monitoring with visual analytics.
+
+#### Components Implemented
+
+**1. QueueMetricsCard** (`frontend/src/components/admin/QueueMetricsCard.tsx`)
+- **Volume Metrics**: Total, today, queued, closed
+- **Average Times**: Wait time, response time, resolution time with color-coded indicators
+- **SLA Compliance**: Percentage, violations, visual progress bar
+- **Quality Metrics**: Resolution rate, CSAT score
+- **24-Hour Volume Chart**: Pure CSS bar chart showing hourly distribution
+
+**2. QueueComparison** (`frontend/src/components/admin/QueueComparison.tsx`)
+- Side-by-side queue comparison
+- Relative performance indicators (↑ Above / ↓ Below average)
+- Visual trend indicators for SLA, wait time, resolution time, CSAT
+- Automatic average calculations
+
+**3. PeriodSelector** (`frontend/src/components/admin/PeriodSelector.tsx`)
+- iOS-style toggle buttons
+- Periods: Today (1d), 7 days, 30 days, 90 days
+
+**4. Page Integration** (`frontend/src/app/admin/queues/page.tsx`)
+- Tab system: Lista / Analytics
+- Period selector in Analytics tab
+- QueueComparison at top
+- Individual QueueMetricsCard for each active queue
+
+#### API Endpoint
+```bash
+GET /api/v1/queues/{queue_id}/metrics?days=30
+```
+
+#### Key Features
+- ✅ Real-time metrics loading
+- ✅ Configurable time periods (1-90 days)
+- ✅ Color-coded indicators (green/yellow/red)
+- ✅ Pure CSS charts (no external chart library)
+- ✅ Loading states and error handling
+- ✅ Responsive design
+
+**Status:** Fully implemented with visual analytics! 📊✨
+
+See [QUEUE_METRICS_DASHBOARD.md](QUEUE_METRICS_DASHBOARD.md) for complete documentation.
+
+---
+
+### Agent Restrictions per Queue (October 2025)
+
+**COMPLETED ✅ - Queue-Level Agent Access Control**
+
+System for restricting which agents can handle conversations from specific queues.
+
+#### Features Implemented
+
+**1. AgentMultiSelect Component** (`frontend/src/components/admin/AgentMultiSelect.tsx`)
+- Multi-select with checkboxes
+- Real-time search (name or email)
+- Selected agent badges with remove button
+- Outside-click dropdown close
+- Loading states
+- Integration with `/api/v1/users?role=agent` endpoint
+
+**2. QueueModal Integration** (`frontend/src/components/admin/QueueModal.tsx`)
+- New "Agentes Permitidos" section
+- Agent selector with counter
+- Saves to `queue.settings.allowed_agent_ids`
+- Visual feedback: "X agente(s) selecionado(s)"
+
+**3. Backend Validation** (`backend/app/services/conversation_service.py`)
+- Modified `pull_from_queue()` method
+- Filters conversations by allowed agents
+- Logic:
+  - If `allowed_agent_ids` is empty/null → Any agent can pull
+  - If `allowed_agent_ids` has values → Only listed agents can pull
+  - Skips conversations the agent cannot take
+  - Maintains priority/wait time ordering
+
+#### Data Model
+```json
+// Queue.settings (JSONB)
+{
+  "allowed_agent_ids": ["uuid1", "uuid2", "uuid3"],
+  "skills_required": ["python", "support"],
+  "business_hours": {...}
+}
+```
+
+#### Use Cases
+
+**Case 1: No Restrictions (Default)**
+- `allowed_agent_ids: []` → Any agent can pull conversations
+
+**Case 2: With Restrictions**
+- `allowed_agent_ids: ["agent-a", "agent-b"]`
+- Agent A or B → ✅ Can pull
+- Agent C → ❌ Cannot pull (returns null)
+
+**Case 3: Multiple Queued Conversations**
+- Backend iterates through all queued conversations
+- Skips conversations the agent is not allowed to take
+- Returns first compatible conversation
+
+#### Key Features
+- ✅ Flexible restrictions (per queue)
+- ✅ Optional (empty list = no restrictions)
+- ✅ Multi-tenant aware (organization scoped)
+- ✅ Maintains queue priority ordering
+- ✅ TypeScript validated
+
+**Status:** Fully implemented with backend validation! 🔒✨
+
+See [AGENT_RESTRICTIONS_COMPLETE.md](AGENT_RESTRICTIONS_COMPLETE.md) for complete documentation.
+
+---
+
 ## Additional Documentation
 
 Comprehensive documentation available:
