@@ -676,25 +676,50 @@ class WhatsAppService:
 
         # Se for Condition Node, buscar edge baseado no resultado
         if condition_result is not None:
-            target_label = "true" if condition_result else "false"
-            logger.info(f"🔀 Buscando edge com label '{target_label}' para Condition Node")
+            # condition_result pode ser:
+            # - True/False (para condition node simples com label true/false)
+            # - Número inteiro (índice da condição satisfeita em multi-condition nodes)
+            
+            if isinstance(condition_result, int):
+                # Multi-condition node: usar sourceHandle "condition-{index}"
+                target_handle = f"condition-{condition_result}"
+                logger.info(f"🔀 Buscando edge com sourceHandle '{target_handle}' para Condition Node")
 
-            for edge in edges:
-                if edge.get("source") == current_node_canvas_id:
-                    edge_label = edge.get("label", "").lower()
-                    # Também aceita "yes"/"no" como sinônimos
-                    if (target_label == "true" and edge_label in ["true", "yes", "sim"]) or \
-                       (target_label == "false" and edge_label in ["false", "no", "não"]):
-                        next_node_canvas_id = edge.get("target")
-                        logger.info(f"  ✅ Edge encontrada: {edge_label} → {next_node_canvas_id}")
-                        break
+                for edge in edges:
+                    if edge.get("source") == current_node_canvas_id:
+                        source_handle = edge.get("sourceHandle", "")
+                        if source_handle == target_handle:
+                            next_node_canvas_id = edge.get("target")
+                            logger.info(f"  ✅ Edge encontrada: {source_handle} → {next_node_canvas_id}")
+                            break
 
-            if not next_node_canvas_id:
-                logger.error(
-                    f"❌ Nenhuma edge com label '{target_label}' encontrada "
-                    f"saindo do Condition Node {current_node_canvas_id}"
-                )
-                return
+                if not next_node_canvas_id:
+                    logger.error(
+                        f"❌ Nenhuma edge com sourceHandle '{target_handle}' encontrada "
+                        f"saindo do Condition Node {current_node_canvas_id}"
+                    )
+                    return
+            else:
+                # Boolean condition: usar label true/false
+                target_label = "true" if condition_result else "false"
+                logger.info(f"🔀 Buscando edge com label '{target_label}' para Condition Node")
+
+                for edge in edges:
+                    if edge.get("source") == current_node_canvas_id:
+                        edge_label = edge.get("label", "").lower()
+                        # Também aceita "yes"/"no" como sinônimos
+                        if (target_label == "true" and edge_label in ["true", "yes", "sim"]) or \
+                           (target_label == "false" and edge_label in ["false", "no", "não"]):
+                            next_node_canvas_id = edge.get("target")
+                            logger.info(f"  ✅ Edge encontrada: {edge_label} → {next_node_canvas_id}")
+                            break
+
+                if not next_node_canvas_id:
+                    logger.error(
+                        f"❌ Nenhuma edge com label '{target_label}' encontrada "
+                        f"saindo do Condition Node {current_node_canvas_id}"
+                    )
+                    return
 
         else:
             # Fluxo normal: primeira edge encontrada
@@ -763,7 +788,7 @@ class WhatsAppService:
 
         logger.info(f"✅ Fluxo finalizado com sucesso")
 
-    async def _evaluate_conditions(self, conversation, node_data) -> bool:
+    async def _evaluate_conditions(self, conversation, node_data):
         """
         Avalia as condições de um Condition Node.
 
@@ -772,7 +797,11 @@ class WhatsAppService:
             node_data: Dados do node (com campo "conditions")
 
         Returns:
-            bool: True se condições forem satisfeitas, False caso contrário
+            int|bool|None: 
+                - Para multi-condition nodes (várias conditions independentes): 
+                  retorna o índice (0, 1, 2...) da primeira condição satisfeita, ou None se nenhuma satisfeita
+                - Para single-condition node com lógica AND/OR: 
+                  retorna True se satisfeita, False caso contrário
 
         Formato esperado do node_data:
         {
@@ -780,19 +809,22 @@ class WhatsAppService:
                 {
                     "variable": "user_response_edad",
                     "operator": ">=",
-                    "value": "18"
+                    "value": "18",
+                    "label": "Maior de idade"  # Opcional, para multi-condition
                 }
             ],
-            "logicOperator": "AND"  # Opcional: AND (default) ou OR
+            "logicOperator": "AND",  # Opcional: AND (default) ou OR
+            "hasDefaultRoute": false  # Se true, é multi-condition (retorna índice)
         }
         """
         context_vars = conversation.context_variables or {}
         conditions = node_data.get("conditions", [])
         logic_operator = node_data.get("logicOperator", "AND").upper()
+        has_default_route = node_data.get("hasDefaultRoute", False)
 
         if not conditions:
-            logger.warning("Condition Node sem condições definidas, retornando False")
-            return False
+            logger.warning("Condition Node sem condições definidas, retornando None")
+            return None
 
         logger.info(f"🔍 Avaliando {len(conditions)} condição(ões) com lógica {logic_operator}")
 
@@ -913,21 +945,78 @@ class WhatsAppService:
 
         Formato esperado do node_data:
         {
-            "transferMessage": "Transferindo para um agente...",  # Opcional
-            "sendTransferMessage": true,  # Opcional (default: true)
-            "queueId": "uuid-da-fila",    # Opcional
-            "priority": "medium"          # Opcional: low, medium, high, urgent
+            "handoffType": "queue|department|agent",  # Tipo de transferência
+            "queueId": "uuid-da-fila",               # Para handoffType = "queue"
+            "departmentId": "uuid-do-dept",          # Para handoffType = "department"
+            "agentId": "uuid-do-agente",             # Para handoffType = "agent"
+            "priority": "low|normal|high|urgent",    # Prioridade (default: normal)
+            "contextMessage": "Contexto...",         # Mensagem de contexto para o agente
+            "transferMessage": "Transferindo...",    # Mensagem enviada ao cliente
+            "sendTransferMessage": true              # Se deve enviar mensagem ao cliente
         }
         """
         from app.repositories.conversation import ConversationRepository
+        from app.repositories.queue import QueueRepository
+        from uuid import UUID
 
         logger.info(f"👤 Executando handoff para conversa {conversation.id}")
 
         # Extrair configurações
+        handoff_type = node_data.get("handoffType", "queue")  # queue, department, agent
+        queue_id = node_data.get("queueId")
+        department_id = node_data.get("departmentId")
+        agent_id = node_data.get("agentId")
+        priority = node_data.get("priority", "normal")
+        context_message = node_data.get("contextMessage", "")
         send_transfer_message = node_data.get("sendTransferMessage", True)
         transfer_message = node_data.get("transferMessage", "Transferindo para um agente humano...")
-        queue_id = node_data.get("queueId")
-        priority = node_data.get("priority", "medium")
+
+        logger.info(f"   Tipo de handoff: {handoff_type}")
+        logger.info(f"   Prioridade: {priority}")
+
+        # Determinar queue_id baseado no handoffType
+        final_queue_id = None
+        final_agent_id = None
+
+        if handoff_type == "queue" and queue_id:
+            # Transferir para fila específica
+            try:
+                final_queue_id = UUID(queue_id) if isinstance(queue_id, str) else queue_id
+                logger.info(f"   Transferindo para fila: {final_queue_id}")
+            except (ValueError, AttributeError) as e:
+                logger.error(f"   ❌ queueId inválido: {queue_id} - {e}")
+
+        elif handoff_type == "department" and department_id:
+            # Buscar fila principal do departamento
+            try:
+                dept_id_uuid = UUID(department_id) if isinstance(department_id, str) else department_id
+                queue_repo = QueueRepository(self.db)
+
+                # Buscar primeira fila ativa do departamento (ordenada por prioridade)
+                queues = await queue_repo.list_queues(
+                    organization_id=conversation.organization_id,
+                    department_id=dept_id_uuid,
+                    is_active=True,
+                    limit=1
+                )
+
+                if queues and len(queues) > 0:
+                    final_queue_id = queues[0].id
+                    logger.info(f"   Fila do departamento encontrada: {final_queue_id} ({queues[0].name})")
+                else:
+                    logger.warning(f"   ⚠️ Nenhuma fila ativa encontrada para departamento {dept_id_uuid}")
+                    logger.warning(f"   Transferindo para fila geral")
+
+            except (ValueError, AttributeError) as e:
+                logger.error(f"   ❌ departmentId inválido: {department_id} - {e}")
+
+        elif handoff_type == "agent" and agent_id:
+            # Transferir diretamente para agente específico
+            try:
+                final_agent_id = UUID(agent_id) if isinstance(agent_id, str) else agent_id
+                logger.info(f"   Transferindo para agente: {final_agent_id}")
+            except (ValueError, AttributeError) as e:
+                logger.error(f"   ❌ agentId inválido: {agent_id} - {e}")
 
         # Enviar mensagem de transferência (se configurado)
         if send_transfer_message and transfer_message:
@@ -993,20 +1082,93 @@ class WhatsAppService:
             await message_repo.create(message_data)
             await self.db.commit()
 
-        # Atualizar conversa: desativar bot e colocar na fila
+        # Atualizar conversa: desativar bot e atribuir à fila ou agente
         conv_repo = ConversationRepository(self.db)
+        from app.services.conversation_service import ConversationService
+        from datetime import datetime
 
-        update_data = {
-            "is_bot_active": False,
-            "status": "queued",
-            "priority": priority,
+        # Mapear prioridade textual para prioridade numérica da fila
+        priority_map = {
+            "low": 10,
+            "normal": 50,
+            "medium": 50,  # Aceita "medium" como alias de "normal"
+            "high": 80,
+            "urgent": 100,
         }
+        queue_priority = priority_map.get(str(priority).lower(), 50)
 
-        if queue_id:
-            update_data["assigned_queue_id"] = queue_id
+        try:
+            if final_agent_id:
+                # Transferência direta para agente
+                logger.info(f"   Atribuindo conversa diretamente ao agente {final_agent_id}")
 
-        await conv_repo.update(conversation.id, update_data)
-        await self.db.commit()
+                await conv_repo.update(
+                    conversation.id,
+                    {
+                        "is_bot_active": False,
+                        "status": "active",
+                        "assigned_agent_id": final_agent_id,
+                        "queued_at": None,
+                        "queue_priority": queue_priority,
+                    },
+                )
+
+                # Salvar contexto em extra_data
+                if context_message:
+                    extra_data = conversation.extra_data or {}
+                    extra_data["handoff_context"] = context_message
+                    await conv_repo.update(conversation.id, {"extra_data": extra_data})
+
+            elif final_queue_id:
+                # Transferência para fila específica (com overflow)
+                logger.info(f"   Atribuindo conversa à fila {final_queue_id} (com overflow)")
+
+                conv_service = ConversationService(self.db)
+                await conv_service.assign_to_queue_with_overflow(
+                    conversation_id=conversation.id,
+                    queue_id=final_queue_id,
+                    organization_id=conversation.organization_id,
+                )
+
+                # Atualizar prioridade e desativar bot
+                update_data = {
+                    "queue_priority": queue_priority,
+                    "is_bot_active": False,
+                }
+
+                # Salvar contexto em extra_data
+                if context_message:
+                    extra_data = conversation.extra_data or {}
+                    extra_data["handoff_context"] = context_message
+                    update_data["extra_data"] = extra_data
+
+                await conv_repo.update(conversation.id, update_data)
+
+            else:
+                # Sem fila nem agente específico, marca como aguardando atendimento geral
+                logger.warning(f"   ⚠️ Handoff sem fila ou agente específico, colocando em fila geral")
+
+                update_data = {
+                    "is_bot_active": False,
+                    "status": "queued",
+                    "queued_at": datetime.utcnow(),
+                    "queue_priority": queue_priority,
+                }
+
+                # Salvar contexto em extra_data
+                if context_message:
+                    extra_data = conversation.extra_data or {}
+                    extra_data["handoff_context"] = context_message
+                    update_data["extra_data"] = extra_data
+
+                await conv_repo.update(conversation.id, update_data)
+
+            await self.db.commit()
+
+        except Exception as e:
+            logger.error(f"❌ Erro ao aplicar handoff: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
         logger.info(
             f"✅ Handoff completo: conversa {conversation.id} "
@@ -3985,8 +4147,34 @@ __result__ = __script_func__()
                 "is_bot_active": True if whatsapp_number.default_chatbot_id else False,
                 "active_chatbot_id": whatsapp_number.default_chatbot_id,
             }
+
             conversation = await conversation_repo.create(conversation_data)
             logger.info(f"Created new conversation: {conversation.id}")
+
+            # VIP Routing: If contact is VIP, assign to VIP queue automatically with overflow check
+            if contact.is_vip:
+                try:
+                    from app.repositories.queue import QueueRepository
+                    from app.services.conversation_service import ConversationService
+
+                    queue_repo = QueueRepository(self.db)
+                    conv_service = ConversationService(self.db)
+
+                    vip_queue = await queue_repo.get_vip_queue(whatsapp_number.organization_id)
+                    if vip_queue:
+                        await conv_service.assign_to_queue_with_overflow(
+                            conversation_id=conversation.id,
+                            queue_id=vip_queue.id,
+                            organization_id=whatsapp_number.organization_id,
+                        )
+                        # Elevate priority for VIP
+                        await conversation_repo.update(conversation.id, {"queue_priority": 100})
+                        await self.db.commit()
+                        logger.info(
+                            f"🌟 VIP contact detected - assigned (with overflow) to queue: {vip_queue.name}"
+                        )
+                except Exception as e:
+                    logger.error(f"Error assigning VIP conversation with overflow: {e}")
 
         # Update conversation
         now = datetime.utcnow()
