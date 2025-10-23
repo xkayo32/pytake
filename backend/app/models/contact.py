@@ -109,6 +109,9 @@ class Contact(Base, TimestampMixin, SoftDeleteMixin):
     blocked_at = Column(DateTime(timezone=True), nullable=True)
     blocked_reason = Column(Text, nullable=True)
 
+    # VIP Status
+    is_vip = Column(Boolean, default=False, server_default="false", nullable=False, index=True)
+
     # Activity Tracking
     last_message_at = Column(DateTime(timezone=True), nullable=True, index=True)
     last_message_received_at = Column(DateTime(timezone=True), nullable=True)

@@ -41,6 +41,7 @@ class ContactUpdate(ContactBase):
     opt_in: Optional[bool] = None
     is_blocked: Optional[bool] = None
     blocked_reason: Optional[str] = None
+    is_vip: Optional[bool] = None
     assigned_agent_id: Optional[UUID] = None
     assigned_department_id: Optional[UUID] = None
 
@@ -71,6 +72,9 @@ class ContactInDB(ContactBase):
     is_blocked: bool = False
     blocked_at: Optional[datetime] = None
     blocked_reason: Optional[str] = None
+
+    # VIP Status
+    is_vip: bool = False
 
     # Activity
     last_message_at: Optional[datetime] = None
