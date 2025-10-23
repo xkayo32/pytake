@@ -20,6 +20,7 @@ import {
   UserCheck,
   UserX,
   MessageSquare,
+  Crown,
 } from 'lucide-react';
 import { DataTable } from '@/components/admin/DataTable';
 import { EmptyState } from '@/components/admin/EmptyState';
@@ -29,6 +30,7 @@ import { ContactModal, ContactFormData } from '@/components/admin/ContactModal';
 import { TagsModal } from '@/components/admin/TagsModal';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { DropdownMenu } from '@/components/admin/DropdownMenu';
+import { VipBadge } from '@/components/common/VipBadge';
 import { contactsAPI, tagsAPI } from '@/lib/api';
 import { Contact } from '@/types/contact';
 import { formatDistanceToNow } from 'date-fns';
@@ -162,6 +164,26 @@ export default function ContactsPage() {
     }
   };
 
+  const handleMarkAsVip = async (contactId: string) => {
+    try {
+      await contactsAPI.markAsVip(contactId);
+      fetchContacts();
+      setOpenDropdown(null);
+    } catch (error) {
+      console.error('Erro ao marcar como VIP:', error);
+    }
+  };
+
+  const handleUnmarkAsVip = async (contactId: string) => {
+    try {
+      await contactsAPI.unmarkAsVip(contactId);
+      fetchContacts();
+      setOpenDropdown(null);
+    } catch (error) {
+      console.error('Erro ao remover VIP:', error);
+    }
+  };
+
   const handleDeleteClick = (contact: Contact) => {
     setSelectedContact(contact);
     setShowConfirmDialog(true);
@@ -230,15 +252,18 @@ export default function ContactsPage() {
   const columns = [
     {
       key: 'name',
-      header: 'Contato',
+      label: 'Contato',
       render: (contact: Contact) => (
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-full flex items-center justify-center text-white dark:text-gray-900 font-semibold">
             {contact.name ? contact.name[0].toUpperCase() : contact.whatsapp_id[0]}
           </div>
-          <div>
-            <div className="font-semibold text-gray-900 dark:text-white">
-              {contact.name || contact.whatsapp_name || 'Sem nome'}
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {contact.name || contact.whatsapp_name || 'Sem nome'}
+              </span>
+              <VipBadge isVip={contact.is_vip} size="sm" showLabel={false} />
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
               <Phone className="w-3 h-3" />
@@ -250,7 +275,7 @@ export default function ContactsPage() {
     },
     {
       key: 'email',
-      header: 'Email',
+      label: 'Email',
       render: (contact: Contact) => (
         contact.email ? (
           <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -264,7 +289,7 @@ export default function ContactsPage() {
     },
     {
       key: 'company',
-      header: 'Empresa',
+      label: 'Empresa',
       render: (contact: Contact) => (
         contact.company ? (
           <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -278,7 +303,7 @@ export default function ContactsPage() {
     },
     {
       key: 'tags',
-      header: 'Tags',
+      label: 'Tags',
       render: (contact: Contact) => (
         <div className="flex items-center gap-1 flex-wrap max-w-[200px]" onClick={(e) => e.stopPropagation()}>
           {contact.tags && contact.tags.length > 0 ? (
@@ -324,7 +349,7 @@ export default function ContactsPage() {
     },
     {
       key: 'conversations',
-      header: 'Conversas',
+      label: 'Conversas',
       render: (contact: Contact) => {
         const hasConversations = contact.total_conversations > 0;
 
@@ -350,7 +375,7 @@ export default function ContactsPage() {
     },
     {
       key: 'last_message',
-      header: 'Última Mensagem',
+      label: 'Última Mensagem',
       render: (contact: Contact) => (
         contact.last_message_at ? (
           <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -366,7 +391,7 @@ export default function ContactsPage() {
     },
     {
       key: 'status',
-      header: 'Status',
+      label: 'Status',
       render: (contact: Contact) => (
         <div>
           {contact.is_blocked ? (
@@ -385,7 +410,7 @@ export default function ContactsPage() {
     },
     {
       key: 'actions',
-      header: '',
+      label: '',
       render: (contact: Contact) => (
         <div className="relative">
           <button
@@ -621,6 +646,30 @@ export default function ContactsPage() {
                 Tags
               </button>
 
+              {contact.is_vip ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleUnmarkAsVip(contact.id);
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-600 dark:text-gray-400"
+                >
+                  <Crown className="w-4 h-4" />
+                  Remover VIP
+                </button>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleMarkAsVip(contact.id);
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-yellow-600 dark:text-yellow-400"
+                >
+                  <Crown className="w-4 h-4" />
+                  Marcar como VIP
+                </button>
+              )}
+
               {contact.total_conversations > 0 && (
                 <button
                   onClick={(e) => {
@@ -700,7 +749,6 @@ export default function ContactsPage() {
           columns={columns}
           data={contacts}
           loading={isLoading}
-          emptyMessage="Nenhum contato encontrado"
           onRowClick={(contact) => router.push(`/admin/contacts/${contact.id}`)}
         />
       )}

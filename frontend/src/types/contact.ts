@@ -22,6 +22,7 @@ export interface ContactUpdate extends ContactBase {
   opt_in?: boolean;
   is_blocked?: boolean;
   blocked_reason?: string;
+  is_vip?: boolean;
   assigned_agent_id?: string;
   assigned_department_id?: string;
 }
@@ -51,6 +52,9 @@ export interface Contact extends ContactBase {
   is_blocked: boolean;
   blocked_at?: string;
   blocked_reason?: string;
+
+  // VIP Status
+  is_vip: boolean;
 
   // Activity
   last_message_at?: string;
