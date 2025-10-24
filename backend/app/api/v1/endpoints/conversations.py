@@ -291,3 +291,21 @@ async def get_conversations_metrics(
         queue_id=queue_id,
         since=since_dt,
     )
+
+
+# -----------------------------
+# Debug endpoint (temporary) to inspect incoming query params
+# -----------------------------
+@router.get('/metrics-debug')
+async def get_conversations_metrics_debug(
+    department_id: Optional[str] = Query(None, description='Filter by department (debug)'),
+    queue_id: Optional[str] = Query(None, description='Filter by queue (debug)'),
+    since: Optional[str] = Query(None, description='ISO datetime to filter recent conversations (debug)'),
+):
+    """Temporary debug endpoint that echoes received query params (no auth). Remove after debugging."""
+    # Return raw values so we can see exactly what the frontend sends
+    return {
+        "department_id": department_id,
+        "queue_id": queue_id,
+        "since": since,
+    }

@@ -21,6 +21,23 @@ api.interceptors.request.use(
       config.url = `/api/v1/${config.url}`;
     }
 
+    // Sanitize query params: remove empty/invalid values that may cause FastAPI validation 422
+    if (config.params && typeof config.params === 'object') {
+      Object.keys(config.params).forEach((k) => {
+        const v = (config.params as any)[k];
+        if (v === undefined || v === null) {
+          delete (config.params as any)[k];
+          return;
+        }
+
+        // Remove empty strings or the literal 'undefined' which sometimes appears
+        if (typeof v === 'string' && (v.trim() === '' || v === 'undefined')) {
+          delete (config.params as any)[k];
+          return;
+        }
+      });
+    }
+
     console.log('🚀 FINAL URL:', config.url);
 
     // Add auth token
