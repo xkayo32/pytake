@@ -1107,7 +1107,7 @@ class WhatsAppService:
                     {
                         "is_bot_active": False,
                         "status": "active",
-                        "assigned_agent_id": final_agent_id,
+                        "current_agent_id": final_agent_id,
                         "queued_at": None,
                         "queue_priority": queue_priority,
                     },

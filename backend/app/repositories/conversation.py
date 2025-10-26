@@ -81,7 +81,7 @@ class ConversationRepository(BaseRepository[Conversation]):
             stmt = stmt.where(Conversation.status == status)
 
         if assigned_agent_id:
-            stmt = stmt.where(Conversation.assigned_agent_id == assigned_agent_id)
+            stmt = stmt.where(Conversation.current_agent_id == assigned_agent_id)
 
         if assigned_department_id:
             stmt = stmt.where(Conversation.assigned_department_id == assigned_department_id)

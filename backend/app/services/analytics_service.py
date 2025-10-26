@@ -529,7 +529,7 @@ class AnalyticsService:
                 User.full_name,
                 func.count(Conversation.id).label("conv_count"),
             )
-            .join(Conversation, Conversation.assigned_agent_id == User.id, isouter=True)
+            .join(Conversation, Conversation.current_agent_id == User.id, isouter=True)
             .where(User.organization_id == organization_id)
             .where(User.role.in_(["org_admin", "agent"]))
             .where(User.deleted_at.is_(None))

@@ -3,6 +3,7 @@ Conversation Endpoints
 """
 
 from typing import List, Optional
+import uuid
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
@@ -74,6 +75,52 @@ async def create_conversation(
         data=data,
         organization_id=current_user.organization_id,
         user_id=current_user.id,
+    )
+
+
+# Move metrics endpoint above dynamic conversation_id routes so the static path
+# '/metrics' is matched before '/{conversation_id}' (avoids 'metrics' being
+# interpreted as a UUID path parameter and causing 422 validation errors).
+@router.get('/metrics')
+async def get_conversations_metrics(
+    # Accept as strings here and coerce to UUID internally to avoid automatic 422 when
+    # frontend sends empty string or literal 'undefined'. We parse safely and treat
+    # invalid values as None.
+    department_id: Optional[str] = Query(None, description='Filter by department'),
+    queue_id: Optional[str] = Query(None, description='Filter by queue'),
+    since: Optional[str] = Query(None, description='ISO datetime to filter recent conversations'),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return aggregated conversation metrics for admin dashboards (tolerant parser)"""
+    from dateutil import parser
+
+    service = ConversationService(db)
+
+    # Log raw incoming values for debugging (development only)
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"[metrics] raw params - department_id={department_id!r}, queue_id={queue_id!r}, since={since!r}")
+
+    # Parse since param if provided
+    since_dt = None
+    if since:
+        try:
+            since_dt = parser.isoparse(since)
+        except Exception:
+            since_dt = None
+
+    # Safely coerce department_id and queue_id to UUID or None using utility
+    from app.utils.params import parse_optional_uuid
+
+    dep_uuid = parse_optional_uuid(department_id)
+    q_uuid = parse_optional_uuid(queue_id)
+
+    return await service.get_metrics(
+        organization_id=current_user.organization_id,
+        department_id=dep_uuid,
+        queue_id=q_uuid,
+        since=since_dt,
     )
 
 
@@ -267,17 +314,28 @@ async def get_sla_alerts(
 
 @router.get('/metrics')
 async def get_conversations_metrics(
-    department_id: Optional[UUID] = Query(None, description='Filter by department'),
-    queue_id: Optional[UUID] = Query(None, description='Filter by queue'),
+    # Accept as strings here and coerce to UUID internally to avoid automatic 422 when
+    # frontend sends empty string or literal 'undefined'. We parse safely and treat
+    # invalid values as None.
+    department_id: Optional[str] = Query(None, description='Filter by department'),
+    queue_id: Optional[str] = Query(None, description='Filter by queue'),
     since: Optional[str] = Query(None, description='ISO datetime to filter recent conversations'),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return aggregated conversation metrics for admin dashboards"""
+    """Return aggregated conversation metrics for admin dashboards (tolerant parser)"""
     from dateutil import parser
 
     service = ConversationService(db)
 
+    # Log raw incoming values for debugging (development only)
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"[metrics] raw params - department_id={department_id!r}, queue_id={queue_id!r}, since={since!r}")
+    # Ensure immediate stdout for dev debugging (some environments filter logger level)
+    print(f"[metrics-DEBUG] raw params - department_id={department_id!r}, queue_id={queue_id!r}, since={since!r}")
+
+    # Parse since param if provided
     since_dt = None
     if since:
         try:
@@ -285,27 +343,18 @@ async def get_conversations_metrics(
         except Exception:
             since_dt = None
 
+    # Safely coerce department_id and queue_id to UUID or None using utility
+    from app.utils.params import parse_optional_uuid
+
+    dep_uuid = parse_optional_uuid(department_id)
+    q_uuid = parse_optional_uuid(queue_id)
+
     return await service.get_metrics(
         organization_id=current_user.organization_id,
-        department_id=department_id,
-        queue_id=queue_id,
+        department_id=dep_uuid,
+        queue_id=q_uuid,
         since=since_dt,
     )
 
 
-# -----------------------------
-# Debug endpoint (temporary) to inspect incoming query params
-# -----------------------------
-@router.get('/metrics-debug')
-async def get_conversations_metrics_debug(
-    department_id: Optional[str] = Query(None, description='Filter by department (debug)'),
-    queue_id: Optional[str] = Query(None, description='Filter by queue (debug)'),
-    since: Optional[str] = Query(None, description='ISO datetime to filter recent conversations (debug)'),
-):
-    """Temporary debug endpoint that echoes received query params (no auth). Remove after debugging."""
-    # Return raw values so we can see exactly what the frontend sends
-    return {
-        "department_id": department_id,
-        "queue_id": queue_id,
-        "since": since,
-    }
+# (temporary debug endpoint removed)

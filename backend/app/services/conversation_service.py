@@ -438,7 +438,7 @@ class ConversationService:
         # Update department and put back in queue
         update_data = {
             "assigned_department_id": department_id,
-            "assigned_agent_id": None,  # Unassign current agent
+            "current_agent_id": None,  # Unassign current agent (use current_agent_id column)
             "status": "queued",
             "queued_at": datetime.utcnow(),
         }
@@ -450,7 +450,7 @@ class ConversationService:
                 extra_data["transfers"] = []
 
             extra_data["transfers"].append({
-                "from_agent_id": str(conversation.assigned_agent_id) if conversation.assigned_agent_id else None,
+                "from_agent_id": str(conversation.current_agent_id) if conversation.current_agent_id else None,
                 "to_department_id": str(department_id),
                 "note": note,
                 "transferred_at": datetime.utcnow().isoformat(),
@@ -499,7 +499,7 @@ class ConversationService:
         if reason:
             extra_data = conversation.extra_data or {}
             extra_data["close_reason"] = reason
-            extra_data["closed_by_agent_id"] = str(conversation.assigned_agent_id) if conversation.assigned_agent_id else None
+            extra_data["closed_by_agent_id"] = str(conversation.current_agent_id) if conversation.current_agent_id else None
             update_data["extra_data"] = extra_data
 
         updated = await self.repo.update(conversation_id, update_data)

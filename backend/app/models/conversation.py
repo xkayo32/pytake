@@ -13,7 +13,7 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, synonym, column_property
 from sqlalchemy.sql import text
 
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin
@@ -62,6 +62,9 @@ class Conversation(Base, TimestampMixin, SoftDeleteMixin):
         nullable=True,
         index=True,
     )
+
+    # Backwards compatibility: older code references assigned_agent_id
+    # We'll expose it as a synonym to avoid mapping the same Column twice
 
     department_id = Column(
         UUID(as_uuid=True),
@@ -199,6 +202,11 @@ class Conversation(Base, TimestampMixin, SoftDeleteMixin):
     contact = relationship("Contact", back_populates="conversations")
     whatsapp_number = relationship("WhatsAppNumber", back_populates="conversations")
     current_agent = relationship("User", foreign_keys=[current_agent_id])
+    # NOTE: older code referenced `assigned_agent_id` / `assigned_agent`.
+    # We removed direct duplicate mappings to avoid SQLAlchemy SAWarnings.
+    # Use `current_agent_id` and `current_agent` going forward.
+    # Keep assigned_at timestamp (some services expect this column)
+    assigned_at = Column(DateTime(timezone=True), nullable=True)
     department = relationship("Department")
     queue = relationship("Queue")
     active_chatbot = relationship("Chatbot")
