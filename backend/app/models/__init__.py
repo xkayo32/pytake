@@ -11,8 +11,14 @@ from app.models.chatbot import Chatbot, Flow, Node
 from app.models.contact import Contact, Tag
 from app.models.conversation import Conversation, Message
 from app.models.department import Department
+from app.models.queue import Queue
 from app.models.campaign import Campaign
 from app.models.ai_custom_model import AICustomModel
+from app.models.flow_automation import (
+    FlowAutomation,
+    FlowAutomationExecution,
+    FlowAutomationRecipient,
+)
 
 __all__ = [
     "Base",
@@ -31,6 +37,10 @@ __all__ = [
     "Conversation",
     "Message",
     "Department",
+    "Queue",
     "Campaign",
     "AICustomModel",
+    "FlowAutomation",
+    "FlowAutomationExecution",
+    "FlowAutomationRecipient",
 ]
