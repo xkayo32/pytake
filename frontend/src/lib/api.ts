@@ -484,4 +484,23 @@ export const templatesAPI = {
     api.post(`/ai-assistant/templates/${templateId}/import`, options),
 };
 
+// Flow Automations API
+export const flowAutomationsAPI = {
+  list: (params?: { skip?: number; limit?: number; status?: string; is_active?: boolean }) =>
+    api.get('/flow-automations/', { params }),
+
+  get: (id: string) => api.get(`/flow-automations/${id}`),
+
+  create: (data: any) => api.post('/flow-automations/', data),
+
+  update: (id: string, data: any) => api.put(`/flow-automations/${id}`, data),
+
+  delete: (id: string) => api.delete(`/flow-automations/${id}`),
+
+  start: (id: string, data?: { test_mode?: boolean; test_contact_ids?: string[] }) =>
+    api.post(`/flow-automations/${id}/start`, data),
+
+  getStats: (id: string) => api.get(`/flow-automations/${id}/stats`),
+};
+
 export default api;
