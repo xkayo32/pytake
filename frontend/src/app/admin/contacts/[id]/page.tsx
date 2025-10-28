@@ -18,6 +18,7 @@ import {
   Trash2,
   BarChart3,
 } from 'lucide-react';
+import { formatNumber } from '@/lib/formatNumber';
 import { StatsCard } from '@/components/admin/StatsCard';
 import { ActionButton } from '@/components/admin/ActionButton';
 import { contactsAPI } from '@/lib/api';
@@ -181,7 +182,7 @@ export default function ContactDetailPage() {
         />
         <StatsCard
           title="Tempo Resposta"
-          value={stats?.avg_response_time_minutes ? `${stats.avg_response_time_minutes.toFixed(0)}min` : '-'}
+          value={stats?.avg_response_time_minutes != null ? `${formatNumber(stats.avg_response_time_minutes, 0)}min` : '-'}
           subtitle="Média"
           icon={BarChart3}
           color="blue"

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { formatNumber } from '@/lib/formatNumber';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { campaignsAPI } from '@/lib/api';
@@ -181,7 +182,7 @@ export default function CampaignsPage() {
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600 dark:text-gray-400">Taxa de entrega:</span>
                       <span className="font-medium text-green-600 dark:text-green-400">
-                        {campaign.delivery_rate.toFixed(1)}%
+                        {formatNumber(campaign.delivery_rate, 1)}%
                       </span>
                     </div>
                   )}

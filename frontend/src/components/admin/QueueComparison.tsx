@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
+import { formatNumber } from '@/lib/formatNumber';
 import { QueueMetrics, Queue } from '@/types/queue';
 import { queuesAPI } from '@/lib/api';
 import { exportQueueComparisonToCSV } from '@/lib/exportReports';
@@ -197,7 +198,7 @@ export default function QueueComparison({ queues, days = 30 }: QueueComparisonPr
                   label="CSAT"
                   value={
                     metrics.csat_score !== null
-                      ? `${metrics.csat_score.toFixed(1)}★`
+                      ? `${formatNumber(metrics.csat_score, 1)}★`
                       : '--'
                   }
                   comparison={null}

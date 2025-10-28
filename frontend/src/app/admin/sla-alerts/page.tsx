@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, BellRing, Clock, RefreshCcw } from 'lucide-react';
+import { formatNumber } from '@/lib/formatNumber';
 import { conversationsAPI } from '@/lib/api';
 
 type SlaAlert = {
@@ -127,7 +128,7 @@ export default function SlaAlertsPage() {
             <Clock className="w-5 h-5" /> Próximas do SLA
           </div>
           <div className="mt-1 text-2xl font-bold text-amber-800 dark:text-amber-200">{warning.length}</div>
-          <div className="text-xs text-amber-700/80 dark:text-amber-300/80">Acima de {(threshold * 100).toFixed(0)}%</div>
+          <div className="text-xs text-amber-700/80 dark:text-amber-300/80">Acima de {formatNumber(threshold * 100, 0)}%</div>
         </div>
         <div className="rounded-xl p-4 border border-gray-200 dark:border-gray-700">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Limiar de alerta</label>

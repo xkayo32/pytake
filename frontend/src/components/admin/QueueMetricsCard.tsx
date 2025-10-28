@@ -11,6 +11,7 @@ import {
   BarChart3,
   Target
 } from 'lucide-react';
+import { formatNumber } from '@/lib/formatNumber';
 import { QueueMetrics, Queue } from '@/types/queue';
 import { queuesAPI } from '@/lib/api';
 import { exportQueueMetricsToCSV, exportQueueMetricsToPDF } from '@/lib/exportReports';
@@ -272,7 +273,7 @@ export default function QueueMetricsCard({ queueId, queueName, queue, days = 30 
                 </div>
                 <span className="text-2xl font-bold text-purple-600">
                   {metrics.csat_score !== null 
-                    ? `${metrics.csat_score.toFixed(1)}★` 
+                    ? `${formatNumber(metrics.csat_score, 1)}★` 
                     : '--'}
                 </span>
               </div>
@@ -297,7 +298,7 @@ export default function QueueMetricsCard({ queueId, queueName, queue, days = 30 
               <div>
                 <p className="text-xs text-gray-600 mb-1">Taxa de Overflow</p>
                 <p className="text-xl font-bold text-orange-600">
-                  {metrics.overflow_rate !== null ? `${metrics.overflow_rate.toFixed(1)}%` : '--'}
+                  {metrics.overflow_rate !== null ? `${formatNumber(metrics.overflow_rate, 1)}%` : '--'}
                 </p>
               </div>
             </div>

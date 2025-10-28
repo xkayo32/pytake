@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { formatNumber } from '@/lib/formatNumber';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -267,7 +268,7 @@ export default function UserDetailPage() {
         />
         <StatsCard
           title="Tempo Médio"
-          value={stats?.avg_response_time_minutes ? `${stats.avg_response_time_minutes.toFixed(0)}min` : '-'}
+          value={stats?.avg_response_time_minutes != null ? `${formatNumber(stats.avg_response_time_minutes, 0)}min` : '-'}
           subtitle="Resposta"
           icon={Clock}
           color="blue"

@@ -16,6 +16,7 @@ import {
   Eye,
   Wrench,
 } from 'lucide-react';
+import { formatNumber } from '@/lib/formatNumber';
 import { aiAssistantAPI } from '@/lib/api';
 
 const customModelSchema = z.object({
@@ -325,7 +326,7 @@ export default function AddCustomModelModal({
               </div>
               <div className="mt-3 pt-3 border-t border-purple-200 dark:border-purple-800">
                 <p className="text-xs text-purple-700 dark:text-purple-300">
-                  <strong>Custo estimado por request típico:</strong> ${estimatedCost.toFixed(4)}
+                  <strong>Custo estimado por request típico:</strong> ${formatNumber(estimatedCost, 4)}
                   <span className="text-purple-600 dark:text-purple-400 ml-1">
                     (1000 input + 500 output tokens)
                   </span>

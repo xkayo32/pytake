@@ -1,5 +1,6 @@
 import { QueueMetrics, Queue } from '@/types/queue';
 import { format } from 'date-fns';
+import { formatNumber } from '@/lib/formatNumber';
 
 /**
  * Export queue metrics to CSV format
@@ -43,13 +44,13 @@ export function exportQueueMetricsToCSV(
     ['MÉTRICAS DE SLA', ''],
     ['Violações Hoje', metrics.sla_violations_today],
     ['Violações (7 dias)', metrics.sla_violations_7d],
-    ['Taxa de Compliance (%)', metrics.sla_compliance_rate !== null ? (metrics.sla_compliance_rate * 100).toFixed(2) : 'N/A'],
+  ['Taxa de Compliance (%)', metrics.sla_compliance_rate !== null ? formatNumber(metrics.sla_compliance_rate * 100, 2) : 'N/A'],
     [''],
     
     // Quality metrics
     ['QUALIDADE', ''],
-    ['Taxa de Resolução (%)', metrics.resolution_rate !== null ? (metrics.resolution_rate * 100).toFixed(2) : 'N/A'],
-    ['CSAT Score', metrics.csat_score !== null ? metrics.csat_score.toFixed(2) : 'N/A'],
+  ['Taxa de Resolução (%)', metrics.resolution_rate !== null ? formatNumber(metrics.resolution_rate * 100, 2) : 'N/A'],
+  ['CSAT Score', metrics.csat_score !== null ? formatNumber(metrics.csat_score, 2) : 'N/A'],
     [''],
     
     // Volume by hour
@@ -111,10 +112,10 @@ export function exportQueueComparisonToCSV(
       (metrics.avg_wait_time || 0).toString(),
       (metrics.avg_response_time || 0).toString(),
       (metrics.avg_resolution_time || 0).toString(),
-      metrics.sla_compliance_rate !== null ? (metrics.sla_compliance_rate * 100).toFixed(2) : 'N/A',
+  metrics.sla_compliance_rate !== null ? formatNumber(metrics.sla_compliance_rate * 100, 2) : 'N/A',
       metrics.sla_violations_7d.toString(),
-      metrics.resolution_rate !== null ? (metrics.resolution_rate * 100).toFixed(2) : 'N/A',
-      metrics.csat_score !== null ? metrics.csat_score.toFixed(2) : 'N/A',
+  metrics.resolution_rate !== null ? formatNumber(metrics.resolution_rate * 100, 2) : 'N/A',
+  metrics.csat_score !== null ? formatNumber(metrics.csat_score, 2) : 'N/A',
     ]);
   });
 
@@ -266,7 +267,7 @@ export function exportQueueMetricsToPDF(
     <tr>
       <td>SLA Compliance</td>
       <td class="${getComplianceClass(metrics.sla_compliance_rate)}">
-        ${metrics.sla_compliance_rate !== null ? (metrics.sla_compliance_rate * 100).toFixed(1) + '%' : 'N/A'}
+  ${metrics.sla_compliance_rate !== null ? formatNumber(metrics.sla_compliance_rate * 100, 1) + '%' : 'N/A'}
       </td>
     </tr>
     <tr>
@@ -279,11 +280,11 @@ export function exportQueueMetricsToPDF(
     </tr>
     <tr>
       <td>Taxa de Resolução</td>
-      <td>${metrics.resolution_rate !== null ? (metrics.resolution_rate * 100).toFixed(1) + '%' : 'N/A'}</td>
+  <td>${metrics.resolution_rate !== null ? formatNumber(metrics.resolution_rate * 100, 1) + '%' : 'N/A'}</td>
     </tr>
     <tr>
       <td>CSAT Score</td>
-      <td>${metrics.csat_score !== null ? metrics.csat_score.toFixed(2) + ' ★' : 'N/A'}</td>
+  <td>${metrics.csat_score !== null ? formatNumber(metrics.csat_score, 2) + ' ★' : 'N/A'}</td>
     </tr>
   </table>
 

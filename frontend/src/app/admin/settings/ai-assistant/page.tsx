@@ -18,6 +18,7 @@ import {
   Settings2,
   Info,
 } from 'lucide-react';
+import { formatNumber } from '@/lib/formatNumber';
 import { aiAssistantAPI } from '@/lib/api';
 import AddCustomModelModal from '@/components/AddCustomModelModal';
 
@@ -402,7 +403,7 @@ export default function AIAssistantSettingsPage() {
                   <option key={model.id} value={model.model_id}>
                     {model.name}
                     {model.is_custom && ' (Customizado)'}
-                    {` - $${model.input_cost_per_million.toFixed(2)}/$${model.output_cost_per_million.toFixed(2)} por 1M tokens`}
+                    {` - $${formatNumber(model.input_cost_per_million, 2)} / $${formatNumber(model.output_cost_per_million, 2)} por 1M tokens`}
                   </option>
                 ))}
             </select>
@@ -414,7 +415,7 @@ export default function AIAssistantSettingsPage() {
           {/* Max Tokens Slider */}
           <div>
             <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
-              Max Tokens: {watch('max_tokens').toLocaleString()}
+              Max Tokens: {formatNumberLocale(watch('max_tokens'), 0)}
             </label>
             <input
               type="range"
@@ -439,8 +440,8 @@ export default function AIAssistantSettingsPage() {
           {/* Temperature Slider */}
           <div>
             <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
-              Temperature: {watch('temperature').toFixed(1)}
-            </label>
+                Temperature: {formatNumber(watch('temperature'), 1)}
+              </label>
             <input
               type="range"
               {...register('temperature', { valueAsNumber: true })}

@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Send,
 } from 'lucide-react';
+import { formatNumberLocale } from '@/lib/formatNumber';
 import { DataTable } from '@/components/admin/DataTable';
 import { EmptyState } from '@/components/admin/EmptyState';
 import { ActionButton } from '@/components/admin/ActionButton';
@@ -176,7 +177,7 @@ export default function CampaignsPage() {
       render: (campaign: Campaign) => (
         <div className="text-center">
           <div className="text-sm font-semibold text-gray-900 dark:text-white">
-            {campaign.total_recipients.toLocaleString('pt-BR')}
+            {(campaign.total_recipients ?? 0).toLocaleString('pt-BR')}
           </div>
         </div>
       ),
@@ -186,9 +187,9 @@ export default function CampaignsPage() {
       header: 'Progresso',
       render: (campaign: Campaign) => (
         <div className="min-w-[120px]">
-          <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+            <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
             <span>{campaign.messages_sent} enviadas</span>
-            <span>{((campaign.messages_sent / Math.max(campaign.total_recipients, 1)) * 100).toFixed(0)}%</span>
+            <span>{formatNumberLocale(((campaign.messages_sent ?? 0) / Math.max(campaign.total_recipients ?? 1, 1)) * 100, 0)}%</span>
           </div>
           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
             <div

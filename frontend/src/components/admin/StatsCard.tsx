@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { formatNumberLocale } from '@/lib/formatNumber';
 import { LucideIcon, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface StatsCardProps {
@@ -81,7 +82,7 @@ export function StatsCard({
             {title}
           </p>
           <p className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            {typeof value === 'number' ? value.toLocaleString('pt-BR') : value}
+            {typeof value === 'number' ? formatNumberLocale(value, 0) : value}
           </p>
           <div className="flex items-center gap-2">
             {trend && (

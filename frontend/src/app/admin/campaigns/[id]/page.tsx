@@ -19,6 +19,8 @@ import {
   TrendingUp,
   TrendingDown,
 } from 'lucide-react';
+import { formatNumberLocale } from '@/lib/formatNumber';
+import { formatNumber } from '@/lib/formatNumber';
 import { StatsCard } from '@/components/admin/StatsCard';
 import { ActionButton } from '@/components/admin/ActionButton';
 import { campaignsAPI } from '@/lib/api';
@@ -218,12 +220,12 @@ export default function CampaignDetailPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Enviando Mensagens...</h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                {campaign.messages_sent.toLocaleString('pt-BR')} de {campaign.total_recipients.toLocaleString('pt-BR')} enviadas
+                <p className="text-gray-600 dark:text-gray-400">
+                {formatNumberLocale(campaign.messages_sent, 0)} de {formatNumberLocale(campaign.total_recipients, 0)} enviadas
               </p>
             </div>
             <div className="text-3xl font-bold text-gray-900 dark:text-white">
-              {progressPercentage.toFixed(0)}%
+              {formatNumber(progressPercentage, 0)}%
             </div>
           </div>
           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4">
@@ -239,29 +241,29 @@ export default function CampaignDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatsCard
           title="Destinatários"
-          value={campaign.total_recipients.toLocaleString('pt-BR')}
+          value={formatNumberLocale(campaign.total_recipients, 0)}
           subtitle="Total de contatos"
           icon={Users}
           color="blue"
         />
         <StatsCard
           title="Enviadas"
-          value={campaign.messages_sent.toLocaleString('pt-BR')}
+          value={formatNumberLocale(campaign.messages_sent, 0)}
           subtitle={`${campaign.messages_pending} pendentes`}
           icon={Send}
           color="orange"
         />
         <StatsCard
           title="Entregues"
-          value={campaign.messages_delivered.toLocaleString('pt-BR')}
-          subtitle={stats ? `${stats.delivery_rate.toFixed(1)}% taxa` : '-'}
+          value={formatNumberLocale(campaign.messages_delivered, 0)}
+          subtitle={stats ? `${formatNumber(stats.delivery_rate, 1)}% taxa` : '-'}
           icon={CheckCircle2}
           color="green"
         />
         <StatsCard
           title="Lidas"
-          value={campaign.messages_read.toLocaleString('pt-BR')}
-          subtitle={stats ? `${stats.read_rate.toFixed(1)}% taxa` : '-'}
+          value={formatNumberLocale(campaign.messages_read, 0)}
+          subtitle={stats ? `${formatNumber(stats.read_rate, 1)}% taxa` : '-'}
           icon={Eye}
           color="blue"
         />
@@ -279,9 +281,9 @@ export default function CampaignDetailPage() {
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-500 dark:text-gray-400">Taxa de Entrega</div>
               <div className="flex items-center gap-2">
-                <div className="font-semibold text-gray-900 dark:text-white">
-                  {stats?.delivery_rate.toFixed(1)}%
-                </div>
+                        <div className="font-semibold text-gray-900 dark:text-white">
+                        {formatNumber(stats?.delivery_rate, 1)}%
+                      </div>
                 <TrendingUp className="w-4 h-4 text-green-500" />
               </div>
             </div>
@@ -290,7 +292,7 @@ export default function CampaignDetailPage() {
               <div className="text-sm text-gray-500 dark:text-gray-400">Taxa de Leitura</div>
               <div className="flex items-center gap-2">
                 <div className="font-semibold text-gray-900 dark:text-white">
-                  {stats?.read_rate.toFixed(1)}%
+                  {formatNumber(stats?.read_rate, 1)}%
                 </div>
                 <TrendingUp className="w-4 h-4 text-green-500" />
               </div>
@@ -300,7 +302,7 @@ export default function CampaignDetailPage() {
               <div className="text-sm text-gray-500 dark:text-gray-400">Taxa de Resposta</div>
               <div className="flex items-center gap-2">
                 <div className="font-semibold text-gray-900 dark:text-white">
-                  {stats?.reply_rate.toFixed(1)}%
+                  {formatNumber(stats?.reply_rate, 1)}%
                 </div>
                 {(stats?.reply_rate || 0) > 10 ? (
                   <TrendingUp className="w-4 h-4 text-green-500" />
@@ -314,7 +316,7 @@ export default function CampaignDetailPage() {
               <div className="text-sm text-gray-500 dark:text-gray-400">Taxa de Sucesso</div>
               <div className="flex items-center gap-2">
                 <div className="font-semibold text-gray-900 dark:text-white">
-                  {stats?.success_rate.toFixed(1)}%
+                  {formatNumber(stats?.success_rate, 1)}%
                 </div>
                 <TrendingUp className="w-4 h-4 text-green-500" />
               </div>
@@ -393,7 +395,7 @@ export default function CampaignDetailPage() {
               <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Custo Estimado</div>
                 <div className="font-semibold text-gray-900 dark:text-white">
-                  R$ {campaign.estimated_cost.toFixed(2)}
+                  R$ {formatNumber(campaign.estimated_cost, 2)}
                 </div>
               </div>
             )}
@@ -421,7 +423,7 @@ export default function CampaignDetailPage() {
           </div>
           <div className="text-center">
             <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-1">
-              {stats ? `${stats.reply_rate.toFixed(1)}%` : '-'}
+              {stats ? `${formatNumber(stats.reply_rate, 1)}%` : '-'}
             </div>
             <div className="text-sm text-gray-500">Taxa de Resposta</div>
           </div>

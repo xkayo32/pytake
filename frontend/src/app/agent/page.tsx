@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { formatNumber } from '@/lib/formatNumber';
 import {
   MessageSquare,
   Clock,
@@ -139,14 +140,14 @@ export default function AgentDashboard() {
           <div className="flex items-center justify-center py-8">
             <div className="text-center">
               <div className="text-5xl font-bold text-yellow-500 mb-2">
-                {metrics.satisfaction_rating.toFixed(1)}
+                {formatNumber(metrics.satisfaction_rating, 1)}
               </div>
               <div className="flex items-center justify-center gap-1 mb-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <svg
                     key={star}
                     className={`h-6 w-6 ${
-                      star <= Math.round(metrics.satisfaction_rating)
+                      star <= Math.round(metrics.satisfaction_rating ?? 0)
                         ? 'text-yellow-500'
                         : 'text-gray-300 dark:text-gray-600'
                     }`}

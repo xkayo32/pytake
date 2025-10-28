@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { formatNumber } from '@/lib/formatNumber';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { analyticsAPI } from '@/lib/api';
@@ -230,14 +231,14 @@ export default function AnalyticsPage() {
                     <div className="text-center">
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Duração Média</p>
                       <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                        {conversations.avg_conversation_duration_minutes.toFixed(0)} min
+                        {formatNumber(conversations.avg_conversation_duration_minutes, 0)} min
                       </p>
                     </div>
                     <div className="text-center">
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Taxa de Fechamento</p>
                       <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
                         {conversations.total_conversations > 0
-                          ? ((conversations.closed_conversations / conversations.total_conversations) * 100).toFixed(1)
+                          ? formatNumber(((conversations.closed_conversations ?? 0) / (conversations.total_conversations ?? 1)) * 100, 1)
                           : 0}%
                       </p>
                     </div>
@@ -292,7 +293,7 @@ export default function AnalyticsPage() {
                     <div className="text-center">
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Média por Conversa</p>
                       <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                        {messages.avg_messages_per_conversation.toFixed(1)}
+                        {formatNumber(messages.avg_messages_per_conversation, 1)}
                       </p>
                     </div>
                   </div>

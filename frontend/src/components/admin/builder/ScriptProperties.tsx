@@ -136,12 +136,20 @@ export default function ScriptProperties({
       try {
         ${code}
       } catch (error) {
-        throw new Error('Erro na execução: ' + error.message);
+        throw new Error('Erro na execução: ' + (error && error.message ? error.message : String(error)));
       }
     `;
 
-    const fn = new Function(...Object.keys(context), wrappedCode);
-    return fn(...Object.values(context));
+    // Filter out any function values from context to avoid passing executable references
+    const safeContextEntries = Object.entries(context).filter(([, v]) => typeof v !== 'function');
+    const safeContext = Object.fromEntries(safeContextEntries);
+
+    const fn = new Function(...Object.keys(safeContext), wrappedCode);
+    try {
+      return fn(...Object.values(safeContext));
+    } catch (err: any) {
+      throw new Error('Erro na execução do script JS: ' + (err?.message || String(err)));
+    }
   };
 
   // Test Python execution
@@ -162,8 +170,9 @@ export default function ScriptProperties({
       const context = getTestContext();
 
       // Set variables in Python namespace
-      for (const [key, value] of Object.entries(context)) {
-        pyodide.globals.set(key, value);
+      // Set variables in Python namespace (filter out functions)
+      for (const [key, value] of Object.entries(context).filter(([, v]) => typeof v !== 'function')) {
+        pyodide.globals.set(key, value as any);
       }
 
       // Execute Python code

@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { Clock, Layers, Star, TrendingUp } from 'lucide-react';
+import { formatNumber } from '@/lib/formatNumber';
 import type { FlowTemplate } from '@/types/template';
 
 interface TemplateCardProps {
@@ -116,7 +117,7 @@ export default function TemplateCard({ template, onClick }: TemplateCardProps) {
           {template.rating > 0 && (
             <div className="flex items-center gap-1">
               <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-              <span>{template.rating.toFixed(1)}</span>
+              <span>{formatNumber(template.rating, 1)}</span>
             </div>
           )}
         </div>

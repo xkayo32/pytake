@@ -16,6 +16,7 @@ import {
   Variable,
   Zap,
 } from 'lucide-react';
+import { formatNumber } from '@/lib/formatNumber';
 import type { FlowTemplate } from '@/types/template';
 
 interface TemplateDetailModalProps {
@@ -150,8 +151,8 @@ export default function TemplateDetailModal({
                 <Star className="w-4 h-4" />
                 <span className="text-xs font-medium">Avaliação</span>
               </div>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {template.rating > 0 ? template.rating.toFixed(1) : 'N/A'}
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                {template.rating > 0 ? formatNumber(template.rating, 1) : 'N/A'}
               </p>
             </div>
             <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">

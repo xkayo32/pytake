@@ -83,11 +83,13 @@ export default function FlowSimulator({
     setMessages((prev) => [...prev, newMessage]);
   };
 
-  const replaceVariables = (text: string, variables: Record<string, any>): string => {
-    let result = text;
+  const replaceVariables = (text: any, variables: Record<string, any>): string => {
+    // Accept any incoming value and coerce to string safely
+    let result = String(text ?? '');
     Object.entries(variables).forEach(([key, value]) => {
       const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
-      result = result.replace(regex, String(value || ''));
+      // Preserve falsy non-null values like 0, but convert null/undefined to empty string
+      result = result.replace(regex, value == null ? '' : String(value));
     });
     return result;
   };
@@ -133,11 +135,11 @@ export default function FlowSimulator({
         break;
 
       case 'message':
-        const messageText = node.data?.messageText || 'Mensagem não configurada';
-        const processedMessage = replaceVariables(messageText, newVariables);
+  const messageText = node.data?.messageText || 'Mensagem não configurada';
+  const processedMessage = replaceVariables(String(messageText ?? ''), newVariables);
         addMessage(processedMessage, 'bot');
 
-        await new Promise((resolve) => setTimeout(resolve, node.data?.delay * 1000 || 500));
+  await new Promise((resolve) => setTimeout(resolve, (Number(node.data?.delay) * 1000) || 500));
 
         if (node.data?.autoAdvance !== false) {
           nextNode = getNextNode(node.id);
@@ -145,18 +147,18 @@ export default function FlowSimulator({
         break;
 
       case 'question':
-        const questionText = node.data?.questionText || 'Por favor, responda:';
-        const processedQuestion = replaceVariables(questionText, newVariables);
+  const questionText = node.data?.questionText || 'Por favor, responda:';
+  const processedQuestion = replaceVariables(String(questionText ?? ''), newVariables);
         addMessage(processedQuestion, 'bot');
 
         setFlowState((prev) => ({ ...prev, isWaitingForInput: true }));
         return;
 
       case 'condition':
-        const conditions = node.data?.conditions || [];
+  const conditions: any[] = node.data?.conditions || [];
         let conditionMet = false;
 
-        for (const condition of conditions) {
+  for (const condition of conditions) {
           const variable = condition.variable?.replace(/[{}]/g, '').trim();
           const value = newVariables[variable];
           const compareValue = condition.value;
@@ -207,7 +209,7 @@ export default function FlowSimulator({
 
         const outputVar = node.data?.outputVariable || node.data?.responseVar;
         if (outputVar) {
-          newVariables[outputVar] = `[Resposta simulada de ${nodeType}]`;
+          newVariables[String(outputVar)] = `[Resposta simulada de ${nodeType}]`;
         }
 
         nextNode = getNextNode(node.id);
@@ -232,42 +234,55 @@ export default function FlowSimulator({
                 try {
                   ${scriptCode}
                 } catch (error) {
-                  throw new Error('Erro na execução: ' + error.message);
+                  throw new Error('Erro na execução: ' + (error && error.message ? error.message : String(error)));
                 }
               `;
 
-              const fn = new Function(...Object.keys(newVariables), wrappedCode);
-              result = fn(...Object.values(newVariables));
+              // Filter out functions from variables to avoid passing executable references
+              const safeEntries = Object.entries(newVariables).filter(([, v]) => typeof v !== 'function');
+              const safeContext: Record<string, any> = Object.fromEntries(safeEntries);
+
+              const fn = new Function(...Object.keys(safeContext), wrappedCode);
+              try {
+                result = fn(...Object.values(safeContext));
+              } catch (err: any) {
+                throw new Error('Erro na execução do script JS: ' + (err?.message || String(err)));
+              }
             } else if (scriptLanguage === 'python') {
               // Python execution via Pyodide
               // @ts-ignore
               if (typeof window !== 'undefined' && window.loadPyodide) {
                 addMessage('🐍 Carregando Python...', 'bot');
                 // @ts-ignore
-                const pyodide = await window.loadPyodide({
-                  indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/',
-                });
+                try {
+                  const pyodide = await (window as any).loadPyodide({
+                    indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/',
+                  });
 
-                // Load Python packages if specified
-                if (pythonPackages.length > 0) {
-                  addMessage(`📦 Carregando bibliotecas: ${pythonPackages.join(', ')}...`, 'bot');
-                  await pyodide.loadPackage(pythonPackages);
+                  // Load Python packages if specified
+                  if ((pythonPackages as any).length > 0) {
+                    addMessage(`📦 Carregando bibliotecas: ${(pythonPackages as any).join(', ') }...`, 'bot');
+                    await pyodide.loadPackage(pythonPackages as any);
+                  }
+
+                  // Set variables in Python namespace (filter functions)
+                  for (const [key, value] of Object.entries(newVariables as any).filter(([, v]) => typeof v !== 'function')) {
+                    pyodide.globals.set(key, value);
+                  }
+
+                  // Execute Python code
+                  result = pyodide.runPython(scriptCode);
+                } catch (pyErr: any) {
+                  addMessage(`❌ Falha ao executar código Python: ${pyErr?.message || String(pyErr)}`, 'bot');
+                  throw pyErr;
                 }
-
-                // Set variables in Python namespace
-                for (const [key, value] of Object.entries(newVariables)) {
-                  pyodide.globals.set(key, value);
-                }
-
-                // Execute Python code
-                result = pyodide.runPython(scriptCode);
               } else {
                 throw new Error('Python não está disponível. Recarregue a página.');
               }
             }
 
             // Save result to output variable
-            newVariables[scriptOutputVar] = result;
+            newVariables[String(scriptOutputVar)] = result;
             addMessage(`✅ Script executado: ${JSON.stringify(result)}`, 'bot');
           } catch (error: any) {
             addMessage(`❌ Erro no script: ${error.message}`, 'bot');
@@ -294,10 +309,14 @@ export default function FlowSimulator({
     if (nextNode) {
       setTimeout(() => executeNodeWithVariables(nextNode, newVariables), 300);
     } else {
-      if (!flowState.completed) {
-        addMessage('✅ Fluxo concluído', 'bot');
-        setFlowState((prev) => ({ ...prev, completed: true, currentNodeId: null }));
-      }
+      // Use functional update to avoid stale closure read of flowState
+      setFlowState((prev) => {
+        if (!prev.completed) {
+          addMessage('✅ Fluxo concluído', 'bot');
+          return { ...prev, completed: true, currentNodeId: null };
+        }
+        return prev;
+      });
     }
   };
 
