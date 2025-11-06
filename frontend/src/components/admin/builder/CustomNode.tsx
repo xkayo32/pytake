@@ -23,6 +23,27 @@ import {
   Code,
 } from 'lucide-react';
 
+// Map node types to labels (precisa estar antes para COLOR_MAP e BG_CLASS_MAP)
+const LABEL_MAP: Record<string, string> = {
+  start: 'Início',
+  message: 'Mensagem',
+  question: 'Pergunta',
+  condition: 'Condição',
+  action: 'Ação',
+  api_call: 'API',
+  ai_prompt: 'IA',
+  jump: 'Pular',
+  end: 'Fim',
+  handoff: 'Transferir',
+  delay: 'Atraso',
+  set_variable: 'Variável',
+  whatsapp_template: 'Template',
+  interactive_buttons: 'Botões',
+  interactive_list: 'Lista',
+  database_query: 'Banco de Dados',
+  script: 'Script',
+};
+
 // Map node types to icons
 const ICON_MAP: Record<string, any> = {
   start: Play,
@@ -44,68 +65,69 @@ const ICON_MAP: Record<string, any> = {
   script: Code,
 };
 
-// Map node types to colors (icon and border)
-const COLOR_MAP: Record<string, string> = {
-  start: '#10b981',
-  message: '#3b82f6',
-  question: '#8b5cf6',
-  condition: '#f97316',
-  action: '#eab308',
-  api_call: '#6366f1',
-  ai_prompt: '#ec4899',
-  jump: '#6b7280',
-  end: '#ef4444',
-  handoff: '#14b8a6',
-  delay: '#06b6d4',
-  set_variable: '#f59e0b',
-  whatsapp_template: '#10b981',
-  interactive_buttons: '#7c3aed',
-  interactive_list: '#64748b',
-  database_query: '#ff5722',
-  script: '#4f46e5',
+// Node Categories - Sistema de 6 cores consolidado
+type NodeCategory = 'flow' | 'message' | 'logic' | 'action' | 'ai' | 'special';
+
+const NODE_CATEGORY_COLORS = {
+  flow: { icon: '#6b7280', bg: 'bg-gray-50 dark:bg-gray-900' },          // Cinza - Entrada/Saída
+  message: { icon: '#6366f1', bg: 'bg-primary-50 dark:bg-primary-950' }, // Indigo - Comunicação
+  logic: { icon: '#f59e0b', bg: 'bg-amber-50 dark:bg-amber-950' },       // Amber - Lógica
+  action: { icon: '#14b8a6', bg: 'bg-teal-50 dark:bg-teal-950' },        // Teal - Ações
+  ai: { icon: '#a855f7', bg: 'bg-purple-50 dark:bg-purple-950' },        // Purple - IA/Automação
+  special: { icon: '#f43f5e', bg: 'bg-rose-50 dark:bg-rose-950' },       // Rose - Especiais
 };
 
-// Map node types to Tailwind background classes (light + dark mode)
-const BG_CLASS_MAP: Record<string, string> = {
-  start: 'bg-green-50 dark:bg-green-950',
-  message: 'bg-blue-50 dark:bg-blue-950',
-  question: 'bg-purple-50 dark:bg-purple-950',
-  condition: 'bg-orange-50 dark:bg-orange-950',
-  action: 'bg-yellow-50 dark:bg-yellow-950',
-  api_call: 'bg-indigo-50 dark:bg-indigo-950',
-  ai_prompt: 'bg-pink-50 dark:bg-pink-950',
-  jump: 'bg-gray-50 dark:bg-gray-800',
-  end: 'bg-red-50 dark:bg-red-950',
-  handoff: 'bg-teal-50 dark:bg-teal-950',
-  delay: 'bg-cyan-50 dark:bg-cyan-950',
-  set_variable: 'bg-amber-50 dark:bg-amber-950',
-  whatsapp_template: 'bg-green-50 dark:bg-green-950',
-  interactive_buttons: 'bg-violet-50 dark:bg-violet-950',
-  interactive_list: 'bg-slate-50 dark:bg-slate-800',
-  database_query: 'bg-orange-50 dark:bg-orange-950',
-  script: 'bg-indigo-50 dark:bg-indigo-950',
+// Helper para obter categoria do node
+const getNodeCategory = (nodeType: string): NodeCategory => {
+  const categoryMap: Record<string, NodeCategory> = {
+    // Flow (entrada/saída)
+    start: 'flow',
+    end: 'flow',
+
+    // Message (comunicação)
+    message: 'message',
+    question: 'message',
+    whatsapp_template: 'message',
+    interactive_buttons: 'message',
+    interactive_list: 'message',
+
+    // Logic (lógica/decisões)
+    condition: 'logic',
+    jump: 'logic',
+
+    // Action (ações)
+    action: 'action',
+    api_call: 'action',
+    database_query: 'action',
+    script: 'action',
+
+    // AI (IA/automação)
+    ai_prompt: 'ai',
+
+    // Special (especiais)
+    handoff: 'special',
+    delay: 'special',
+    set_variable: 'special',
+  };
+
+  return categoryMap[nodeType] || 'flow';
 };
 
-// Map node types to labels
-const LABEL_MAP: Record<string, string> = {
-  start: 'Início',
-  message: 'Mensagem',
-  question: 'Pergunta',
-  condition: 'Condição',
-  action: 'Ação',
-  api_call: 'API',
-  ai_prompt: 'IA',
-  jump: 'Pular',
-  end: 'Fim',
-  handoff: 'Transferir',
-  delay: 'Atraso',
-  set_variable: 'Variável',
-  whatsapp_template: 'Template',
-  interactive_buttons: 'Botões',
-  interactive_list: 'Lista',
-  database_query: 'Banco de Dados',
-  script: 'Script',
-};
+// Map node types to colors (icon and border) - usando categorias
+const COLOR_MAP: Record<string, string> = Object.fromEntries(
+  Object.keys(LABEL_MAP).map((nodeType) => [
+    nodeType,
+    NODE_CATEGORY_COLORS[getNodeCategory(nodeType)].icon,
+  ])
+);
+
+// Map node types to Tailwind background classes - usando categorias
+const BG_CLASS_MAP: Record<string, string> = Object.fromEntries(
+  Object.keys(LABEL_MAP).map((nodeType) => [
+    nodeType,
+    NODE_CATEGORY_COLORS[getNodeCategory(nodeType)].bg,
+  ])
+);
 
 // Truncate text helper
 const truncate = (text: string, maxLength: number = 30): string => {
