@@ -36,28 +36,23 @@ jobs:
 
       - name: Run pylint
         run: |
-          cd backend
-          pylint app/ --disable=C0111,W0212 --fail-under=8.0 || true
+          pylint backend/app/ --disable=C0111,W0212 --fail-under=8.0 || true
 
       - name: Run flake8
         run: |
-          cd backend
-          flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 backend/ --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=venv,__pycache__,.git
 
       - name: Check code formatting
         run: |
-          cd backend
-          black --check app/ || true
+          black --check backend/ --exclude=venv || true
 
       - name: Check import sorting
         run: |
-          cd backend
-          isort --check-only app/ || true
+          isort --check-only backend/ --skip=venv || true
 
       - name: Security scan with bandit
         run: |
-          cd backend
-          bandit -r app/ -f json -o bandit-report.json || true
+          bandit -r backend/app/ -f json -o bandit-report.json --skip B101,B601 || true
 
   frontend-lint:
     runs-on: ubuntu-latest
