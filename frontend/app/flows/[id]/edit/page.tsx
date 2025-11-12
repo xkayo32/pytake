@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
 import { useAuth } from '@/lib/hooks/useAuth'
-import { NodeType } from '@/lib/types/flow'
+import { NodeType, Flow } from '@/lib/types/flow'
 import { 
   Save, 
   Play, 
@@ -143,7 +143,7 @@ function FlowEditor() {
           setNodes(correctedNodes)
           setEdges(flowEdges)
           
-          useFlowEditorStore.setState({ 
+          useFlowEditorStore.setState({
             flow: {
               ...flowData,
               id: flowId, // Use URL ID
@@ -182,7 +182,7 @@ function FlowEditor() {
             setNodes(correctedNodes)
             setEdges(flowData.flow?.edges || [])
             
-            useFlowEditorStore.setState({ 
+            useFlowEditorStore.setState({
               flow: flowData,
               isDirty: false 
             })
@@ -203,25 +203,27 @@ function FlowEditor() {
         console.log('Flow not found with ID:', flowId)
         
         // Criar um flow vazio para editar
-        const emptyFlow = {
+        const emptyFlow: Flow = {
           id: flowId,
           name: 'Novo Flow',
           description: '',
-          status: 'draft',
-          flow: {
-            nodes: [],
-            edges: []
-          },
+          status: 'draft' as any,
+          nodes: [],
+          edges: [],
           trigger: {
             type: 'keyword',
             config: {}
-          }
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          version: 1,
+          whatsapp_numbers: []
         }
         
         setNodes([])
         setEdges([])
         
-        useFlowEditorStore.setState({ 
+        useFlowEditorStore.setState({
           flow: emptyFlow,
           isDirty: true // Marcar como dirty para permitir salvar
         })
@@ -239,25 +241,27 @@ function FlowEditor() {
         console.error('Error loading flow:', error)
         
         // Em caso de erro, criar flow vazio ao invés de redirecionar
-        const emptyFlow = {
+        const emptyFlow: Flow = {
           id: flowId,
           name: 'Novo Flow',
           description: '',
-          status: 'draft',
-          flow: {
-            nodes: [],
-            edges: []
-          },
+          status: 'draft' as any,
+          nodes: [],
+          edges: [],
           trigger: {
             type: 'keyword',
             config: {}
-          }
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          version: 1,
+          whatsapp_numbers: []
         }
         
         setNodes([])
         setEdges([])
         
-        useFlowEditorStore.setState({ 
+        useFlowEditorStore.setState({
           flow: emptyFlow,
           isDirty: true // Marcar como dirty para permitir salvar
         })
@@ -630,12 +634,12 @@ function FlowEditor() {
           id: currentFlowId
         }
         
-        useFlowEditorStore.setState({ 
+        useFlowEditorStore.setState({
           flow: updatedFlow
         })
         
         // Usar o flow recém criado para ativar
-        flow = updatedFlow
+        // flow = updatedFlow  // REMOVIDO: não pode reatribuir const
         
         console.log('✅ Flow criado no backend com ID:', currentFlowId)
       }
@@ -646,8 +650,8 @@ function FlowEditor() {
       const currentFlowData = flow || useFlowEditorStore.getState().flow
       
       // IMPORTANTE: Usar os nodes e edges do flow salvo ou do estado atual
-      const flowNodes = currentFlowData.flow?.nodes || currentFlowData.nodes || nodes
-      const flowEdges = currentFlowData.flow?.edges || currentFlowData.edges || edges
+      const flowNodes = (currentFlowData as any).flow?.nodes || currentFlowData.nodes || nodes
+      const flowEdges = (currentFlowData as any).flow?.edges || currentFlowData.edges || edges
       
       // Verificar se temos conteúdo
       if (flowNodes.length === 0) {
@@ -816,18 +820,18 @@ function FlowEditor() {
         console.log('PUT não suportado, criando nova versão via POST')
         
         const inactiveFlowData = {
-          name: currentFlowData.name || 'Novo Flow',
-          description: currentFlowData.description || '',
+          name: (currentFlowData as any).name || 'Novo Flow',
+          description: (currentFlowData as any).description || '',
           status: 'inactive',
           flow: { 
             nodes: flowNodes, 
             edges: flowEdges 
           },
-          trigger: currentFlowData.trigger || {
+          trigger: (currentFlowData as any).trigger || {
             type: 'keyword',
             config: {}
           },
-          whatsapp_numbers: currentFlowData.whatsapp_numbers || []
+          whatsapp_numbers: (currentFlowData as any).whatsapp_numbers || []
         }
         
         response = await fetch('/api/v1/flows', {
@@ -944,7 +948,7 @@ function FlowEditor() {
         edges: flowEdges
       }
       
-      useFlowEditorStore.setState({ 
+      useFlowEditorStore.setState({
         flow: newFlow,
         isDirty: true 
       })
@@ -1070,8 +1074,8 @@ function FlowEditor() {
                 if (flow) {
                   // Usar setState diretamente para manter isDirty como true
                   // Não usar setIsDirty que não existe!
-                  useFlowEditorStore.setState({ 
-                    flow: { ...flow, name: newName },
+                  useFlowEditorStore.setState({
+                    flow: { ...flow, name: newName } as any,
                     isDirty: true 
                   })
                 }

@@ -31,6 +31,7 @@ import { Input } from '@/components/ui/input'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { WhatsAppNumberSelector } from '@/components/whatsapp/whatsapp-number-selector'
+import { Flow } from '@/lib/types/flow'
 import {
   Dialog,
   DialogContent,
@@ -40,27 +41,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
-interface Flow {
-  id: string
-  name: string
-  description: string
-  status: 'draft' | 'active' | 'inactive'
-  trigger: string
-  createdAt: string
-  updatedAt: string
-  stats: {
-    executions: number
-    successRate: number
-    lastExecution?: string
-  }
-  tags: string[]
-  isTemplate?: boolean
-  isDraft?: boolean
-  isLocal?: boolean
-  templateData?: any
-  draftData?: any
-  flowData?: any
-}
+import { Flow } from '@/lib/types/flow'
 
 // Mock data
 const mockFlows: Flow[] = [
@@ -582,7 +563,7 @@ export default function FlowsPage() {
                 <div className="flex items-baseline gap-2">
                   <div className="text-2xl font-bold">{totalStats.avgSuccessRate.toFixed(1)}%</div>
                   {totalStats.avgSuccessRate >= 90 && (
-                    <Badge variant="success" className="text-xs">Excelente</Badge>
+                    <Badge className="text-xs bg-green-100 text-green-800">Excelente</Badge>
                   )}
                 </div>
                 <div className="mt-2 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -623,7 +604,7 @@ export default function FlowsPage() {
             
             <div className="flex gap-2">
               <Button
-                variant={filterWhatsApp ? 'success' : 'outline'}
+                variant={filterWhatsApp ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setFilterWhatsApp(!filterWhatsApp)}
                 className={filterWhatsApp ? 'bg-green-500 hover:bg-green-600 text-white' : ''}
@@ -703,7 +684,6 @@ export default function FlowsPage() {
                       title={`WhatsApp: ${flow.whatsapp_numbers.join(', ')}`}
                     >
                       <Badge 
-                        variant="success" 
                         className="bg-green-500 text-white hover:bg-green-600 cursor-help"
                       >
                         <Phone className="h-3 w-3 mr-1" />
@@ -905,7 +885,6 @@ export default function FlowsPage() {
                                   title={`WhatsApp: ${flow.whatsapp_numbers.join(', ')}`}
                                 >
                                   <Badge 
-                                    variant="success" 
                                     className="bg-green-500 text-white text-xs cursor-help"
                                   >
                                     <Phone className="h-3 w-3 mr-1" />

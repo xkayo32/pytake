@@ -35,6 +35,7 @@ export interface ExecutionLog {
   message: string
   duration?: number
   data?: any
+  details?: Record<string, any>
 }
 
 export interface FlowExecutionContext {
