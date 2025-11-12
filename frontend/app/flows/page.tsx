@@ -41,27 +41,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
-interface Flow {
-  id: string
-  name: string
-  description: string
-  status: 'draft' | 'active' | 'inactive'
-  trigger: string
-  createdAt: string
-  updatedAt: string
-  stats: {
-    executions: number
-    successRate: number
-    lastExecution?: string
-  }
-  tags: string[]
-  isTemplate?: boolean
-  isDraft?: boolean
-  isLocal?: boolean
-  templateData?: any
-  draftData?: any
-  flowData?: any
-}
+import { Flow } from '@/lib/types/flow'
 
 // Mock data
 const mockFlows: Flow[] = [

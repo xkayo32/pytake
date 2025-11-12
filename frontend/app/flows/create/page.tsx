@@ -580,8 +580,8 @@ function FlowEditor() {
         // Atualizar o flow local com o ID do backend
         useFlowEditorStore.setState({ 
           flow: { 
-            ...flow, 
-            id: flowId || flow.id || `flow-${Date.now()}`,
+            ...(flow || {}), 
+            id: flowId || (flow as any)?.id || `flow-${Date.now()}`,
             status: 'active'
           } as any
         })

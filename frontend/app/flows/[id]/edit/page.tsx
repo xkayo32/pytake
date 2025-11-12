@@ -650,8 +650,8 @@ function FlowEditor() {
       const currentFlowData = flow || useFlowEditorStore.getState().flow
       
       // IMPORTANTE: Usar os nodes e edges do flow salvo ou do estado atual
-      const flowNodes = currentFlowData.flow?.nodes || currentFlowData.nodes || nodes
-      const flowEdges = currentFlowData.flow?.edges || currentFlowData.edges || edges
+      const flowNodes = (currentFlowData as any).flow?.nodes || currentFlowData.nodes || nodes
+      const flowEdges = (currentFlowData as any).flow?.edges || currentFlowData.edges || edges
       
       // Verificar se temos conteúdo
       if (flowNodes.length === 0) {
@@ -820,18 +820,18 @@ function FlowEditor() {
         console.log('PUT não suportado, criando nova versão via POST')
         
         const inactiveFlowData = {
-          name: currentFlowData.name || 'Novo Flow',
-          description: currentFlowData.description || '',
+          name: (currentFlowData as any).name || 'Novo Flow',
+          description: (currentFlowData as any).description || '',
           status: 'inactive',
           flow: { 
             nodes: flowNodes, 
             edges: flowEdges 
           },
-          trigger: currentFlowData.trigger || {
+          trigger: (currentFlowData as any).trigger || {
             type: 'keyword',
             config: {}
           },
-          whatsapp_numbers: currentFlowData.whatsapp_numbers || []
+          whatsapp_numbers: (currentFlowData as any).whatsapp_numbers || []
         }
         
         response = await fetch('/api/v1/flows', {
