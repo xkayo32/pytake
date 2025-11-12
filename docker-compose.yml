@@ -39,34 +39,28 @@ services:
       timeout: 3s
       retries: 5
 
-  # Go Backend API
+  # Python FastAPI Backend
   backend:
     build:
-      context: ./backend-go
+      context: ./backend
       dockerfile: Dockerfile
     container_name: pytake-backend
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8000:8000"
     volumes:
       - ./.env:/app/.env:ro
     environment:
       # Database
-      # DATABASE_URL: postgresql://${POSTGRES_USER:-pytake_user}:${POSTGRES_PASSWORD:-Odc7/ffNnTnG4hkbwV+Sx2ZgK61rXW2r9U2o7Rd25DU=}@postgres:5432/${POSTGRES_DB:-pytake}?sslmode=disable
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-pytake_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Odc7/ffNnTnG4hkbwV+Sx2ZgK61rXW2r9U2o7Rd25DU=}
-      POSTGRES_DB: ${POSTGRES_DB:-pytake}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pytake_user}:${POSTGRES_PASSWORD:-Odc7/ffNnTnG4hkbwV+Sx2ZgK61rXW2r9U2o7Rd25DU=}@postgres:5432/${POSTGRES_DB:-pytake}?sslmode=disable
       
       # Redis
       REDIS_URL: redis://default:gOe7JRn%2Bi8iWY5UAvYt3mJxBFJnAf9%2Bjo%2FVZM3UN4xw%3D@redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-gOe7JRn+i8iWY5UAvYt3mJxBFJnAf9+jo/VZM3UN4xw=}
       
       # Server
-      PORT: 8080
+      PORT: 8000
       NODE_ENV: production
-      GIN_MODE: release
       
       # Auth
       JWT_SECRET: ${JWT_SECRET:-0lKDucCTqSt0gh1mbLsvF/d5mhXqCtEW8JfwWwbTeIk=}
@@ -84,7 +78,7 @@ services:
     networks:
       - pytake-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/docs').read()"]
       interval: 30s
       timeout: 10s
       retries: 3
