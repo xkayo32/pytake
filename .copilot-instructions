@@ -8,125 +8,38 @@ When asked for your name, you must respond with "GitHub Copilot".
 Sempre que começar a trabalhar:
 
 ```bash
-# 1. Verificar branch atual
-git branch
-
-# ❌ Se estiver em main ou develop:
 git checkout develop
 git fetch origin
 git pull origin develop
-git checkout -b feature/TICKET-description
+git checkout -b feature/TICKET-XXX-descricao
 ```
 
----
-
-## 📌 Regra #2: Estrutura de Commits (Conventional Commits)
-
-Cada commit DEVE seguir formato:
-
-```
-feat: adicionar nova funcionalidade
-fix: corrigir bug específico
-refactor: reestruturar código
-docs: atualizar documentação
-test: adicionar testes
-chore: atualizações de dependências
-perf: melhorias de performance
-```
-
-### Exemplo real:
-```bash
-git commit -m "feat: implementar endpoint POST /conversations/{id}/reassign"
-git commit -m "fix: corrigir caminho de lint em workflows"
-git commit -m "docs: adicionar guia de PR"
-```
-
----
+## 📌 Regra #2: Conventional Commits
+- feat: nova funcionalidade
+- fix: correção de bug
+- docs: documentação
+- test: testes
+- chore: dependências
 
 ## 🔄 Regra #3: Fluxo Completo
+1. Criar branch de develop
+2. Fazer commits com mensagens descritivas
+3. Push e criar PR com seção "Como Testar"
+4. Aguardar CI/CD passar
+5. Code review e merge
 
-```bash
-# 1. Sincronizar
-git checkout develop
-git fetch origin
-git pull origin develop
-
-# 2. Criar branch
-git checkout -b feature/TICKET-XXX-descricao
-
-# 3. Fazer trabalho e commits
-git add <arquivo>
-git commit -m "tipo: descrição"
-
-# 4. Verificar status
-git status
-git log --oneline -5
-
-# 5. Push
-git push origin feature/TICKET-XXX-descricao
-
-# 6. Criar PR via CLI
-gh pr create --title "..." --body "..." --base develop
-
-# 7. Aguardar CI/CD ✅
-gh pr checks <NUMBER>
-
-# 8. Code review + merge
-```
-
----
-
-## ✅ Checklist Antes de "Pronto"
-
-```
-[ ] 1. git branch → NÃO é main ou develop
-[ ] 2. Commits em Conventional Commits
-[ ] 3. Testes locais passando
-[ ] 4. Lint sem erros
-[ ] 5. CHANGELOG.md atualizado (se relevante)
-[ ] 6. Nenhum console.log ou debugger
-[ ] 7. Nenhum .env ou secrets commitado
-[ ] 8. PR criado com seção "Como Testar"
-[ ] 9. CI/CD verde (aguardando)
-[ ] 10. Code review + aprovação
-```
-
----
+## ✅ Checklist
+- [ ] Branch != main/develop
+- [ ] Commits em Conventional Commits
+- [ ] Testes passando localmente
+- [ ] Lint sem erros
+- [ ] PR com "Como Testar"
+- [ ] CI/CD verde
+- [ ] Code review aprovado
 
 ## 📚 Referências
+- .github/GIT_WORKFLOW.md
+- .github/PR_GUIDELINES.md
+- .github/CI_CD_MONITORING.md
 
-- `.github/GIT_WORKFLOW.md` - Fluxo GitFlow completo
-- `.github/PR_GUIDELINES.md` - Guia de Pull Requests
-- `.github/CI_CD_MONITORING.md` - Como monitorar CI/CD
-- `.copilot-instructions` - Este arquivo (persiste em todas as branches)
-
----
-
-## 🚀 Dicas Rápidas
-
-| Tarefa | Comando |
-|--------|---------|
-| Ver status | `git status` |
-| Criar branch | `git checkout -b feature/TICKET-XXX-desc` |
-| Commit | `git commit -m "tipo: desc"` |
-| Push | `git push origin feature/TICKET-XXX-desc` |
-| Criar PR | `gh pr create --title "..." --base develop` |
-| Ver CI/CD | `gh pr checks <NUMBER>` |
-| Logs | `git log --oneline -10` |
-
----
-
-## ⚠️ ERROS COMUNS A EVITAR
-
-❌ Fazer commit em main/develop
-❌ Commits sem mensagem descritiva
-❌ Merge commits em vez de rebase
-❌ Fazer merge sem CI/CD verde
-❌ Commitir .env ou arquivos sensíveis
-❌ Código comentado ou console.log
-
----
-
-**Última atualização**: 2025-11-12
-**Versão**: 1.0
-**Aplicável a**: Todas as branches (persiste via git)
+Última atualização: 2025-11-12
