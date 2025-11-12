@@ -149,7 +149,7 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
     }
     
     // Determinar o tipo de nó correto
-    let nodeTypeForReactFlow = nodeType.category
+    let nodeTypeForReactFlow: string = nodeType.category
     
     // Usar tipos customizados para nós especiais
     // TRIGGERS

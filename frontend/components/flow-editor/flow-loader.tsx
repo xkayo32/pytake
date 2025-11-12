@@ -177,9 +177,9 @@ export function FlowLoader({ onLoadFlow, onPreviewFlow }: FlowLoaderProps) {
                       </div>
                       <div className="flex items-center gap-1">
                         {flow.isPublic ? (
-                          <Globe className="h-3 w-3 text-green-600" title="Público" />
+                          <div title="Público"><Globe className="h-3 w-3 text-green-600" /></div>
                         ) : (
-                          <Lock className="h-3 w-3 text-muted-foreground" title="Privado" />
+                          <div title="Privado"><Lock className="h-3 w-3 text-muted-foreground" /></div>
                         )}
                         {flow.status === 'published' && (
                           <Badge variant="default" className="text-xs">🚀 Publicado</Badge>

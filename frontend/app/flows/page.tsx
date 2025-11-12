@@ -623,7 +623,7 @@ export default function FlowsPage() {
             
             <div className="flex gap-2">
               <Button
-                variant={filterWhatsApp ? 'success' : 'outline'}
+                variant={filterWhatsApp ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setFilterWhatsApp(!filterWhatsApp)}
                 className={filterWhatsApp ? 'bg-green-500 hover:bg-green-600 text-white' : ''}

@@ -62,8 +62,8 @@ const renderNodePreview = (data: CustomNodeData) => {
   // Renderizar preview baseado no tipo de nó
   switch(data.nodeType) {
     case 'trigger_keyword':
-      if (data.config.keywords) {
-        const keywords = data.config.keywords.split('\n').filter((k: string) => k).slice(0, 2)
+      if (data.config?.keywords) {
+        const keywords = data.config?.keywords.split('\n').filter((k: string) => k).slice(0, 2)
         return (
           <>
             {keywords.map((keyword: string, i: number) => (
@@ -71,8 +71,8 @@ const renderNodePreview = (data: CustomNodeData) => {
                 🔑 {keyword}
               </div>
             ))}
-            {data.config.keywords.split('\n').filter((k: string) => k).length > 2 && (
-              <div className="text-[9px]">+{data.config.keywords.split('\n').filter((k: string) => k).length - 2} mais...</div>
+            {data.config?.keywords.split('\n').filter((k: string) => k).length > 2 && (
+              <div className="text-[9px]">+{data.config?.keywords.split('\n').filter((k: string) => k).length - 2} mais...</div>
             )}
           </>
         )
@@ -80,33 +80,33 @@ const renderNodePreview = (data: CustomNodeData) => {
       break
       
     case 'trigger_webhook':
-      if (data.config.webhookUrl) {
+      if (data.config?.webhookUrl) {
         return (
           <div className="truncate">
-            🌐 {data.config.method || 'POST'}
+            🌐 {data.config?.method || 'POST'}
           </div>
         )
       }
       break
       
     case 'trigger_schedule':
-      if (data.config.time) {
+      if (data.config?.time) {
         return (
           <>
-            <div className="truncate">⏰ {data.config.time}</div>
-            <div className="truncate">{data.config.frequency || 'daily'}</div>
+            <div className="truncate">⏰ {data.config?.time}</div>
+            <div className="truncate">{data.config?.frequency || 'daily'}</div>
           </>
         )
       }
       break
       
     case 'trigger_template_button':
-      if (data.config.templateName) {
-        const buttonCount = data.config.selectedButtons?.length || 0
-        const captureAll = data.config.captureAll
+      if (data.config?.templateName) {
+        const buttonCount = data.config?.selectedButtons?.length || 0
+        const captureAll = data.config?.captureAll
         return (
           <>
-            <div className="truncate">📄 {data.config.templateName}</div>
+            <div className="truncate">📄 {data.config?.templateName}</div>
             <div className="truncate text-[9px]">
               {captureAll ? 'Todos botões' : `${buttonCount} botões`}
             </div>
@@ -116,13 +116,13 @@ const renderNodePreview = (data: CustomNodeData) => {
       break
       
     case 'msg_text':
-      if (data.config?.message && data.config.message.trim()) {
-        const preview = data.config.message.substring(0, 25)
-        const hasVariables = data.config.message.includes('{{')
+      if (data.config?.message && data.config?.message.trim()) {
+        const preview = data.config?.message.substring(0, 25)
+        const hasVariables = data.config?.message.includes('{{')
         return (
           <>
             <div className="truncate text-[10px] max-w-full">
-              💬 {preview}{data.config.message.length > 25 ? '...' : ''}
+              💬 {preview}{data.config?.message.length > 25 ? '...' : ''}
             </div>
             {hasVariables && (
               <div className="text-[9px] truncate">📊 Com variáveis</div>
@@ -140,15 +140,15 @@ const renderNodePreview = (data: CustomNodeData) => {
       
     case 'msg_audio':
       if (data.config?.audioUrl || data.config?.caption) {
-        const urlPreview = data.config.audioUrl ? 
-          (data.config.audioUrl.startsWith('http') ? new URL(data.config.audioUrl).hostname : 'Local') : null
+        const urlPreview = data.config?.audioUrl ? 
+          (data.config?.audioUrl.startsWith('http') ? new URL(data.config?.audioUrl).hostname : 'Local') : null
         return (
           <>
             <div className="truncate text-[10px] max-w-full">
               🎵 {urlPreview || 'Áudio'}
             </div>
-            {data.config.caption && (
-              <div className="text-[9px] truncate">📝 {data.config.caption.substring(0, 20)}</div>
+            {data.config?.caption && (
+              <div className="text-[9px] truncate">📝 {data.config?.caption.substring(0, 20)}</div>
             )}
           </>
         )
@@ -163,15 +163,15 @@ const renderNodePreview = (data: CustomNodeData) => {
       
     case 'msg_video':
       if (data.config?.videoUrl || data.config?.caption) {
-        const urlPreview = data.config.videoUrl ? 
-          (data.config.videoUrl.startsWith('http') ? new URL(data.config.videoUrl).hostname : 'Local') : null
+        const urlPreview = data.config?.videoUrl ? 
+          (data.config?.videoUrl.startsWith('http') ? new URL(data.config?.videoUrl).hostname : 'Local') : null
         return (
           <>
             <div className="truncate text-[10px] max-w-full">
               🎥 {urlPreview || 'Vídeo'}
             </div>
-            {data.config.caption && (
-              <div className="text-[9px] truncate">📝 {data.config.caption.substring(0, 20)}</div>
+            {data.config?.caption && (
+              <div className="text-[9px] truncate">📝 {data.config?.caption.substring(0, 20)}</div>
             )}
           </>
         )
@@ -186,14 +186,14 @@ const renderNodePreview = (data: CustomNodeData) => {
       
     case 'msg_document':
       if (data.config?.documentUrl || data.config?.filename) {
-        const fileName = data.config.filename || 'documento'
+        const fileName = data.config?.filename || 'documento'
         return (
           <>
             <div className="truncate text-[10px] max-w-full">
               📄 {fileName}
             </div>
-            {data.config.caption && (
-              <div className="text-[9px] truncate">📝 {data.config.caption.substring(0, 20)}</div>
+            {data.config?.caption && (
+              <div className="text-[9px] truncate">📝 {data.config?.caption.substring(0, 20)}</div>
             )}
           </>
         )
@@ -208,13 +208,13 @@ const renderNodePreview = (data: CustomNodeData) => {
       
     case 'msg_template':
       if (data.config?.templateName) {
-        const variableCount = data.config.variables?.filter((v: string) => v).length || 0
+        const variableCount = data.config?.variables?.filter((v: string) => v).length || 0
         return (
           <>
-            <div className="truncate">📄 {data.config.templateName}</div>
+            <div className="truncate">📄 {data.config?.templateName}</div>
             <div className="text-[9px] space-y-0.5">
-              {data.config.language && (
-                <div className="truncate">🌐 {data.config.language}</div>
+              {data.config?.language && (
+                <div className="truncate">🌐 {data.config?.language}</div>
               )}
               {variableCount > 0 && (
                 <div className="truncate">📊 {variableCount} variáveis</div>
@@ -232,12 +232,12 @@ const renderNodePreview = (data: CustomNodeData) => {
       break
       
     case 'msg_negotiation_template':
-      if (data.config.debtAmount) {
+      if (data.config?.debtAmount) {
         return (
           <>
-            <div className="truncate">💵 R$ {data.config.debtAmount}</div>
-            {data.config.customerName && (
-              <div className="truncate">👤 {data.config.customerName}</div>
+            <div className="truncate">💵 R$ {data.config?.debtAmount}</div>
+            {data.config?.customerName && (
+              <div className="truncate">👤 {data.config?.customerName}</div>
             )}
           </>
         )
@@ -246,13 +246,13 @@ const renderNodePreview = (data: CustomNodeData) => {
       
     case 'msg_image':
       if (data.config?.imageUrl || data.config?.caption) {
-        const urlPreview = data.config.imageUrl ? 
-          (data.config.imageUrl.startsWith('http') ? new URL(data.config.imageUrl).hostname : 'Local') : null
+        const urlPreview = data.config?.imageUrl ? 
+          (data.config?.imageUrl.startsWith('http') ? new URL(data.config?.imageUrl).hostname : 'Local') : null
         return (
           <>
             <div className="truncate">🖼️ {urlPreview || 'Imagem'}</div>
-            {data.config.caption && (
-              <div className="text-[9px] truncate">📝 {data.config.caption.substring(0, 30)}</div>
+            {data.config?.caption && (
+              <div className="text-[9px] truncate">📝 {data.config?.caption.substring(0, 30)}</div>
             )}
           </>
         )
@@ -266,14 +266,14 @@ const renderNodePreview = (data: CustomNodeData) => {
       break
       
     case 'msg_video':
-      if (data.config.videoUrl || data.config.caption) {
-        const urlPreview = data.config.videoUrl ? 
-          (data.config.videoUrl.startsWith('http') ? new URL(data.config.videoUrl).hostname : 'Local') : null
+      if (data.config?.videoUrl || data.config?.caption) {
+        const urlPreview = data.config?.videoUrl ? 
+          (data.config?.videoUrl.startsWith('http') ? new URL(data.config?.videoUrl).hostname : 'Local') : null
         return (
           <>
             <div className="truncate">🎥 {urlPreview || 'Vídeo'}</div>
-            {data.config.caption && (
-              <div className="text-[9px] truncate">📝 {data.config.caption.substring(0, 30)}</div>
+            {data.config?.caption && (
+              <div className="text-[9px] truncate">📝 {data.config?.caption.substring(0, 30)}</div>
             )}
           </>
         )
@@ -281,9 +281,9 @@ const renderNodePreview = (data: CustomNodeData) => {
       break
       
     case 'msg_audio':
-      if (data.config.audioUrl) {
-        const urlPreview = data.config.audioUrl.startsWith('http') ? 
-          new URL(data.config.audioUrl).hostname : 'Local'
+      if (data.config?.audioUrl) {
+        const urlPreview = data.config?.audioUrl.startsWith('http') ? 
+          new URL(data.config?.audioUrl).hostname : 'Local'
         return (
           <div className="truncate">🎵 {urlPreview}</div>
         )
@@ -291,12 +291,12 @@ const renderNodePreview = (data: CustomNodeData) => {
       break
       
     case 'msg_document':
-      if (data.config.documentUrl || data.config.fileName) {
+      if (data.config?.documentUrl || data.config?.fileName) {
         return (
           <>
-            <div className="truncate">📎 {data.config.fileName || 'Documento'}</div>
-            {data.config.caption && (
-              <div className="text-[9px] truncate">📝 {data.config.caption}</div>
+            <div className="truncate">📎 {data.config?.fileName || 'Documento'}</div>
+            {data.config?.caption && (
+              <div className="text-[9px] truncate">📝 {data.config?.caption}</div>
             )}
           </>
         )
@@ -306,18 +306,18 @@ const renderNodePreview = (data: CustomNodeData) => {
     case 'ai_chatgpt':
     case 'ai_claude':
     case 'ai_gemini':
-      if (data.config.prompt) {
+      if (data.config?.prompt) {
         const modelName = data.nodeType.replace('ai_', '').toUpperCase()
-        const hasVariables = data.config.prompt.includes('{{')
+        const hasVariables = data.config?.prompt.includes('{{')
         return (
           <>
             <div className="truncate">
-              🤖 {data.config.prompt.substring(0, 30)}{data.config.prompt.length > 30 ? '...' : ''}
+              🤖 {data.config?.prompt.substring(0, 30)}{data.config?.prompt.length > 30 ? '...' : ''}
             </div>
             <div className="text-[9px] space-y-0.5">
               <div className="truncate">🧠 {modelName}</div>
-              {data.config.temperature && (
-                <div className="truncate">🌡️ Temp: {data.config.temperature}</div>
+              {data.config?.temperature && (
+                <div className="truncate">🌡️ Temp: {data.config?.temperature}</div>
               )}
               {hasVariables && (
                 <div className="truncate">📊 Com variáveis</div>
@@ -330,18 +330,18 @@ const renderNodePreview = (data: CustomNodeData) => {
       
     case 'api_call':
     case 'api_webhook':
-      if (data.config.url || data.config.webhookUrl) {
-        const url = data.config.url || data.config.webhookUrl
-        const method = data.config.method || 'GET'
-        const hasHeaders = data.config.headers && Object.keys(data.config.headers).length > 0
+      if (data.config?.url || data.config?.webhookUrl) {
+        const url = data.config?.url || data.config?.webhookUrl
+        const method = data.config?.method || 'GET'
+        const hasHeaders = data.config?.headers && Object.keys(data.config?.headers).length > 0
         try {
           const hostname = new URL(url).hostname
           return (
             <>
               <div className="truncate">🌐 {method} {hostname}</div>
               <div className="text-[9px] space-y-0.5">
-                {data.config.endpoint && (
-                  <div className="truncate">📍 {data.config.endpoint}</div>
+                {data.config?.endpoint && (
+                  <div className="truncate">📍 {data.config?.endpoint}</div>
                 )}
                 {hasHeaders && (
                   <div className="truncate">🔑 Headers configurados</div>
@@ -360,8 +360,8 @@ const renderNodePreview = (data: CustomNodeData) => {
     // ========== AI NODES ==========
     case 'ai_chatgpt':
       if (data.config?.prompt) {
-        const promptPreview = data.config.prompt.substring(0, 30)
-        const model = data.config.model || 'gpt-3.5-turbo'
+        const promptPreview = data.config?.prompt.substring(0, 30)
+        const model = data.config?.model || 'gpt-3.5-turbo'
         return (
           <>
             <div className="truncate text-[10px] max-w-full">
@@ -383,8 +383,8 @@ const renderNodePreview = (data: CustomNodeData) => {
       
     case 'ai_claude':
       if (data.config?.prompt) {
-        const promptPreview = data.config.prompt.substring(0, 30)
-        const model = data.config.model || 'claude-3-haiku'
+        const promptPreview = data.config?.prompt.substring(0, 30)
+        const model = data.config?.model || 'claude-3-haiku'
         return (
           <>
             <div className="truncate text-[10px] max-w-full">
@@ -406,8 +406,8 @@ const renderNodePreview = (data: CustomNodeData) => {
       
     case 'ai_gemini':
       if (data.config?.prompt) {
-        const promptPreview = data.config.prompt.substring(0, 30)
-        const model = data.config.model || 'gemini-pro'
+        const promptPreview = data.config?.prompt.substring(0, 30)
+        const model = data.config?.model || 'gemini-pro'
         return (
           <>
             <div className="truncate text-[10px] max-w-full">
@@ -430,15 +430,15 @@ const renderNodePreview = (data: CustomNodeData) => {
     // ========== API NODES ==========
     case 'api_rest':
       if (data.config?.url) {
-        const method = data.config.method || 'GET'
-        const urlPreview = data.config.url.startsWith('http') ? 
-          new URL(data.config.url).hostname : data.config.url.substring(0, 20)
+        const method = data.config?.method || 'GET'
+        const urlPreview = data.config?.url.startsWith('http') ? 
+          new URL(data.config?.url).hostname : data.config?.url.substring(0, 20)
         return (
           <>
             <div className="truncate text-[10px] max-w-full">
               🌐 {method} {urlPreview}
             </div>
-            {data.config.headers && (
+            {data.config?.headers && (
               <div className="text-[9px] truncate">🔑 Com headers</div>
             )}
           </>
@@ -453,7 +453,7 @@ const renderNodePreview = (data: CustomNodeData) => {
       break
       
     case 'condition_if':
-      if (data.config.variable && data.config.operator) {
+      if (data.config?.variable && data.config?.operator) {
         const operators = {
           '==': '=',
           '!=': '≠',
@@ -464,14 +464,14 @@ const renderNodePreview = (data: CustomNodeData) => {
           'contains': 'contém',
           'not_contains': 'não contém'
         }
-        const op = operators[data.config.operator] || data.config.operator
+        const op = operators[data.config?.operator] || data.config?.operator
         return (
           <>
             <div className="truncate">
-              ❔ {data.config.variable}
+              ❔ {data.config?.variable}
             </div>
             <div className="text-[9px] truncate">
-              {op} {data.config.value || '?'}
+              {op} {data.config?.value || '?'}
             </div>
           </>
         )
@@ -479,13 +479,13 @@ const renderNodePreview = (data: CustomNodeData) => {
       break
       
     case 'condition_switch':
-      if (data.config.variable) {
-        const caseCount = data.config.cases?.length || 0
+      if (data.config?.variable) {
+        const caseCount = data.config?.cases?.length || 0
         return (
           <>
-            <div className="truncate">🔀 {data.config.variable}</div>
+            <div className="truncate">🔀 {data.config?.variable}</div>
             <div className="text-[9px] truncate">
-              {caseCount} casos {data.config.hasDefault ? '+ padrão' : ''}
+              {caseCount} casos {data.config?.hasDefault ? '+ padrão' : ''}
             </div>
           </>
         )
@@ -493,16 +493,16 @@ const renderNodePreview = (data: CustomNodeData) => {
       break
       
     case 'flow_delay':
-      if (data.config.delay) {
-        const seconds = parseInt(data.config.delay)
+      if (data.config?.delay) {
+        const seconds = parseInt(data.config?.delay)
         const formatted = seconds >= 60 ? 
           `${Math.floor(seconds/60)}m ${seconds%60}s` : 
           `${seconds}s`
         return (
           <>
             <div className="truncate">⏱️ {formatted}</div>
-            {data.config.randomize && (
-              <div className="text-[9px] truncate">🎲 Aleatório ±{data.config.randomRange}s</div>
+            {data.config?.randomize && (
+              <div className="text-[9px] truncate">🎲 Aleatório ±{data.config?.randomRange}s</div>
             )}
           </>
         )
@@ -510,11 +510,11 @@ const renderNodePreview = (data: CustomNodeData) => {
       break
       
     case 'flow_goto':
-      if (data.config.targetFlow) {
+      if (data.config?.targetFlow) {
         return (
           <>
-            <div className="truncate">↗️ {data.config.targetFlow}</div>
-            {data.config.returnBack && (
+            <div className="truncate">↗️ {data.config?.targetFlow}</div>
+            {data.config?.returnBack && (
               <div className="text-[9px] truncate">↩️ Retornar após</div>
             )}
           </>
@@ -523,11 +523,11 @@ const renderNodePreview = (data: CustomNodeData) => {
       break
       
     case 'flow_loop':
-      if (data.config.maxIterations) {
+      if (data.config?.maxIterations) {
         return (
           <>
-            <div className="truncate">🔄 Máx: {data.config.maxIterations}x</div>
-            {data.config.condition && (
+            <div className="truncate">🔄 Máx: {data.config?.maxIterations}x</div>
+            {data.config?.condition && (
               <div className="text-[9px] truncate">❔ Com condição</div>
             )}
           </>
@@ -539,19 +539,19 @@ const renderNodePreview = (data: CustomNodeData) => {
       return (
         <>
           <div className="truncate">🏁 Finalizar</div>
-          {data.config.reason && (
-            <div className="text-[9px] truncate">📝 {data.config.reason}</div>
+          {data.config?.reason && (
+            <div className="text-[9px] truncate">📝 {data.config?.reason}</div>
           )}
         </>
       )
       
     case 'data_set':
-      if (data.config.variable) {
+      if (data.config?.variable) {
         return (
           <>
-            <div className="truncate">💾 {data.config.variable}</div>
+            <div className="truncate">💾 {data.config?.variable}</div>
             <div className="text-[9px] truncate">
-              = {data.config.value ? data.config.value.substring(0, 20) : '?'}
+              = {data.config?.value ? data.config?.value.substring(0, 20) : '?'}
             </div>
           </>
         )
@@ -559,12 +559,12 @@ const renderNodePreview = (data: CustomNodeData) => {
       break
       
     case 'data_get':
-      if (data.config.variable) {
+      if (data.config?.variable) {
         return (
           <>
-            <div className="truncate">📖 {data.config.variable}</div>
-            {data.config.defaultValue && (
-              <div className="text-[9px] truncate">⚡ Padrão: {data.config.defaultValue}</div>
+            <div className="truncate">📖 {data.config?.variable}</div>
+            {data.config?.defaultValue && (
+              <div className="text-[9px] truncate">⚡ Padrão: {data.config?.defaultValue}</div>
             )}
           </>
         )
@@ -574,8 +574,8 @@ const renderNodePreview = (data: CustomNodeData) => {
     // ========== DATABASE NODES ==========
     case 'db_query':
       if (data.config?.query) {
-        const queryPreview = data.config.query.replace(/\s+/g, ' ').substring(0, 25)
-        const database = data.config.database || 'main'
+        const queryPreview = data.config?.query.replace(/\s+/g, ' ').substring(0, 25)
+        const database = data.config?.database || 'main'
         return (
           <>
             <div className="truncate text-[10px] max-w-full">
@@ -597,11 +597,11 @@ const renderNodePreview = (data: CustomNodeData) => {
       
     case 'db_insert':
       if (data.config?.table) {
-        const table = data.config.table
+        const table = data.config?.table
         let fieldsCount = 0
         try {
-          if (data.config.data) {
-            fieldsCount = Object.keys(JSON.parse(data.config.data)).length
+          if (data.config?.data) {
+            fieldsCount = Object.keys(JSON.parse(data.config?.data)).length
           }
         } catch {
           // Ignore JSON parse errors
@@ -630,8 +630,8 @@ const renderNodePreview = (data: CustomNodeData) => {
     // ========== INTEGRATION NODES ==========
     case 'int_email':
       if (data.config?.to && data.config?.subject) {
-        const to = data.config.to.substring(0, 20)
-        const subject = data.config.subject.substring(0, 25)
+        const to = data.config?.to.substring(0, 20)
+        const subject = data.config?.subject.substring(0, 25)
         return (
           <>
             <div className="truncate text-[10px] max-w-full">
@@ -654,12 +654,12 @@ const renderNodePreview = (data: CustomNodeData) => {
   
   // Fallback para nós de texto que não foram detectados pelo switch
   if (data.label === 'Texto' && data.config?.message) {
-    const preview = data.config.message.substring(0, 40)
-    const hasVariables = data.config.message.includes('{{')
+    const preview = data.config?.message.substring(0, 40)
+    const hasVariables = data.config?.message.includes('{{')
     return (
       <>
         <div className="truncate text-[10px]">
-          💬 {preview}{data.config.message.length > 40 ? '...' : ''}
+          💬 {preview}{data.config?.message.length > 40 ? '...' : ''}
         </div>
         {hasVariables && (
           <div className="text-[9px] truncate">📊 Com variáveis</div>

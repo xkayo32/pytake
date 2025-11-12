@@ -36,27 +36,15 @@ export interface Flow {
   updatedAt: string
   version: number
   apiId?: string
+  whatsapp_numbers?: string[]
+  whatsappNumbers?: string[]
+  triggerType?: string
+  isLegacy?: boolean
 }
 
 export interface FlowTrigger {
-  type: 'keyword' | 'schedule' | 'webhook' | 'event'
-  config: {
-    keywords?: string[]
-    schedule?: {
-      type: 'daily' | 'weekly' | 'monthly'
-      time: string
-      days?: number[]
-    }
-    webhook?: {
-      url: string
-      method: 'GET' | 'POST'
-      headers?: Record<string, string>
-    }
-    event?: {
-      type: string
-      conditions?: Record<string, any>
-    }
-  }
+  type: 'keyword' | 'schedule' | 'webhook' | 'event' | string
+  config: Record<string, any>
 }
 
 export interface NodeType {
@@ -79,6 +67,7 @@ export interface NodeType {
         min?: number
         max?: number
         pattern?: string
+        step?: number
       }
     }
   }
