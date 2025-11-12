@@ -44,10 +44,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
-import { Flow } from '@/lib/types/flow'
+// (removido import duplicado de Flow)
 
 // Mock data
-const mockFlows: Flow[] = [
+const mockFlows: any[] = [
   {
     id: '1',
     name: 'Boas-vindas Novo Cliente',
@@ -491,9 +491,9 @@ export default function FlowsPage() {
   const totalStats = {
     total: flows.length,
     active: flows.filter(f => f.status === 'active').length,
-    executions: flows.reduce((sum, f) => sum + f.stats.executions, 0),
+    executions: flows.reduce((sum, f) => sum + (f.stats?.executions || 0), 0),
     avgSuccessRate: flows.length > 0 
-      ? flows.reduce((sum, f) => sum + f.stats.successRate, 0) / flows.length 
+      ? flows.reduce((sum, f) => sum + (f.stats?.successRate || 0), 0) / flows.length 
       : 0
   }
 
@@ -781,18 +781,18 @@ export default function FlowsPage() {
                     {/* Stats */}
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                       <div className="text-center">
-                        <p className="text-2xl font-bold text-primary">{flow.stats.executions}</p>
+                        <p className="text-2xl font-bold text-primary">{flow.stats?.executions ?? 0}</p>
                         <p className="text-xs text-muted-foreground">Execuções</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-2xl font-bold text-green-600">{flow.stats.successRate}%</p>
+                        <p className="text-2xl font-bold text-green-600">{flow.stats?.successRate ?? 0}%</p>
                         <p className="text-xs text-muted-foreground">Sucesso</p>
                       </div>
                     </div>
 
                     {/* Tags */}
                     <div className="flex flex-wrap gap-1">
-                      {flow.tags.map((tag) => (
+                      {(flow.tags || []).map((tag: string) => (
                         <Badge key={tag} variant="secondary" className="text-xs">
                           {tag}
                         </Badge>
@@ -940,11 +940,11 @@ export default function FlowsPage() {
                           <div className="text-sm">{getTriggerFromFlow(flow)}</div>
                         </td>
                         <td className="p-4 text-center">
-                          <div className="font-medium">{flow.stats.executions}</div>
+                          <div className="font-medium">{flow.stats?.executions ?? 0}</div>
                         </td>
                         <td className="p-4 text-center">
                           <div className="font-medium text-green-600">
-                            {flow.stats.successRate}%
+                            {flow.stats?.successRate ?? 0}%
                           </div>
                         </td>
                         <td className="p-4">

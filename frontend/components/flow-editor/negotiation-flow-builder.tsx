@@ -51,15 +51,16 @@ export function NegotiationFlowBuilder({ onFlowGenerated }: NegotiationFlowBuild
   const updateConfig = (path: string, value: any) => {
     setConfig(prev => {
       const keys = path.split('.')
-      const updated = { ...prev }
-      let current = updated
-      
+      const updated: any = { ...prev }
+      let current: any = updated
+      // Navegar criando objetos intermediários se necessário
       for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]]
+        const k = keys[i]
+        if (current[k] === undefined) current[k] = {}
+        current = current[k]
       }
       current[keys[keys.length - 1]] = value
-      
-      return updated
+      return updated as typeof prev
     })
   }
 

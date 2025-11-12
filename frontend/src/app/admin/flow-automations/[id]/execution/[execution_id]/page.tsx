@@ -3,7 +3,7 @@
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Zap } from 'lucide-react';
-import { flowAutomationsAPI } from '@/lib/api';
+import api from '@/lib/api';
 
 export default function AutomationExecutionMonitorPage() {
   const router = useRouter();
@@ -17,8 +17,8 @@ export default function AutomationExecutionMonitorPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await flowAutomationsAPI.getStats(automationId);
-        setStats(res.data);
+  const res = await api.get(`/flow-automations/${automationId}/stats`);
+  setStats(res.data);
       } catch (error) {
         console.error('Erro ao carregar estatísticas:', error);
       } finally {

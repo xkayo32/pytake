@@ -23,7 +23,8 @@ function FormField({
   children,
   id
 }: FormFieldProps) {
-  const fieldId = id || React.useId()
+  const generatedId = React.useId()
+  const fieldId = id ?? generatedId
   const helpId = helpText ? `${fieldId}-help` : undefined
   const errorId = error ? `${fieldId}-error` : undefined
 
@@ -48,11 +49,13 @@ function FormField({
       )}
 
       <div className="relative">
-        {React.cloneElement(children as React.ReactElement, {
-          id: fieldId,
-          'aria-describedby': [helpId, errorId].filter(Boolean).join(' ') || undefined,
-          'aria-invalid': error ? 'true' : undefined,
-        })}
+        {React.isValidElement(children)
+          ? React.cloneElement(children as React.ReactElement<any>, {
+              id: fieldId,
+              'aria-describedby': [helpId, errorId].filter(Boolean).join(' ') || undefined,
+              'aria-invalid': error ? 'true' : undefined,
+            })
+          : children}
       </div>
 
       {helpText && (

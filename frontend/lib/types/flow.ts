@@ -30,8 +30,8 @@ export interface Flow {
   description: string
   nodes: FlowNode[]
   edges: FlowEdge[]
-  trigger: FlowTrigger
-  status: 'active' | 'inactive' | 'draft'
+  trigger: FlowTrigger | string
+  status: 'active' | 'inactive' | 'draft' | 'published'
   createdAt: string
   updatedAt: string
   version: number
@@ -40,6 +40,13 @@ export interface Flow {
   whatsappNumbers?: string[]
   triggerType?: string
   isLegacy?: boolean
+  // Algumas respostas do backend usam um wrapper "flow" com nodes/edges
+  flow?: { nodes: FlowNode[]; edges: FlowEdge[] }
+  // Metadados opcionais usados na UI
+  stats?: { executions: number; successRate: number; lastExecution?: string }
+  tags?: string[]
+  isDraft?: boolean
+  isLocal?: boolean
 }
 
 export interface FlowTrigger {

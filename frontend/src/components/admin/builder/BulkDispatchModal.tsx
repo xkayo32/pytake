@@ -2,8 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { X, Upload, Calendar, Play, Clock, Plus, Trash2, Info } from "lucide-react";
-import { contactsAPI, flowAutomationsAPI, whatsappAPI } from "@/lib/api";
-import type { Flow } from "@/types/chatbot";
+import api from "@/lib/api";
+import type { Flow } from "@/lib/types/flow";
 
 type RecipientRow = {
   phone: string;
@@ -74,7 +74,7 @@ export default function BulkDispatchModal({ isOpen, onClose, chatbotId, flow }: 
     if (!isOpen) return;
     (async () => {
       try {
-        const res = await whatsappAPI.list();
+        const res = await api.get('/whatsapp/numbers');
         const items = Array.isArray(res?.data) ? res.data : (res?.data?.items || []);
         setWhatsappNumbers(items);
         if (items?.[0]?.id) setSelectedNumberId(items[0].id);
@@ -136,14 +136,14 @@ export default function BulkDispatchModal({ isOpen, onClose, chatbotId, flow }: 
     for (const row of rows) {
       const whatsapp_id = row.phone;
       try {
-        const created = await contactsAPI.create({ whatsapp_id, name: row.name, email: row.email });
+  const created = await api.post('/contacts', { whatsapp_id, name: row.name, email: row.email });
         const id = created?.data?.id;
         if (id) ids.push(id);
         continue;
       } catch (e: any) {
         // If conflict (already exists), try to find via search
         try {
-          const found = await contactsAPI.list({ query: whatsapp_id, limit: 1 });
+          const found = await api.get('/contacts', { params: { query: whatsapp_id, limit: 1 } });
           const id = found?.data?.[0]?.id;
           if (id) ids.push(id);
           continue;
@@ -210,14 +210,14 @@ export default function BulkDispatchModal({ isOpen, onClose, chatbotId, flow }: 
         rate_limit_per_hour: 500,
       } as any;
 
-      const created = await flowAutomationsAPI.create(payload);
+  const created = await api.post('/flow-automations', payload);
       const automationId = created?.data?.id;
 
       if (!automationId) throw new Error("Falha ao criar automação");
 
       // 3) Se não for agendado, iniciar agora
       if (!scheduleEnabled) {
-        await flowAutomationsAPI.start(automationId);
+  await api.post(`/flow-automations/${automationId}/start`);
         setSuccessMessage("Disparo iniciado com sucesso!");
       } else {
         setSuccessMessage("Automação criada e agendada.");

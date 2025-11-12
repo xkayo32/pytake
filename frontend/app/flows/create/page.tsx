@@ -24,6 +24,9 @@ import { nodeTypes } from '@/components/flow-editor/nodes/custom-nodes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { CardSkeleton } from '@/components/ui/skeleton'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
+import { FormField } from '@/components/ui/form-field'
 import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { NodeType } from '@/lib/types/flow'
@@ -810,7 +813,10 @@ function FlowEditor() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="space-y-4 w-full max-w-md">
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
       </div>
     )
   }

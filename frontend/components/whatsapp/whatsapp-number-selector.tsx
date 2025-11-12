@@ -82,35 +82,45 @@ export function WhatsAppNumberSelector({
         // Verificar se tem dados válidos
         if (data && Array.isArray(data) && data.length > 0) {
           // Formatar números da API para o formato esperado
-          const formattedNumbers = data.map((num: any) => ({
-            id: num.id || num.phone || `num-${Date.now()}`,
-            phone: num.phone || num.number,
-            name: num.name || num.label || 'Número WhatsApp',
-            status: num.status === 'connected' ? 'connected' : 
-                   num.status === 'CONNECTED' ? 'connected' : 
-                   num.status === 'DISCONNECTED' ? 'disconnected' : 
-                   num.status === 'disconnected' ? 'disconnected' : 'pending',
-            isVerified: num.verified || num.isVerified || false,
-            businessName: num.businessName || num.business_name,
-            lastSeen: num.lastSeen || num.last_seen
-          }))
+          const formattedNumbers: WhatsAppNumber[] = data.map((num: any) => {
+            const status: 'connected' | 'disconnected' | 'pending' =
+              num.status === 'connected' || num.status === 'CONNECTED'
+                ? 'connected'
+                : num.status === 'disconnected' || num.status === 'DISCONNECTED'
+                ? 'disconnected'
+                : 'pending'
+            return {
+              id: num.id || num.phone || `num-${Date.now()}`,
+              phone: num.phone || num.number,
+              name: num.name || num.label || 'Número WhatsApp',
+              status,
+              isVerified: !!(num.verified || num.isVerified),
+              businessName: num.businessName || num.business_name,
+              lastSeen: num.lastSeen || num.last_seen,
+            }
+          })
           setNumbers(formattedNumbers)
         } else if (data && typeof data === 'object' && !Array.isArray(data)) {
           // Se retornar um objeto, tentar extrair números
           const numbers = data.numbers || data.data || []
           if (numbers.length > 0) {
-            const formattedNumbers = numbers.map((num: any) => ({
-              id: num.id || num.phone || `num-${Date.now()}`,
-              phone: num.phone || num.number,
-              name: num.name || num.label || 'Número WhatsApp',
-              status: num.status === 'connected' ? 'connected' : 
-                     num.status === 'CONNECTED' ? 'connected' : 
-                     num.status === 'DISCONNECTED' ? 'disconnected' : 
-                     num.status === 'disconnected' ? 'disconnected' : 'pending',
-              isVerified: num.verified || num.isVerified || false,
-              businessName: num.businessName || num.business_name,
-              lastSeen: num.lastSeen || num.last_seen
-            }))
+            const formattedNumbers: WhatsAppNumber[] = numbers.map((num: any) => {
+              const status: 'connected' | 'disconnected' | 'pending' =
+                num.status === 'connected' || num.status === 'CONNECTED'
+                  ? 'connected'
+                  : num.status === 'disconnected' || num.status === 'DISCONNECTED'
+                  ? 'disconnected'
+                  : 'pending'
+              return {
+                id: num.id || num.phone || `num-${Date.now()}`,
+                phone: num.phone || num.number,
+                name: num.name || num.label || 'Número WhatsApp',
+                status,
+                isVerified: !!(num.verified || num.isVerified),
+                businessName: num.businessName || num.business_name,
+                lastSeen: num.lastSeen || num.last_seen,
+              }
+            })
             setNumbers(formattedNumbers)
           } else {
             // Se não houver números, usar mock

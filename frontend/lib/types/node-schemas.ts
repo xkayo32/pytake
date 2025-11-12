@@ -12,6 +12,7 @@ export interface NodeSchema {
     min?: number
     max?: number
     pattern?: string
+    step?: number // Adicionado para suportar campos numéricos com incremento customizado
   }
   dependsOn?: string // Campo que depende de outro campo
   showWhen?: string // Condição para mostrar o campo (ex: "captureAll:false")

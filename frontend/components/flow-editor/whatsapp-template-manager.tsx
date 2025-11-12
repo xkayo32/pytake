@@ -209,7 +209,8 @@ export function WhatsAppTemplateManager({ isOpen, onClose }: WhatsAppTemplateMan
   const handleEditTemplate = (template: WhatsAppTemplate) => {
     setEditingTemplate(template)
     setTemplateName(template.name.replace(/_/g, ' '))
-    setTemplateCategory(template.category)
+    // Categoria pode vir como string dinâmica da API; forçar tipo conhecido ou manter anterior
+    setTemplateCategory((template.category as any) as 'MARKETING' | 'UTILITY' | 'AUTHENTICATION')
     
     const header = template.components.find(c => c.type === 'HEADER')
     const body = template.components.find(c => c.type === 'BODY')
