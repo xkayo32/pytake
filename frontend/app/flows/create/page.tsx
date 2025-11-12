@@ -583,7 +583,7 @@ function FlowEditor() {
             ...flow, 
             id: flowId || flow.id || `flow-${Date.now()}`,
             status: 'active'
-          }
+          } as any
         })
       } else {
         // Flow já existe no backend, apenas atualizar

@@ -143,7 +143,7 @@ function FlowEditor() {
           setNodes(correctedNodes)
           setEdges(flowEdges)
           
-          useFlowEditorStore.setState({ 
+          useFlowEditorStore.setState({
             flow: {
               ...flowData,
               id: flowId, // Use URL ID
@@ -182,7 +182,7 @@ function FlowEditor() {
             setNodes(correctedNodes)
             setEdges(flowData.flow?.edges || [])
             
-            useFlowEditorStore.setState({ 
+            useFlowEditorStore.setState({
               flow: flowData,
               isDirty: false 
             })
@@ -223,7 +223,7 @@ function FlowEditor() {
         setNodes([])
         setEdges([])
         
-        useFlowEditorStore.setState({ 
+        useFlowEditorStore.setState({
           flow: emptyFlow,
           isDirty: true // Marcar como dirty para permitir salvar
         })
@@ -261,7 +261,7 @@ function FlowEditor() {
         setNodes([])
         setEdges([])
         
-        useFlowEditorStore.setState({ 
+        useFlowEditorStore.setState({
           flow: emptyFlow,
           isDirty: true // Marcar como dirty para permitir salvar
         })
@@ -634,7 +634,7 @@ function FlowEditor() {
           id: currentFlowId
         }
         
-        useFlowEditorStore.setState({ 
+        useFlowEditorStore.setState({
           flow: updatedFlow
         })
         
@@ -948,7 +948,7 @@ function FlowEditor() {
         edges: flowEdges
       }
       
-      useFlowEditorStore.setState({ 
+      useFlowEditorStore.setState({
         flow: newFlow,
         isDirty: true 
       })
@@ -1074,8 +1074,8 @@ function FlowEditor() {
                 if (flow) {
                   // Usar setState diretamente para manter isDirty como true
                   // Não usar setIsDirty que não existe!
-                  useFlowEditorStore.setState({ 
-                    flow: { ...flow, name: newName },
+                  useFlowEditorStore.setState({
+                    flow: { ...flow, name: newName } as any,
                     isDirty: true 
                   })
                 }
