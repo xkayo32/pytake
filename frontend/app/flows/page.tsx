@@ -31,6 +31,7 @@ import { Input } from '@/components/ui/input'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { WhatsAppNumberSelector } from '@/components/whatsapp/whatsapp-number-selector'
+import { Flow } from '@/lib/types/flow'
 import {
   Dialog,
   DialogContent,

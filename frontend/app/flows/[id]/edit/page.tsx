@@ -639,7 +639,7 @@ function FlowEditor() {
         })
         
         // Usar o flow recém criado para ativar
-        flow = updatedFlow
+        // flow = updatedFlow  // REMOVIDO: não pode reatribuir const
         
         console.log('✅ Flow criado no backend com ID:', currentFlowId)
       }

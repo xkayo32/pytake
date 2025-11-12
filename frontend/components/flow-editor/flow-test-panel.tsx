@@ -198,7 +198,7 @@ export function FlowTestPanel({
                       Envia mensagens reais via WhatsApp para um número
                     </p>
                     {canUseRealTest ? (
-                      <Badge variant="success" className="mt-2 text-xs bg-green-500 text-white">
+                      <Badge className="mt-2 text-xs bg-green-500 text-white">
                         Disponível
                       </Badge>
                     ) : (
