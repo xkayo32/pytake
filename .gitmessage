@@ -1,0 +1,8 @@
+# <tipo>: <descrição breve>
+#
+# <descrição detalhada - opcional>
+#
+# Tipos: feat, fix, refactor, docs, test, chore, perf, style
+# Exemplo: feat: add new search endpoint
+#
+# Leia: .github/QUICK_START.md para mais detalhes

@@ -67,7 +67,29 @@ docker-compose ps
          └──────────── Nginx Proxy ──────────────────────────┘
 ```
 
-## 🔧 Desenvolvimento
+## � GitFlow & CI/CD
+
+Este projeto segue **GitFlow Workflow** com CI/CD automático.
+
+**⚠️ IMPORTANTE:**
+- ❌ NUNCA fazer `git push origin main` ou `develop`
+- ✅ SEMPRE criar branches: `feature/TICKET-XXX`, `hotfix/TICKET-XXX`
+- ✅ SEMPRE fazer PRs (Pull Requests)
+- ✅ CI/CD automático: lint, tests, build
+
+**Documentação:**
+- 📖 [.github/QUICK_START.md](.github/QUICK_START.md) - Comece aqui (5 min)
+- 🤖 [.github/AGENT_INSTRUCTIONS.md](.github/AGENT_INSTRUCTIONS.md) - Para agentes IA
+- 📚 [.github/GIT_WORKFLOW.md](.github/GIT_WORKFLOW.md) - Workflow completo
+- 📋 [.github/INDEX.md](.github/INDEX.md) - Índice de todos os documentos
+
+**Setup inicial:**
+```bash
+bash setup-git-config.sh
+cat .copilot-instructions
+```
+
+## �🔧 Desenvolvimento
 
 ### Estrutura do Projeto
 
@@ -78,6 +100,9 @@ pytake-backend/
 ├── migrations/          # Scripts SQL
 ├── docker-compose.yml   # Orquestração Docker
 ├── nginx.conf          # Configuração Nginx
+├── .github/            # Documentação e workflows CI/CD
+├── .copilot-instructions # Instruções do Copilot (em todas as branches)
+├── setup-git-config.sh # Setup de Git
 └── certbot/            # Certificados SSL
 ```
 

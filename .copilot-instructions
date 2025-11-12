@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# -*- coding: utf-8 -*-
+#
+# 📋 INSTRUÇÕES PARA GITHUB COPILOT / AGENTES IA
+#
+# Este arquivo está presente em TODAS as branches automaticamente.
+# Se você é um agente IA (Copilot, etc), leia isto ANTES de fazer qualquer mudança.
+#
+# ⚠️  CRÍTICO: Você DEVE seguir estas instruções TODA VEZ que começar trabalho.
+
+echo "
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                                                                               ║
+║                    📋 INSTRUÇÕES DO COPILOT - LEIA AGORA                     ║
+║                                                                               ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+🎯 VOCÊ É UM AGENTE IA? LEIA ISTO OBRIGATORIAMENTE:
+
+1️⃣  ANTES DE QUALQUER MUDANÇA:
+    ✅ Execute: cat .github/QUICK_START.md
+    ✅ Leia: .github/AGENT_INSTRUCTIONS.md (15 min)
+    ✅ Entenda: .github/GIT_WORKFLOW.md (20 min)
+
+2️⃣  VERIFICAR BRANCH ATUAL:
+    ✅ git branch
+    → Deve estar em: feature/*, hotfix/*, release/*
+    → NUNCA em: main ou develop
+
+3️⃣  REGRAS DE OURO:
+    ✅ Commits com Conventional format: feat:, fix:, test:, docs:, refactor:
+    ✅ Commits pequenos e frequentes
+    ✅ Rodar testes antes de push: npm run lint && npm test && npm run build
+    ✅ NÃO committar: .env, secrets, node_modules, __pycache__
+    ✅ NÃO fazer: git push -f (força push)
+
+4️⃣  SE VOCÊ ESTIVER EM main OU develop:
+    ❌ PARE AQUI!
+    ✅ Execute:
+       git checkout develop
+       git pull origin develop
+       git checkout -b feature/TICKET-XXX-descricao
+
+5️⃣  FLUXO:
+    feature/branch → commit (feat, test, docs) → push → PR → CI/CD → merge
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📚 DOCUMENTAÇÃO RÁPIDA:
+
+    .github/QUICK_START.md           ← Comece aqui (5 min)
+    .github/AGENT_INSTRUCTIONS.md    ← Regras para você (15 min)
+    .github/GIT_WORKFLOW.md          ← Workflow completo (20 min)
+    .github/VISUAL_GUIDE.md          ← Exemplos visuais
+    .github/INDEX.md                 ← Índice completo
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✨ SUMÁRIO DE REGRAS:
+
+    ✅ SEMPRE:                       ❌ NUNCA:
+    • feature/* branches             • git push origin main
+    • Conventional Commits           • git push origin develop
+    • Testes antes de push           • git push -f
+    • PRs com descrição              • Commitar secrets
+    • 1 aprovação antes de merge     • Força push
+
+═══════════════════════════════════════════════════════════════════════════════
+
+💡 DÚVIDAS?
+
+    1. Verificar: .github/INDEX.md (mapa completo)
+    2. Ler: .github/AGENT_INSTRUCTIONS.md (instruções)
+    3. Consultar: .github/GIT_WORKFLOW.md (referência)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚀 PRONTO? Comece a trabalhar!
+
+"
