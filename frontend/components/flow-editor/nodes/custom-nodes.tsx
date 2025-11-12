@@ -464,7 +464,8 @@ const renderNodePreview = (data: CustomNodeData) => {
           'contains': 'contém',
           'not_contains': 'não contém'
         }
-        const op = operators[data.config?.operator] || data.config?.operator
+  const operatorKey = data.config?.operator as keyof typeof operators | undefined
+  const op = operatorKey ? operators[operatorKey] : data.config?.operator
         return (
           <>
             <div className="truncate">
@@ -670,7 +671,7 @@ const renderNodePreview = (data: CustomNodeData) => {
   
   // Fallback genérico
   if (data.config) {
-    const configKeys = Object.keys(data.config).filter(k => k !== 'customName' && data.config[k])
+  const configKeys = Object.keys(data.config).filter(k => k !== 'customName' && (data.config as any)[k])
     if (configKeys.length > 0) {
       return (
         <div className="truncate text-[9px]">

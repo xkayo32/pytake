@@ -647,11 +647,11 @@ function FlowEditor() {
       // Backend não tem rota PUT, criar novo flow com status active
       console.log('🔄 Criando versão ativa do flow no backend')
       
-      const currentFlowData = flow || useFlowEditorStore.getState().flow
+  const currentFlowData = (flow || useFlowEditorStore.getState().flow) as any
       
       // IMPORTANTE: Usar os nodes e edges do flow salvo ou do estado atual
-      const flowNodes = (currentFlowData as any).flow?.nodes || currentFlowData.nodes || nodes
-      const flowEdges = (currentFlowData as any).flow?.edges || currentFlowData.edges || edges
+  const flowNodes = (currentFlowData?.flow?.nodes || currentFlowData?.nodes || nodes) as any[]
+  const flowEdges = (currentFlowData?.flow?.edges || currentFlowData?.edges || edges) as any[]
       
       // Verificar se temos conteúdo
       if (flowNodes.length === 0) {
@@ -772,15 +772,15 @@ function FlowEditor() {
       await handleSave()
     }
     
-    const currentFlowData = flow || {}
+  const currentFlowData: any = flow || {}
     
     // IMPORTANTE: Usar os nodes e edges do flow salvo, não os do estado atual
     // que podem estar vazios devido a problemas de sincronização
-    const flowNodes = currentFlowData.flow?.nodes || currentFlowData.nodes || nodes
-    const flowEdges = currentFlowData.flow?.edges || currentFlowData.edges || edges
+  const flowNodes = (currentFlowData.flow?.nodes || currentFlowData.nodes || nodes) as any[]
+  const flowEdges = (currentFlowData.flow?.edges || currentFlowData.edges || edges) as any[]
     
     // Verificar se realmente temos conteúdo
-    if (flowNodes.length === 0 && edges.length === 0) {
+  if ((flowNodes?.length || 0) === 0 && (flowEdges?.length || 0) === 0) {
       console.warn('⚠️ Tentativa de desativar flow vazio - abortando')
       setNotification({ 
         message: 'Flow está vazio. Adicione nós antes de desativar.', 
