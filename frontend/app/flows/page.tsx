@@ -32,6 +32,9 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { WhatsAppNumberSelector } from '@/components/whatsapp/whatsapp-number-selector'
 import { Flow } from '@/lib/types/flow'
+import { EmptyState } from '@/components/ui/empty-state'
+import { CardSkeleton } from '@/components/ui/skeleton'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
 import {
   Dialog,
   DialogContent,
@@ -495,26 +498,27 @@ export default function FlowsPage() {
   }
 
   return (
-    <AppLayout>
-      <div className="flex flex-col h-full">
-        {/* Header */}
-        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
-          <div className="container flex h-16 items-center justify-between px-4">
-            <div>
-              <h1 className="text-2xl font-bold">Flows de Automação</h1>
-              <p className="text-sm text-muted-foreground">
-                Gerencie seus fluxos automatizados do WhatsApp
-              </p>
+    <ErrorBoundary>
+      <AppLayout>
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
+            <div className="container flex h-16 items-center justify-between px-4">
+              <div>
+                <h1 className="text-2xl font-bold">Flows de Automação</h1>
+                <p className="text-sm text-muted-foreground">
+                  Gerencie seus fluxos automatizados do WhatsApp
+                </p>
+              </div>
+              <Button onClick={handleCreateNewFlow} disabled={loading}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Flow
+              </Button>
             </div>
-            <Button onClick={handleCreateNewFlow} disabled={loading}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Flow
-            </Button>
-          </div>
-        </header>
+          </header>
 
-        {/* Content */}
-        <main className="flex-1 overflow-auto p-6">
+          {/* Content */}
+          <main className="flex-1 overflow-auto p-6">
           {/* Stats Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <Card className="border-l-4 border-l-blue-500">
@@ -654,25 +658,27 @@ export default function FlowsPage() {
           </div>
 
           {/* Flows Grid or List */}
-          {filteredFlows.length === 0 ? (
-            <Card className="p-12">
-              <div className="text-center text-muted-foreground">
-                <Zap className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-medium mb-2">Nenhum flow encontrado</h3>
-                <p className="mb-4">
-                  {searchTerm 
-                    ? 'Tente ajustar os filtros de busca' 
-                    : 'Crie seu primeiro flow de automação'
-                  }
-                </p>
-                {!searchTerm && (
-                  <Button onClick={handleCreateNewFlow} disabled={loading}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Criar Primeiro Flow
-                  </Button>
-                )}
-              </div>
-            </Card>
+          {loading ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <CardSkeleton key={i} />
+              ))}
+            </div>
+          ) : filteredFlows.length === 0 ? (
+            <EmptyState
+              icon={<Zap className="h-16 w-16 opacity-50" />}
+              title={searchTerm ? "Nenhum flow encontrado" : "Nenhum flow criado ainda"}
+              description={
+                searchTerm 
+                  ? "Tente ajustar os filtros de busca ou criar um novo flow" 
+                  : "Crie seu primeiro flow de automação para começar a automatizar suas conversas no WhatsApp"
+              }
+              action={!searchTerm ? {
+                label: "Criar Primeiro Flow",
+                onClick: handleCreateNewFlow,
+                variant: "default"
+              } : undefined}
+            />
           ) : viewMode === 'cards' ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredFlows.map((flow) => (
@@ -1021,5 +1027,6 @@ export default function FlowsPage() {
         </Dialog>
       </div>
     </AppLayout>
+    </ErrorBoundary>
   )
 }
