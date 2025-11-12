@@ -659,7 +659,11 @@ export default function FlowsPage() {
 
           {/* Flows Grid or List */}
           {loading ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div
+              className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+              role="status"
+              aria-label="Carregando flows"
+            >
               {Array.from({ length: 6 }).map((_, i) => (
                 <CardSkeleton key={i} />
               ))}
