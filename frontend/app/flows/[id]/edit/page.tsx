@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
 import { useAuth } from '@/lib/hooks/useAuth'
-import { NodeType } from '@/lib/types/flow'
+import { NodeType, Flow } from '@/lib/types/flow'
 import { 
   Save, 
   Play, 
@@ -203,19 +203,21 @@ function FlowEditor() {
         console.log('Flow not found with ID:', flowId)
         
         // Criar um flow vazio para editar
-        const emptyFlow = {
+        const emptyFlow: Flow = {
           id: flowId,
           name: 'Novo Flow',
           description: '',
-          status: 'draft',
-          flow: {
-            nodes: [],
-            edges: []
-          },
+          status: 'draft' as any,
+          nodes: [],
+          edges: [],
           trigger: {
             type: 'keyword',
             config: {}
-          }
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          version: 1,
+          whatsapp_numbers: []
         }
         
         setNodes([])
@@ -239,19 +241,21 @@ function FlowEditor() {
         console.error('Error loading flow:', error)
         
         // Em caso de erro, criar flow vazio ao invés de redirecionar
-        const emptyFlow = {
+        const emptyFlow: Flow = {
           id: flowId,
           name: 'Novo Flow',
           description: '',
-          status: 'draft',
-          flow: {
-            nodes: [],
-            edges: []
-          },
+          status: 'draft' as any,
+          nodes: [],
+          edges: [],
           trigger: {
             type: 'keyword',
             config: {}
-          }
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          version: 1,
+          whatsapp_numbers: []
         }
         
         setNodes([])
