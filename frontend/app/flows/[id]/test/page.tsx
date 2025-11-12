@@ -860,7 +860,7 @@ export default function FlowTestPage() {
               Debug
             </h3>
             <div className="flex gap-1">
-              <Badge variant={useRealWhatsApp ? 'success' : 'secondary'} className="text-xs px-2 py-0.5">
+              <Badge variant={useRealWhatsApp ? 'default' : 'secondary'} className={`text-xs px-2 py-0.5 ${useRealWhatsApp ? 'bg-green-600' : ''}`}>
                 {useRealWhatsApp ? '📱 Real' : '🔧 Mock'}
               </Badge>
               <Badge variant={testMode ? 'default' : 'destructive'} className="text-xs px-2 py-0.5">

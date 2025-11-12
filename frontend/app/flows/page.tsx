@@ -582,7 +582,7 @@ export default function FlowsPage() {
                 <div className="flex items-baseline gap-2">
                   <div className="text-2xl font-bold">{totalStats.avgSuccessRate.toFixed(1)}%</div>
                   {totalStats.avgSuccessRate >= 90 && (
-                    <Badge variant="success" className="text-xs">Excelente</Badge>
+                    <Badge className="text-xs bg-green-100 text-green-800">Excelente</Badge>
                   )}
                 </div>
                 <div className="mt-2 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -703,7 +703,6 @@ export default function FlowsPage() {
                       title={`WhatsApp: ${flow.whatsapp_numbers.join(', ')}`}
                     >
                       <Badge 
-                        variant="success" 
                         className="bg-green-500 text-white hover:bg-green-600 cursor-help"
                       >
                         <Phone className="h-3 w-3 mr-1" />
@@ -905,7 +904,6 @@ export default function FlowsPage() {
                                   title={`WhatsApp: ${flow.whatsapp_numbers.join(', ')}`}
                                 >
                                   <Badge 
-                                    variant="success" 
                                     className="bg-green-500 text-white text-xs cursor-help"
                                   >
                                     <Phone className="h-3 w-3 mr-1" />

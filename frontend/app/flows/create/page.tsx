@@ -581,7 +581,7 @@ function FlowEditor() {
         useFlowEditorStore.setState({ 
           flow: { 
             ...flow, 
-            id: flowId,
+            id: flowId || flow.id || `flow-${Date.now()}`,
             status: 'active'
           }
         })
