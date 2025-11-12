@@ -1,5 +1,8 @@
 # PyTake - WhatsApp Business Automation Platform
 
+> ⚠️ **Atenção**: Este repositório está em processo de migração para arquitetura multi-repositório.  
+> Consulte [.github/MIGRATION_GUIDE.md](.github/MIGRATION_GUIDE.md) para detalhes.
+
 ## 🚀 Visão Geral
 
 PyTake é uma plataforma completa para automação de WhatsApp Business API, permitindo criar flows visuais, gerenciar conversas e automatizar atendimento ao cliente.
@@ -15,55 +18,107 @@ PyTake é uma plataforma completa para automação de WhatsApp Business API, per
 
 ## 🛠 Stack Tecnológica
 
-- **Backend**: Go com Gin framework
-- **Frontend**: Next.js 15.4.6 com React Flow
+- **Backend**: Python (FastAPI + SQLAlchemy + Alembic)
+- **Frontend**: Next.js 15 com React 19 + TypeScript
 - **Database**: PostgreSQL 15 com JSONB
 - **Cache**: Redis 7
 - **Proxy**: Nginx com SSL
-- **Containerização**: Docker + Docker Compose
+- **Containerização**: Podman/Docker Compose
+
+## 📚 Documentação
+
+### Essenciais
+- 📖 [Guia de Migração Multi-repo](.github/MIGRATION_GUIDE.md) - Transição para arquitetura separada
+- 📐 [Decisões de Arquitetura](.github/ARCHITECTURE_DECISIONS.md) - ADRs e justificativas técnicas
+- 📋 [Contrato de API v1](.github/API_CONTRACT.md) - Documentação completa dos endpoints
+
+### GitFlow & CI/CD
+- 🔀 [Git Workflow](.github/GIT_WORKFLOW.md) - Processo de branches e PRs
+- 🤖 [Instruções para Agentes](.github/AGENT_INSTRUCTIONS.md) - Guia para IA/automações
+- 🚀 [Quick Start](.github/QUICK_START.md) - Comece em 5 minutos
 
 ## 🏃‍♂️ Início Rápido
 
-### Pré-requisitos
-- Docker e Docker Compose
-- Domínio configurado (opcional para desenvolvimento)
+### ⚙️ Setup Atual (Monorepo)
 
-### Instalação
+**Pré-requisitos:**
+- Podman ou Docker + Docker Compose
+- Python 3.11+
+- Node.js 20+
 
-1. **Clone o repositório**
+**Instalação:**
+
 ```bash
-git clone <repository-url>
-cd pytake-backend
-```
+# 1. Clone o repositório
+git clone https://github.com/xkayo32/pytake
+cd pytake
 
-2. **Configure as variáveis de ambiente**
-```bash
+# 2. Configure variáveis de ambiente
 cp .env.example .env
-# Edite o arquivo .env com suas configurações
+# Edite .env conforme necessário
+
+# 3. Inicie os serviços
+podman-compose up -d
+# ou: docker-compose up -d
+
+# 4. Aplique migrations
+podman exec pytake-backend alembic upgrade head
+
+# 5. Verifique status
+podman-compose ps
 ```
 
-3. **Inicie os serviços**
+**Acesso:**
+- Frontend: http://localhost:3001
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/api/v1/docs
+
+---
+
+### 🔄 Setup Futuro (Multi-repo)
+
+**Após migração, use o script automatizado:**
+
 ```bash
-docker-compose up -d
+# Download do script de setup
+curl -O https://raw.githubusercontent.com/xkayo32/pytake/develop/setup-multi-repo.sh
+chmod +x setup-multi-repo.sh
+
+# Executar setup automático
+./setup-multi-repo.sh
+
+# Ou manualmente:
+bash setup-multi-repo.sh
 ```
 
-4. **Verifique o status**
-```bash
-docker-compose ps
-```
-
-### Acesso
-- **Frontend**: http://localhost:3001 ou https://app.pytake.net
-- **API**: http://localhost:8080 ou https://api.pytake.net
+Consulte [.github/MIGRATION_GUIDE.md](.github/MIGRATION_GUIDE.md) para detalhes completos.
 
 ## 📊 Arquitetura
 
+### Atual (Monorepo)
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Next.js App   │────│   Go Backend    │────│  PostgreSQL DB  │
-│  (Frontend)     │    │     (API)       │    │   + Redis       │
+│   Next.js App   │────│  FastAPI Backend│────│  PostgreSQL DB  │
+│  (Frontend)     │    │     (Python)    │    │   + Redis       │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                        │                        │
+         └──────────── Nginx Proxy ──────────────────────────┘
+```
+
+### Futura (Multi-repo)
+```
+pytake-backend/          pytake-frontend/
+       │                        │
+       ├── CI/CD ──────┬────── CI/CD
+       │               │        │
+       ▼               ▼        ▼
+   [Staging]      [Integration Test]
+       │               │        │
+       ▼               ▼        ▼
+   [Production] ◄──── Deploy ────►
+```
+
+Consulte [.github/ARCHITECTURE_DECISIONS.md](.github/ARCHITECTURE_DECISIONS.md) para detalhes.
          └──────────── Nginx Proxy ──────────────────────────┘
 ```
 
