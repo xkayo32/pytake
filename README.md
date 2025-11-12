@@ -89,16 +89,16 @@ bash setup-git-config.sh
 cat .copilot-instructions
 ```
 
-## �🔧 Desenvolvimento
+## 🔧 Desenvolvimento
 
 ### Estrutura do Projeto
 
 ```
-pytake-backend/
-├── backend-go/          # API Go
-├── frontend/            # Next.js App
+pytake/
+├── backend/             # API FastAPI (Python)
+├── frontend/            # Next.js App (TypeScript)
 ├── migrations/          # Scripts SQL
-├── docker-compose.yml   # Orquestração Docker
+├── docker-compose.yml   # Orquestração Podman/Docker
 ├── nginx.conf          # Configuração Nginx
 ├── .github/            # Documentação e workflows CI/CD
 ├── .copilot-instructions # Instruções do Copilot (em todas as branches)
