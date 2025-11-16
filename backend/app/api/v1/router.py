@@ -15,6 +15,13 @@ api_router = APIRouter()
 # ============= PUBLIC WEBHOOKS (NO AUTH REQUIRED) =============
 # These endpoints must be public for external services to call them
 
+@api_router.get("/health", tags=["Health"])
+async def health_check():
+    """Simple health check endpoint returning 200 OK.
+    Used by container healthcheck to avoid 400 responses on /docs.
+    """
+    return {"status": "ok"}
+
 @api_router.get("/whatsapp/webhook", response_class=PlainTextResponse, include_in_schema=True)
 async def whatsapp_webhook_verify(
     mode: str = Query(None, alias="hub.mode"),
