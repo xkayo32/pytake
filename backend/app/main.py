@@ -120,7 +120,15 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 if settings.is_production:
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["*.pytake.com", "pytake.com"],
+        allowed_hosts=[
+            "*.pytake.com",
+            "pytake.com",
+            "*.pytake.net",
+            "pytake.net",
+            "localhost",
+            "127.0.0.1",
+            "backend",
+        ],
     )
 
 
