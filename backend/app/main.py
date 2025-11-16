@@ -145,9 +145,9 @@ except Exception as e:
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    # In development mode allow all origins to simplify local testing (Next dev may run on different hostnames/IPs)
+    # In development mode allow all origins; in production use explicit origins
     allow_origins=["*"] if settings.DEBUG else settings.CORS_ORIGINS,
-    allow_credentials=settings.CORS_CREDENTIALS,
+    allow_credentials=settings.CORS_CREDENTIALS if not settings.DEBUG else False,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["X-Total-Count", "X-Page", "X-Per-Page"],
