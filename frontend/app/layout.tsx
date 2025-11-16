@@ -32,7 +32,6 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${geistMono.variable} antialiased font-sans`}
       >
-        <Script src="https://cdn.tailwindcss.com" strategy="beforeInteractive" />
         <Script id="tailwind-config" strategy="beforeInteractive">
           {`
             tailwind.config = {

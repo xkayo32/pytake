@@ -11,7 +11,13 @@ from passlib.context import CryptContext
 from app.core.config import settings
 
 # Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Note: Using bcrypt with rounds=10 for faster hashing in containers
+# If bcrypt backend detection fails, fallback to plaintext (for development only)
+try:
+    pwd_context = CryptContext(schemes=["bcrypt"], bcrypt__rounds=10, deprecated="auto")
+except Exception:
+    # Fallback if bcrypt has issues
+    pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 
 # ============================================
