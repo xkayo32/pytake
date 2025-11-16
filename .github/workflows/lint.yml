@@ -37,7 +37,7 @@ jobs:
       - name: Run pylint
         run: |
           cd backend
-          pylint app/ --disable=C0111,W0212 --fail-under=8.0 || true
+          pylint app/ --disable=C0111,W0212 --fail-under=8.0
 
       - name: Run flake8
         run: |
@@ -47,17 +47,17 @@ jobs:
       - name: Check code formatting
         run: |
           cd backend
-          black --check app/ || true
+          black --check app/
 
       - name: Check import sorting
         run: |
           cd backend
-          isort --check-only app/ || true
+          isort --check-only app/
 
       - name: Security scan with bandit
         run: |
           cd backend
-          bandit -r app/ -f json -o bandit-report.json || true
+          bandit -r app/ -f json -o bandit-report.json
 
   frontend-lint:
     runs-on: ubuntu-latest
@@ -96,4 +96,4 @@ jobs:
         run: npm install -g markdownlint-cli
 
       - name: Lint markdown files
-        run: markdownlint '**/*.md' --ignore node_modules --ignore frontend/node_modules || true
+        run: markdownlint '**/*.md' --ignore node_modules --ignore frontend/node_modules

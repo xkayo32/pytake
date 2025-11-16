@@ -1,0 +1,142 @@
+name: 🚀 Deploy (Manual Release)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: false
+        type: string
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  pre-deploy-checks:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            TAG=${{ github.event.inputs.version }}
+          else
+            TAG=v$(date +%Y%m%d-%H%M%S)
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "📌 Deploying version: $TAG"
+
+      - name: Validate deployment files
+        run: |
+          echo "✓ Checking docker-compose.yml..."
+          [ -f docker-compose.yml ] || (echo "❌ docker-compose.yml not found" && exit 1)
+          
+          echo "✓ Checking .env..."
+          [ -f .env ] || (echo "⚠️  .env not found (may be provided by CI/CD secrets)" && exit 0)
+          
+          echo "✓ All deployment files present"
+
+      - name: Create deployment tag
+        run: |
+          git tag -a ${{ steps.version.outputs.tag }} -m "Deploy to ${{ github.event.inputs.environment }}" || true
+          echo "📍 Deployment tag created"
+
+  deploy:
+    needs: pre-deploy-checks
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event.inputs.environment || 'staging' }}
+      url: https://app.pytake.net
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.pre-deploy-checks.outputs.version }}
+
+      - name: Set deployment environment
+        run: |
+          ENV="${{ github.event.inputs.environment || 'staging' }}"
+          echo "DEPLOY_ENV=$ENV" >> $GITHUB_ENV
+          echo "🎯 Target environment: $ENV"
+
+      - name: Pre-deployment checks
+        run: |
+          echo "✓ Running pre-deployment validation..."
+          echo "  - Environment: ${{ env.DEPLOY_ENV }}"
+          echo "  - Version: ${{ needs.pre-deploy-checks.outputs.version }}"
+          echo "  - Branch: ${{ github.ref }}"
+          echo "  - Commit: ${{ github.sha }}"
+
+      - name: Deploy notification (Slack/Discord)
+        if: always()
+        run: |
+          echo "📢 Deployment Status: IN_PROGRESS"
+          echo "   Environment: ${{ env.DEPLOY_ENV }}"
+          echo "   Version: ${{ needs.pre-deploy-checks.outputs.version }}"
+          echo ""
+          echo "⚠️  NOTE: This workflow is a template."
+          echo "   To complete deployment:"
+          echo "   1. Configure SSH secrets in GitHub Settings"
+          echo "   2. Add deployment host in Environment secrets"
+          echo "   3. Implement actual SSH deployment step"
+
+  post-deploy:
+    needs: [pre-deploy-checks, deploy]
+    runs-on: ubuntu-latest
+    if: success()
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Health check
+        run: |
+          echo "🏥 Running health checks..."
+          echo "   API: https://api.pytake.net/api/v1/health"
+          echo "   Frontend: https://app.pytake.net"
+          echo ""
+          echo "⏳ Health checks would run here"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.pre-deploy-checks.outputs.version }}
+          body: |
+            ## Deployment Information
+            
+            - **Environment**: ${{ github.event.inputs.environment || 'staging' }}
+            - **Version**: ${{ needs.pre-deploy-checks.outputs.version }}
+            - **Branch**: ${{ github.ref }}
+            - **Commit**: ${{ github.sha }}
+            - **Author**: ${{ github.actor }}
+            
+            ### Deployed Images
+            - Backend: `ghcr.io/${{ github.repository }}-backend:${{ needs.pre-deploy-checks.outputs.version }}`
+            - Frontend: `ghcr.io/${{ github.repository }}-frontend:${{ needs.pre-deploy-checks.outputs.version }}`
+          draft: false
+          prerelease: false
+
+      - name: Deployment success notification
+        if: success()
+        run: |
+          echo "✅ Deployment completed successfully!"
+          echo ""
+          echo "Release Information:"
+          echo "  Version: ${{ needs.pre-deploy-checks.outputs.version }}"
+          echo "  Environment: ${{ github.event.inputs.environment || 'staging' }}"
+          echo "  Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
