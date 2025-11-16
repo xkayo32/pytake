@@ -82,18 +82,66 @@ jobs:
           echo "  - Branch: ${{ github.ref }}"
           echo "  - Commit: ${{ github.sha }}"
 
-      - name: Deploy notification (Slack/Discord)
-        if: always()
+      - name: Deploy to production via SSH
+        if: env.DEPLOY_ENV == 'production'
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            set -e
+            echo "📦 Deploying PyTake to production..."
+            cd /opt/pytake
+            
+            # Pull latest code
+            echo "📥 Pulling latest code..."
+            git fetch origin
+            git checkout origin/main
+            
+            # Pull Docker images
+            echo "🐳 Pulling Docker images..."
+            docker-compose pull
+            
+            # Start services
+            echo "🚀 Starting services..."
+            docker-compose up -d --remove-orphans
+            
+            # Run migrations
+            echo "🔄 Running database migrations..."
+            docker-compose exec -T backend alembic upgrade head || echo "⚠️ Migrations skipped"
+            
+            # Health check
+            echo "🏥 Checking health..."
+            sleep 5
+            docker-compose exec -T backend python -c "
+            import urllib.request
+            try:
+              resp = urllib.request.urlopen('http://localhost:8000/api/v1/health', timeout=5)
+              print(f'✅ Backend health: {resp.status}')
+            except Exception as e:
+              print(f'❌ Health check failed: {e}')
+              exit(1)
+            "
+            
+            echo "✅ Deployment completed successfully"
+
+      - name: Deploy to staging (dry-run simulation)
+        if: env.DEPLOY_ENV == 'staging'
         run: |
-          echo "📢 Deployment Status: IN_PROGRESS"
-          echo "   Environment: ${{ env.DEPLOY_ENV }}"
-          echo "   Version: ${{ needs.pre-deploy-checks.outputs.version }}"
+          echo "📋 STAGING DEPLOYMENT (DRY-RUN)"
           echo ""
-          echo "⚠️  NOTE: This workflow is a template."
-          echo "   To complete deployment:"
-          echo "   1. Configure SSH secrets in GitHub Settings"
-          echo "   2. Add deployment host in Environment secrets"
-          echo "   3. Implement actual SSH deployment step"
+          echo "Would execute on production server:"
+          echo "  cd /opt/pytake"
+          echo "  git fetch origin && git checkout origin/main"
+          echo "  docker-compose pull"
+          echo "  docker-compose up -d --remove-orphans"
+          echo "  docker-compose exec -T backend alembic upgrade head"
+          echo ""
+          echo "ℹ️ To enable production deployment:"
+          echo "  1. Add PROD_HOST, PROD_USER, PROD_SSH_KEY secrets"
+          echo "  2. Setup production server (see PRODUCTION_DEPLOYMENT.md)"
+          echo "  3. Select 'production' environment in workflow"
 
   post-deploy:
     needs: [pre-deploy-checks, deploy]
