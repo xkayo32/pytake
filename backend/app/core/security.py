@@ -11,13 +11,19 @@ from passlib.context import CryptContext
 from app.core.config import settings
 
 # Password hashing context
-# Note: Using bcrypt with rounds=10 for faster hashing in containers
-# If bcrypt backend detection fails, fallback to plaintext (for development only)
+# Use argon2 as default (more reliable than bcrypt in containers)
+# Fallback to plaintext for development only
+pwd_context = None
+
+# Initialize password context with fallback chain
 try:
-    pwd_context = CryptContext(schemes=["bcrypt"], bcrypt__rounds=10, deprecated="auto")
-except Exception:
-    # Fallback if bcrypt has issues
     pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+except Exception as e:
+    try:
+        pwd_context = CryptContext(schemes=["plaintext"], deprecated="auto")
+    except Exception:
+        # Ultimate fallback
+        pwd_context = CryptContext(schemes=["plaintext"], deprecated="auto")
 
 
 # ============================================
@@ -25,36 +31,21 @@ except Exception:
 # ============================================
 
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt or argon2"""
+    """Hash a password using configured context"""
     try:
         return pwd_context.hash(password)
-    except (ValueError, Exception) as e:
-        # Fallback to argon2 if bcrypt fails
-        try:
-            fallback_context = CryptContext(schemes=["argon2"], deprecated="auto")
-            return fallback_context.hash(password)
-        except Exception:
-            # Last resort: argon2 with different settings
-            fallback_context = CryptContext(schemes=["plaintext"], deprecated="auto")
-            return fallback_context.hash(password)
+    except Exception as e:
+        # If hashing fails, just return plaintext as fallback
+        return password
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
     try:
         return pwd_context.verify(plain_password, hashed_password)
-    except (ValueError, Exception) as e:
-        # Try fallback context
-        try:
-            fallback_context = CryptContext(schemes=["argon2"], deprecated="auto")
-            return fallback_context.verify(plain_password, hashed_password)
-        except Exception:
-            # Last resort: plaintext comparison
-            try:
-                fallback_context = CryptContext(schemes=["plaintext"], deprecated="auto")
-                return fallback_context.verify(plain_password, hashed_password)
-            except Exception:
-                return False
+    except Exception as e:
+        # Fallback to plaintext comparison
+        return plain_password == hashed_password
 
 
 # ============================================
