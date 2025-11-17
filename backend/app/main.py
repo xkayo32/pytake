@@ -145,8 +145,15 @@ except Exception as e:
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    # In development: allow all origins with credentials for local testing
-    allow_origins=["*"],
+    # Allow specific origins (not wildcard when credentials=true)
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://app.pytake.net",
+        "https://www.app.pytake.net",
+        "https://pytake.net",
+        "https://www.pytake.net",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
