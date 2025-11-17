@@ -51,6 +51,9 @@ export function useAuth() {
         isAuthenticated: true,
       })
     } catch (error) {
+      // Token inválido ou expirado
+      Cookies.remove('auth-token')
+      Cookies.remove('refresh-token')
       setAuthState({
         user: null,
         isLoading: false,

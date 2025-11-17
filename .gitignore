@@ -94,3 +94,10 @@ media/certbot/
 .claude*
 CLAUDE.md
 *.claude.md
+
+# SSL/TLS Certificates - Let's Encrypt
+certbot/conf/live/*/
+certbot/conf/archive/*/
+certbot/conf/renewal/
+certbot/conf/accounts/
+

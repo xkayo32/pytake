@@ -21,7 +21,11 @@ config = context.config
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    try:
+        fileConfig(config.config_file_name)
+    except (KeyError, Exception):
+        # Logging config not present, skip
+        pass
 
 # add your model's MetaData object here
 # for 'autogenerate' support
@@ -31,6 +35,8 @@ target_metadata = Base.metadata
 database_url = str(settings.DATABASE_URL)
 if database_url.startswith("postgresql://"):
     database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+# Escape % characters in URL for INI interpolation
+database_url = database_url.replace("%", "%%")
 config.set_main_option("sqlalchemy.url", database_url)
 
 
@@ -93,7 +99,30 @@ async def run_async_migrations() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
 
-    asyncio.run(run_async_migrations())
+    try:
+        # Check if there's already a running loop
+        loop = asyncio.get_running_loop()
+        # If we're here, we're in an existing event loop
+        # We need to create a new thread pool to run migrations
+        import concurrent.futures
+        import threading
+        
+        def run_in_new_loop():
+            new_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(new_loop)
+            try:
+                new_loop.run_until_complete(run_async_migrations())
+            finally:
+                new_loop.close()
+        
+        # Run in a separate thread
+        thread = threading.Thread(target=run_in_new_loop)
+        thread.start()
+        thread.join()
+        
+    except RuntimeError:
+        # No running loop, create one normally
+        asyncio.run(run_async_migrations())
 
 
 if context.is_offline_mode():

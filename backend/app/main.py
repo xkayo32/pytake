@@ -20,6 +20,43 @@ from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.api.v1.router import api_router
 
 
+def run_migrations():
+    """
+    Run Alembic migrations automatically on startup
+    """
+    import os
+    import sys
+    
+    try:
+        # Get the backend directory
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        backend_dir = os.path.dirname(app_dir)
+        
+        print("🔄 Running Alembic migrations...", flush=True)
+        sys.stdout.flush()
+        
+        # Change to backend directory so alembic.ini can be found
+        original_cwd = os.getcwd()
+        os.chdir(backend_dir)
+        
+        try:
+            from alembic.config import Config
+            from alembic import command
+            
+            # Create alembic config - it will find alembic.ini in current directory
+            alembic_cfg = Config("alembic.ini")
+            
+            # Run migrations
+            command.upgrade(alembic_cfg, "head")
+            print("✅ Alembic migrations completed successfully", flush=True)
+            
+        finally:
+            os.chdir(original_cwd)
+            
+    except Exception as e:
+        print(f"⚠️ Could not run migrations: {type(e).__name__}: {e}", flush=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -30,6 +67,9 @@ async def lifespan(app: FastAPI):
 
     # Initialize database connections
     try:
+        # Run migrations first
+        run_migrations()
+        
         # PostgreSQL
         await init_db()
         print("✅ PostgreSQL connected")
@@ -105,9 +145,16 @@ except Exception as e:
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    # In development mode allow all origins to simplify local testing (Next dev may run on different hostnames/IPs)
-    allow_origins=["*"] if settings.DEBUG else settings.CORS_ORIGINS,
-    allow_credentials=settings.CORS_CREDENTIALS,
+    # Allow specific origins (not wildcard when credentials=true)
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://app.pytake.net",
+        "https://www.app.pytake.net",
+        "https://pytake.net",
+        "https://www.pytake.net",
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["X-Total-Count", "X-Page", "X-Per-Page"],
@@ -120,7 +167,15 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 if settings.is_production:
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["*.pytake.com", "pytake.com"],
+        allowed_hosts=[
+            "*.pytake.com",
+            "pytake.com",
+            "*.pytake.net",
+            "pytake.net",
+            "localhost",
+            "127.0.0.1",
+            "backend",
+        ],
     )
 
 
