@@ -41,13 +41,15 @@ api.interceptors.response.use(
           })
 
           const { token, refresh_token } = response.data
+          const accessToken = token?.access_token || token
+          const newRefreshToken = refresh_token?.refresh_token || refresh_token
           
           // Update tokens
-          Cookies.set('auth-token', token, { expires: 1 }) // 1 day
-          Cookies.set('refresh-token', refresh_token, { expires: 7 }) // 7 days
+          Cookies.set('auth-token', accessToken, { expires: 1 }) // 1 day
+          Cookies.set('refresh-token', newRefreshToken, { expires: 7 }) // 7 days
 
           // Retry original request
-          originalRequest.headers.Authorization = `Bearer ${token}`
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`
           return api(originalRequest)
         }
       } catch (refreshError) {
@@ -69,7 +71,12 @@ export const authApi = {
       email,
       password,
     })
-    return response.data
+    // Backend returns { user, token: { access_token, refresh_token, ... } }
+    // Frontend expects { user, token: "access_token_value" }
+    return {
+      ...response.data,
+      token: response.data.token?.access_token || response.data.token,
+    }
   },
 
   register: async (data: {
