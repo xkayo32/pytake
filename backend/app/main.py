@@ -147,7 +147,7 @@ app.add_middleware(
     CORSMiddleware,
     # In development mode allow all origins; in production use explicit origins
     allow_origins=["*"] if settings.DEBUG else settings.CORS_ORIGINS,
-    allow_credentials=settings.CORS_CREDENTIALS if not settings.DEBUG else False,
+    allow_credentials=True,  # Always allow credentials (browsers require explicit origins)
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["X-Total-Count", "X-Page", "X-Per-Page"],
