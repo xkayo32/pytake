@@ -6,7 +6,7 @@ Combines all v1 endpoints
 from fastapi import APIRouter, Request, Query, HTTPException
 from fastapi.responses import PlainTextResponse
 
-# Import endpoints directly to avoid circular imports
+# Import endpoints directly using full module paths (no package imports to avoid circular dependencies)
 from app.api.v1.endpoints import auth
 from app.api.v1.endpoints import organizations
 from app.api.v1.endpoints import users
