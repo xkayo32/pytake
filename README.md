@@ -29,6 +29,14 @@ PyTake é uma plataforma completa para automação de WhatsApp Business API, per
 
 ## 📚 Documentação
 
+### 🚀 Deployment & Infrastructure
+- 📖 [Guia de Deployment](./docs/DEPLOYMENT_GUIDE.md) - Setup e operação de ambientes (prod/staging/dev)
+- ⚙️ [Configuração Nginx](./docs/NGINX_CONFIGURATION_GUIDE.md) - Rotear domínios e SSL/TLS
+- 📋 [Índice de Docs](./docs/README.md) - Documentação completa do projeto
+
+### 🔐 Segurança & Configuração
+- 🔐 [Secrets & Environments](.github/docs/SECRETS_AND_ENVIRONMENTS/README.md) - Gerenciar credenciais com segurança
+
 ### Essenciais
 - 📖 [Guia de Migração Multi-repo](.github/MIGRATION_GUIDE.md) - Transição para arquitetura separada
 - 📐 [Decisões de Arquitetura](.github/ARCHITECTURE_DECISIONS.md) - ADRs e justificativas técnicas
