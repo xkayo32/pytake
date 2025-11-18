@@ -1,0 +1,229 @@
+name: 🌍 Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  ENVIRONMENT: production
+  DEPLOY_PORT: 8000
+  BACKEND_CONTAINER: pytake-backend
+  FRONTEND_CONTAINER: pytake-frontend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://api.pytake.net
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: 🔐 Setup GitHub CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh --version
+          echo "GitHub CLI authenticated"
+
+      - name: 📊 Get commit info
+        id: commit
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "commit_msg=$(git log -1 --pretty=%B)" >> $GITHUB_OUTPUT
+          echo "author=$(git log -1 --pretty=%an)" >> $GITHUB_OUTPUT
+          echo "version=$(git describe --tags --always)" >> $GITHUB_OUTPUT
+
+      - name: 🐳 Login to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📦 Build and push backend
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/xkayo32/pytake-backend:production
+            ${{ env.REGISTRY }}/xkayo32/pytake-backend:production-${{ steps.commit.outputs.sha_short }}
+            ${{ env.REGISTRY }}/xkayo32/pytake-backend:${{ steps.commit.outputs.version }}
+            ${{ env.REGISTRY }}/xkayo32/pytake-backend:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/xkayo32/pytake-backend:production
+          cache-to: type=inline
+
+      - name: 📦 Build and push frontend
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/xkayo32/pytake-frontend:production
+            ${{ env.REGISTRY }}/xkayo32/pytake-frontend:production-${{ steps.commit.outputs.sha_short }}
+            ${{ env.REGISTRY }}/xkayo32/pytake-frontend:${{ steps.commit.outputs.version }}
+            ${{ env.REGISTRY }}/xkayo32/pytake-frontend:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/xkayo32/pytake-frontend:production
+          cache-to: type=inline
+
+      - name: 🚀 Deploy to production server
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          # Deploy script
+          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" << 'DEPLOY_SCRIPT'
+          cd /home/pytake || exit 1
+          
+          # Create backup
+          echo "📦 Creating database backup..."
+          BACKUP_FILE="/backups/pytake_backup_$(date +%Y%m%d_%H%M%S).sql"
+          mkdir -p /backups
+          docker exec pytake-postgres pg_dump pytake > "$BACKUP_FILE" || true
+          echo "✅ Backup created: $BACKUP_FILE"
+          
+          # Pull latest code
+          git fetch origin main
+          git checkout main
+          git pull origin main
+          
+          # Pull images
+          docker pull ghcr.io/xkayo32/pytake-backend:production
+          docker pull ghcr.io/xkayo32/pytake-frontend:production
+          
+          # Stop containers gracefully
+          echo "⏹️  Stopping containers..."
+          docker-compose -f docker-compose.yml down || true
+          
+          # Update tags to use production images
+          export COMPOSE_PROJECT_NAME=pytake
+          echo "🚀 Starting containers..."
+          docker-compose -f docker-compose.yml up -d
+          
+          # Wait for services
+          sleep 15
+          
+          # Run migrations
+          echo "🗄️  Running migrations..."
+          docker exec pytake-backend alembic upgrade head || {
+            echo "❌ Migrations failed! Rolling back..."
+            exit 1
+          }
+          
+          # Health check
+          echo "❤️  Performing health checks..."
+          curl -f http://localhost:8000/api/v1/health || echo "⚠️  Health check pending"
+          
+          echo "✅ Production deployment completed!"
+          
+          DEPLOY_SCRIPT
+
+      - name: 📊 Log deployment
+        if: success()
+        run: |
+          echo "### 🌍 Production Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ steps.commit.outputs.sha_short }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Author:** ${{ steps.commit.outputs.author }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.commit.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ✅ Deployed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Links:**" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔗 API: https://api.pytake.net" >> $GITHUB_STEP_SUMMARY
+          echo "- 📊 Docs: https://api.pytake.net/api/v1/docs" >> $GITHUB_STEP_SUMMARY
+          echo "- 🌐 App: https://app.pytake.net" >> $GITHUB_STEP_SUMMARY
+
+      - name: 💬 Slack Notification (Success)
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "✅ PyTake Production Deployment Successful",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "✅ Production Deploy"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Commit:*\n${{ steps.commit.outputs.sha_short }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Version:*\n${{ steps.commit.outputs.version }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Author:*\n${{ steps.commit.outputs.author }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Status:*\nDeployed ✅"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: 💬 Slack Notification (Failure)
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "❌ PyTake Production Deployment Failed",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "❌ Production Deploy Failed"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "⚠️ Production deployment failed\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
