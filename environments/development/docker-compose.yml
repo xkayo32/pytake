@@ -20,11 +20,13 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis-dev:6379/0
       CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis-dev:6379/0
+      MONGODB_URL: mongodb://mongodb-dev:27017
     volumes:
       - ./config:/app/config:ro
     depends_on:
       - postgres-dev
       - redis-dev
+      - mongodb-dev
     networks:
       - pytake-dev
 
@@ -79,10 +81,30 @@ services:
       timeout: 5s
       retries: 5
 
+  mongodb-dev:
+    image: docker.io/mongo:7
+    container_name: pytake-mongodb-dev
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: pytake_logs
+    volumes:
+      - mongodb_dev:/data/db
+    ports:
+      - "27019:27017"
+    networks:
+      - pytake-dev
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_dev:
     driver: local
   redis_dev:
+    driver: local
+  mongodb_dev:
     driver: local
 
 networks:

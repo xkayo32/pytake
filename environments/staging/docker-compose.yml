@@ -20,11 +20,13 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis-staging:6379/0
       CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis-staging:6379/0
+      MONGODB_URL: mongodb://mongodb-staging:27017
     volumes:
       - ./config:/app/config:ro
     depends_on:
       - postgres-staging
       - redis-staging
+      - mongodb-staging
     networks:
       - pytake-staging
 
@@ -79,10 +81,30 @@ services:
       timeout: 5s
       retries: 5
 
+  mongodb-staging:
+    image: docker.io/mongo:7
+    container_name: pytake-mongodb-staging
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: pytake_logs
+    volumes:
+      - mongodb_staging:/data/db
+    ports:
+      - "27018:27017"
+    networks:
+      - pytake-staging
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_staging:
     driver: local
   redis_staging:
+    driver: local
+  mongodb_staging:
     driver: local
 
 networks:
