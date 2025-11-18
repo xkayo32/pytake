@@ -4,16 +4,16 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: pytake-postgres-dev
+    container_name: pytake-postgres-prod
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-pytake_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Odc7/ffNnTnG4hkbwV+Sx2ZgK61rXW2r9U2o7Rd25DU=}
       POSTGRES_DB: ${POSTGRES_DB:-pytake}
     ports:
-      - "5435:5432"
+      - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_prod:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - pytake-network
@@ -26,13 +26,13 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: pytake-redis-dev
+    container_name: pytake-redis-prod
     restart: unless-stopped
     command: redis-server --requirepass ${REDIS_PASSWORD:-gOe7JRn+i8iWY5UAvYt3mJxBFJnAf9+jo/VZM3UN4xw=}
     ports:
-      - "6382:6379"
+      - "6380:6379"
     volumes:
-      - redis_data:/data
+      - redis_data_prod:/data
     networks:
       - pytake-network
     healthcheck:
@@ -44,15 +44,15 @@ services:
   # MongoDB Database
   mongodb:
     image: mongo:7
-    container_name: pytake-mongodb-dev
+    container_name: pytake-mongodb-prod
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-pytake_user}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-pytake_mongo_password}
     ports:
-      - "27020:27017"
+      - "27017:27017"
     volumes:
-      - mongodb_data:/data/db
+      - mongodb_data_prod:/data/db
     networks:
       - pytake-network
     healthcheck:
@@ -61,20 +61,15 @@ services:
       timeout: 5s
       retries: 5
 
-  # ========================================
-  # SERVIÇOS DESABILITADOS (rodar localmente)
-  # ========================================
-  # Descomente para rodar backend/frontend via Docker Compose
-  
-  # Python FastAPI Backend
+  # Python FastAPI Backend - PRODUCTION
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: pytake-backend-dev
+    container_name: pytake-backend-prod
     restart: unless-stopped
     ports:
-      - "8002:8000"
+      - "8000:8000"
     volumes:
       - ./.env:/app/.env:ro
     environment:
@@ -85,33 +80,33 @@ services:
       POSTGRES_SERVER: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-pytake}
-      
+
       # Redis
       REDIS_URL: redis://default:gOe7JRn%2Bi8iWY5UAvYt3mJxBFJnAf9%2Bjo%2FVZM3UN4xw%3D@redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-gOe7JRn+i8iWY5UAvYt3mJxBFJnAf9+jo/VZM3UN4xw=}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      
+
       # MongoDB
       MONGODB_URL: mongodb://${MONGO_USER:-pytake_user}:${MONGO_PASSWORD:-pytake_mongo_password}@mongodb:27017
       MONGODB_DB: ${MONGODB_DB:-pytake_logs}
-      
+
       # Server
       PORT: 8000
-      NODE_ENV: development
-      ENVIRONMENT: development
-      
+      NODE_ENV: production
+      ENVIRONMENT: production
+
       # Auth & Security
       SECRET_KEY: ${SECRET_KEY:-0lKDucCTqSt0gh1mbLsvF/d5mhXqCtEW8JfwWwbTeIk=}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-0lKDucCTqSt0gh1mbLsvF/d5mhXqCtEW8JfwWwbTeIk=}
       JWT_ALGORITHM: HS256
-      
+
       # WhatsApp
       WHATSAPP_API_TOKEN: ${WHATSAPP_API_TOKEN}
       WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN}
       WHATSAPP_WEBHOOK_URL: ${WHATSAPP_WEBHOOK_URL:-https://api.pytake.net/webhook/whatsapp}
       META_WEBHOOK_VERIFY_TOKEN: ${META_WEBHOOK_VERIFY_TOKEN:-pytake_webhook_verify_token_12345}
-      
+
     depends_on:
       postgres:
         condition: service_healthy
@@ -128,24 +123,22 @@ services:
       retries: 3
       start_period: 40s
 
-  # Next.js Frontend
+  # Next.js Frontend - PRODUCTION BUILD
   frontend:
     image: node:20-alpine
-    container_name: pytake-frontend-dev
+    container_name: pytake-frontend-prod
     restart: unless-stopped
     working_dir: /app
     ports:
-      - "3002:3000"
+      - "3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: 1
-      NEXT_PUBLIC_API_URL: https://api-dev.pytake.net
-      WATCHPACK_POLLING: true
-      CHOKIDAR_USEPOLLING: true
-    command: sh -c "npm install && npm run dev"
+      NEXT_PUBLIC_API_URL: https://api.pytake.net
+    command: sh -c "npm install && npm run build && npm start"
     depends_on:
       - backend
       - mongodb
@@ -161,7 +154,7 @@ services:
   # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
-    container_name: pytake-nginx-dev
+    container_name: pytake-nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -184,7 +177,7 @@ services:
   # Let's Encrypt SSL Certificate Management
   certbot:
     image: certbot/certbot
-    container_name: pytake-certbot-dev
+    container_name: pytake-certbot
     restart: unless-stopped
     volumes:
       - ./certbot/conf:/etc/letsencrypt
@@ -194,11 +187,11 @@ services:
       - pytake-network
 
 volumes:
-  postgres_data:
+  postgres_data_prod:
     driver: local
-  redis_data:
+  redis_data_prod:
     driver: local
-  mongodb_data:
+  mongodb_data_prod:
     driver: local
 
 networks:
