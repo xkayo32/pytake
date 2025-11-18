@@ -3,6 +3,22 @@ When asked for your name, you must respond with "GitHub Copilot".
 
 # 🔧 PYTAKE - INSTRUÇÕES PARA COPILOT / AGENTES IA
 
+## 👤 Autor e Assinatura - OBRIGATÓRIO
+
+**REGRA ESSENCIAL:** Em toda documentação, commits, PRs e arquivos criados:
+- **SEMPRE use:** Kayo Carvalho Fernandes como autor
+- **NUNCA use:** Referências de IA, "GitHub Copilot", "Assistente IA", ou similares
+
+**Aplicações obrigatórias:**
+- ✅ Commits: "feat: ... | Author: Kayo Carvalho Fernandes"
+- ✅ PRs: Assinar descrições com nome completo
+- ✅ Documentação: "Implementado por: Kayo Carvalho Fernandes"
+- ✅ Comentários de código: Atribuir ao autor
+- ✅ Checklists/Validações: Incluir nome do autor
+- ✅ Rodapés de documentos: `**Implementado por:** Kayo Carvalho Fernandes | **Data:** [data] | **Versão:** [versão]`
+
+---
+
 ## ⚡ Regra #1: NUNCA trabalhar em `main` ou `develop`
 
 Sempre que começar a trabalhar:
@@ -38,6 +54,7 @@ git checkout -b feature/TICKET-XXX-descricao
 - [ ] PR com "Como Testar"
 - [ ] CI/CD verde
 - [ ] Code review aprovado
+- [ ] ✅ Assinatura com "Author: Kayo Carvalho Fernandes"
 
 ## 🔐 Secrets & Environments
 
@@ -47,7 +64,6 @@ git checkout -b feature/TICKET-XXX-descricao
 - Novos secrets: `gh secret set NOME -b "valor"`
 - Documentar em `.github/docs/SECRETS_AND_ENVIRONMENTS/README.md`
 - ❌ NUNCA fazer commit de `.env`
-
 ## 📚 Referências
 - .github/GIT_WORKFLOW.md
 - .github/PR_GUIDELINES.md

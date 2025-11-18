@@ -36,6 +36,27 @@ Portas/variáveis importantes:
 - MongoDB: mapeado em 27018 (note a diferença)
 - Arquivo de configuração podman: `backend/.env.podman` (use este quando trabalhar com compose)
 
+## 👤 Autor e Assinatura
+
+**IMPORTANTE:** Em toda documentação, commits, PRs e arquivos, sempre use:
+- **Autor:** Kayo Carvalho Fernandes
+- **Nunca:** Referências de IA, "GitHub Copilot", "Assistente IA", ou similares
+
+**Onde aplicar:**
+- ✅ Commits: "feat: ... | Author: Kayo Carvalho Fernandes"
+- ✅ PRs: Assinar com nome completo em descrições
+- ✅ Documentação: "Implementado por: Kayo Carvalho Fernandes"
+- ✅ Comentários em código: Se houver observações, atribuir ao autor
+- ✅ Arquivos de validação/checklist: Incluir nome do autor
+
+**Formato padrão para rodapé de documentos:**
+```
+---
+**Implementado por:** Kayo Carvalho Fernandes  
+**Data:** [Data atual]  
+**Versão:** [Versão do projeto]  
+```
+
 ## 🔐 Secrets & Environments - LEIA OBRIGATORIAMENTE
 
 **IMPORTANTE:** Todas as credenciais devem estar no GitHub, NUNCA no código!

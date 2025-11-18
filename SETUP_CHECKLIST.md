@@ -9,31 +9,42 @@ Finalizar a configuração para ativar CI/CD automático e webhooks do Meta
 
 ### DNS Configuration
 - [ ] Apontar `api.pytake.net` para seu servidor IP
-- [ ] Apontar `staging-api.pytake.net` para seu servidor IP
-- [ ] Apontar `dev-api.pytake.net` para seu servidor IP (opcional)
-- [ ] Apontar `app.pytake.net` para seu servidor IP
+- [ ] Apontar `api-staging.pytake.net` para seu servidor IP
+- [ ] Apontar `api-dev.pytake.net` para seu servidor IP (opcional)
+- [ ] Apontar `app.pytake.net` para seu servidor IP (Frontend Production)
+- [ ] Apontar `app-staging.pytake.net` para seu servidor IP (Frontend Staging - recomendado)
+- [ ] Apontar `app-dev.pytake.net` para seu servidor IP (Frontend Dev - opcional)
 - [ ] Testar resolução: `nslookup api.pytake.net`
 
 **Tempo estimado:** 15 minutos  
-**Verificação:** `dig api.pytake.net` deve retornar seu IP
+**Verificação:** `dig api.pytake.net` e `dig app.pytake.net` devem retornar seu IP
+
+**ℹ️ Nota sobre Frontend:**
+- Production: `app.pytake.net` (Nginx → localhost:3000)
+- Staging: `app-staging.pytake.net` (Nginx → localhost:3001)
+- Development: `localhost:3000` ou `localhost:3002` (sem Nginx)
 
 ---
 
 ### SSL/TLS Certificates
 - [ ] Instalar Certbot: `sudo apt install -y certbot python3-certbot-nginx`
-- [ ] Gerar certificado unificado:
+- [ ] Gerar certificado unificado (cobre todos os subdomínios):
   ```bash
   sudo certbot certonly --standalone \
     -d api.pytake.net \
-    -d staging-api.pytake.net \
-    -d dev-api.pytake.net \
-    -d app.pytake.net
+    -d api-staging.pytake.net \
+    -d api-dev.pytake.net \
+    -d app.pytake.net \
+    -d app-staging.pytake.net \
+    -d app-dev.pytake.net
   ```
 - [ ] Verificar certificados: `sudo certbot certificates`
 - [ ] Configurar auto-renewal: `sudo systemctl enable certbot.timer`
 
 **Tempo estimado:** 10 minutos  
-**Verificação:** `sudo certbot certificates` deve listar todos os domínios
+**Verificação:** `sudo certbot certificates` deve listar **todos os 6 domínios**
+
+**ℹ️ Nota:** Um único certificado pode ter múltiplos domínios (SAN - Subject Alternative Names)
 
 ---
 
@@ -45,7 +56,7 @@ Finalizar a configuração para ativar CI/CD automático e webhooks do Meta
 - [ ] Testar endpoints:
   ```bash
   curl https://api.pytake.net
-  curl https://staging-api.pytake.net
+  curl https://api-staging.pytake.net
   ```
 
 **Tempo estimado:** 5 minutos  
@@ -186,7 +197,7 @@ git push origin develop
 1. Ir em GitHub → Actions
 2. Ver workflow "🚀 Deploy to Staging" executando
 3. Aguardar conclusão (deve mostrar ✅ em verde)
-4. Acessar: https://staging-api.pytake.net/api/v1/health
+4. Acessar: https://api-staging.pytake.net/api/v1/health
 5. Deve retornar JSON com status
 
 **Tempo:** ~5 minutos para deploy completar
@@ -283,13 +294,13 @@ DEV_WHATSAPP_WEBHOOK_URL=https://abc123.ngrok.io/api/v1/whatsapp/webhook
 
 - [ ] Staging Health:
   ```bash
-  curl https://staging-api.pytake.net/api/v1/health
+  curl https://api-staging.pytake.net/api/v1/health
   ```
   ✅ Deve retornar: `{"status":"healthy"}`
 
 - [ ] API Docs:
   - [ ] Production: https://api.pytake.net/api/v1/docs
-  - [ ] Staging: https://staging-api.pytake.net/api/v1/docs
+  - [ ] Staging: https://api-staging.pytake.net/api/v1/docs
   - [ ] Frontend: https://app.pytake.net
 
 - [ ] Database connectivity:
