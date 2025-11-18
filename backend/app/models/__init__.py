@@ -18,6 +18,8 @@ from app.models.flow_automation import (
     FlowAutomation,
     FlowAutomationExecution,
     FlowAutomationRecipient,
+    FlowAutomationSchedule,
+    FlowAutomationScheduleException,
 )
 
 __all__ = [
@@ -43,4 +45,6 @@ __all__ = [
     "FlowAutomation",
     "FlowAutomationExecution",
     "FlowAutomationRecipient",
+    "FlowAutomationSchedule",
+    "FlowAutomationScheduleException",
 ]
