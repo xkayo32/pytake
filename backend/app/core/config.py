@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # Application
     ENVIRONMENT: str = Field(default="development", description="Environment: development, staging, production")
     DEBUG: bool = Field(default=True)
-    SECRET_KEY: str = Field(min_length=32, description="Secret key for app")
+    SECRET_KEY: str = Field(default="dev-secret-key-32chars-minimum-length-1234567890", min_length=32, description="Secret key for app")
     APP_NAME: str = Field(default="PyTake")
     APP_VERSION: str = Field(default="1.0.0")
     API_V1_PREFIX: str = Field(default="/api/v1")
@@ -97,7 +97,7 @@ class Settings(BaseSettings):
     MONGODB_DB: str = Field(default="pytake_logs")
 
     # JWT & Security
-    JWT_SECRET_KEY: str = Field(min_length=32)
+    JWT_SECRET_KEY: str = Field(default="jwt-secret-key-32chars-minimum-length-1234567890-test", min_length=32)
     JWT_ALGORITHM: str = Field(default="HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=15)
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7)
