@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Output for standalone production
+  output: 'standalone',
+  
   // Optimized for development speed
   reactStrictMode: false, // Disable for faster dev
   
