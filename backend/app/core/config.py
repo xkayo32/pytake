@@ -159,6 +159,22 @@ class Settings(BaseSettings):
         default=None,
         description="App secret from Meta dashboard for signature verification"
     )
+    
+    # Public API URLs (for webhooks and external references)
+    PUBLIC_API_URL: str = Field(
+        default="http://localhost:8000",
+        description="Public API URL for webhooks (e.g., https://api.pytake.net for prod)"
+    )
+    WHATSAPP_WEBHOOK_URL: str = Field(
+        default="http://localhost:8000/api/v1/whatsapp/webhook",
+        description="Public WhatsApp webhook URL"
+    )
+    
+    # FastAPI root_path (used when behind reverse proxy, e.g., /prod, /staging)
+    API_ROOT_PATH: str = Field(
+        default="",
+        description="Root path for FastAPI when behind reverse proxy (e.g., /prod, /staging)"
+    )
 
     # Email
     SMTP_HOST: Optional[str] = None

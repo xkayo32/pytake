@@ -120,6 +120,7 @@ app = FastAPI(
     docs_url=f"{settings.API_V1_PREFIX}/docs" if settings.DEBUG else None,
     redoc_url=f"{settings.API_V1_PREFIX}/redoc" if settings.DEBUG else None,
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json" if settings.DEBUG else None,
+    root_path=settings.API_ROOT_PATH,  # Support for reverse proxy paths like /prod, /staging
 )
 
 # ============================================
