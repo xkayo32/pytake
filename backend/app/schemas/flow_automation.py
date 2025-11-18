@@ -278,6 +278,7 @@ class FlowAutomationStats(BaseModel):
     reply_rate: Optional[float] = None     # replied / sent
     completion_rate: Optional[float] = None # completed / sent
     
+    
     # Última execução
     last_execution_id: Optional[UUID] = None
     last_execution_status: Optional[str] = None
@@ -309,3 +310,139 @@ class FlowAutomationExecutionStats(BaseModel):
     # Performance
     average_response_time: Optional[float] = None  # segundos
     messages_per_minute: Optional[float] = None
+
+
+# ============================================
+# AGENDAMENTO AVANÇADO (SCHEDULE) SCHEMAS
+# ============================================
+
+class RecurrenceConfig(BaseModel):
+    """Configuração de recorrência"""
+    
+    type: str = Field(..., description="daily, weekly, monthly, cron, custom, once")
+    # Daily: {"type": "daily", "interval": 1}
+    # Weekly: {"type": "weekly", "days": ["MON", "WED", "FRI"], "interval": 1}
+    # Monthly: {"type": "monthly", "day": 15, "interval": 1}
+    # Cron: {"type": "cron", "expression": "0 9 * * MON-FRI"}
+    # Custom: {"type": "custom", "dates": ["2025-11-20T10:00:00Z"]}
+
+
+class FlowAutomationScheduleBase(BaseModel):
+    """Base schema for schedule"""
+    
+    recurrence_type: str = Field(default="once", description="once, daily, weekly, monthly, cron, custom")
+    start_date: datetime
+    start_time: time
+    end_date: Optional[datetime] = None
+    recurrence_config: dict = Field(default_factory=dict)
+    
+    # Execution Window
+    execution_window_start: Optional[time] = None
+    execution_window_end: Optional[time] = None
+    execution_timezone: str = Field(default="America/Sao_Paulo")
+    
+    # Blackout Dates
+    blackout_dates: List[str] = Field(default_factory=list)  # ["2025-12-25", "2025-01-01"]
+    skip_weekends: bool = True
+    skip_holidays: bool = True
+    
+    is_active: bool = True
+
+
+class FlowAutomationScheduleCreate(FlowAutomationScheduleBase):
+    """Schema for creating a schedule"""
+    automation_id: UUID
+
+
+class FlowAutomationScheduleUpdate(BaseModel):
+    """Schema for updating a schedule"""
+    
+    recurrence_type: Optional[str] = None
+    start_date: Optional[datetime] = None
+    start_time: Optional[time] = None
+    end_date: Optional[datetime] = None
+    recurrence_config: Optional[dict] = None
+    execution_window_start: Optional[time] = None
+    execution_window_end: Optional[time] = None
+    execution_timezone: Optional[str] = None
+    blackout_dates: Optional[List[str]] = None
+    skip_weekends: Optional[bool] = None
+    skip_holidays: Optional[bool] = None
+    is_active: Optional[bool] = None
+    is_paused: Optional[bool] = None
+
+
+class FlowAutomationScheduleResponse(FlowAutomationScheduleBase):
+    """Schema for schedule response"""
+    
+    id: UUID
+    automation_id: UUID
+    organization_id: UUID
+    is_paused: bool = False
+    paused_at: Optional[datetime] = None
+    last_executed_at: Optional[datetime] = None
+    next_scheduled_at: Optional[datetime] = None
+    execution_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class ScheduleExceptionBase(BaseModel):
+    """Base schema for schedule exception"""
+    
+    exception_type: str = Field(..., description="skip, reschedule, modify")
+    start_date: datetime
+    end_date: Optional[datetime] = None
+    reason: Optional[str] = None
+    rescheduled_to: Optional[datetime] = None
+    modified_config: Optional[dict] = None
+
+
+class ScheduleExceptionCreate(ScheduleExceptionBase):
+    """Schema for creating exception"""
+    schedule_id: UUID
+
+
+class ScheduleExceptionResponse(ScheduleExceptionBase):
+    """Schema for exception response"""
+    
+    id: UUID
+    schedule_id: UUID
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class ScheduleWithExceptions(FlowAutomationScheduleResponse):
+    """Schedule com suas exceções"""
+    
+    exceptions: List[ScheduleExceptionResponse] = []
+
+
+# ============================================
+# PRÓXIMAS EXECUÇÕES (Para UI)
+# ============================================
+
+class NextExecutionInfo(BaseModel):
+    """Informações sobre próximas execuções agendadas"""
+    
+    scheduled_at: datetime
+    recurrence_type: str
+    execution_window: Optional[dict] = None  # {start: "09:00", end: "18:00"}
+    timezone: str = "America/Sao_Paulo"
+
+
+class SchedulePreview(BaseModel):
+    """Preview de execuções próximas (para calendário UI)"""
+    
+    automation_id: UUID
+    schedule_id: Optional[UUID] = None
+    next_executions: List[NextExecutionInfo] = Field(
+        default_factory=list,
+        description="Próximas 10 execuções agendadas"
+    )
+

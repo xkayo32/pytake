@@ -298,3 +298,137 @@ class FlowAutomationRecipient(Base, TimestampMixin):
     execution = relationship("FlowAutomationExecution", back_populates="recipients")
     contact = relationship("Contact", foreign_keys=[contact_id])
     conversation = relationship("Conversation", foreign_keys=[conversation_id])
+
+
+class FlowAutomationSchedule(Base, TimestampMixin, SoftDeleteMixin):
+    """
+    Agendamento avançado para Flow Automation
+    
+    Define quando e como a automação deve ser executada:
+    - Recorrência (uma vez, diária, semanal, mensal, customizado)
+    - Horários comerciais
+    - Períodos ativos/bloqueados
+    - Feriados e exceções
+    """
+
+    __tablename__ = "flow_automation_schedules"
+
+    # Primary Key
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+
+    # Foreign Keys
+    automation_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("flow_automations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Tipo de Recorrência
+    # "once", "daily", "weekly", "monthly", "cron", "custom"
+    recurrence_type = Column(String(50), nullable=False, default="once")
+
+    # Data/Hora de Início
+    start_date = Column(DateTime(timezone=True), nullable=False)
+    start_time = Column(Time, nullable=False)  # Ex: 09:00:00
+
+    # Data/Hora de Término (para recorrências)
+    end_date = Column(DateTime(timezone=True), nullable=True)  # None = infinito
+    
+    # Configuração de Recorrência (JSONB flexível)
+    recurrence_config = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    # Exemplos:
+    # {"type": "daily", "interval": 1}  # A cada 1 dia
+    # {"type": "weekly", "days": ["MON", "WED", "FRI"], "interval": 1}
+    # {"type": "monthly", "day": 15, "interval": 1}  # Dia 15 de cada mês
+    # {"type": "cron", "expression": "0 9 * * MON-FRI"}  # Cron format
+    # {"type": "custom", "dates": ["2025-11-20T10:00:00Z", "2025-11-25T14:00:00Z"]}
+
+    # Horário Comercial (Execution Window)
+    execution_window_start = Column(Time, nullable=True)  # Ex: 09:00
+    execution_window_end = Column(Time, nullable=True)    # Ex: 18:00
+    execution_timezone = Column(String(50), default="America/Sao_Paulo")
+
+    # Feriados e Exceções (JSONB)
+    blackout_dates = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    # [
+    #   "2025-12-25",  # Natal
+    #   "2025-01-01",  # Ano Novo
+    # ]
+
+    skip_weekends = Column(Boolean, default=True)
+    skip_holidays = Column(Boolean, default=True)
+
+    # Controle
+    is_active = Column(Boolean, default=True)
+    is_paused = Column(Boolean, default=False)
+    paused_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Rastreamento
+    last_executed_at = Column(DateTime(timezone=True), nullable=True)
+    next_scheduled_at = Column(DateTime(timezone=True), nullable=True)
+    execution_count = Column(Integer, default=0)
+
+    # Relationships
+    automation = relationship("FlowAutomation", foreign_keys=[automation_id])
+
+
+class FlowAutomationScheduleException(Base, TimestampMixin):
+    """
+    Exceções de agendamento
+    
+    Define datas/períodos quando a automação NÃO deve ser executada
+    ou deve ser executada com config diferente.
+    """
+
+    __tablename__ = "flow_automation_schedule_exceptions"
+
+    # Primary Key
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+
+    # Foreign Keys
+    schedule_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("flow_automation_schedules.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Tipo de Exceção
+    exception_type = Column(String(50), nullable=False)
+    # "skip", "reschedule", "modify"
+
+    # Período de Exceção
+    start_date = Column(DateTime(timezone=True), nullable=False)
+    end_date = Column(DateTime(timezone=True), nullable=True)  # None = single day
+
+    # Descrição
+    reason = Column(String(255), nullable=True)
+    # Ex: "Black Friday", "Servidor em manutenção"
+
+    # Se tipo = "reschedule"
+    rescheduled_to = Column(DateTime(timezone=True), nullable=True)
+
+    # Se tipo = "modify"
+    modified_config = Column(JSONB, nullable=True)
+    # {
+    #   "rate_limit_per_hour": 1000,
+    #   "max_concurrent_executions": 100,
+    # }
+
+    # Relationships
+    schedule = relationship("FlowAutomationSchedule")

@@ -10,7 +10,9 @@
 # Security - NEVER commit these files
 SECURITY_CREDENTIALS.md
 **/credentials.*
-**/secrets.*
+# Block secret config files but allow endpoint modules
+**/secrets.*.* 
+!**/endpoints/secrets.py
 *.key
 *.pem
 *.crt

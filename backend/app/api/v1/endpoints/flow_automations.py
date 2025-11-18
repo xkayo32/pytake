@@ -19,6 +19,11 @@ from app.schemas.flow_automation import (
     FlowAutomationStartRequest,
     FlowAutomationExecutionResponse,
     FlowAutomationStats,
+    FlowAutomationScheduleCreate,
+    FlowAutomationScheduleUpdate,
+    FlowAutomationScheduleResponse,
+    ScheduleExceptionCreate,
+    SchedulePreview,
 )
 from app.services.flow_automation_service import FlowAutomationService
 
@@ -194,6 +199,159 @@ async def get_automation_stats(
     return stats
 
 
+
+
+# ============================================
+# SCHEDULE ENDPOINTS
+# ============================================
+
+
+@router.post("/{automation_id}/schedule", response_model=FlowAutomationScheduleResponse)
+async def create_automation_schedule(
+    automation_id: UUID,
+    data: FlowAutomationScheduleCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Create or update schedule for automation
+
+    Defines when and how the automation runs (daily, weekly, monthly, cron, etc.)
+    """
+    from app.services.flow_automation_schedule_service import FlowAutomationScheduleService
+
+    data.automation_id = automation_id
+    service = FlowAutomationScheduleService(db)
+    schedule = await service.create_schedule(data, current_user.organization_id)
+    return schedule
+
+
+@router.get("/{automation_id}/schedule", response_model=FlowAutomationScheduleResponse)
+async def get_automation_schedule(
+    automation_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get schedule for automation"""
+    from app.services.flow_automation_schedule_service import FlowAutomationScheduleService
+
+    service = FlowAutomationScheduleService(db)
+    schedule = await service.get_schedule_by_automation(automation_id)
+
+    if not schedule:
+        raise NotFoundException("Schedule not found")
+
+    return schedule
+
+
+@router.put("/{automation_id}/schedule", response_model=FlowAutomationScheduleResponse)
+async def update_automation_schedule(
+    automation_id: UUID,
+    data: FlowAutomationScheduleUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update automation schedule"""
+    from app.services.flow_automation_schedule_service import FlowAutomationScheduleService
+
+    service = FlowAutomationScheduleService(db)
+    schedule = await service.get_schedule_by_automation(automation_id)
+
+    if not schedule:
+        raise NotFoundException("Schedule not found")
+
+    schedule = await service.update_schedule(schedule.id, current_user.organization_id, data)
+    return schedule
+
+
+@router.delete(
+    "/{automation_id}/schedule",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_automation_schedule(
+    automation_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete automation schedule"""
+    from app.services.flow_automation_schedule_service import FlowAutomationScheduleService
+
+    service = FlowAutomationScheduleService(db)
+    schedule = await service.get_schedule_by_automation(automation_id)
+
+    if not schedule:
+        raise NotFoundException("Schedule not found")
+
+    await service.delete_schedule(schedule.id, current_user.organization_id)
+    return None
+
+
+# ============================================
+# SCHEDULE EXCEPTIONS
+# ============================================
+
+
+@router.post("/{automation_id}/schedule/exceptions", status_code=status.HTTP_201_CREATED)
+async def add_schedule_exception(
+    automation_id: UUID,
+    data: ScheduleExceptionCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Add exception to automation schedule (e.g., holiday, maintenance window)"""
+    from app.services.flow_automation_schedule_service import FlowAutomationScheduleService
+    from app.schemas.flow_automation import ScheduleExceptionResponse
+
+    service = FlowAutomationScheduleService(db)
+    exception = await service.add_exception(data, current_user.organization_id)
+    return exception
+
+
+@router.delete("/{automation_id}/schedule/exceptions/{exception_id}")
+async def remove_schedule_exception(
+    automation_id: UUID,
+    exception_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Remove exception from schedule"""
+    from app.services.flow_automation_schedule_service import FlowAutomationScheduleService
+
+    service = FlowAutomationScheduleService(db)
+    await service.remove_exception(exception_id, current_user.organization_id)
+    return None
+
+
+@router.get("/{automation_id}/schedule/preview", response_model=SchedulePreview)
+async def get_schedule_preview(
+    automation_id: UUID,
+    num_executions: int = Query(10, ge=1, le=100),
+    days_ahead: int = Query(90, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get preview of next N scheduled executions
+
+    Useful for showing calendar view in UI
+    """
+    from app.services.flow_automation_schedule_service import FlowAutomationScheduleService
+
+    service = FlowAutomationScheduleService(db)
+    schedule = await service.get_schedule_by_automation(automation_id)
+
+    if not schedule:
+        raise NotFoundException("Schedule not found")
+
+    preview = await service.get_schedule_preview(
+        schedule.id,
+        current_user.organization_id,
+        num_executions,
+        days_ahead,
+    )
+    return preview
+
+
 # Future endpoints to implement:
 # - GET /{automation_id}/executions - List executions
 # - GET /{automation_id}/executions/{execution_id} - Get execution details
@@ -201,3 +359,4 @@ async def get_automation_stats(
 # - POST /{automation_id}/executions/{execution_id}/resume - Resume execution
 # - POST /{automation_id}/executions/{execution_id}/cancel - Cancel execution
 # - GET /{automation_id}/executions/{execution_id}/recipients - List recipients with status
+

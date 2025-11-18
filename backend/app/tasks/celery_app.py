@@ -84,6 +84,7 @@ celery_app.autodiscover_tasks(
     [
         "app.tasks.template_sync",
         "app.tasks.campaign_tasks",
+        "app.tasks.flow_automation_tasks",
         # Add other task modules here as needed
         # "app.tasks.webhook_tasks",
     ]

@@ -29,7 +29,7 @@ EXPOSE 3000
 # Start development server
 CMD ["npm", "run", "dev"]
 
-# Production dependencies stage
+# Production dependencies stage (with dev deps for build)
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
@@ -37,11 +37,11 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies with retry logic
+# Install all dependencies (including dev for build time)
 RUN npm config set fetch-retry-mintimeout 20000 && \
     npm config set fetch-retry-maxtimeout 120000 && \
     npm config set fetch-retries 3 && \
-    npm install --only=production
+    npm install
 
 # Rebuild the source code only when needed
 FROM node:20-alpine AS builder

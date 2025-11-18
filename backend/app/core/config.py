@@ -6,6 +6,7 @@ Using Pydantic Settings for environment variable management
 import os
 from functools import lru_cache
 from typing import Annotated, List, Optional, Union
+from urllib.parse import quote
 
 from pydantic import AnyHttpUrl, EmailStr, Field, PostgresDsn, RedisDsn, field_validator, BeforeValidator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
     # Application
     ENVIRONMENT: str = Field(default="development", description="Environment: development, staging, production")
     DEBUG: bool = Field(default=True)
-    SECRET_KEY: str = Field(min_length=32, description="Secret key for app")
+    SECRET_KEY: str = Field(default="dev-secret-key-32chars-minimum-length-1234567890", min_length=32, description="Secret key for app")
     APP_NAME: str = Field(default="PyTake")
     APP_VERSION: str = Field(default="1.0.0")
     API_V1_PREFIX: str = Field(default="/api/v1")
@@ -96,7 +97,7 @@ class Settings(BaseSettings):
     MONGODB_DB: str = Field(default="pytake_logs")
 
     # JWT & Security
-    JWT_SECRET_KEY: str = Field(min_length=32)
+    JWT_SECRET_KEY: str = Field(default="jwt-secret-key-32chars-minimum-length-1234567890-test", min_length=32)
     JWT_ALGORITHM: str = Field(default="HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=15)
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7)
@@ -112,8 +113,38 @@ class Settings(BaseSettings):
     )
 
     # Celery
-    CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/1")
-    CELERY_RESULT_BACKEND: str = Field(default="redis://localhost:6379/2")
+    CELERY_BROKER_URL: Optional[str] = None
+    CELERY_RESULT_BACKEND: Optional[str] = None
+
+    @field_validator("CELERY_BROKER_URL", mode="before")
+    @classmethod
+    def assemble_celery_broker(cls, v, info):
+        if isinstance(v, str):
+            return v
+        values = info.data
+        host = values.get("REDIS_HOST", "localhost")
+        port = values.get("REDIS_PORT", 6379)
+        password = values.get("REDIS_PASSWORD")
+        if password:
+            # URL-encode the password to handle special characters
+            encoded_password = quote(password, safe='')
+            return f"redis://default:{encoded_password}@{host}:{port}/1"
+        return f"redis://{host}:{port}/1"
+
+    @field_validator("CELERY_RESULT_BACKEND", mode="before")
+    @classmethod
+    def assemble_celery_backend(cls, v, info):
+        if isinstance(v, str):
+            return v
+        values = info.data
+        host = values.get("REDIS_HOST", "localhost")
+        port = values.get("REDIS_PORT", 6379)
+        password = values.get("REDIS_PASSWORD")
+        if password:
+            # URL-encode the password to handle special characters
+            encoded_password = quote(password, safe='')
+            return f"redis://default:{encoded_password}@{host}:{port}/2"
+        return f"redis://{host}:{port}/2"
 
     # WhatsApp Business API
     WHATSAPP_API_URL: str = Field(default="https://graph.facebook.com/v18.0")

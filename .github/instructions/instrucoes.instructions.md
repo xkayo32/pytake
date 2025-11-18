@@ -31,15 +31,27 @@ git checkout -b feature/TICKET-XXX-descricao
 ## ✅ Checklist
 - [ ] Branch != main/develop
 - [ ] Commits em Conventional Commits
-- [ ] Testes passando localmente
-- [ ] Lint sem erros
+- [ ] ⚠️ NÃO ativar lint ou type-check (removidos)
+- [ ] Migrations passando (`alembic upgrade head`)
+- [ ] Imports críticos OK (`from app.main import app`)
+- [ ] Build passando (sem erros críticos)
 - [ ] PR com "Como Testar"
 - [ ] CI/CD verde
 - [ ] Code review aprovado
 
+## 🔐 Secrets & Environments
+
+**Leia antes:** `.github/docs/SECRETS_AND_ENVIRONMENTS/README.md`
+
+- SEMPRE adicionar secrets via GitHub, nunca em código
+- Novos secrets: `gh secret set NOME -b "valor"`
+- Documentar em `.github/docs/SECRETS_AND_ENVIRONMENTS/README.md`
+- ❌ NUNCA fazer commit de `.env`
+
 ## 📚 Referências
 - .github/GIT_WORKFLOW.md
 - .github/PR_GUIDELINES.md
+- .github/docs/SECRETS_AND_ENVIRONMENTS/README.md (🔐 **Obrigatório**)
 - .github/CI_CD_MONITORING.md
 
-Última atualização: 2025-11-12
+Última atualização: 2025-11-18

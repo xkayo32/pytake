@@ -10,7 +10,7 @@ Syncs templates from Meta API to local database every hour
 from celery import shared_task
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-from app.core.database import async_session_maker
+from app.core.database import AsyncSessionLocal
 from app.services.template_service import TemplateService
 from app.models.whatsapp_number import WhatsAppNumber
 import logging
@@ -50,7 +50,7 @@ async def _sync_all_numbers() -> dict:
     total_updated = 0
     errors = []
 
-    async with async_session_maker() as db:
+    async with AsyncSessionLocal() as db:
         # Get all active WhatsApp numbers with Official API
         query = select(WhatsAppNumber).where(
             and_(
@@ -169,7 +169,7 @@ async def _sync_single_number(
 
     Used for on-demand sync (triggered by user action)
     """
-    async with async_session_maker() as db:
+    async with AsyncSessionLocal() as db:
         service = TemplateService(db)
 
         stats = await service.sync_from_meta(
