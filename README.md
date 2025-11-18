@@ -3,6 +3,8 @@
 > ⚠️ **Atenção**: Este repositório está em processo de migração para arquitetura multi-repositório.  
 > Consulte [.github/MIGRATION_GUIDE.md](.github/MIGRATION_GUIDE.md) para detalhes.
 
+> 🔐 **Secrets & Environments**: Consulte `.github/docs/SECRETS_AND_ENVIRONMENTS/README.md` para gerenciar credenciais com segurança.
+
 ## 🚀 Visão Geral
 
 PyTake é uma plataforma completa para automação de WhatsApp Business API, permitindo criar flows visuais, gerenciar conversas e automatizar atendimento ao cliente.

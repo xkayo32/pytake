@@ -36,6 +36,35 @@ Portas/variáveis importantes:
 - MongoDB: mapeado em 27018 (note a diferença)
 - Arquivo de configuração podman: `backend/.env.podman` (use este quando trabalhar com compose)
 
+## 🔐 Secrets & Environments - LEIA OBRIGATORIAMENTE
+
+**IMPORTANTE:** Todas as credenciais devem estar no GitHub, NUNCA no código!
+
+- **Secrets Location:** `.github/docs/SECRETS_AND_ENVIRONMENTS/README.md` ← LEIA ISSO PRIMEIRO
+- **Repository Secrets:** Acessar em https://github.com/xkayo32/pytake/settings/secrets/actions
+- **Environments:** Acessar em https://github.com/xkayo32/pytake/settings/environments
+
+### Quando adicionar novo secret:
+
+1. Gerar localmente: `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`
+2. Adicionar no GitHub: `gh secret set NOVO_SECRET -b "valor"`
+3. **Documentar em** `.github/docs/SECRETS_AND_ENVIRONMENTS/README.md`
+4. Usar em workflows: `${{ secrets.NOVO_SECRET }}`
+
+### Secrets Atuais (Nov 2025):
+
+- `SECRET_KEY` - Chave da aplicação
+- `JWT_SECRET_KEY` - Chave de JWT
+- `ENCRYPTION_KEY` - Chave Fernet
+
+### ⚠️ NUNCA:
+
+- ❌ Colocar secrets no código
+- ❌ Fazer commit de `.env`
+- ❌ Print secrets em logs
+- ❌ Reutilizar mesma senha em dev/staging/prod
+- ❌ Deixar credentials em texto plano
+
 ## 🔀 GitFlow & CI/CD - LEIA OBRIGATORIAMENTE
 
 **⚠️ NUNCA commitar ou fazer push em `main` ou `develop` diretamente.**
@@ -47,6 +76,14 @@ Portas/variáveis importantes:
 1. `.github/GIT_WORKFLOW.md` - Workflow completo de GitFlow
 2. `.github/AGENT_INSTRUCTIONS.md` - Instruções passo-a-passo para agentes
 3. GitHub Actions workflows em `.github/workflows/` - CI/CD automático
+
+### CI/CD Limpo (Desde commit b9bef97):
+
+- ✅ **MANTÉM:** Migrations, Imports, Build (erros que quebram deploy)
+- ❌ **REMOVIDO:** Lint, ESLint, TypeScript type-check, formatters
+- ❌ **NUNCA REATIVAR:** lint.yml ou type-check nos workflows
+
+**Por que?** Lint/type-check geram ruído. Foco em erros que realmente quebram o sistema.
 
 Boas práticas de commit/PR (curto):
 - Commits frequentes, mensagens no formato: `feat:`, `fix:`, `refactor:`, `docs:`. Pequenos commits por unidade lógica.
