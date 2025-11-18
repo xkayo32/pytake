@@ -6,7 +6,25 @@ Combines all v1 endpoints
 from fastapi import APIRouter, Request, Query, HTTPException
 from fastapi.responses import PlainTextResponse
 
-from app.api.v1.endpoints import auth, organizations, users, contacts, conversations, whatsapp, chatbots, campaigns, analytics, queue, queues, departments, ai_assistant, agent_skills, secrets, database, websocket, debug
+# Import endpoints directly to avoid circular imports
+from app.api.v1.endpoints import auth
+from app.api.v1.endpoints import organizations
+from app.api.v1.endpoints import users
+from app.api.v1.endpoints import contacts
+from app.api.v1.endpoints import conversations
+from app.api.v1.endpoints import whatsapp
+from app.api.v1.endpoints import chatbots
+from app.api.v1.endpoints import campaigns
+from app.api.v1.endpoints import analytics
+from app.api.v1.endpoints import queue
+from app.api.v1.endpoints import queues
+from app.api.v1.endpoints import departments
+from app.api.v1.endpoints import ai_assistant
+from app.api.v1.endpoints import agent_skills
+from app.api.v1.endpoints import secrets
+from app.api.v1.endpoints import database
+from app.api.v1.endpoints import websocket
+from app.api.v1.endpoints import debug
 from app.api.v1.endpoints import flow_automations
 from app.api.webhooks import meta as webhooks_meta
 
