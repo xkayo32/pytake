@@ -339,9 +339,7 @@ export default function TermsPage() {
       </footer>
     </div>
   )
-}
-            <p className="mb-4">
-              Ao acessar e usar o PyTake, você concorda com estes Termos de Uso. 
+} 
               Se você não concordar com algum termo, não deve usar nosso serviço.
             </p>
           </section>
