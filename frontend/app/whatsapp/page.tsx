@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { getApiUrl, getWebSocketUrl } from '@/lib/api-client'
 import { 
   Send, 
   Paperclip, 
@@ -111,9 +112,7 @@ export default function WhatsAppPage() {
   useEffect(() => {
     const connectWebSocket = () => {
       try {
-        const wsUrl = process.env.NODE_ENV === 'production' 
-          ? 'wss://api.pytake.net/ws'
-          : 'ws://localhost:8081/ws'
+        const wsUrl = getWebSocketUrl()
         
         const ws = new WebSocket(wsUrl)
         wsRef.current = ws
@@ -218,7 +217,8 @@ export default function WhatsAppPage() {
 
   const loadContacts = async () => {
     try {
-      const response = await fetch('/api/v1/contacts')
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/v1/contacts`)
       if (response.ok) {
         const data = await response.json()
         const formattedContacts = data.contacts.map((contact: any) => ({
@@ -244,7 +244,8 @@ export default function WhatsAppPage() {
   const loadMessages = async (contactId: string) => {
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/v1/whatsapp/messages/${contactId}`)
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/messages/${contactId}`)
       if (response.ok) {
         const data = await response.json()
         const formattedMessages = data.map((msg: any) => ({
@@ -286,7 +287,8 @@ export default function WhatsAppPage() {
     setNewMessage('')
 
     try {
-      const response = await fetch('/api/v1/whatsapp/send', {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -386,7 +388,8 @@ export default function WhatsAppPage() {
       phone = '+' + phone
 
       // Criar/buscar contato
-      const response = await fetch('/api/v1/contacts', {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/v1/contacts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -458,7 +461,8 @@ export default function WhatsAppPage() {
   // Carregar templates disponíveis
   const loadTemplates = async () => {
     try {
-      const response = await fetch('/api/v1/whatsapp/templates')
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/templates`)
       if (response.ok) {
         const data = await response.json()
         setTemplates(data)
@@ -479,7 +483,8 @@ export default function WhatsAppPage() {
     if (!selectedTemplate || !selectedContact) return
 
     try {
-      const response = await fetch('/api/v1/whatsapp/send-template', {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/send-template`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
