@@ -148,10 +148,21 @@ app.add_middleware(
     CORSMiddleware,
     # Allow specific origins (not wildcard when credentials=true)
     allow_origins=[
+        # Local development
         "http://localhost:3000",
         "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        # Development environment
+        "https://app-dev.pytake.net",
+        "https://api-dev.pytake.net",
+        # Staging environment
+        "https://app-staging.pytake.net",
+        "https://api-staging.pytake.net",
+        # Production environment
         "https://app.pytake.net",
         "https://www.app.pytake.net",
+        "https://api.pytake.net",
         "https://pytake.net",
         "https://www.pytake.net",
     ],

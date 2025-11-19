@@ -3,13 +3,13 @@
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { LogoInline } from "@/components/ui/logo"
-import { MessageSquare, Bot, BarChart3, Shield, Zap, Users, Star, Check, ArrowRight, Play, TrendingUp, Clock, Globe } from "lucide-react"
+import { MessageSquare, Bot, BarChart3, Shield, Zap, Users, Star, Check, ArrowRight, Play, TrendingUp, Clock, Globe, Lock, Award, Zap as ZapIcon } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
       {/* Header fixo */}
       <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-md">
         <div className="container-responsive">
@@ -21,13 +21,16 @@ export default function Home() {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6">
-              <Link href="/docs" className="text-foreground-secondary hover:text-primary transition-colors">
-                Docs
+              <Link href="#features" className="text-foreground-secondary hover:text-primary transition-colors text-sm">
+                Recursos
               </Link>
-              <Link href="#pricing" className="text-foreground-secondary hover:text-primary transition-colors">
+              <Link href="#testimonials" className="text-foreground-secondary hover:text-primary transition-colors text-sm">
+                Cases
+              </Link>
+              <Link href="#pricing" className="text-foreground-secondary hover:text-primary transition-colors text-sm">
                 Preços
               </Link>
-              <Link href="/contact" className="text-foreground-secondary hover:text-primary transition-colors">
+              <Link href="/contact" className="text-foreground-secondary hover:text-primary transition-colors text-sm">
                 Contato
               </Link>
             </nav>
@@ -41,7 +44,7 @@ export default function Home() {
                 </Button>
               </Link>
               <Link href="/register">
-                <Button className="btn-primary text-sm px-4 py-2">
+                <Button className="bg-primary hover:bg-primary/90 text-sm px-4 py-2">
                   Começar Grátis
                 </Button>
               </Link>
@@ -161,14 +164,136 @@ export default function Home() {
               </p>
             </div>
             
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-surface to-surface-secondary p-8 border">
-              <div className="aspect-video bg-muted rounded-xl flex items-center justify-center">
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-blue-600 to-purple-600 p-8 border">
+              <div className="aspect-video bg-slate-900/20 rounded-xl flex items-center justify-center backdrop-blur">
                 <div className="text-center">
-                  <Play className="h-16 w-16 text-primary mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">Demo Interativo</h3>
-                  <p className="text-foreground-secondary">Assista como o PyTake transforma seu atendimento</p>
+                  <Play className="h-16 w-16 text-white mx-auto mb-4 opacity-80" />
+                  <h3 className="text-xl font-semibold text-white mb-2">Demo Interativo</h3>
+                  <p className="text-slate-200">Assista como o PyTake transforma seu atendimento</p>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials / Case Studies Section */}
+      <section id="testimonials" className="py-20 bg-slate-50 dark:bg-slate-900/50">
+        <div className="container-responsive">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Casos de Sucesso
+            </h2>
+            <p className="text-lg text-foreground-secondary">
+              Descubra como empresas transformaram seu atendimento com PyTake
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <TestimonialCard
+              name="Carlos Souza"
+              company="TechSolutions"
+              role="CEO"
+              image="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop"
+              quote="PyTake aumentou nossas vendas em 45% em 3 meses. A automação com IA é incrível."
+              metrics="45% ↑ vendas"
+            />
+            <TestimonialCard
+              name="Fernanda Lima"
+              company="E-Commerce Pro"
+              role="Diretora Comercial"
+              image="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop"
+              quote="Reduzimos o tempo de resposta para clientes em 80%. Atendimento muito mais rápido."
+              metrics="80% ↓ tempo resposta"
+            />
+            <TestimonialCard
+              name="Anderson Tech"
+              company="SaaS Integrations"
+              role="Product Manager"
+              image="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop"
+              quote="Integração perfeita com nosso ERP. Suporte excepcional da equipe PyTake."
+              metrics="100% integração"
+            />
+          </div>
+
+          {/* Stats bar */}
+          <div className="mt-16 grid grid-cols-3 gap-8 max-w-4xl mx-auto">
+            <div className="text-center p-6 rounded-lg bg-white dark:bg-slate-800 border">
+              <div className="text-3xl font-bold text-primary mb-2">10k+</div>
+              <div className="text-sm text-foreground-secondary">Empresas ativas</div>
+            </div>
+            <div className="text-center p-6 rounded-lg bg-white dark:bg-slate-800 border">
+              <div className="text-3xl font-bold text-primary mb-2">4.9★</div>
+              <div className="text-sm text-foreground-secondary">Avaliação média</div>
+            </div>
+            <div className="text-center p-6 rounded-lg bg-white dark:bg-slate-800 border">
+              <div className="text-3xl font-bold text-primary mb-2">99.9%</div>
+              <div className="text-sm text-foreground-secondary">Uptime SLA</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Security & Compliance Section */}
+      <section className="py-20 bg-gradient-to-br from-slate-900 to-blue-900 text-white relative overflow-hidden">
+        {/* Background decorative elements */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10" />
+        
+        <div className="container-responsive relative z-10">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/20 text-green-300 border border-green-500/30 mb-4">
+              <Lock className="h-4 w-4" />
+              <span className="text-sm font-medium">Segurança em Primeiro Lugar</span>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Seus Dados Estão Seguros
+            </h2>
+            <p className="text-lg text-slate-300 max-w-2xl mx-auto">
+              Conformidade total com LGPD, GDPR e regulamentações internacionais. Criptografia de ponta-a-ponta em todas as comunicações.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-4 gap-6 max-w-5xl mx-auto">
+            <SecurityCard
+              icon={<Shield className="h-8 w-8" />}
+              title="Criptografia"
+              description="End-to-end em todas as mensagens"
+            />
+            <SecurityCard
+              icon={<Award className="h-8 w-8" />}
+              title="LGPD"
+              description="Totalmente em conformidade"
+            />
+            <SecurityCard
+              icon={<Lock className="h-8 w-8" />}
+              title="SOC 2 Type II"
+              description="Certificado e auditado"
+            />
+            <SecurityCard
+              icon={<ZapIcon className="h-8 w-8" />}
+              title="99.9% Uptime"
+              description="SLA garantido"
+            />
+          </div>
+
+          {/* Trust badges */}
+          <div className="mt-12 flex flex-wrap justify-center gap-4 text-sm">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10">
+              <Check className="h-4 w-4 text-green-400" />
+              <span>Dados em servidores brasileiros</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10">
+              <Check className="h-4 w-4 text-green-400" />
+              <span>Backup automático redundante</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10">
+              <Check className="h-4 w-4 text-green-400" />
+              <span>Acesso restrito e auditado</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10">
+              <Check className="h-4 w-4 text-green-400" />
+              <span>Suporte legal 24/7</span>
             </div>
           </div>
         </div>
@@ -426,11 +551,60 @@ function PricingCard({ title, price, period, description, features, popular }: {
       
       <Link href="/register" className="block">
         <Button className={`w-full py-3 ${
-          popular ? 'btn-primary' : 'border-2 hover:bg-surface'
+          popular ? 'bg-primary hover:bg-primary/90' : 'border-2 hover:bg-slate-50 dark:hover:bg-slate-800'
         }`} variant={popular ? 'default' : 'outline'}>
           Começar Agora
         </Button>
       </Link>
+    </div>
+  )
+}
+
+function TestimonialCard({ name, company, role, image, quote, metrics }: {
+  name: string
+  company: string
+  role: string
+  image: string
+  quote: string
+  metrics: string
+}) {
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-lg p-6 shadow-sm border hover:shadow-lg transition-shadow">
+      <div className="flex items-center gap-4 mb-4">
+        <img src={image} alt={name} className="w-12 h-12 rounded-full object-cover" />
+        <div>
+          <h3 className="font-semibold text-foreground">{name}</h3>
+          <p className="text-sm text-foreground-secondary">{company}</p>
+        </div>
+      </div>
+      
+      <div className="mb-4">
+        <div className="flex gap-1 mb-3">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <Star key={star} className="h-4 w-4 fill-amber-400 text-amber-400" />
+          ))}
+        </div>
+        <p className="text-foreground italic mb-3">"{quote}"</p>
+        <div className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold">
+          {metrics}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SecurityCard({ icon, title, description }: {
+  icon: React.ReactNode
+  title: string
+  description: string
+}) {
+  return (
+    <div className="text-center">
+      <div className="flex justify-center mb-4 opacity-80">
+        {icon}
+      </div>
+      <h3 className="font-semibold mb-2">{title}</h3>
+      <p className="text-sm text-slate-300">{description}</p>
     </div>
   )
 }

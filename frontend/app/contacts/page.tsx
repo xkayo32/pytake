@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AppLayout } from '@/components/layout/app-layout'
 import { notify } from '@/lib/utils'
+import { getApiUrl, getAuthHeaders } from '@/lib/api-client'
 import {
   Dialog,
   DialogContent,
@@ -77,10 +78,12 @@ export default function ContactsPage() {
   const loadContacts = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/v1/contacts')
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/contacts/`, { headers })
       if (response.ok) {
         const data = await response.json()
-        setContacts(data.contacts || [])
+        setContacts(Array.isArray(data) ? data : data.contacts || [])
       } else {
         throw new Error('Failed to load contacts')
       }
@@ -100,9 +103,11 @@ export default function ContactsPage() {
 
     try {
       setSaving(true)
-      const response = await fetch('/api/v1/contacts', {
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/contacts/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(formData)
       })
 
@@ -130,9 +135,11 @@ export default function ContactsPage() {
 
     try {
       setSaving(true)
-      const response = await fetch(`/api/v1/contacts/${editingContact.id}`, {
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/contacts/${editingContact.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(formData)
       })
 
@@ -159,8 +166,11 @@ export default function ContactsPage() {
     }
 
     try {
-      const response = await fetch(`/api/v1/contacts/${contactId}`, {
-        method: 'DELETE'
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/contacts/${contactId}`, {
+        method: 'DELETE',
+        headers
       })
 
       if (response.ok) {

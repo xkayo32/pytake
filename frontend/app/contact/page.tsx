@@ -1,307 +1,254 @@
 'use client'
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MessageSquare, ArrowLeft, Mail, Phone, MapPin, Clock } from "lucide-react"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { LogoInline } from "@/components/ui/logo"
+import { Mail, Phone, MapPin, Clock, Send, CheckCircle, ArrowRight, Zap as ZapIcon, Globe, Users, BarChart3 } from "lucide-react"
 import Link from "next/link"
+import { useState } from "react"
 
 export default function ContactPage() {
+  const [submitted, setSubmitted] = useState(false)
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitted(true)
+    setTimeout(() => setSubmitted(false), 3000)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
       {/* Navigation */}
       <nav className="border-b bg-white/80 dark:bg-background/80 backdrop-blur-md sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Link href="/" className="flex items-center gap-2">
-              <ArrowLeft className="h-5 w-5" />
-              <MessageSquare className="h-8 w-8 text-primary" />
-              <span className="text-2xl font-bold bg-gradient-to-r gradient-text-primary bg-clip-text text-transparent">
-                PyTake
-              </span>
-            </Link>
-          </div>
+          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <LogoInline className="h-8" />
+          </Link>
           <div className="flex items-center gap-4">
+            <ThemeToggle />
             <Link href="/login">
-              <Button variant="outline">Login</Button>
+              <Button variant="outline" size="sm">Login</Button>
             </Link>
             <Link href="/register">
-              <Button className="bg-primary hover:bg-primary/90">
-                Começar Grátis
-              </Button>
+              <Button className="bg-primary hover:bg-primary/90" size="sm">Começar Grátis</Button>
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* Header */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r gradient-text-primary bg-clip-text text-transparent">
-            Entre em Contato
-          </h1>
-          <p className="text-xl text-foreground-secondary mb-8 max-w-2xl mx-auto">
-            Tem alguma dúvida ou precisa de ajuda? Nossa equipe está pronta para atendê-lo.
-          </p>
-        </div>
-      </section>
-
-      {/* Contact Form and Info */}
-      <section className="container mx-auto px-4 pb-20">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12">
-            {/* Contact Form */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Envie sua Mensagem</CardTitle>
-                <CardDescription>
-                  Preencha o formulário e responderemos em até 24 horas
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form className="space-y-6">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="firstName">Nome *</Label>
-                      <Input id="firstName" placeholder="Seu nome" required />
-                    </div>
-                    <div>
-                      <Label htmlFor="lastName">Sobrenome *</Label>
-                      <Input id="lastName" placeholder="Seu sobrenome" required />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="email">Email *</Label>
-                    <Input id="email" type="email" placeholder="seu@email.com" required />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="phone">Telefone</Label>
-                    <Input id="phone" placeholder="+55 (11) 99999-9999" />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="company">Empresa</Label>
-                    <Input id="company" placeholder="Nome da sua empresa" />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="subject">Assunto *</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o assunto" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="sales">Vendas</SelectItem>
-                        <SelectItem value="support">Suporte Técnico</SelectItem>
-                        <SelectItem value="demo">Demonstração</SelectItem>
-                        <SelectItem value="partnership">Parcerias</SelectItem>
-                        <SelectItem value="billing">Faturamento</SelectItem>
-                        <SelectItem value="other">Outros</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="message">Mensagem *</Label>
-                    <Textarea 
-                      id="message" 
-                      placeholder="Descreva sua dúvida ou necessidade..." 
-                      rows={5}
-                      required 
-                    />
-                  </div>
-                  
-                  <Button className="w-full bg-primary hover:bg-primary/90">
-                    Enviar Mensagem
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-
-            {/* Contact Information */}
-            <div className="space-y-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Informações de Contato</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-start gap-3">
-                    <Mail className="h-5 w-5 text-primary mt-1" />
-                    <div>
-                      <h3 className="font-medium">Email</h3>
-                      <p className="text-muted-foreground">contato@pytake.net</p>
-                      <p className="text-sm text-muted-foreground">Suporte: suporte@pytake.net</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-3">
-                    <Phone className="h-5 w-5 text-primary mt-1" />
-                    <div>
-                      <h3 className="font-medium">Telefone</h3>
-                      <p className="text-muted-foreground">+55 (11) 99999-9999</p>
-                      <p className="text-sm text-muted-foreground">WhatsApp disponível</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-3">
-                    <MapPin className="h-5 w-5 text-primary mt-1" />
-                    <div>
-                      <h3 className="font-medium">Endereço</h3>
-                      <p className="text-muted-foreground">
-                        São Paulo, SP<br />
-                        Brasil
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-3">
-                    <Clock className="h-5 w-5 text-primary mt-1" />
-                    <div>
-                      <h3 className="font-medium">Horário de Atendimento</h3>
-                      <p className="text-muted-foreground">
-                        Segunda à Sexta: 9h às 18h<br />
-                        Sábado: 9h às 12h<br />
-                        Domingo: Fechado
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Support Options */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Outras Formas de Suporte</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-4 bg-slate-50 dark:bg-surface rounded-lg">
-                    <h3 className="font-medium mb-2">Central de Ajuda</h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Encontre respostas para dúvidas comuns
-                    </p>
-                    <Link href="/docs">
-                      <Button variant="outline" size="sm">
-                        Acessar Documentação
-                      </Button>
-                    </Link>
-                  </div>
-                  
-                  <div className="p-4 bg-slate-50 dark:bg-surface rounded-lg">
-                    <h3 className="font-medium mb-2">Chat ao Vivo</h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Fale conosco em tempo real (clientes)
-                    </p>
-                    <Button variant="outline" size="sm">
-                      Iniciar Chat
-                    </Button>
-                  </div>
-                  
-                  <div className="p-4 bg-slate-50 dark:bg-surface rounded-lg">
-                    <h3 className="font-medium mb-2">Status da Plataforma</h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Verifique o status dos nossos serviços
-                    </p>
-                    <Button variant="outline" size="sm">
-                      Ver Status
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[calc(100vh-64px)]">
+        {/* Left Column - Contact Form */}
+        <div className="flex flex-col justify-center px-4 sm:px-6 lg:px-8 py-8 lg:py-0 lg:border-r border-slate-200 dark:border-slate-700">
+          <div className="w-full max-w-md mx-auto">
+            <div className="mb-8">
+              <h1 className="text-4xl font-bold mb-3">Fale Conosco</h1>
+              <p className="text-muted-foreground text-lg">Responderemos em até 24 horas</p>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* FAQ Section */}
-      <section className="bg-slate-50 dark:bg-surface/50 py-20">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl font-bold text-center mb-12">
-              Perguntas Frequentes
-            </h2>
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-semibold mb-2">Quanto tempo leva para configurar?</h3>
-                  <p className="text-muted-foreground text-sm">
-                    A configuração básica leva cerca de 15 minutos. Nossa equipe pode 
-                    ajudar com configurações mais complexas.
-                  </p>
-                </div>
-                
-                <div>
-                  <h3 className="font-semibold mb-2">Vocês oferecem suporte em português?</h3>
-                  <p className="text-muted-foreground text-sm">
-                    Sim! Todo nosso suporte é em português, por uma equipe brasileira.
-                  </p>
-                </div>
-                
-                <div>
-                  <h3 className="font-semibold mb-2">Há limite de mensagens?</h3>
-                  <p className="text-muted-foreground text-sm">
-                    Depende do plano escolhido. Temos opções desde 1.000 até 
-                    mensagens ilimitadas.
-                  </p>
+            {submitted ? (
+              <div className="flex items-center justify-center rounded-lg bg-green-50 dark:bg-green-900/20 p-6 border border-green-200 dark:border-green-800 mb-6">
+                <div className="text-center">
+                  <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-3" />
+                  <h3 className="font-semibold text-green-900 dark:text-green-100">Mensagem enviada!</h3>
+                  <p className="text-sm text-green-700 dark:text-green-300 mt-1">Obrigado! Entraremos em contato em breve.</p>
                 </div>
               </div>
-              
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-semibold mb-2">Posso migrar de outra plataforma?</h3>
-                  <p className="text-muted-foreground text-sm">
-                    Sim! Oferecemos migração gratuita de dados e configurações 
-                    de outras plataformas.
-                  </p>
+            ) : null}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Name and Email */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="name" className="text-sm font-medium">Nome *</Label>
+                  <Input 
+                    id="name"
+                    placeholder="Seu nome"
+                    required
+                    className="h-10"
+                  />
                 </div>
-                
-                <div>
-                  <h3 className="font-semibold mb-2">O PyTake é seguro?</h3>
-                  <p className="text-muted-foreground text-sm">
-                    Absolutamente. Usamos criptografia de ponta e somos 
-                    totalmente conformes com a LGPD.
-                  </p>
+                <div className="space-y-1">
+                  <Label htmlFor="email" className="text-sm font-medium">Email *</Label>
+                  <Input 
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    required
+                    autoComplete="email"
+                    className="h-10"
+                  />
                 </div>
-                
+              </div>
+
+              {/* Phone and Company */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="phone" className="text-sm font-medium">Telefone</Label>
+                  <Input 
+                    id="phone"
+                    placeholder="+55 (11) 9..."
+                    className="h-10"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="company" className="text-sm font-medium">Empresa</Label>
+                  <Input 
+                    id="company"
+                    placeholder="Sua empresa"
+                    className="h-10"
+                  />
+                </div>
+              </div>
+
+              {/* Subject */}
+              <div className="space-y-1">
+                <Label htmlFor="subject" className="text-sm font-medium">Assunto *</Label>
+                <Select>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Selecione o assunto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sales">💰 Vendas</SelectItem>
+                    <SelectItem value="support">🆘 Suporte Técnico</SelectItem>
+                    <SelectItem value="demo">🎮 Demonstração</SelectItem>
+                    <SelectItem value="partnership">🤝 Parcerias</SelectItem>
+                    <SelectItem value="billing">💳 Faturamento</SelectItem>
+                    <SelectItem value="other">📝 Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Message */}
+              <div className="space-y-1">
+                <Label htmlFor="message" className="text-sm font-medium">Mensagem *</Label>
+                <Textarea 
+                  id="message"
+                  placeholder="Descreva sua dúvida ou necessidade..."
+                  rows={5}
+                  required
+                  className="resize-none"
+                />
+              </div>
+
+              {/* Submit Button */}
+              <Button 
+                type="submit"
+                className="w-full bg-primary hover:bg-primary/90 h-10 text-base font-semibold transition-all"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                Enviar Mensagem
+              </Button>
+
+              {/* Back to Home */}
+              <Link 
+                href="/"
+                className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors pt-2 border-t border-slate-200 dark:border-slate-700"
+              >
+                <div className="group-hover:-translate-x-1 transition-transform">
+                  <ArrowRight className="h-4 w-4 rotate-180" />
+                </div>
+                Voltar para início
+              </Link>
+            </form>
+          </div>
+        </div>
+
+        {/* Right Column - Contact Info & Benefits (Desktop only) */}
+        <div className="hidden lg:flex flex-col justify-between px-8 py-12 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 dark:from-slate-950 dark:via-blue-950 dark:to-slate-950 relative overflow-hidden">
+          {/* Animated background */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" />
+
+          <div className="relative z-10">
+            <div className="mb-12">
+              <h2 className="text-4xl font-bold text-white mb-3 leading-tight">Estamos Aqui para Ajudar</h2>
+              <p className="text-lg text-slate-300">Dúvidas? Conecte-se com nosso time de especialistas</p>
+            </div>
+
+            {/* Contact Methods */}
+            <div className="space-y-6">
+              <div className="group">
+                <div className="flex gap-4 p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-all duration-300 border border-white/10 hover:border-blue-500/30">
+                  <div className="flex-shrink-0">
+                    <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
+                      <Mail className="h-6 w-6" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold mb-1 group-hover:text-blue-300 transition-colors">Email</h3>
+                    <p className="text-sm text-slate-400">contato@pytake.net</p>
+                    <p className="text-xs text-slate-500">Suporte: suporte@pytake.net</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="group">
+                <div className="flex gap-4 p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-all duration-300 border border-white/10 hover:border-emerald-500/30">
+                  <div className="flex-shrink-0">
+                    <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg">
+                      <Phone className="h-6 w-6" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold mb-1 group-hover:text-emerald-300 transition-colors">WhatsApp</h3>
+                    <p className="text-sm text-slate-400">+55 (11) 99999-9999</p>
+                    <p className="text-xs text-slate-500">Atendimento prioritário</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="group">
+                <div className="flex gap-4 p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-all duration-300 border border-white/10 hover:border-cyan-500/30">
+                  <div className="flex-shrink-0">
+                    <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg">
+                      <Clock className="h-6 w-6" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold mb-1 group-hover:text-cyan-300 transition-colors">Horários</h3>
+                    <p className="text-sm text-slate-400">Seg-Sex: 9h às 18h</p>
+                    <p className="text-xs text-slate-500">Chat 24/7 para clientes</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="group">
+                <div className="flex gap-4 p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-all duration-300 border border-white/10 hover:border-amber-500/30">
+                  <div className="flex-shrink-0">
+                    <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg">
+                      <MapPin className="h-6 w-6" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold mb-1 group-hover:text-amber-300 transition-colors">Localização</h3>
+                    <p className="text-sm text-slate-400">São Paulo, SP</p>
+                    <p className="text-xs text-slate-500">Suporte global</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom CTA */}
+          <div className="relative z-10 mt-auto pt-8 border-t border-slate-700/50">
+            <div className="bg-gradient-to-r from-blue-600/10 to-purple-600/10 rounded-lg p-6 border border-blue-500/20 backdrop-blur">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="font-semibold mb-2">Oferecem treinamento?</h3>
-                  <p className="text-muted-foreground text-sm">
-                    Sim! Oferecemos onboarding completo e treinamento para 
-                    sua equipe sem custo adicional.
-                  </p>
+                  <p className="text-slate-200 font-semibold text-lg mb-1">Precisa de ajuda?</p>
+                  <p className="text-sm text-slate-400">Acesse nossa documentação completa</p>
+                </div>
+                <div className="flex-shrink-0 text-blue-400">
+                  <ZapIcon className="h-6 w-6" />
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t bg-white dark:bg-background py-8">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-6 w-6 text-primary" />
-              <span className="font-semibold">PyTake © 2024</span>
-            </div>
-            <div className="flex gap-6">
-              <Link href="/terms" className="text-sm text-muted-foreground hover:text-primary">
-                Termos
-              </Link>
-              <Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary">
-                Privacidade
-              </Link>
-              <Link href="/contact" className="text-sm text-muted-foreground hover:text-primary">
-                Contato
-              </Link>
-            </div>
-          </div>
-        </div>
-      </footer>
+      </div>
     </div>
   )
 }

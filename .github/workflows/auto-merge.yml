@@ -1,11 +1,8 @@
-name: 🔄 Auto-Merge on CI Pass
+name: 🔄 Auto-Merge on CI Pass (DESATIVADO - Merge manual via GitHub)
 
+# ⚠️ AUTO-MERGE DESATIVADO - Use o botão de merge no GitHub
 on:
-  pull_request:
-    types: [opened, reopened, synchronize]
-  pull_request_review:
-    types: [submitted]
-  status:
+  workflow_dispatch: # Só dispara manualmente, nunca automaticamente
 
 permissions:
   pull-requests: write
