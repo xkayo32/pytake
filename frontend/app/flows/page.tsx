@@ -30,6 +30,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { getApiUrl, getAuthHeaders } from '@/lib/api-client'
 import { WhatsAppNumberSelector } from '@/components/whatsapp/whatsapp-number-selector'
 import { Flow } from '@/lib/types/flow'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -238,9 +239,11 @@ export default function FlowsPage() {
         }
       }
       
-      const response = await fetch('/api/v1/flows', {
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/flows`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(newFlowData)
       })
       
@@ -296,13 +299,13 @@ export default function FlowsPage() {
       }
       
       // Use Next.js API route proxy to avoid CORS issues
-      console.log('🔄 Loading flows via Next.js proxy...')
+      console.log('🔄 Loading flows via API...')
       
-      const response = await fetch('/api/v1/flows', {
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/flows`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
+        headers
       })
       
       let apiFlows: Flow[] = []
@@ -415,9 +418,11 @@ export default function FlowsPage() {
     try {
       // Flow do backend - duplicar via API
       console.log('📋 Duplicando flow do backend:', flowId)
-      const response = await fetch('/api/v1/flows', {
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/flows`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           ...originalFlow,
           name: `${originalFlow.name} (Cópia)`,
