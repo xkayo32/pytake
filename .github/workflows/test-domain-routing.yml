@@ -39,7 +39,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        environment: [prod, staging, dev]
+        # ⚠️ MODO DEV: Apenas 'dev' ativo durante desenvolvimento
+        # Descomentar quando staging/prod estiverem prontos:
+        # environment: [prod, staging, dev]
+        environment: [dev]
     
     steps:
       - name: 📥 Checkout Code
@@ -102,7 +105,9 @@ jobs:
           echo "| Environment | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------------|--------|" >> $GITHUB_STEP_SUMMARY
           
-          for env in prod staging dev; do
+          # ⚠️ MODO DEV: Apenas 'dev' durante desenvolvimento
+          # for env in prod staging dev; do
+          for env in dev; do
             if [ -f "test-report-$env/test-report-$env.json" ]; then
               FAILED=$(cat "test-report-$env/test-report-$env.json" | grep -o '"failed": [0-9]*' | grep -o '[0-9]*' || echo "0")
               if [ "$FAILED" -eq 0 ]; then
@@ -123,7 +128,9 @@ jobs:
             const fs = require('fs');
             let comment = '## 🔗 Domain Routing Tests Results\n\n';
             
-            const environments = ['prod', 'staging', 'dev'];
+            // ⚠️ MODO DEV: Apenas 'dev' durante desenvolvimento
+            // const environments = ['prod', 'staging', 'dev'];
+            const environments = ['dev'];
             for (const env of environments) {
               const reportPath = `test-report-${env}/test-report-${env}.json`;
               if (fs.existsSync(reportPath)) {

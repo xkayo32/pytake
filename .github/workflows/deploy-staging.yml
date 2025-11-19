@@ -1,9 +1,11 @@
-name: 🚀 Deploy to Staging
+name: 🚀 Deploy to Staging (DESATIVADO - DEV APENAS)
 
 on:
-  push:
-    branches:
-      - develop
+  # ⚠️ DESATIVADO: Este workflow só será executado manualmente durante desenvolvimento
+  # Reativar quando staging estiver pronto
+  # push:
+  #   branches:
+  #     - develop
   workflow_dispatch:
 
 env:

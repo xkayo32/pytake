@@ -1,16 +1,18 @@
-name: 🌍 Deploy to Production
+name: 🌍 Deploy to Production (DESATIVADO - DEV APENAS)
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*.*.*'
+  # ⚠️ DESATIVADO: Este workflow não vai disparar automaticamente em dev
+  # Será ativado apenas para produção
+  # push:
+  #   branches:
+  #     - main
+  #   tags:
+  #     - 'v*.*.*'
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy'
-        required: true
+        description: 'Environment to deploy (DISABLED - DEV ONLY)'
+        required: false
         default: 'production'
         type: choice
         options:
