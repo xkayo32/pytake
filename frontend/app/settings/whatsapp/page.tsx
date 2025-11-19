@@ -133,7 +133,9 @@ export default function WhatsAppSettingsPage() {
   const loadConfigs = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/v1/whatsapp-configs')
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp-configs`, { headers })
       
       if (response.ok) {
         const data = await response.json()
@@ -154,9 +156,11 @@ export default function WhatsAppSettingsPage() {
         is_default: configs.length === 0 // First config becomes default
       }
 
-      const response = await fetch('/api/v1/whatsapp-configs', {
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp-configs`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload)
       })
 
@@ -196,8 +200,11 @@ export default function WhatsAppSettingsPage() {
 
   const handleSetDefault = async (configId: string) => {
     try {
-      const response = await fetch(`/api/v1/whatsapp-configs/${configId}/default`, {
-        method: 'PUT'
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp-configs/${configId}/default`, {
+        method: 'PUT',
+        headers
       })
 
       if (response.ok) {
@@ -220,8 +227,11 @@ export default function WhatsAppSettingsPage() {
     }
 
     try {
-      const response = await fetch(`/api/v1/whatsapp-configs/${configId}`, {
-        method: 'DELETE'
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp-configs/${configId}`, {
+        method: 'DELETE',
+        headers
       })
 
       if (response.ok) {
@@ -242,8 +252,11 @@ export default function WhatsAppSettingsPage() {
     addLog('🔄 Iniciando teste de conectividade...')
     
     try {
-      const response = await fetch(`/api/v1/whatsapp-configs/${config.id}/test`, {
-        method: 'POST'
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp-configs/${config.id}/test`, {
+        method: 'POST',
+        headers
       })
 
       const result = await response.json()
@@ -286,11 +299,11 @@ export default function WhatsAppSettingsPage() {
     addLog(`📤 Enviando mensagem de teste para ${data.phone_number}...`)
     
     try {
-      const response = await fetch('/api/v1/whatsapp/send', {
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/send`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify({
           to: data.phone_number,
           message: { text: { body: data.message } },

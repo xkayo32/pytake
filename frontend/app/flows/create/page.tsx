@@ -454,9 +454,11 @@ function FlowEditor() {
           }
         }
         
-        const response = await fetch('/api/v1/flows', {
+        const apiUrl = getApiUrl()
+        const headers = getAuthHeaders()
+        const response = await fetch(`${apiUrl}/api/v1/flows`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify(createData)
         })
         
@@ -528,7 +530,9 @@ function FlowEditor() {
         // Primeiro, tentar buscar flows existentes para evitar duplicação
         let existingFlow = null
         try {
-          const flowsResponse = await fetch('/api/v1/flows')
+          const apiUrl = getApiUrl()
+          const headers = getAuthHeaders()
+          const flowsResponse = await fetch(`${apiUrl}/api/v1/flows`, { headers })
           if (flowsResponse.ok) {
             const flowsData = await flowsResponse.json()
             const flows = flowsData.flows || flowsData || []

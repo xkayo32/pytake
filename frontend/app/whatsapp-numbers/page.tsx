@@ -82,7 +82,9 @@ export default function WhatsAppNumbersPage() {
   const loadConfigs = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/v1/whatsapp-configs')
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp-configs`, { headers })
       
       if (response.ok) {
         const data = await response.json()
@@ -103,9 +105,11 @@ export default function WhatsAppNumbersPage() {
         is_default: configs.length === 0 // First config becomes default
       }
 
-      const response = await fetch('/api/v1/whatsapp-configs', {
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp-configs`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload)
       })
 
@@ -140,8 +144,11 @@ export default function WhatsAppNumbersPage() {
 
   const handleSetDefault = async (configId: string) => {
     try {
-      const response = await fetch(`/api/v1/whatsapp-configs/${configId}/default`, {
-        method: 'PUT'
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp-configs/${configId}/default`, {
+        method: 'PUT',
+        headers
       })
 
       if (response.ok) {
@@ -158,8 +165,11 @@ export default function WhatsAppNumbersPage() {
     }
 
     try {
-      const response = await fetch(`/api/v1/whatsapp-configs/${configId}`, {
-        method: 'DELETE'
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp-configs/${configId}`, {
+        method: 'DELETE',
+        headers
       })
 
       if (response.ok) {
@@ -172,8 +182,11 @@ export default function WhatsAppNumbersPage() {
 
   const handleTest = async (configId: string) => {
     try {
-      const response = await fetch(`/api/v1/whatsapp-configs/${configId}/test`, {
-        method: 'POST'
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp-configs/${configId}/test`, {
+        method: 'POST',
+        headers
       })
 
       const result = await response.json()

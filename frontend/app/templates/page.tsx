@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { AppLayout } from '@/components/layout/app-layout'
 import { notify } from '@/lib/utils'
+import { getApiUrl, getAuthHeaders } from '@/lib/api-client'
 import {
   Dialog,
   DialogContent,
@@ -98,7 +99,9 @@ export default function TemplatesPage() {
   const loadTemplates = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/v1/whatsapp/templates/manage')
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/templates/manage`, { headers })
       if (response.ok) {
         const data = await response.json()
         setTemplates(data)
@@ -116,8 +119,11 @@ export default function TemplatesPage() {
   const handleSync = async () => {
     try {
       setSyncing(true)
-      const response = await fetch('/api/v1/whatsapp/templates/sync', {
-        method: 'POST'
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/templates/sync`, {
+        method: 'POST',
+        headers
       })
       
       if (response.ok) {
@@ -142,9 +148,11 @@ export default function TemplatesPage() {
         return
       }
 
-      const response = await fetch('/api/v1/whatsapp/templates/manage', {
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/templates/manage`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           ...formData,
           id: editingTemplate?.id,
@@ -171,8 +179,11 @@ export default function TemplatesPage() {
     if (!templateToDelete) return
 
     try {
-      const response = await fetch(`/api/v1/whatsapp/templates/manage/${templateToDelete.id}`, {
-        method: 'DELETE'
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/templates/manage/${templateToDelete.id}`, {
+        method: 'DELETE',
+        headers
       })
 
       if (response.ok) {
@@ -191,9 +202,11 @@ export default function TemplatesPage() {
 
   const handleSubmitForApproval = async (templateId: string) => {
     try {
-      const response = await fetch(`/api/v1/whatsapp/templates/submit/${templateId}`, {
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/templates/submit/${templateId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers
       })
 
       if (response.ok) {

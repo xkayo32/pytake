@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AppLayout } from '@/components/layout/app-layout'
 import { notify } from '@/lib/utils'
+import { getApiUrl, getAuthHeaders } from '@/lib/api-client'
 import {
   Select,
   SelectContent,
@@ -69,9 +70,11 @@ export default function SendMessagePage() {
   const loadData = async () => {
     try {
       setLoading(true)
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
       
       // Load templates (only approved ones)
-      const templatesRes = await fetch('/api/v1/whatsapp/templates/manage')
+      const templatesRes = await fetch(`${apiUrl}/api/v1/whatsapp/templates/manage`, { headers })
       if (templatesRes.ok) {
         const data = await templatesRes.json()
         // Filter only approved templates
@@ -79,7 +82,7 @@ export default function SendMessagePage() {
       }
       
       // Load contacts
-      const contactsRes = await fetch('/api/v1/contacts')
+      const contactsRes = await fetch(`${apiUrl}/api/v1/contacts`, { headers })
       if (contactsRes.ok) {
         const data = await contactsRes.json()
         setContacts(data.contacts || [])
@@ -180,9 +183,11 @@ export default function SendMessagePage() {
       
       setSending(true)
       
-      const response = await fetch('/api/v1/whatsapp/send-template', {
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/send-template`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           template_id: selectedTemplate,
           to_phone: phoneNumber,
