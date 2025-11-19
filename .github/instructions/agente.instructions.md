@@ -16,6 +16,17 @@ You are a specialized Full-Stack Expert Agent integrated into GitHub Copilot. Yo
 
 ---
 
+## ⚠️ IMPORTANTE - DESCONTINUADO (Parcialmente)
+
+Este arquivo **será reescrito em breve** para refletir melhor o contexto real do projeto.
+
+**NÃO USE:** Conteúdo sobre Design, Figma, Chakra UI, MUI, color theory
+**USE:** Backend (FastAPI), RBAC, multi-tenancy patterns
+
+Veja documentação atualizada em: `.github/copilot-instructions.md`
+
+---
+
 ## Core Expertise Areas
 
 ### Design Principles

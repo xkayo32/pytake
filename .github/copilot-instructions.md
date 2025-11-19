@@ -32,12 +32,15 @@ Comandos de desenvolvimento/testes (dentro dos containers):
 - Backend tests: podman exec pytake-backend pytest
 - Frontend dev/build: podman exec pytake-frontend npm run dev | npm run build
 
-Portas/variáveis importantes:
-- Frontend: exposto em 3001 (host) → container 3000
-- Backend: 8000 (docs em /api/v1/docs)
-- Nginx proxy: 8080
-- MongoDB: mapeado em 27018 (note a diferença)
-- Arquivo de configuração podman: `backend/.env.podman` (use este quando trabalhar com compose)
+Portas/variáveis importantes (desenvolvimento):
+- Frontend: 3002 (host) → 3000 (container) | Acesso: http://localhost:3002
+- Backend: 8002 (host) → 8000 (container) | Docs: http://localhost:8002/api/v1/docs
+- PostgreSQL: 5435 (host) → 5432 (container) | URL: postgresql://user:pass@localhost:5435/pytake
+- Redis: 6382 (host) → 6379 (container) | redis://localhost:6382
+- MongoDB: 27020 (host) → 27017 (container) | mongodb://localhost:27020
+- Nginx: ⚠️ NÃO em desenvolvimento (apenas em staging/prod com docker-compose.staging.yml/prod.yml)
+
+**Nota:** Arquivo de configuração de desenvolvimento: `backend/.env` ou `.env.example`
 
 ## 👤 Autor e Assinatura
 
@@ -64,7 +67,7 @@ Portas/variáveis importantes:
 
 **IMPORTANTE:** Todas as credenciais devem estar no GitHub, NUNCA no código!
 
-- **Secrets Location:** `.github/docs/SECRETS_AND_ENVIRONMENTS/README.md` ← LEIA ISSO PRIMEIRO
+- **Secrets Location:** `.github/GITHUB_SECRETS_SETUP.md` ← LEIA ISSO PRIMEIRO
 - **Repository Secrets:** Acessar em https://github.com/xkayo32/pytake/settings/secrets/actions
 - **Environments:** Acessar em https://github.com/xkayo32/pytake/settings/environments
 
@@ -72,7 +75,7 @@ Portas/variáveis importantes:
 
 1. Gerar localmente: `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`
 2. Adicionar no GitHub: `gh secret set NOVO_SECRET -b "valor"`
-3. **Documentar em** `.github/docs/SECRETS_AND_ENVIRONMENTS/README.md`
+3. **Documentar em** `.github/GITHUB_SECRETS_SETUP.md`
 4. Usar em workflows: `${{ secrets.NOVO_SECRET }}`
 
 ### Secrets Atuais (Nov 2025):
@@ -99,7 +102,9 @@ Portas/variáveis importantes:
 📚 **Referências obrigatórias:**
 1. `.github/GIT_WORKFLOW.md` - Workflow completo de GitFlow
 2. `.github/AGENT_INSTRUCTIONS.md` - Instruções passo-a-passo para agentes
-3. GitHub Actions workflows em `.github/workflows/` - CI/CD automático
+3. `.github/TESTING_STANDARDS.md` - Padrões de testes (em criação)
+4. `.github/API_PATTERNS.md` - Padrões de API (em criação)
+5. GitHub Actions workflows em `.github/workflows/` - CI/CD automático
 
 ### CI/CD Limpo (Desde commit b9bef97):
 
