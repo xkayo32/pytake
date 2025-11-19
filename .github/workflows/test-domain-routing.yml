@@ -1,10 +1,8 @@
 name: 🔗 Domain Routing Tests
 
 on:
-  schedule:
-    # Executar a cada 6 horas
-    - cron: '0 */6 * * *'
-  
+  # ⚠️ DESATIVADO: Testes de routing removidos do CI/CD automatizado
+  # Usar workflow_dispatch manual quando necessário testar routing
   workflow_dispatch:
     inputs:
       environment:
@@ -17,16 +15,6 @@ on:
           - prod
           - staging
           - dev
-  
-  push:
-    branches:
-      - main
-      - develop
-    paths:
-      - 'nginx/**'
-      - 'frontend/**'
-      - 'backend/app/**'
-      - '.github/workflows/test-domain-routing.yml'
 
 env:
   TIMEOUT: 30
