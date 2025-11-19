@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { getApiUrl, getAuthHeaders } from '@/lib/api-client'
 import {
   Dialog,
   DialogContent,
