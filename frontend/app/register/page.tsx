@@ -337,7 +337,7 @@ export default function RegisterPage() {
               </p>
 
               {/* Login Link */}
-              <p className="text-center text-sm">
+              <p className="text-center text-sm text-muted-foreground">
                 Já tem uma conta?{' '}
                 <Link 
                   href="/login" 
@@ -346,77 +346,120 @@ export default function RegisterPage() {
                   Faça login
                 </Link>
               </p>
+
+              {/* Back to Landing Link */}
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                <Link 
+                  href="/" 
+                  className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
+                >
+                  <div className="group-hover:-translate-x-1 transition-transform">
+                    <ArrowRight className="h-4 w-4 rotate-180" />
+                  </div>
+                  Voltar para início
+                </Link>
+              </div>
             </form>
           </div>
         </div>
 
         {/* Right Column - Features (Desktop only) */}
-        <div className="hidden lg:flex flex-col justify-center px-8 py-12 bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
-          <div className="mb-8">
-            <LogoInline className="h-10 mb-12" />
-            <h2 className="text-3xl font-bold text-white mb-3">Bem-vindo ao PyTake</h2>
-            <p className="text-slate-400 text-lg">Automação inteligente para sua empresa</p>
+        <div className="hidden lg:flex flex-col justify-between px-8 py-12 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 dark:from-slate-950 dark:via-blue-950 dark:to-slate-950 relative overflow-hidden">
+          {/* Animated background elements */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" />
+          
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-12">
+              <div className="flex-shrink-0">
+                <LogoInline className="h-8" />
+              </div>
+              <Link 
+                href="/" 
+                className="text-lg font-bold text-white hover:text-slate-200 transition-colors flex items-center gap-2"
+              >
+                PyTake
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="mb-12">
+              <h2 className="text-4xl font-bold text-white mb-3 leading-tight">Transforme sua Empresa</h2>
+              <p className="text-lg text-slate-300">Automação inteligente que conecta tudo</p>
+            </div>
+
+            {/* Features Grid with better styling */}
+            <div className="space-y-6">
+              <div className="group">
+                <div className="flex gap-4 p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-all duration-300 border border-white/10 hover:border-blue-500/30">
+                  <div className="flex-shrink-0">
+                    <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
+                      <ZapIcon className="h-6 w-6" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold mb-1 group-hover:text-blue-300 transition-colors">Automatize Processos</h3>
+                    <p className="text-sm text-slate-400">Elimine tarefas repetitivas e aumente a produtividade em até 10x</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="group">
+                <div className="flex gap-4 p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-all duration-300 border border-white/10 hover:border-emerald-500/30">
+                  <div className="flex-shrink-0">
+                    <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg">
+                      <Users className="h-6 w-6" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold mb-1 group-hover:text-emerald-300 transition-colors">Colabore em Tempo Real</h3>
+                    <p className="text-sm text-slate-400">Trabalhe com seu time de forma sincronizada e integrada</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="group">
+                <div className="flex gap-4 p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-all duration-300 border border-white/10 hover:border-cyan-500/30">
+                  <div className="flex-shrink-0">
+                    <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg">
+                      <BarChart3 className="h-6 w-6" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold mb-1 group-hover:text-cyan-300 transition-colors">Insights em Tempo Real</h3>
+                    <p className="text-sm text-slate-400">Dashboards poderosos com dados precisos e atualizados</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="group">
+                <div className="flex gap-4 p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-all duration-300 border border-white/10 hover:border-amber-500/30">
+                  <div className="flex-shrink-0">
+                    <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg">
+                      <Lock className="h-6 w-6" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold mb-1 group-hover:text-amber-300 transition-colors">Segurança Avançada</h3>
+                    <p className="text-sm text-slate-400">Criptografia end-to-end e conformidade LGPD completa</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Features Grid */}
-          <div className="space-y-5">
-            <div className="flex gap-4">
-              <div className="flex-shrink-0">
-                <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary/20 text-primary">
-                  <ZapIcon className="h-5 w-5" />
+          {/* Bottom CTA with better styling */}
+          <div className="relative z-10 mt-auto pt-8 border-t border-slate-700/50">
+            <div className="bg-gradient-to-r from-blue-600/10 to-purple-600/10 rounded-lg p-6 border border-blue-500/20 backdrop-blur">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-slate-200 font-semibold text-lg mb-1">Comece Agora</p>
+                  <p className="text-sm text-slate-400">14 dias grátis • Sem cartão de crédito</p>
+                </div>
+                <div className="flex-shrink-0 text-blue-400 animate-bounce">
+                  <Rocket className="h-6 w-6" />
                 </div>
               </div>
-              <div>
-                <h3 className="text-white font-semibold mb-1">Automatize Processos</h3>
-                <p className="text-sm text-slate-400">Elimine tarefas repetitivas e aumente a produtividade</p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex-shrink-0">
-                <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-emerald-500/20 text-emerald-400">
-                  <Users className="h-5 w-5" />
-                </div>
-              </div>
-              <div>
-                <h3 className="text-white font-semibold mb-1">Colabore em Tempo Real</h3>
-                <p className="text-sm text-slate-400">Trabalhe com seu time de forma sincronizada</p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex-shrink-0">
-                <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-500/20 text-blue-400">
-                  <BarChart3 className="h-5 w-5" />
-                </div>
-              </div>
-              <div>
-                <h3 className="text-white font-semibold mb-1">Dados em Tempo Real</h3>
-                <p className="text-sm text-slate-400">Tome decisões com informações precisas</p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex-shrink-0">
-                <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-amber-500/20 text-amber-400">
-                  <Lock className="h-5 w-5" />
-                </div>
-              </div>
-              <div>
-                <h3 className="text-white font-semibold mb-1">Segurança Premium</h3>
-                <p className="text-sm text-slate-400">Seus dados protegidos com criptografia avançada</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom CTA */}
-          <div className="mt-12 pt-8 border-t border-slate-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-300 font-semibold">Comece seu teste grátis</p>
-                <p className="text-sm text-slate-400">14 dias, sem cartão de crédito necessário</p>
-              </div>
-              <ArrowRight className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
