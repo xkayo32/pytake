@@ -27,22 +27,90 @@ PyTake é uma plataforma completa para automação de WhatsApp Business API, per
 - **Proxy**: Nginx com SSL
 - **Containerização**: Podman/Docker Compose
 
-## 📚 Documentação
+## 📚 Documentação & Scripts
+
+### 📖 Documentação Centralizada
+**Toda documentação e scripts estão organizados em:**
+
+- 📋 **[INDEX.md](.github/docs/INDEX.md)** - Índice completo com estrutura e navegação
+- 🚀 **[GUIDES/](.github/docs/GUIDES/)** - Guias de setup e deployment
+- ✅ **[CHECKLISTS/](.github/docs/CHECKLISTS/)** - Checklists de configuração
+- 🔐 **[SECRETS_AND_ENVIRONMENTS/](.github/docs/SECRETS_AND_ENVIRONMENTS/)** ⭐ **LEIA OBRIGATORIAMENTE**
+- 🔧 **[scripts/](./scripts/)** - Todos os scripts organizados por função
+
+### 🚀 Começar Rápido
+```bash
+# 1. Ler documentação rápida
+cat .github/docs/INDEX.md
+
+# 2. Setup inicial (primeira vez)
+bash scripts/deployment/QUICK_START.sh
+
+# 3. Iniciar serviços
+bash scripts/utilities/startup-all.sh
+
+# 4. Frontend rodando em http://localhost:3001
+```
+
+### 📂 Estrutura de Documentação
+
+```
+.github/docs/
+├── INDEX.md                                    # 👈 COMECE AQUI
+├── FRONTEND_QUICK_REFERENCE.md                # Referência frontend
+├── GUIDES/                                    # Guias detalhados
+│   ├── QUICK_START_MULTI_ENV.md              # Setup completo
+│   ├── PRODUCTION_DEPLOYMENT_GUIDE.md        # Deploy produção
+│   ├── DNS_SETUP_GUIDE.md
+│   ├── LETSENCRYPT_SETUP.md
+│   └── NGINX_*.md
+├── CHECKLISTS/                                # Listas de verificação
+│   ├── SETUP_CHECKLIST.md
+│   └── PHASE_16_ACTION_CHECKLIST.md
+└── SECRETS_AND_ENVIRONMENTS/                  # 🔐 LEIA OBRIGATORIAMENTE
+    ├── README.md                              # Como gerenciar secrets
+    ├── QUICK_START.md
+    └── SECURITY_ANALYSIS.md
+
+scripts/
+├── deployment/                                # Deploy scripts
+│   ├── QUICK_START.sh
+│   ├── QUICK_START_MULTI_ENV.sh
+│   └── deploy.sh
+├── setup/                                     # Setup inicial
+│   ├── setup-git-config.sh
+│   ├── setup-certbot-*.sh
+│   ├── setup-letsencrypt.sh
+│   └── ...
+├── utilities/                                 # Utilitários gerais
+│   ├── startup-all.sh
+│   ├── shutdown-all.sh
+│   ├── start-frontend.sh
+│   └── ...
+└── [outros scripts de validação]
+```
+
+### ⭐ Documentação Essencial
+
+1. **[.github/docs/INDEX.md](.github/docs/INDEX.md)** - Índice e navegação
+2. **[.github/docs/SECRETS_AND_ENVIRONMENTS/README.md](.github/docs/SECRETS_AND_ENVIRONMENTS/README.md)** - Segurança 🔐
+3. **[.github/docs/GUIDES/QUICK_START_MULTI_ENV.md](.github/docs/GUIDES/QUICK_START_MULTI_ENV.md)** - Setup inicial
+4. **[.github/GIT_WORKFLOW.md](.github/GIT_WORKFLOW.md)** - Git Flow e branches
 
 ### 🚀 Deployment & Infrastructure
-- 📖 [Guia de Deployment](./docs/DEPLOYMENT_GUIDE.md) - Setup e operação de ambientes (prod/staging/dev)
-- ⚙️ [Configuração Nginx](./docs/NGINX_CONFIGURATION_GUIDE.md) - Rotear domínios e SSL/TLS
-- 📋 [Índice de Docs](./docs/README.md) - Documentação completa do projeto
+- 📖 [Guia de Deployment](.github/docs/GUIDES/PRODUCTION_DEPLOYMENT_GUIDE.md) - Setup e operação de ambientes (prod/staging/dev)
+- ⚙️ [Configuração Nginx](.github/docs/GUIDES/NGINX_ROUTING_COMPLETE.md) - Rotear domínios e SSL/TLS
+- 📋 [Índice de Docs](./docs/README.md) - Documentação técnica completa do projeto
 
 ### 🔐 Segurança & Configuração
-- 🔐 [Secrets & Environments](.github/docs/SECRETS_AND_ENVIRONMENTS/README.md) - Gerenciar credenciais com segurança
+- 🔐 [Secrets & Environments](.github/docs/SECRETS_AND_ENVIRONMENTS/README.md) - ⭐ **LEIA OBRIGATORIAMENTE** antes de usar secrets
 
-### Essenciais
+### 📋 Documentação Essenciais
 - 📖 [Guia de Migração Multi-repo](.github/MIGRATION_GUIDE.md) - Transição para arquitetura separada
 - 📐 [Decisões de Arquitetura](.github/ARCHITECTURE_DECISIONS.md) - ADRs e justificativas técnicas
 - 📋 [Contrato de API v1](.github/API_CONTRACT.md) - Documentação completa dos endpoints
 
-### GitFlow & CI/CD
+### 🔀 GitFlow & CI/CD
 - 🔀 [Git Workflow](.github/GIT_WORKFLOW.md) - Processo de branches e PRs
 - 🤖 [Instruções para Agentes](.github/AGENT_INSTRUCTIONS.md) - Guia para IA/automações
 - 🚀 [Quick Start](.github/QUICK_START.md) - Comece em 5 minutos
