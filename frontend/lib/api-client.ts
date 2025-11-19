@@ -33,7 +33,17 @@ export function getApiUrl(): string {
 // Get WebSocket URL from API URL
 export function getWebSocketUrl(): string {
   const apiUrl = getApiUrl()
-  return apiUrl.replace('https', 'wss').replace('http', 'ws') + '/ws'
+  
+  // Convert HTTP(S) to WS(S)
+  if (apiUrl.startsWith('https://')) {
+    return apiUrl.replace('https://', 'wss://') + '/ws'
+  }
+  if (apiUrl.startsWith('http://')) {
+    return apiUrl.replace('http://', 'ws://') + '/ws'
+  }
+  
+  // Fallback
+  return `wss://api-dev.pytake.net/ws`
 }
 
 // Get auth headers with Bearer token
