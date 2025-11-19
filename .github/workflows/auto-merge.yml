@@ -13,92 +13,79 @@ permissions:
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
-    if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'pull_request'
+    if: github.event.workflow_run.conclusion == 'success'
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: 🔍 Find Associated PR
-        id: find-pr
+      - name: 🔍 Find and Merge PR
         uses: actions/github-script@v7
         with:
           script: |
+            const headCommit = context.payload.workflow_run.head_commit;
+            console.log(`🔍 Procurando PR com commit: ${headCommit}`);
+
             const { data: pullRequests } = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'open',
               sort: 'updated',
               direction: 'desc',
-              per_page: 100,
+              per_page: 50,
             });
 
             // Find PR associated with this workflow run
-            const pr = pullRequests.find(pr => {
-              return pr.head.sha === context.payload.workflow_run.head_commit;
-            });
+            let pr = null;
+            for (const pullRequest of pullRequests) {
+              if (pullRequest.head.sha === headCommit) {
+                pr = pullRequest;
+                break;
+              }
+            }
 
             if (!pr) {
-              console.log('❌ PR não encontrada');
-              core.setFailed('Could not find associated PR');
+              console.log('❌ PR não encontrada com esse commit');
+              console.log(`Verificados ${pullRequests.length} PRs abertas`);
               return;
             }
 
             console.log(`✅ PR encontrada: #${pr.number}`);
-            core.setOutput('pr-number', pr.number);
 
-      - name: ✅ Enable Auto-Merge (Rebase)
-        if: steps.find-pr.outputs.pr-number != ''
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const prNumber = ${{ steps.find-pr.outputs.pr-number }};
+            // Check if PR is already merged or in draft
+            if (pr.merged) {
+              console.log(`⏭️  PR #${pr.number} já foi mergeada`);
+              return;
+            }
+
+            if (pr.draft) {
+              console.log(`⏭️  PR #${pr.number} está em draft`);
+              return;
+            }
 
             try {
-              const { data: pr } = await github.rest.pulls.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: prNumber,
-              });
-
-              // Check if PR is already merged or in draft
-              if (pr.merged || pr.draft) {
-                console.log(`⏭️  PR #${prNumber} já foi mergeada ou está em draft`);
-                return;
-              }
-
               // Enable auto-merge with rebase strategy
               await github.rest.pulls.enableAutoMerge({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                pull_number: prNumber,
+                pull_number: pr.number,
                 merge_method: 'rebase',
               });
 
-              console.log(`✅ Auto-merge ativado para PR #${prNumber} com rebase`);
+              console.log(`✅ Auto-merge ativado para PR #${pr.number} com rebase`);
               
               // Post comment
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: prNumber,
+                issue_number: pr.number,
                 body: '✅ CI/CD passou! Auto-merge ativado com rebase. A PR será mergeada automaticamente em breve.'
               });
 
+              console.log(`💬 Comentário postado na PR #${pr.number}`);
+
             } catch (error) {
               console.log(`⚠️  Erro ao ativar auto-merge: ${error.message}`);
-              // Don't fail the workflow if auto-merge fails
-              core.warning(`Auto-merge failed: ${error.message}`);
+              // Don't fail the workflow - just log the error
             }
-
-      - name: 📊 Log Summary
-        run: |
-          echo "📋 Auto-Merge Workflow Summary"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "Workflow: ${{ github.event.workflow_run.name }}"
-          echo "Status: ${{ github.event.workflow_run.conclusion }}"
-          echo "Commit: ${{ github.event.workflow_run.head_commit }}"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
