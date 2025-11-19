@@ -54,7 +54,7 @@ import {
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useToast } from '@/components/ui/toast'
 import { getApiUrl, getAuthHeaders } from '@/lib/api-client'
-import { AddWhatsAppNumberModal } from '@/components/admin/AddWhatsAppNumberModal'
+import { AddWhatsAppNumberModal } from '@/src/components/admin/AddWhatsAppNumberModal'
 
 // Validação dos formulários
 const whatsappConfigSchema = z.object({
