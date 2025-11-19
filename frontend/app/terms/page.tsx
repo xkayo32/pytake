@@ -340,8 +340,6 @@ export default function TermsPage() {
     </div>
   )
 }
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">1. Aceitação dos Termos</h2>
             <p className="mb-4">
               Ao acessar e usar o PyTake, você concorda com estes Termos de Uso. 
               Se você não concordar com algum termo, não deve usar nosso serviço.
