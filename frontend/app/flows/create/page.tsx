@@ -29,6 +29,7 @@ import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { FormField } from '@/components/ui/form-field'
 import { useFlowEditorStore } from '@/lib/stores/flow-editor-store'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { getApiUrl, getAuthHeaders } from '@/lib/api-client'
 import { NodeType } from '@/lib/types/flow'
 import { 
   Save, 

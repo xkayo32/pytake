@@ -53,6 +53,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useToast } from '@/components/ui/toast'
+import { getApiUrl, getAuthHeaders } from '@/lib/api-client'
 
 // Validação dos formulários
 const whatsappConfigSchema = z.object({

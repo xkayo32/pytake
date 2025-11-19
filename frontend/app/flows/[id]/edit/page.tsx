@@ -2,6 +2,7 @@
 // Force cache refresh - v4 - Fixed flowToSave reference error
 import { useCallback, useEffect, useRef, DragEvent, KeyboardEvent } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { getApiUrl, getAuthHeaders } from '@/lib/api-client'
 import { 
   ReactFlow, 
   Background, 
