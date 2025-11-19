@@ -89,6 +89,8 @@ export default function WhatsAppPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null)
   const [templateVariables, setTemplateVariables] = useState<string[]>([])
   const [requiresTemplate, setRequiresTemplate] = useState(false)
+  const [whatsappNumbers, setWhatsappNumbers] = useState<any[]>([])
+  const [activeNumberId, setActiveNumberId] = useState<string | null>(null)
 
   // Detectar mobile
   useEffect(() => {
@@ -219,10 +221,10 @@ export default function WhatsAppPage() {
     try {
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/contacts`, { headers })
+      const response = await fetch(`${apiUrl}/api/v1/contacts/`, { headers })
       if (response.ok) {
         const data = await response.json()
-        const formattedContacts = data.contacts.map((contact: any) => ({
+        const formattedContacts = data.map((contact: any) => ({
           id: contact.id,
           name: contact.name || contact.phone,
           phone: contact.phone,
@@ -393,7 +395,7 @@ export default function WhatsAppPage() {
       // Criar/buscar contato
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/contacts`, {
+      const response = await fetch(`${apiUrl}/api/v1/contacts/`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -404,7 +406,7 @@ export default function WhatsAppPage() {
 
       if (response.ok) {
         const data = await response.json()
-        const newContact = data.contact
+        const newContact = data
         
         // Format contact for frontend
         const formattedContact = {
@@ -462,12 +464,36 @@ export default function WhatsAppPage() {
     fileInputRef.current?.click()
   }
 
-  // Carregar templates disponíveis
-  const loadTemplates = async () => {
+  // Carregar números WhatsApp disponíveis
+  const loadWhatsAppNumbers = async () => {
     try {
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/templates`, { headers })
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/`, { headers })
+      if (response.ok) {
+        const data = await response.json()
+        setWhatsappNumbers(data)
+        if (data.length > 0) {
+          setActiveNumberId(data[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading WhatsApp numbers:', error)
+    }
+  }
+
+  // Carregar templates disponíveis
+  const loadTemplates = async (numberId?: string) => {
+    try {
+      const numberIdToUse = numberId || activeNumberId
+      if (!numberIdToUse) {
+        console.warn('No WhatsApp number ID available')
+        return
+      }
+      
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/${numberIdToUse}/templates`, { headers })
       if (response.ok) {
         const data = await response.json()
         setTemplates(data)
@@ -478,10 +504,20 @@ export default function WhatsAppPage() {
     }
   }
 
-  // Carregar templates ao iniciar
+  // Carregar números e templates ao iniciar
   useEffect(() => {
-    loadTemplates()
+    const init = async () => {
+      await loadWhatsAppNumbers()
+    }
+    init()
   }, [])
+
+  // Carregar templates quando activeNumberId mudar
+  useEffect(() => {
+    if (activeNumberId) {
+      loadTemplates(activeNumberId)
+    }
+  }, [activeNumberId])
 
   // Função para enviar template
   const handleSendTemplate = async () => {
