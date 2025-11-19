@@ -238,4 +238,4 @@ Este projeto está licenciado sob a MIT License - veja o arquivo [LICENSE](LICEN
 
 - **Documentação**: [Docs](https://docs.pytake.net)
 - **Issues**: [GitHub Issues](https://github.com/your-org/pytake-backend/issues)
-- **Email**: support@pytake.net
+- **Email**: support@pytake.net# Auto-merge test
