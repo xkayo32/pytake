@@ -32,16 +32,19 @@ import { LogoInline } from '@/components/ui/logo'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/hooks/useAuth'
 
-const menuItems = [
+const getMenuItems = (unreadCount: number) => [
   {
     title: 'Principal',
     items: [
       { icon: Home, label: 'Dashboard', href: '/dashboard' },
-      { icon: MessageSquare, label: 'Conversas', href: '/whatsapp', badge: '24' },
+      { icon: MessageSquare, label: 'Conversas', href: '/whatsapp', badge: unreadCount > 0 ? String(unreadCount) : undefined },
       { icon: Users, label: 'Contatos', href: '/contacts' },
       { icon: BarChart3, label: 'Analytics', href: '/analytics' },
     ]
   },
+]
+
+const additionalItems = [
   {
     title: 'Automação',
     items: [
@@ -78,10 +81,15 @@ const menuItems = [
   },
 ]
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  unreadCount?: number
+}
+
+export function AppSidebar({ unreadCount = 0 }: AppSidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const pathname = usePathname()
   const { user, logout } = useAuth()
+  const menuItems = getMenuItems(unreadCount)
 
   return (
     <aside className={cn(
@@ -103,7 +111,7 @@ export function AppSidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4">
-        {menuItems.map((section) => (
+        {[...menuItems, ...additionalItems].map((section) => (
           <div key={section.title} className="mb-6">
             {!collapsed && (
               <h3 className="px-4 mb-2 text-xs font-semibold text-foreground-tertiary uppercase tracking-wider">
