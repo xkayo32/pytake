@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { AppLayout } from '@/components/layout/app-layout'
 import { notify } from '@/lib/utils'
+import { getApiUrl, getAuthHeaders } from '@/lib/api-client'
 import {
   Dialog,
   DialogContent,
@@ -98,7 +99,9 @@ export default function TemplatesPage() {
   const loadTemplates = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/v1/whatsapp/templates/manage')
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/templates/manage`, { headers })
       if (response.ok) {
         const data = await response.json()
         setTemplates(data)
@@ -142,9 +145,13 @@ export default function TemplatesPage() {
         return
       }
 
-      const response = await fetch('/api/v1/whatsapp/templates/manage', {
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/templates/manage`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headerstsapp/templates/sync`, {
+        method: 'POST',
+        headers
         body: JSON.stringify({
           ...formData,
           id: editingTemplate?.id,
