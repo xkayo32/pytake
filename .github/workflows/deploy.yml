@@ -1,19 +1,25 @@
-name: 🚀 Deploy (Manual Release)
+name: 🚀 Deploy (Manual Release - DESATIVADO - DEV APENAS)
+
+# ⚠️ DESATIVADO: Este workflow foi desativado para modo desenvolvimento
+# Em MODO DEV, utilizamos apenas docker-compose.yml local
+# Reativar staging/production quando ambiente de produção estiver pronto
 
 on:
+  # ⚠️ COMENTADO: Desativado automaticamente para não interferir no dev
+  # workflow_dispatch:
+  #   inputs:
+  #     environment:
+  #       description: 'Target environment'
+  #       required: true
+  #       type: choice
+  #       options:
+  #         - staging
+  #         - production
+  #     version:
+  #       description: 'Release version (e.g., v1.0.0)'
+  #       required: false
+  #       type: string
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Target environment'
-        required: true
-        type: choice
-        options:
-          - staging
-          - production
-      version:
-        description: 'Release version (e.g., v1.0.0)'
-        required: false
-        type: string
 
 concurrency:
   group: deploy-${{ github.ref }}

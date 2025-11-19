@@ -1,22 +1,27 @@
 name: 🌍 Deploy to Production (DESATIVADO - DEV APENAS)
 
+# ⚠️ DESATIVADO: Workflow desativado para modo desenvolvimento
+# Em MODO DEV, utilizamos docker-compose.yml local com Podman
+# Produção será ativada em fase posterior do projeto
+
 on:
-  # ⚠️ DESATIVADO: Este workflow não vai disparar automaticamente em dev
-  # Será ativado apenas para produção
+  # ⚠️ COMENTADO: Todos os triggers de deploy automático desativados
   # push:
   #   branches:
   #     - main
   #   tags:
   #     - 'v*.*.*'
+  #
+  # Workflow dispatch mantido como failsafe emergencial
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy (DISABLED - DEV ONLY)'
+        description: 'PRODUCTION DISABLED - DEV ONLY'
         required: false
-        default: 'production'
+        default: 'disabled'
         type: choice
         options:
-          - production
+          - disabled
 
 env:
   REGISTRY: ghcr.io

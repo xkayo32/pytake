@@ -1,12 +1,22 @@
 name: 🚀 Deploy to Staging (DESATIVADO - DEV APENAS)
 
+# ⚠️ DESATIVADO: Workflow desativado para modo desenvolvimento
+# ATIVO: Apenas workflow_dispatch para testes manuais se necessário
+# Em MODO DEV, utilizamos docker-compose.yml local com Podman
+# Reativar quando ambiente staging estiver disponível
+
 on:
-  # ⚠️ DESATIVADO: Este workflow só será executado manualmente durante desenvolvimento
-  # Reativar quando staging estiver pronto
+  # ⚠️ COMENTADO: Push automático desativado em modo dev
   # push:
   #   branches:
   #     - develop
+  #
+  # Manter workflow_dispatch comentado - use apenas em modo manual emergencial
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'DEV ONLY - Esta opção está desativada'
+        required: false
 
 env:
   REGISTRY: ghcr.io
