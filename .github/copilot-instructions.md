@@ -4,6 +4,7 @@ Este arquivo dá ao agente (Copilot/assistente) o contexto mínimo para ser prod
 
 - Arquitetura rápida: backend em Python (FastAPI + SQLAlchemy + Alembic), frontend em Next.js (App Router + TypeScript). Infra: Postgres, Redis, MongoDB, Nginx. Tudo orquestrado por Podman/Docker Compose.
 - Regra nº1: container-first. Use Podman (preferido). Evite instruir a instalar serviços localmente a não ser que explicitamente solicitado.
+- **Regra nº2: MODO DEV APENAS - Staging e Production completamente desativados em CI/CD**. Ver `.github/CI_CD_DEV_ONLY.md`
 
 Essenciais que você deve conhecer e links rápidos:
 - Start (repositório raiz): copy env, levantar serviços e aplicar migrations:
@@ -20,10 +21,12 @@ Padrões e convenções relevantes para automações e mudanças de código:
 - RBAC: roles = `super_admin`, `org_admin`, `agent`, `viewer`. Ver `frontend/src/lib/auth/roleGuard.tsx` e rotas em `frontend/src/app/(admin|agent)`.
 - Backend layering: `api (routes) → services (business) → repositories (data access)`; siga essa ordem ao adicionar lógica.
 - Migrations: gerar com `alembic revision --autogenerate -m "msg"` e revisar antes de aplicar. NUNCA editar migrations aplicadas.
+- **CI/CD:** Apenas test.yml e build.yml rodam automaticamente. Staging/prod estão DESATIVADOS. Ver `.github/CI_CD_DEV_ONLY.md` para regras permanentes.
 
 Front-end patterns que quebram facilmente (copie quando for alterar):
 - Protected routes: sempre verificar `isLoading` antes de `isAuthenticated` (use `authLoading` no hook). Ver `frontend` protected route examples.
 - API client: `frontend/src/lib/api.ts` tem interceptors que NÃO devem tentar refresh em endpoints de auth (/auth/login, /auth/register).
+- URLs de API: **SEMPRE usar `getApiUrl()` + `getAuthHeaders()`** em fetch calls. Nunca URLs relativas.
 
 Comandos de desenvolvimento/testes (dentro dos containers):
 - Backend tests: podman exec pytake-backend pytest
