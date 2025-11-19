@@ -1,0 +1,104 @@
+name: 🔄 Auto-Merge on CI Pass
+
+on:
+  workflow_run:
+    workflows: ["✅ Testes - Erros Críticos Apenas", "🏗️ Build & Test (Erros Críticos Apenas)"]
+    types:
+      - completed
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔍 Find Associated PR
+        id: find-pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pullRequests } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              sort: 'updated',
+              direction: 'desc',
+              per_page: 100,
+            });
+
+            // Find PR associated with this workflow run
+            const pr = pullRequests.find(pr => {
+              return pr.head.sha === context.payload.workflow_run.head_commit;
+            });
+
+            if (!pr) {
+              console.log('❌ PR não encontrada');
+              core.setFailed('Could not find associated PR');
+              return;
+            }
+
+            console.log(`✅ PR encontrada: #${pr.number}`);
+            core.setOutput('pr-number', pr.number);
+
+      - name: ✅ Enable Auto-Merge (Rebase)
+        if: steps.find-pr.outputs.pr-number != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ steps.find-pr.outputs.pr-number }};
+
+            try {
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+              });
+
+              // Check if PR is already merged or in draft
+              if (pr.merged || pr.draft) {
+                console.log(`⏭️  PR #${prNumber} já foi mergeada ou está em draft`);
+                return;
+              }
+
+              // Enable auto-merge with rebase strategy
+              await github.rest.pulls.enableAutoMerge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                merge_method: 'rebase',
+              });
+
+              console.log(`✅ Auto-merge ativado para PR #${prNumber} com rebase`);
+              
+              // Post comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: '✅ CI/CD passou! Auto-merge ativado com rebase. A PR será mergeada automaticamente em breve.'
+              });
+
+            } catch (error) {
+              console.log(`⚠️  Erro ao ativar auto-merge: ${error.message}`);
+              // Don't fail the workflow if auto-merge fails
+              core.warning(`Auto-merge failed: ${error.message}`);
+            }
+
+      - name: 📊 Log Summary
+        run: |
+          echo "📋 Auto-Merge Workflow Summary"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Workflow: ${{ github.event.workflow_run.name }}"
+          echo "Status: ${{ github.event.workflow_run.conclusion }}"
+          echo "Commit: ${{ github.event.workflow_run.head_commit }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
