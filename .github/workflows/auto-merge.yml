@@ -1,91 +1,119 @@
-name: 🔄 Auto-Merge on CI Pass
+name: 🔄 Auto-Merge PRs on Success
 
 on:
-  workflow_run:
-    workflows: ["✅ Testes - Erros Críticos Apenas", "🏗️ Build & Test (Erros Críticos Apenas)"]
-    types:
-      - completed
+  pull_request:
+    types: [opened, reopened, synchronize]
+  check_suite:
+    types: [completed]
 
 permissions:
   pull-requests: write
   contents: write
 
 jobs:
-  auto-merge:
+  check-and-auto-merge:
+    name: Check CI and Enable Auto-Merge
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success'
+    if: github.base_ref == 'develop'
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: 🔍 Find and Merge PR
+      - name: 📊 Wait for Checks
         uses: actions/github-script@v7
         with:
           script: |
-            const headCommit = context.payload.workflow_run.head_commit;
-            console.log(`🔍 Procurando PR com commit: ${headCommit}`);
+            const { owner, repo } = context.repo;
+            const pr_number = context.issue.number;
 
-            const { data: pullRequests } = await github.rest.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              sort: 'updated',
-              direction: 'desc',
-              per_page: 50,
-            });
+            // Wait a bit for checks to start
+            await new Promise(resolve => setTimeout(resolve, 5000));
 
-            // Find PR associated with this workflow run
-            let pr = null;
-            for (const pullRequest of pullRequests) {
-              if (pullRequest.head.sha === headCommit) {
-                pr = pullRequest;
-                break;
+            let attempts = 0;
+            const maxAttempts = 60; // ~5 minutes
+
+            while (attempts < maxAttempts) {
+              try {
+                const { data: pr } = await github.rest.pulls.get({
+                  owner,
+                  repo,
+                  pull_number: pr_number,
+                });
+
+                // Skip if draft or already merged
+                if (pr.draft || pr.merged) {
+                  console.log(`⏭️  PR #${pr_number} - Draft: ${pr.draft}, Merged: ${pr.merged}`);
+                  return;
+                }
+
+                const { data: checks } = await github.rest.checks.listForRef({
+                  owner,
+                  repo,
+                  ref: pr.head.sha,
+                });
+
+                // Get status checks
+                const { data: statuses } = await github.rest.repos.getCombinedStatusForRef({
+                  owner,
+                  repo,
+                  ref: pr.head.sha,
+                });
+
+                const allChecks = [
+                  ...checks.check_runs,
+                  ...(statuses.statuses || [])
+                ];
+
+                if (allChecks.length === 0) {
+                  attempts++;
+                  await new Promise(resolve => setTimeout(resolve, 5000));
+                  continue;
+                }
+
+                const running = allChecks.filter(c => c.status !== 'completed' && c.conclusion !== 'success' && c.conclusion !== 'failure');
+                const failed = allChecks.filter(c => c.conclusion === 'failure');
+                const passed = allChecks.filter(c => c.status === 'completed' && c.conclusion === 'success');
+
+                console.log(`📊 Checks - Running: ${running.length}, Passed: ${passed.length}, Failed: ${failed.length}`);
+
+                if (running.length === 0 && failed.length === 0 && passed.length > 0) {
+                  // All passed!
+                  console.log('✅ All checks passed!');
+                  
+                  try {
+                    await github.rest.pulls.enableAutoMerge({
+                      owner,
+                      repo,
+                      pull_number: pr_number,
+                      merge_method: 'rebase',
+                    });
+                    
+                    console.log(`✅ Auto-merge ATIVADO para PR #${pr_number}`);
+                    
+                    // Post comment
+                    await github.rest.issues.createComment({
+                      owner,
+                      repo,
+                      issue_number: pr_number,
+                      body: '✅ CI/CD passou! Auto-merge ativado automaticamente.'
+                    });
+                  } catch (error) {
+                    console.log(`⚠️  Erro ao ativar auto-merge: ${error.message}`);
+                  }
+                  return;
+                }
+
+                if (failed.length > 0) {
+                  console.log('❌ Some checks failed');
+                  return;
+                }
+
+              } catch (error) {
+                console.log(`Error: ${error.message}`);
               }
+
+              attempts++;
+              await new Promise(resolve => setTimeout(resolve, 5000));
             }
 
-            if (!pr) {
-              console.log('❌ PR não encontrada com esse commit');
-              console.log(`Verificados ${pullRequests.length} PRs abertas`);
-              return;
-            }
-
-            console.log(`✅ PR encontrada: #${pr.number}`);
-
-            // Check if PR is already merged or in draft
-            if (pr.merged) {
-              console.log(`⏭️  PR #${pr.number} já foi mergeada`);
-              return;
-            }
-
-            if (pr.draft) {
-              console.log(`⏭️  PR #${pr.number} está em draft`);
-              return;
-            }
-
-            try {
-              // Enable auto-merge with rebase strategy
-              await github.rest.pulls.enableAutoMerge({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-                merge_method: 'rebase',
-              });
-
-              console.log(`✅ Auto-merge ativado para PR #${pr.number} com rebase`);
-              
-              // Post comment
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: pr.number,
-                body: '✅ CI/CD passou! Auto-merge ativado com rebase. A PR será mergeada automaticamente em breve.'
-              });
-
-              console.log(`💬 Comentário postado na PR #${pr.number}`);
-
-            } catch (error) {
-              console.log(`⚠️  Erro ao ativar auto-merge: ${error.message}`);
-              // Don't fail the workflow - just log the error
-            }
+            console.log('⏱️  Timeout waiting for checks');
