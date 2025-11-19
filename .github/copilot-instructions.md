@@ -109,10 +109,33 @@ Portas/variáveis importantes:
 
 **Por que?** Lint/type-check geram ruído. Foco em erros que realmente quebram o sistema.
 
-Boas práticas de commit/PR (curto):
+### Validação OBRIGATÓRIA antes de fazer Commit
+
+**CHECKLIST** - Fazer SEMPRE antes de `git commit`:
+
+```bash
+# 1. Backend changes
+[ ] python -m pytest backend/tests/  (se houver mudanças)
+[ ] git diff HEAD (verificar mudanças)
+
+# 2. Frontend changes
+[ ] cd frontend && npm run build (validar compilação)
+[ ] Verificar tag structure: git diff HEAD (XML-like tags)
+[ ] npm run lint (opcional mas recomendado)
+
+# 3. Geral
+[ ] git status (arquivos corretos)
+[ ] git diff (revisar todas as mudanças)
+[ ] Sem console.log(), debugger, ou TODO/FIXME pendentes
+
+# DEPOIS: git commit + git push
+```
+
+**Boas práticas de commit/PR (curto):**
 - Commits frequentes, mensagens no formato: `feat:`, `fix:`, `refactor:`, `docs:`. Pequenos commits por unidade lógica.
 - **SEMPRE fazer**: `git fetch origin && git pull origin develop/main` antes de começar
 - **SEMPRE verificar**: `git branch` - deve estar em feature/*, hotfix/*, release/*, NÃO em main/develop
+- **SEMPRE validar ANTES de commit**: Build passa? Tags fechadas corretamente? Sem erros de sintaxe?
 
 Arquivos para checar rapidamente ao fazer mudanças:
 - Backend routers: `backend/app/api/v1/router.py` e `backend/app/api/v1/endpoints/*`
