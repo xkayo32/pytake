@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { getApiUrl, getWebSocketUrl } from '@/lib/api-client'
+import { getApiUrl, getWebSocketUrl, getAuthHeaders } from '@/lib/api-client'
 import { 
   Send, 
   Paperclip, 
@@ -218,7 +218,8 @@ export default function WhatsAppPage() {
   const loadContacts = async () => {
     try {
       const apiUrl = getApiUrl()
-      const response = await fetch(`${apiUrl}/api/v1/contacts`)
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/contacts`, { headers })
       if (response.ok) {
         const data = await response.json()
         const formattedContacts = data.contacts.map((contact: any) => ({
@@ -245,7 +246,8 @@ export default function WhatsAppPage() {
     setIsLoading(true)
     try {
       const apiUrl = getApiUrl()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/messages/${contactId}`)
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/messages/${contactId}`, { headers })
       if (response.ok) {
         const data = await response.json()
         const formattedMessages = data.map((msg: any) => ({
@@ -288,9 +290,10 @@ export default function WhatsAppPage() {
 
     try {
       const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
       const response = await fetch(`${apiUrl}/api/v1/whatsapp/send`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           to: selectedContact.phone,
           message: { text: { body: newMessage } }
@@ -389,9 +392,10 @@ export default function WhatsAppPage() {
 
       // Criar/buscar contato
       const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
       const response = await fetch(`${apiUrl}/api/v1/contacts`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           phone,
           name: newContactName.trim() || phone
@@ -462,7 +466,8 @@ export default function WhatsAppPage() {
   const loadTemplates = async () => {
     try {
       const apiUrl = getApiUrl()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/templates`)
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/templates`, { headers })
       if (response.ok) {
         const data = await response.json()
         setTemplates(data)
@@ -484,9 +489,10 @@ export default function WhatsAppPage() {
 
     try {
       const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
       const response = await fetch(`${apiUrl}/api/v1/whatsapp/send-template`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           to: selectedContact.phone,
           template: selectedTemplate,

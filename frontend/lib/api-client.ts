@@ -1,15 +1,12 @@
+import Cookies from 'js-cookie'
+
 // API helper to get the correct API URL
 export function getApiUrl(): string {
-  // Use environment variable if available
-  if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL
-  }
-
   // Browser-side detection
   if (typeof window !== 'undefined') {
-    // Get current origin and build API URL based on environment
     const origin = window.location.origin
     
+    // Match based on current hostname
     if (origin.includes('app-dev.pytake.net')) {
       return 'https://api-dev.pytake.net'
     }
@@ -19,9 +16,14 @@ export function getApiUrl(): string {
     if (origin.includes('app.pytake.net') || origin.includes('pytake.net')) {
       return 'https://api.pytake.net'
     }
-    if (origin.includes('localhost:3001') || origin.includes('127.0.0.1:3001')) {
+    if (origin.includes('localhost:3001') || origin.includes('127.0.0.1:3001') || origin.includes('localhost:3000') || origin.includes('127.0.0.1:3000')) {
       return 'http://localhost:8000'
     }
+  }
+
+  // Use environment variable if available (server-side or build time)
+  if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL
   }
 
   // Default fallback
@@ -32,4 +34,18 @@ export function getApiUrl(): string {
 export function getWebSocketUrl(): string {
   const apiUrl = getApiUrl()
   return apiUrl.replace('https', 'wss').replace('http', 'ws') + '/ws'
+}
+
+// Get auth headers with Bearer token
+export function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+
+  const token = Cookies.get('auth-token')
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  return headers
 }
