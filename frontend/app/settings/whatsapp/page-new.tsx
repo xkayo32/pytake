@@ -69,7 +69,7 @@ export default function WhatsAppSettingsPage() {
   const loadConfigs = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/v1/whatsapp-configs')
+      const response = await fetch('/api/v1/whatsapp/')
       
       if (response.ok) {
         const data = await response.json()
@@ -90,7 +90,7 @@ export default function WhatsAppSettingsPage() {
         is_default: configs.length === 0 // First config becomes default
       }
 
-      const response = await fetch('/api/v1/whatsapp-configs', {
+      const response = await fetch('/api/v1/whatsapp/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -127,7 +127,7 @@ export default function WhatsAppSettingsPage() {
 
   const handleSetDefault = async (configId: string) => {
     try {
-      const response = await fetch(`/api/v1/whatsapp-configs/${configId}/default`, {
+      const response = await fetch(`/api/v1/whatsapp/${configId}/default`, {
         method: 'PUT'
       })
 
@@ -145,7 +145,7 @@ export default function WhatsAppSettingsPage() {
     }
 
     try {
-      const response = await fetch(`/api/v1/whatsapp-configs/${configId}`, {
+      const response = await fetch(`/api/v1/whatsapp/${configId}`, {
         method: 'DELETE'
       })
 
@@ -159,7 +159,7 @@ export default function WhatsAppSettingsPage() {
 
   const handleTest = async (configId: string) => {
     try {
-      const response = await fetch(`/api/v1/whatsapp-configs/${configId}/test`, {
+      const response = await fetch(`/api/v1/whatsapp/${configId}/test`, {
         method: 'POST'
       })
 

@@ -100,12 +100,12 @@ export const apiHelpers = {
     api.post('/auth/change-password', data),
   
   // WhatsApp Config
-  getWhatsAppConfigs: () => api.get('/whatsapp-configs'),
-  getWhatsAppConfig: (id: string) => api.get(`/whatsapp-configs/${id}`),
-  createWhatsAppConfig: (data: any) => api.post('/whatsapp-configs', data),
-  updateWhatsAppConfig: (id: string, data: any) => api.put(`/whatsapp-configs/${id}`, data),
-  deleteWhatsAppConfig: (id: string) => api.delete(`/whatsapp-configs/${id}`),
-  testWhatsAppConfig: (id: string) => api.post(`/whatsapp-configs/${id}/test`),
+  getWhatsAppConfigs: () => api.get('/whatsapp/'),
+  getWhatsAppConfig: (id: string) => api.get(`/whatsapp/${id}`),
+  createWhatsAppConfig: (data: any) => api.post('/whatsapp/', data),
+  updateWhatsAppConfig: (id: string, data: any) => api.put(`/whatsapp/${id}`, data),
+  deleteWhatsAppConfig: (id: string) => api.delete(`/whatsapp/${id}`),
+  testWhatsAppConfig: (id: string) => api.post(`/whatsapp/${id}/test`),
   
   // Dashboard & Analytics
   getDashboardStats: () => api.get('/dashboard/stats'),
