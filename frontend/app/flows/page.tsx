@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { notify } from '@/lib/utils'
 import { 
   Plus, 
   Play, 
@@ -257,7 +256,7 @@ export default function FlowsPage() {
         
         if (!flowId) {
           console.error('❌ Backend não retornou ID do flow:', createdFlow)
-          notify.error('Erro', 'Flow criado mas sem ID. Verifique o backend.')
+          alert('Erro: Flow criado mas sem ID. Verifique o backend.')
           return
         }
         
@@ -279,11 +278,11 @@ export default function FlowsPage() {
         router.push(`/flows/${flowId}/edit`)
       } else {
         console.error('❌ Erro ao criar flow:', response.status)
-        notify.error('Erro', 'Erro ao criar novo flow. Tente novamente.')
+        alert('Erro ao criar novo flow. Tente novamente.')
       }
     } catch (error) {
       console.error('Erro ao criar flow:', error)
-      notify.error('Erro', 'Erro ao criar novo flow. Tente novamente.')
+      alert('Erro ao criar novo flow. Tente novamente.')
     } finally {
       setLoading(false)
     }

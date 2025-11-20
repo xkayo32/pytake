@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { notify } from '@/lib/utils'
 import { 
   Save,
   User,
@@ -196,7 +195,7 @@ export default function ProfileSettingsPage() {
 
   const handleChangePassword = () => {
     if (newPassword !== confirmPassword) {
-      notify.error('Erro', 'As senhas não coincidem')
+      alert('As senhas não coincidem')
       return
     }
     console.log('Changing password')
@@ -241,7 +240,7 @@ export default function ProfileSettingsPage() {
 
   const handleLogoutSession = (sessionId: string) => {
     if (sessionId === '1') {
-      notify.warning('Atenção', 'Não é possível encerrar a sessão atual')
+      alert('Não é possível encerrar a sessão atual')
       return
     }
     console.log('Logout session:', sessionId)

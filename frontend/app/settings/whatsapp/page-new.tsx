@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { notify } from '@/lib/utils'
 import { 
   Plus, 
   Phone, 
@@ -165,15 +164,11 @@ export default function WhatsAppSettingsPage() {
       })
 
       const result = await response.json()
-      if (result.success) {
-        notify.success('Teste realizado com sucesso!')
-      } else {
-        notify.error('Erro ao testar configuração', result.error?.message)
-      }
+      alert(result.success ? 'Teste realizado com sucesso!' : `Erro: ${result.error?.message}`)
       await loadConfigs()
     } catch (error) {
       console.error('Error testing config:', error)
-      notify.error('Erro ao testar configuração', 'Verifique sua conexão')
+      alert('Erro ao testar configuração')
     }
   }
 
