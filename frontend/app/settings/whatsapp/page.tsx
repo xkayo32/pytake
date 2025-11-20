@@ -54,6 +54,7 @@ import {
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useToast } from '@/components/ui/toast'
 import { getApiUrl, getAuthHeaders } from '@/lib/api-client'
+import { AddWhatsAppNumberModal } from '@/src/components/admin/AddWhatsAppNumberModal'
 
 // Validação dos formulários
 const whatsappConfigSchema = z.object({
@@ -404,128 +405,19 @@ export default function WhatsAppSettingsPage() {
               Gerencie múltiplos números WhatsApp Business conectados ao sistema
             </p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button 
-                className="bg-green-600 hover:bg-green-700"
-                onClick={() => {
-                  setEditingConfig(null)
-                  configForm.reset({
-                    name: '',
-                    phone_number_id: '',
-                    access_token: '',
-                    business_account_id: '',
-                    webhook_verify_token: ''
-                  })
-                }}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Número
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingConfig ? 'Editar Configuração' : 'Nova Configuração WhatsApp'}
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={configForm.handleSubmit(handleSaveConfig)} className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Nome da Configuração *</Label>
-                  <Input
-                    id="name"
-                    {...configForm.register('name')}
-                    placeholder="Ex: WhatsApp Vendas"
-                  />
-                  {configForm.formState.errors.name && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {configForm.formState.errors.name.message}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="phone_number_id">Phone Number ID *</Label>
-                  <Input
-                    id="phone_number_id"
-                    {...configForm.register('phone_number_id')}
-                    placeholder="574293335763643"
-                  />
-                  {configForm.formState.errors.phone_number_id && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {configForm.formState.errors.phone_number_id.message}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="access_token">Access Token *</Label>
-                  <div className="relative">
-                    <Input
-                      id="access_token"
-                      type={showTokens ? 'text' : 'password'}
-                      {...configForm.register('access_token')}
-                      placeholder="EAAUZBn..."
-                      className="pr-10"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowTokens(!showTokens)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
-                    >
-                      {showTokens ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                  {configForm.formState.errors.access_token && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {configForm.formState.errors.access_token.message}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="business_account_id">Business Account ID</Label>
-                  <Input
-                    id="business_account_id"
-                    {...configForm.register('business_account_id')}
-                    placeholder="574293335763643"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="webhook_verify_token">Webhook Verify Token *</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="webhook_verify_token"
-                      type={showTokens ? 'text' : 'password'}
-                      {...configForm.register('webhook_verify_token')}
-                      placeholder="verify_token_123"
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={generateWebhookToken}
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  {configForm.formState.errors.webhook_verify_token && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {configForm.formState.errors.webhook_verify_token.message}
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit">
-                    {editingConfig ? 'Atualizar' : 'Salvar'}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button 
+            className="bg-green-600 hover:bg-green-700"
+            onClick={() => setIsDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar Número
+          </Button>
+          
+          <AddWhatsAppNumberModal 
+            isOpen={isDialogOpen} 
+            onClose={() => setIsDialogOpen(false)}
+            onSuccess={loadConfigs}
+          />
         </div>
       </div>
 
