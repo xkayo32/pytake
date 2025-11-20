@@ -231,7 +231,7 @@ export default function WhatsAppSettingsPage() {
     try {
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp-configs/${configId}`, {
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/${configId}`, {
         method: 'DELETE',
         headers
       })
