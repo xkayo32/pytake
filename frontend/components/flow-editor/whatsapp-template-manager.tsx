@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { notify } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -150,7 +151,7 @@ export function WhatsAppTemplateManager({ isOpen, onClose }: WhatsAppTemplateMan
 
   const handleSaveTemplate = () => {
     if (!templateName || !bodyText) {
-      alert('Nome e corpo da mensagem são obrigatórios')
+      notify.error('Erro', 'Nome e corpo da mensagem são obrigatórios')
       return
     }
 

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { notify } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -202,12 +203,12 @@ export function NegotiationFlowBuilder({ onFlowGenerated }: NegotiationFlowBuild
       })
       
       if (response.ok) {
-        alert('✅ Flow testado com sucesso!')
+        notify.success('Flow testado com sucesso!')
       } else {
-        alert('❌ Erro ao testar flow')
+        notify.error('Erro ao testar flow')
       }
     } catch (error) {
-      alert('❌ Erro de conexão')
+      notify.error('Erro de conexão')
     }
   }
 
