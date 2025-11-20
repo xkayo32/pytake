@@ -45,7 +45,7 @@ export interface WhatsAppNumberUpdate {
 export const whatsappAPI = {
   // List all WhatsApp numbers
   list: async () => {
-    const response = await fetch(`${getApiUrl()}/whatsapp/`, {
+    const response = await fetch(`${getApiUrl()}/api/v1/whatsapp/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -55,7 +55,7 @@ export const whatsappAPI = {
 
   // Get WhatsApp number by ID
   getById: async (id: string) => {
-    const response = await fetch(`${getApiUrl()}/whatsapp/${id}`, {
+    const response = await fetch(`${getApiUrl()}/api/v1/whatsapp/${id}`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -65,7 +65,7 @@ export const whatsappAPI = {
 
   // Create new WhatsApp number
   create: async (data: WhatsAppNumberCreate) => {
-    const response = await fetch(`${getApiUrl()}/whatsapp/`, {
+    const response = await fetch(`${getApiUrl()}/api/v1/whatsapp/`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
@@ -82,7 +82,7 @@ export const whatsappAPI = {
 
   // Update WhatsApp number
   update: async (id: string, data: WhatsAppNumberUpdate) => {
-    const response = await fetch(`${getApiUrl()}/whatsapp/${id}`, {
+    const response = await fetch(`${getApiUrl()}/api/v1/whatsapp/${id}`, {
       method: 'PUT',
       headers: {
         ...getAuthHeaders(),
@@ -96,7 +96,7 @@ export const whatsappAPI = {
 
   // Delete WhatsApp number
   delete: async (id: string) => {
-    const response = await fetch(`${getApiUrl()}/whatsapp/${id}`, {
+    const response = await fetch(`${getApiUrl()}/api/v1/whatsapp/${id}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     });
@@ -105,7 +105,7 @@ export const whatsappAPI = {
 
   // Generate QR Code (Evolution API only)
   generateQRCode: async (id: string) => {
-    const response = await fetch(`${getApiUrl()}/whatsapp/${id}/qrcode`, {
+    const response = await fetch(`${getApiUrl()}/api/v1/whatsapp/${id}/qrcode`, {
       method: 'POST',
       headers: getAuthHeaders(),
     });
@@ -119,7 +119,7 @@ export const whatsappAPI = {
 
   // Get QR Code status
   getQRCodeStatus: async (id: string) => {
-    const response = await fetch(`${getApiUrl()}/whatsapp/${id}/qrcode/status`, {
+    const response = await fetch(`${getApiUrl()}/api/v1/whatsapp/${id}/qrcode/status`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
