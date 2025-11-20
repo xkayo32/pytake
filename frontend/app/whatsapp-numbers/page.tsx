@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { getApiUrl, getAuthHeaders } from '@/lib/api-client'
+import { notify } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -191,10 +192,14 @@ export default function WhatsAppNumbersPage() {
       })
 
       const result = await response.json()
-      alert(result.success ? 'Teste realizado com sucesso!' : `Erro: ${result.error?.message}`)
+      if (result.success) {
+        notify.success('Teste realizado com sucesso!')
+      } else {
+        notify.error('Erro ao testar configuração', result.error?.message)
+      }
     } catch (error) {
       console.error('Error testing config:', error)
-      alert('Erro ao testar configuração')
+      notify.error('Erro ao testar configuração', 'Verifique sua conexão')
     }
   }
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { notify } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -71,7 +72,7 @@ export function FlowLoader({ onLoadFlow, onPreviewFlow }: FlowLoaderProps) {
       
     } catch (error) {
       console.error('Erro ao carregar flow:', error)
-      alert('❌ Erro ao carregar flow')
+      notify.error('Erro ao carregar flow')
     } finally {
       setIsLoading(false)
     }
