@@ -1,20 +1,34 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { AppSidebar } from './app-sidebar'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { getApiUrl, getAuthHeaders } from '@/lib/api-client'
+import { handleAuthError } from '@/lib/auth-interceptor'
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
   const [unreadCount, setUnreadCount] = useState(0)
+  const [isLoadingContacts, setIsLoadingContacts] = useState(false)
 
   useEffect(() => {
     // Carregar contagem de mensagens não lidas
     const loadUnreadCount = async () => {
+      if (isLoadingContacts) return // Prevenir requisições simultâneas
+      
+      setIsLoadingContacts(true)
       try {
         const apiUrl = getApiUrl()
         const headers = getAuthHeaders()
         const response = await fetch(`${apiUrl}/api/v1/contacts/`, { headers })
+        
+        // Interceptar erros de autenticação
+        if (response.status === 401 || response.status === 403) {
+          await handleAuthError(response, router)
+          setIsLoadingContacts(false)
+          return
+        }
         
         if (response.ok) {
           const contacts = await response.json()
@@ -22,9 +36,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             ? contacts.reduce((sum, contact) => sum + (contact.unread_count || 0), 0)
             : 0
           setUnreadCount(total)
+        } else {
+          console.warn(`Failed to load contacts: ${response.status}`)
         }
       } catch (error) {
         console.error('Error loading unread count:', error)
+      } finally {
+        setIsLoadingContacts(false)
       }
     }
 
@@ -34,7 +52,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     const interval = setInterval(loadUnreadCount, 10000)
     
     return () => clearInterval(interval)
-  }, [])
+  }, [router, isLoadingContacts])
 
   return (
     <div className="flex h-screen bg-background">

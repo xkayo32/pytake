@@ -137,7 +137,7 @@ export default function WhatsAppSettingsPage() {
       setLoading(true)
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp-configs`, { headers })
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/`, { headers })
       
       if (response.ok) {
         const data = await response.json()
@@ -160,7 +160,7 @@ export default function WhatsAppSettingsPage() {
 
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp-configs`, {
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/`, {
         method: 'POST',
         headers,
         body: JSON.stringify(payload)
@@ -204,7 +204,7 @@ export default function WhatsAppSettingsPage() {
     try {
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp-configs/${configId}/default`, {
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/${configId}/default`, {
         method: 'PUT',
         headers
       })
@@ -256,7 +256,7 @@ export default function WhatsAppSettingsPage() {
     try {
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp-configs/${config.id}/test`, {
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/${config.id}/test`, {
         method: 'POST',
         headers
       })

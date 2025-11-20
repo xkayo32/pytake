@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     
     // Buscar configurações do WhatsApp
     try {
-      const configsResponse = await fetch(`${API_BASE_URL}/api/v1/whatsapp-configs`, {
+      const configsResponse = await fetch(`${API_BASE_URL}/api/v1/whatsapp/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -78,9 +78,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(formattedNumbers)
     }
     
-    // Tentar buscar do endpoint whatsapp-configs
+    // Tentar buscar do endpoint whatsapp
     try {
-      const configsResponse = await fetch(`${API_BASE_URL}/api/v1/whatsapp-configs`, {
+      const configsResponse = await fetch(`${API_BASE_URL}/api/v1/whatsapp/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
         }
       }
     } catch (configError) {
-      console.log('⚠️ Erro ao buscar whatsapp-configs:', configError)
+      console.log('⚠️ Erro ao buscar whatsapp:', configError)
     }
 
     // Se não conseguir buscar do banco, retornar array vazio

@@ -28,7 +28,7 @@ export default function TestWhatsAppPage() {
       setLoading(true)
       console.log('🔄 Iniciando chamada para API...')
       
-      const url = '/api/v1/whatsapp-configs'
+      const url = '/api/v1/whatsapp/'
       console.log('🌐 URL:', url)
       
       const response = await fetch(url, {
