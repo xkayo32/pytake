@@ -263,20 +263,21 @@ export default function WhatsAppSettingsPage() {
 
       const result = await response.json()
       
-      if (result.success) {
+      if (result.status === 'connected') {
         addLog('✅ Teste realizado com sucesso!')
-        addLog(`📱 Número: ${result.data?.phone_numbers?.[0]?.display_phone_number || 'N/A'}`)
+        addLog(`📱 Número: ${result.display_name || result.phone_number || 'N/A'}`)
+        addLog(result.message)
         addToast({
           type: 'success',
           title: 'Teste realizado com sucesso!',
-          description: `Conectado ao número ${result.data?.phone_numbers?.[0]?.display_phone_number || 'WhatsApp'}`
+          description: result.message
         })
       } else {
-        addLog(`❌ Erro: ${result.error?.message}`)
+        addLog(`❌ ${result.message}`)
         addToast({
           type: 'error',
           title: 'Erro no teste de conexão',
-          description: result.error?.message || 'Verifique suas credenciais'
+          description: result.message || 'Verifique suas credenciais'
         })
       }
       

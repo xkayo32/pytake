@@ -94,6 +94,98 @@ async def update_whatsapp_number(
     )
 
 
+@router.post("/{number_id}/test")
+async def test_whatsapp_connection(
+    number_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Test WhatsApp connection status.
+    
+    Returns:
+    - For Official API: Tests Meta API connection
+    - For Evolution API: Tests Evolution connection and retrieves connection status
+    """
+    service = WhatsAppService(db)
+    
+    # Get WhatsApp number
+    number = await service.get_by_id(number_id, current_user.organization_id)
+    
+    if not number:
+        raise HTTPException(
+            status_code=404,
+            detail="WhatsApp number not found"
+        )
+    
+    result = {
+        "status": "connected",
+        "message": "WhatsApp connection is working",
+        "connection_type": number.connection_type,
+        "phone_number": number.phone_number
+    }
+    
+    try:
+        if number.connection_type == "official":
+            # Test Official API connection
+            from app.integrations.meta_api import MetaCloudAPI
+            
+            meta_api = MetaCloudAPI(
+                phone_number_id=number.phone_number_id,
+                access_token=number.access_token
+            )
+            
+            # Try to fetch phone number details as a test
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"https://graph.facebook.com/v18.0/{number.phone_number_id}",
+                    params={"access_token": number.access_token}
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    result["status"] = "connected"
+                    result["display_name"] = data.get("display_phone_number", number.phone_number)
+                    result["message"] = "✅ Official API connection successful"
+                elif response.status_code == 401:
+                    result["status"] = "disconnected"
+                    result["message"] = "❌ Invalid access token - connection failed"
+                else:
+                    result["status"] = "error"
+                    result["message"] = f"❌ API returned status {response.status_code}"
+                    
+        elif number.connection_type == "qrcode":
+            # Test Evolution API connection
+            from app.integrations.evolution_api import EvolutionAPIClient
+            
+            evolution = EvolutionAPIClient(
+                api_url=number.evolution_api_url,
+                api_key=number.evolution_api_key
+            )
+            
+            # Get instance status
+            status_data = await evolution.get_instance_status(
+                instance_name=number.evolution_instance_name
+            )
+            
+            if status_data.get("state") == "open":
+                result["status"] = "connected"
+                result["message"] = "✅ Evolution API connection successful"
+            else:
+                result["status"] = "disconnected"
+                result["message"] = f"❌ Instance is {status_data.get('state', 'unknown')}"
+                
+    except Exception as e:
+        result["status"] = "error"
+        result["message"] = f"❌ Error testing connection: {str(e)}"
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error testing WhatsApp connection {number_id}: {str(e)}")
+    
+    return result
+
+
 @router.delete("/{number_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_whatsapp_number(
     number_id: UUID,

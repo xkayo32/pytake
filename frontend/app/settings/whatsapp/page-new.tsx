@@ -160,13 +160,17 @@ export default function WhatsAppSettingsPage() {
 
   const handleTest = async (configId: string) => {
     try {
-      const response = await fetch(`/api/v1/whatsapp/${configId}/test`, {
-        method: 'POST'
+      const { getApiUrl, getAuthHeaders } = await import('@/lib/api')
+      const apiUrl = getApiUrl()
+      const headers = getAuthHeaders()
+      const response = await fetch(`${apiUrl}/api/v1/whatsapp/${configId}/test`, {
+        method: 'POST',
+        headers
       })
 
       const result = await response.json()
-      if (result.success) {
-        notify.success('Teste realizado com sucesso!')
+      if (result.status === 'connected') {
+        notify.success('Teste realizado com sucesso!', result.message)
       } else {
         notify.error('Erro ao testar configuração', result.error?.message)
       }
