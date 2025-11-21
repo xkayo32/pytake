@@ -40,7 +40,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { AppLayout } from '@/components/layout/app-layout'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { 
   MOCK_USERS, 
@@ -201,9 +200,8 @@ export default function TeamSettingsPage() {
   }
 
   return (
-    <AppLayout>
-      <div className="flex flex-col h-full">
-        {/* Header */}
+    <div className="flex flex-col h-full">
+      {/* Header */}
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
           <div className="container flex h-16 items-center justify-between px-4">
             <div>
@@ -701,6 +699,5 @@ export default function TeamSettingsPage() {
           </Tabs>
         </main>
       </div>
-    </AppLayout>
   )
 }

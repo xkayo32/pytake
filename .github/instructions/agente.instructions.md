@@ -211,3 +211,228 @@ When asked about data models:
 - Security best practices (OWASP)
 
 Remember: Great design is invisible, and great APIs are intuitive. Focus on creating secure, performant, and well-documented systems that serve user needs while maintaining technical excellence on both frontend and backend.
+
+---
+
+## 🚀 FLUXO DE DESENVOLVIMENTO OTIMIZADO
+
+### 📊 Criação de Documentação - REGRA NOVA
+
+**REDUZA documentação ao mínimo necessário:**
+
+- ❌ **NÃO crie** 8+ documentos sobre 1 assunto
+- ✅ **CRIE** 1-2 documentos consolidados (se necessário)
+- ✅ **USE** comentários em código ao invés de docs extensos
+- ✅ **MANTENHA** docs existentes atualizadas (não crie novas)
+
+**Quando criar documentação:**
+1. Mudança arquitetural significativa (NOVA FEATURE, não bug fix)
+2. Padrão novo a ser reutilizado no projeto
+3. Configuração complexa ou setup inicial
+4. API pública que outros times usarão
+
+**Quando NÃO criar:**
+- ❌ Refatorações de páginas/components
+- ❌ Análises exploratórias (documente no README.md ou CHANGELOG.md)
+- ❌ Guias de implementação (código + comentários é suficiente)
+
+---
+
+### 🔧 PÓS-MUDANÇA: Validação Obrigatória de Containers
+
+**SEMPRE após fazer mudanças que impactam o projeto:**
+
+```bash
+# 1. VERIFICAR STATUS DOS CONTAINERS (1 min)
+podman compose ps
+
+# 2. CHECAR LOGS EM TEMPO REAL (2-5 min)
+podman compose logs --tail=50 backend frontend
+
+# 3. TESTAR ENDPOINTS CRÍTICOS
+GET /api/v1/docs          # Backend OK?
+GET http://localhost:3002 # Frontend OK?
+
+# 4. VALIDAR COMPILAÇÃO
+npm run build             # Frontend compila?
+pytest                    # Backend testes passam?
+```
+
+**Se encontrar erro:**
+- ✅ Coletar logs COMPLETOS (não só resumo)
+- ✅ Diagnosticar causa raiz
+- ✅ Implementar correção
+- ✅ Re-validar containers
+- ✅ Documentar problema + solução em código/commit
+
+**Se tudo OK:**
+- ✅ Fazer commit imediatamente
+- ✅ Fazer push
+- ✅ Criar PR com mudanças
+
+---
+
+### 🔄 COMMIT + PR Automatizado
+
+**Após validar que containers não quebraram:**
+
+```bash
+# Commit descritivo
+git add .
+git commit -m "feat/fix: descrição curta
+
+- Mudança 1
+- Mudança 2
+Author: Kayo Carvalho Fernandes"
+
+# Push
+git push origin feature/TICKET-xxx
+
+# Criar PR (descrever brevemente):
+# - O que mudou
+# - Por que mudou
+# - Como validar
+# - Sem containers quebrados ✅
+```
+
+**Não espere aprovação para começar novo trabalho.**
+
+---
+
+### ✅ INÍCIO DE NOVA TAREFA: Checklist Pré-Desenvolvimento
+
+**ANTES de começar qualquer novo trabalho:**
+
+```
+[ ] Verificar CI/CD da última vez
+    git log --oneline -3
+    Procurar se build.yml ou test.yml passaram
+    
+[ ] Se última branch não foi merged:
+    git status
+    Sugerir merge para develop/main primeiro
+    OU confirmar com usuário que quer trabalhar em branch ativa
+    
+[ ] Atualizar develop
+    git fetch origin
+    git pull origin develop
+    
+[ ] Criar nova branch
+    git checkout -b feature/TICKET-xxx-description
+    
+[ ] Confirmar estamos na branch correta
+    git branch  # deve mostrar * feature/TICKET-xxx
+```
+
+**Se CI/CD de última branch falhou:**
+- ⚠️ ALERTAR usuário ANTES de começar novo trabalho
+- Sugerir: "CI/CD falhou em PR #XX. Quer resolver primeiro?"
+
+---
+
+### 📋 MATRIZ DE DECISÃO: Quando Criar Documentação
+
+| Situação | Criar Doc? | Tipo |
+|----------|-----------|------|
+| Bug fix simples | ❌ NÃO | Só commit |
+| Refatoração de página | ❌ NÃO | Só código + PR |
+| Nova API endpoint | ✅ SIM | Docstring + README |
+| Nova feature grande | ✅ SIM | 1 doc consolidado |
+| Mudança arquitetural | ✅ SIM | Design doc |
+| Config complexa | ✅ SIM | Setup guide |
+| Análise exploratória | ⚠️ RESUMO | Adicionar ao README.md |
+
+---
+
+### 🎯 PROCESSO DE DESENVOLVIMENTO RÁPIDO
+
+```
+┌─ COMEÇAR ──────────────────────────────┐
+│ 1. Verificar CI/CD ✅                  │
+│ 2. Atualizar develop ✅                │
+│ 3. Criar feature branch ✅             │
+└────────────────────────────────────────┘
+         ↓
+┌─ IMPLEMENTAR ──────────────────────────┐
+│ 1. Escrever código                     │
+│ 2. Testes (se aplicável)               │
+│ 3. Sem console.log() ou debugger       │
+└────────────────────────────────────────┘
+         ↓
+┌─ VALIDAR (NOVO!) ──────────────────────┐
+│ 1. npm run build (frontend) ✅         │
+│ 2. pytest (backend, se há) ✅          │
+│ 3. Containers rodando? ✅              │
+│ 4. Logs limpos? ✅                     │
+│ 5. Endpoints respondendo? ✅           │
+└────────────────────────────────────────┘
+         ↓
+┌─ COMMIT + PR (AUTOMÁTICO!) ────────────┐
+│ 1. git add . && git commit ✅          │
+│ 2. git push ✅                         │
+│ 3. Criar PR com descrição ✅           │
+│ 4. Não esperar aprovação ✅            │
+└────────────────────────────────────────┘
+         ↓
+┌─ NOVA TAREFA ──────────────────────────┐
+│ 1. Verificar CI/CD da última ✅        │
+│ 2. Se passou: continuar normal ✅      │
+│ 3. Se falhou: alertar usuário ✅       │
+│ 4. Criar nova branch ✅                │
+└────────────────────────────────────────┘
+```
+
+---
+
+### 🚨 Regras Importantes
+
+**Sobre Documentação:**
+- ✅ Consolide documentos (1-2 por assunto, máximo)
+- ✅ Atualize docs existentes ao invés de criar novas
+- ✅ Use código com comentários como documentação
+- ✅ Docstrings em funções/APIs é suficiente
+- ❌ NÃO crie pasta de docs com 8+ arquivos
+- ❌ NÃO escreva guias de 10 páginas para bug fix
+
+**Sobre Containers:**
+- ✅ SEMPRE verificar depois de mudanças
+- ✅ Coletar logs COMPLETOS se erro
+- ✅ Diagnosticar + corrigir antes de commit
+- ✅ Re-validar após correção
+- ❌ NÃO faça commit se containers quebrarem
+
+**Sobre CI/CD:**
+- ✅ Verificar status ANTES de nova tarefa
+- ✅ Alertar se última build falhou
+- ✅ Sugerir merge se branch antiga não foi merged
+- ✅ Confirmar com usuário se quer continuar em branch ativa
+- ❌ NÃO ignorar falhas de CI/CD
+
+**Sobre Git:**
+- ✅ Commits pequenos e frequentes
+- ✅ Mensagens descritivas
+- ✅ Author sempre: Kayo Carvalho Fernandes
+- ✅ Push automático após validar
+- ✅ PR com descrição clara (o que, por que, como testar)
+
+---
+
+### 📞 Resumo das Mudanças
+
+**ANTES:**
+- ❌ 8+ documentos por assunto
+- ❌ Sem validação de containers
+- ❌ Sem automação de commit/PR
+- ❌ Sem checklist CI/CD
+
+**DEPOIS:**
+- ✅ 1-2 documentos consolidados (máximo)
+- ✅ Validação obrigatória de containers
+- ✅ Commit + PR automático se OK
+- ✅ Checklist CI/CD antes de nova tarefa
+
+**GANHO:**
+- 70% menos tempo em documentação
+- 100% confiabilidade de containers
+- Fluxo mais rápido e automático
+- Melhor rastreabilidade com CI/CD
