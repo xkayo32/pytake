@@ -64,6 +64,169 @@ async def create_whatsapp_number(
     )
 
 
+# ============= Webhook Endpoints (Meta Cloud API) =============
+
+
+@router.get("/webhook", response_class=PlainTextResponse, dependencies=[])
+async def verify_webhook(
+    request: Request,
+    mode: str = Query(None, alias="hub.mode"),
+    token: str = Query(None, alias="hub.verify_token"),
+    challenge: str = Query(None, alias="hub.challenge"),
+):
+    """
+    Webhook verification endpoint for Meta Cloud API.
+    Meta will send a GET request to verify the webhook.
+
+    Query params:
+    - hub.mode: should be "subscribe"
+    - hub.verify_token: the token we provided in Meta dashboard
+    - hub.challenge: random string to echo back
+
+    NOTE: This endpoint is PUBLIC and does not require authentication
+    """
+    if not mode or not token or not challenge:
+        raise HTTPException(
+            status_code=400,
+            detail="Missing required query parameters"
+        )
+
+    if mode != "subscribe":
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid mode"
+        )
+
+    # Verify token against database manually (without dependency injection)
+    from app.core.database import async_session
+    from sqlalchemy import select
+    from app.models.whatsapp_number import WhatsAppNumber
+
+    async with async_session() as db:
+        try:
+            stmt = select(WhatsAppNumber).where(
+                WhatsAppNumber.webhook_verify_token == token,
+                WhatsAppNumber.deleted_at.is_(None),
+            )
+            result = await db.execute(stmt)
+            number = result.scalar_one_or_none()
+
+            if not number:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Invalid verify token"
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"Error verifying webhook token: {e}")
+            raise HTTPException(
+                status_code=403,
+                detail="Invalid verify token"
+            )
+
+    # Return challenge to complete verification
+    return challenge
+
+
+@router.post("/webhook", dependencies=[])
+async def receive_webhook(
+    request: Request,
+):
+    """
+    Webhook endpoint for receiving WhatsApp messages and events from Meta Cloud API.
+
+    This endpoint receives:
+    - Incoming messages
+    - Message status updates (sent, delivered, read, failed)
+    - Customer information updates
+
+    NOTE: This endpoint is PUBLIC and does not require authentication
+    """
+    import logging
+    from app.core.security import verify_whatsapp_signature
+    from sqlalchemy import select
+    from app.models.whatsapp_number import WhatsAppNumber
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Get raw body for signature verification
+        raw_body = await request.body()
+
+        # Get signature header
+        signature = request.headers.get("X-Hub-Signature-256")
+
+        # Parse JSON body from raw bytes
+        import json
+        body = json.loads(raw_body.decode('utf-8'))
+
+        # Extract phone_number_id from payload
+        phone_number_id = None
+        try:
+            entries = body.get("entry", [])
+            if entries:
+                changes = entries[0].get("changes", [])
+                if changes:
+                    value = changes[0].get("value", {})
+                    metadata = value.get("metadata", {})
+                    phone_number_id = metadata.get("phone_number_id")
+        except (IndexError, KeyError, TypeError):
+            pass
+
+        if not phone_number_id:
+            logger.error("Could not extract phone_number_id from webhook")
+            return {"status": "ok"}
+
+        # Find WhatsApp number by phone_number_id
+        from app.core.database import async_session
+        async with async_session() as db:
+            stmt = select(WhatsAppNumber).where(
+                WhatsAppNumber.phone_number_id == phone_number_id,
+                WhatsAppNumber.deleted_at.is_(None),
+            )
+            result = await db.execute(stmt)
+            number = result.scalar_one_or_none()
+
+            if not number:
+                logger.error(f"WhatsApp number not found for phone_number_id: {phone_number_id}")
+                return {"status": "ok"}
+
+            # Verify signature if token is set
+            if number.webhook_verify_token:
+                if not signature:
+                    logger.error("Missing X-Hub-Signature-256 header")
+                    raise HTTPException(status_code=403, detail="Forbidden")
+
+                if not verify_whatsapp_signature(
+                    signature=signature,
+                    body=raw_body,
+                    verify_token=number.webhook_verify_token
+                ):
+                    logger.error("Invalid webhook signature")
+                    raise HTTPException(status_code=403, detail="Forbidden")
+
+            # Process webhook
+            from app.services.whatsapp_service import WhatsAppService
+            service = WhatsAppService(db)
+            await service.process_webhook(body, number.id, number.organization_id)
+
+        # Always return 200 OK to Meta
+        return {"status": "ok"}
+
+    except HTTPException:
+        # Re-raise HTTP exceptions (403 Forbidden)
+        raise
+
+    except Exception as e:
+        # Log error but still return 200 to prevent Meta from retrying
+        logger.error(f"Webhook error: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+# ============= WhatsApp Number Endpoints =============
+
+
 @router.get("/{number_id}", response_model=WhatsAppNumber)
 async def get_whatsapp_number(
     number_id: UUID,
@@ -199,176 +362,6 @@ async def delete_whatsapp_number(
         organization_id=current_user.organization_id,
     )
     return None
-
-
-# ============= Webhook Endpoints (Meta Cloud API) =============
-
-
-@router.get("/webhook", response_class=PlainTextResponse, dependencies=[])
-async def verify_webhook(
-    request: Request,
-    mode: str = Query(None, alias="hub.mode"),
-    token: str = Query(None, alias="hub.verify_token"),
-    challenge: str = Query(None, alias="hub.challenge"),
-):
-    """
-    Webhook verification endpoint for Meta Cloud API.
-    Meta will send a GET request to verify the webhook.
-
-    Query params:
-    - hub.mode: should be "subscribe"
-    - hub.verify_token: the token we provided in Meta dashboard
-    - hub.challenge: random string to echo back
-
-    NOTE: This endpoint is PUBLIC and does not require authentication
-    """
-    if not mode or not token or not challenge:
-        raise HTTPException(
-            status_code=400,
-            detail="Missing required query parameters"
-        )
-
-    if mode != "subscribe":
-        raise HTTPException(
-            status_code=403,
-            detail="Invalid mode"
-        )
-
-    # Verify token against database manually (without dependency injection)
-    from app.core.database import async_session
-    from sqlalchemy import select
-    from app.models.whatsapp_number import WhatsAppNumber
-
-    async with async_session() as db:
-        try:
-            stmt = select(WhatsAppNumber).where(
-                WhatsAppNumber.webhook_verify_token == token,
-                WhatsAppNumber.deleted_at.is_(None),
-            )
-            result = await db.execute(stmt)
-            number = result.scalar_one_or_none()
-
-            if not number:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Invalid verify token"
-                )
-        except HTTPException:
-            raise
-        except Exception as e:
-            print(f"Error verifying webhook token: {e}")
-            raise HTTPException(
-                status_code=403,
-                detail="Invalid verify token"
-            )
-
-    # Return challenge to complete verification
-    return challenge
-
-
-@router.post("/webhook", dependencies=[])
-async def receive_webhook(
-    request: Request,
-):
-    """
-    Webhook endpoint for receiving WhatsApp messages and events from Meta Cloud API.
-
-    This endpoint receives:
-    - Incoming messages
-    - Message status updates (sent, delivered, read, failed)
-    - Customer information updates
-
-    NOTE: This endpoint is PUBLIC and does not require authentication
-    """
-    import logging
-    from app.core.security import verify_whatsapp_signature
-    from sqlalchemy import select
-    from app.models.whatsapp_number import WhatsAppNumber
-
-    logger = logging.getLogger(__name__)
-
-    try:
-        # Get raw body for signature verification
-        raw_body = await request.body()
-
-        # Get signature header
-        signature = request.headers.get("X-Hub-Signature-256")
-
-        # Parse JSON body from raw bytes
-        import json
-        body = json.loads(raw_body.decode('utf-8'))
-
-        # Extract phone_number_id from payload
-        phone_number_id = None
-        try:
-            entries = body.get("entry", [])
-            if entries:
-                changes = entries[0].get("changes", [])
-                if changes:
-                    metadata = changes[0].get("value", {}).get("metadata", {})
-                    phone_number_id = metadata.get("phone_number_id")
-        except Exception as e:
-            logger.warning(f"Could not extract phone_number_id from payload: {e}")
-
-        # Verify signature if we have phone_number_id
-        if phone_number_id:
-            from app.core.database import async_session
-
-            async with async_session() as db:
-                # Get WhatsApp number to retrieve app_secret
-                stmt = select(WhatsAppNumber).where(
-                    WhatsAppNumber.phone_number_id == phone_number_id
-                )
-                result = await db.execute(stmt)
-                whatsapp_number = result.scalar_one_or_none()
-
-                if whatsapp_number and whatsapp_number.app_secret:
-                    if not signature:
-                        logger.error("❌ Missing X-Hub-Signature-256 header")
-                        raise HTTPException(
-                            status_code=403,
-                            detail="Missing X-Hub-Signature-256 header"
-                        )
-
-                    # Verify signature
-                    is_valid = verify_whatsapp_signature(
-                        payload=raw_body,
-                        signature=signature,
-                        app_secret=whatsapp_number.app_secret
-                    )
-
-                    if not is_valid:
-                        logger.error(f"❌ Invalid webhook signature for {whatsapp_number.phone_number}")
-                        raise HTTPException(
-                            status_code=403,
-                            detail="Invalid webhook signature"
-                        )
-
-                    logger.info(f"✅ Webhook signature verified for {whatsapp_number.phone_number}")
-                elif whatsapp_number:
-                    logger.warning(
-                        f"⚠️ Webhook signature verification skipped for {whatsapp_number.phone_number} "
-                        f"- no app_secret configured"
-                    )
-
-        # Process webhook manually (without dependency injection)
-        from app.core.database import async_session
-
-        async with async_session() as db:
-            service = WhatsAppService(db)
-            await service.process_webhook(body)
-
-        # Always return 200 OK to Meta
-        return {"status": "ok"}
-
-    except HTTPException:
-        # Re-raise HTTP exceptions (403 Forbidden)
-        raise
-
-    except Exception as e:
-        # Log error but still return 200 to prevent Meta from retrying
-        logger.error(f"Webhook error: {e}")
-        return {"status": "error", "message": str(e)}
 
 
 # ============= Evolution API Endpoints (QR Code) =============
