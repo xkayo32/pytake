@@ -1,6 +1,6 @@
 import Cookies from 'js-cookie'
 
-// API helper to get the correct API URL
+// API helper to get the correct API URL (with /api/v1)
 export function getApiUrl(): string {
   // Browser-side detection
   if (typeof window !== 'undefined') {
@@ -23,7 +23,12 @@ export function getApiUrl(): string {
 
   // Use environment variable if available (server-side or build time)
   if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL
+    let url = process.env.NEXT_PUBLIC_API_URL
+    // Ensure /api/v1 is included
+    if (!url.endsWith('/api/v1')) {
+      url = url + '/api/v1'
+    }
+    return url
   }
 
   // Default fallback

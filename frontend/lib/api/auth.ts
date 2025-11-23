@@ -1,11 +1,13 @@
 import axios from 'axios'
 import Cookies from 'js-cookie'
+import { getApiUrl } from '../api-client'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
+// Get API URL dynamically to ensure /api/v1 is always included
+const getBaseURL = () => getApiUrl()
 
-// Create axios instance
+// Create axios instance with dynamic base URL
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: getBaseURL(),
   withCredentials: true,
   timeout: 10000,
 })
