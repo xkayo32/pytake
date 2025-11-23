@@ -1,8 +1,9 @@
 import axios from 'axios'
 import Cookies from 'js-cookie'
+import { getApiUrl } from './api-client'
 
-// Configuração base da API
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.pytake.net/api/v1'
+// Configuração base da API - usa getApiUrl() para garantir /api/v1
+const API_URL = getApiUrl()
 
 // Criar instância do axios
 export const api = axios.create({

@@ -457,7 +457,7 @@ function FlowEditor() {
         
         const apiUrl = getApiUrl()
         const headers = getAuthHeaders()
-        const response = await fetch(`${apiUrl}/api/v1/flows`, {
+        const response = await fetch(`${apiUrl}/flows`, {
           method: 'POST',
           headers,
           body: JSON.stringify(createData)
@@ -533,7 +533,7 @@ function FlowEditor() {
         try {
           const apiUrl = getApiUrl()
           const headers = getAuthHeaders()
-          const flowsResponse = await fetch(`${apiUrl}/api/v1/flows`, { headers })
+          const flowsResponse = await fetch(`${apiUrl}/flows`, { headers })
           if (flowsResponse.ok) {
             const flowsData = await flowsResponse.json()
             const flows = flowsData.flows || flowsData || []

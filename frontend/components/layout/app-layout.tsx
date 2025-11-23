@@ -21,7 +21,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       try {
         const apiUrl = getApiUrl()
         const headers = getAuthHeaders()
-        const response = await fetch(`${apiUrl}/api/v1/contacts/`, { headers })
+        const response = await fetch(`${apiUrl}/contacts/`, { headers })
         
         // Interceptar erros de autenticação
         if (response.status === 401 || response.status === 403) {

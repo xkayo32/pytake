@@ -135,7 +135,7 @@ services:
     environment:
       NODE_ENV: development
       NEXT_TELEMETRY_DISABLED: 1
-      NEXT_PUBLIC_API_URL: https://api-dev.pytake.net
+      NEXT_PUBLIC_API_URL: https://api-dev.pytake.net/api/v1
       WATCHPACK_POLLING: true
       CHOKIDAR_USEPOLLING: true
     command: sh -c "npm install && npm run dev"

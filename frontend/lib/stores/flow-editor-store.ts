@@ -389,7 +389,9 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
         
         // Detectar se é edição (flow já existe) ou criação
         const isEditing = flow && flow.id && flow.id === updatedFlow.id
-        const apiUrl = isEditing ? `/api/v1/flows/${updatedFlow.id}` : '/api/v1/flows'
+        const { getApiUrl, getAuthHeaders } = await import('../api-client')
+        const baseApiUrl = getApiUrl()
+        const apiUrl = isEditing ? `${baseApiUrl}/flows/${updatedFlow.id}` : `${baseApiUrl}/flows`
         const method = isEditing ? 'PUT' : 'POST'
         
         console.log(`🔄 [DEBUG] ${isEditing ? 'Editando' : 'Criando'} flow via ${method} ${apiUrl}`)
@@ -398,6 +400,7 @@ export const useFlowEditorStore = create<FlowEditorStore>((set, get) => ({
           method,
           headers: {
             'Content-Type': 'application/json',
+            ...getAuthHeaders(),
           },
           body: JSON.stringify(updatedFlow)
         })

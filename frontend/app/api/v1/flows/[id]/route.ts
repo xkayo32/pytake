@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+// Get API base URL, ensuring /api/v1 is included and not duplicated
+const getAPIBaseURL = () => {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+  if (!baseUrl.endsWith('/api/v1')) {
+    return baseUrl + '/api/v1'
+  }
+  return baseUrl
+}
+
+const API_BASE_URL = getAPIBaseURL()
 
 export async function GET(
   request: NextRequest,
@@ -8,7 +17,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const response = await fetch(`${API_BASE_URL}/api/v1/flows/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/flows/${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -16,7 +25,7 @@ export async function GET(
     })
 
     if (!response.ok) {
-      console.error(`❌ Backend returned ${response.status} for GET /api/v1/flows/${id}`)
+      console.error(`❌ Backend returned ${response.status} for GET /flows/${id}`)
       return NextResponse.json(
         { error: 'Failed to fetch flow' },
         { status: response.status }

@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+// Get API base URL, ensuring /api/v1 is included and not duplicated
+const getAPIBaseURL = () => {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+  if (!baseUrl.endsWith('/api/v1')) {
+    return baseUrl + '/api/v1'
+  }
+  return baseUrl
+}
+
+const API_BASE_URL = getAPIBaseURL()
 
 export async function GET(request: NextRequest) {
   try {
     console.log('🔄 Proxying flows request to backend...')
     
-    const response = await fetch(`${API_BASE_URL}/api/v1/flows`, {
+    const response = await fetch(`${API_BASE_URL}/flows`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -41,7 +50,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log('📤 Frontend proxy recebeu flow:', JSON.stringify(body, null, 2))
     
-    const backendUrl = `${API_BASE_URL}/api/v1/flows`
+    const backendUrl = `${API_BASE_URL}/flows`
     console.log('🔗 Backend URL:', backendUrl)
     
     const response = await fetch(backendUrl, {

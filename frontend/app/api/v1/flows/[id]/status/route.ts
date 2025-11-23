@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081'
+// Get API base URL, ensuring /api/v1 is included and not duplicated
+const getAPIBaseURL = () => {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+  if (!baseUrl.endsWith('/api/v1')) {
+    return baseUrl + '/api/v1'
+  }
+  return baseUrl
+}
+
+const API_BASE_URL = getAPIBaseURL()
 
 export async function PATCH(
   request: NextRequest,

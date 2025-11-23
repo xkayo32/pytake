@@ -163,7 +163,7 @@ export default function WhatsAppSettingsPage() {
       const { getApiUrl, getAuthHeaders } = await import('@/lib/api')
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/${configId}/test`, {
+      const response = await fetch(`${apiUrl}/whatsapp/${configId}/test`, {
         method: 'POST',
         headers
       })

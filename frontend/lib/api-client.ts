@@ -1,6 +1,6 @@
 import Cookies from 'js-cookie'
 
-// API helper to get the correct API URL
+// API helper to get the correct API URL (with /api/v1)
 export function getApiUrl(): string {
   // Browser-side detection
   if (typeof window !== 'undefined') {
@@ -8,26 +8,31 @@ export function getApiUrl(): string {
     
     // Match based on current hostname
     if (origin.includes('app-dev.pytake.net')) {
-      return 'https://api-dev.pytake.net'
+      return 'https://api-dev.pytake.net/api/v1'
     }
     if (origin.includes('app-staging.pytake.net')) {
-      return 'https://api-staging.pytake.net'
+      return 'https://api-staging.pytake.net/api/v1'
     }
     if (origin.includes('app.pytake.net') || origin.includes('pytake.net')) {
-      return 'https://api.pytake.net'
+      return 'https://api.pytake.net/api/v1'
     }
     if (origin.includes('localhost:3001') || origin.includes('127.0.0.1:3001') || origin.includes('localhost:3000') || origin.includes('127.0.0.1:3000')) {
-      return 'http://localhost:8000'
+      return 'http://localhost:8000/api/v1'
     }
   }
 
   // Use environment variable if available (server-side or build time)
   if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL
+    let url = process.env.NEXT_PUBLIC_API_URL
+    // Ensure /api/v1 is included
+    if (!url.endsWith('/api/v1')) {
+      url = url + '/api/v1'
+    }
+    return url
   }
 
   // Default fallback
-  return 'https://api-dev.pytake.net'
+  return 'https://api-dev.pytake.net/api/v1'
 }
 
 // Get WebSocket URL from API URL
