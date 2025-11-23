@@ -80,7 +80,7 @@ export default function ContactsPage() {
       setLoading(true)
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/contacts/`, { headers })
+      const response = await fetch(`${apiUrl}/contacts/`, { headers })
       if (response.ok) {
         const data = await response.json()
         setContacts(Array.isArray(data) ? data : data.contacts || [])
@@ -105,7 +105,7 @@ export default function ContactsPage() {
       setSaving(true)
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/contacts/`, {
+      const response = await fetch(`${apiUrl}/contacts/`, {
         method: 'POST',
         headers,
         body: JSON.stringify(formData)
@@ -137,7 +137,7 @@ export default function ContactsPage() {
       setSaving(true)
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/contacts/${editingContact.id}`, {
+      const response = await fetch(`${apiUrl}/contacts/${editingContact.id}`, {
         method: 'PUT',
         headers,
         body: JSON.stringify(formData)
@@ -168,7 +168,7 @@ export default function ContactsPage() {
     try {
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/contacts/${contactId}`, {
+      const response = await fetch(`${apiUrl}/contacts/${contactId}`, {
         method: 'DELETE',
         headers
       })

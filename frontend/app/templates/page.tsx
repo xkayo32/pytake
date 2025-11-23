@@ -101,7 +101,7 @@ export default function TemplatesPage() {
       setLoading(true)
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/templates/manage`, { headers })
+      const response = await fetch(`${apiUrl}/whatsapp/templates/manage`, { headers })
       if (response.ok) {
         const data = await response.json()
         setTemplates(data)
@@ -121,7 +121,7 @@ export default function TemplatesPage() {
       setSyncing(true)
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/templates/sync`, {
+      const response = await fetch(`${apiUrl}/whatsapp/templates/sync`, {
         method: 'POST',
         headers
       })
@@ -150,7 +150,7 @@ export default function TemplatesPage() {
 
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/templates/manage`, {
+      const response = await fetch(`${apiUrl}/whatsapp/templates/manage`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -181,7 +181,7 @@ export default function TemplatesPage() {
     try {
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/templates/manage/${templateToDelete.id}`, {
+      const response = await fetch(`${apiUrl}/whatsapp/templates/manage/${templateToDelete.id}`, {
         method: 'DELETE',
         headers
       })
@@ -204,7 +204,7 @@ export default function TemplatesPage() {
     try {
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/templates/submit/${templateId}`, {
+      const response = await fetch(`${apiUrl}/whatsapp/templates/submit/${templateId}`, {
         method: 'POST',
         headers
       })

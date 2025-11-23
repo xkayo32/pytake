@@ -242,7 +242,7 @@ export default function FlowsPage() {
       
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/flows`, {
+      const response = await fetch(`${apiUrl}/flows`, {
         method: 'POST',
         headers,
         body: JSON.stringify(newFlowData)
@@ -304,7 +304,7 @@ export default function FlowsPage() {
       
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/flows`, {
+      const response = await fetch(`${apiUrl}/flows`, {
         method: 'GET',
         headers
       })
@@ -421,7 +421,7 @@ export default function FlowsPage() {
       console.log('📋 Duplicando flow do backend:', flowId)
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/flows`, {
+      const response = await fetch(`${apiUrl}/flows`, {
         method: 'POST',
         headers,
         body: JSON.stringify({

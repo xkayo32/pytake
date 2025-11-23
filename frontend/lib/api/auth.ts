@@ -1,7 +1,7 @@
 import axios from 'axios'
 import Cookies from 'js-cookie'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
 // Create axios instance
 const api = axios.create({
@@ -36,7 +36,7 @@ api.interceptors.response.use(
       try {
         const refreshToken = Cookies.get('refresh-token')
         if (refreshToken) {
-          const response = await api.post('/api/v1/auth/refresh', {
+          const response = await api.post('/auth/refresh', {
             refresh_token: refreshToken
           })
 
@@ -67,7 +67,7 @@ api.interceptors.response.use(
 // Auth API functions
 export const authApi = {
   login: async (email: string, password: string) => {
-    const response = await api.post('/api/v1/auth/login', {
+    const response = await api.post('/auth/login', {
       email,
       password,
     })
@@ -85,13 +85,13 @@ export const authApi = {
     name: string
     tenant_name?: string
   }) => {
-    const response = await api.post('/api/v1/auth/register', data)
+    const response = await api.post('/auth/register', data)
     return response.data
   },
 
   logout: async () => {
     try {
-      await api.post('/api/v1/auth/logout')
+      await api.post('/auth/logout')
     } catch (error) {
       // Continue with logout even if API call fails
     } finally {
@@ -101,19 +101,19 @@ export const authApi = {
   },
 
   me: async () => {
-    const response = await api.get('/api/v1/auth/me')
+    const response = await api.get('/auth/me')
     return response.data
   },
 
   forgotPassword: async (email: string) => {
-    const response = await api.post('/api/v1/auth/forgot-password', {
+    const response = await api.post('/auth/forgot-password', {
       email,
     })
     return response.data
   },
 
   resetPassword: async (token: string, newPassword: string) => {
-    const response = await api.post('/api/v1/auth/reset-password', {
+    const response = await api.post('/auth/reset-password', {
       token,
       new_password: newPassword,
     })

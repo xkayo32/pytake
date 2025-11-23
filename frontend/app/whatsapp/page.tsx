@@ -221,7 +221,7 @@ export default function WhatsAppPage() {
     try {
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/contacts/`, { headers })
+      const response = await fetch(`${apiUrl}/contacts/`, { headers })
       if (response.ok) {
         const data = await response.json()
         const formattedContacts = data.map((contact: any) => ({
@@ -249,7 +249,7 @@ export default function WhatsAppPage() {
     try {
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/messages/${contactId}`, { headers })
+      const response = await fetch(`${apiUrl}/whatsapp/messages/${contactId}`, { headers })
       if (response.ok) {
         const data = await response.json()
         const formattedMessages = data.map((msg: any) => ({
@@ -293,7 +293,7 @@ export default function WhatsAppPage() {
     try {
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/send`, {
+      const response = await fetch(`${apiUrl}/whatsapp/send`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -395,7 +395,7 @@ export default function WhatsAppPage() {
       // Criar/buscar contato
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/contacts/`, {
+      const response = await fetch(`${apiUrl}/contacts/`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -469,7 +469,7 @@ export default function WhatsAppPage() {
     try {
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/`, { headers })
+      const response = await fetch(`${apiUrl}/whatsapp/`, { headers })
       if (response.ok) {
         const data = await response.json()
         setWhatsappNumbers(data)
@@ -493,7 +493,7 @@ export default function WhatsAppPage() {
       
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/${numberIdToUse}/templates`, { headers })
+      const response = await fetch(`${apiUrl}/whatsapp/${numberIdToUse}/templates`, { headers })
       if (response.ok) {
         const data = await response.json()
         setTemplates(data)
@@ -526,7 +526,7 @@ export default function WhatsAppPage() {
     try {
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/send-template`, {
+      const response = await fetch(`${apiUrl}/whatsapp/send-template`, {
         method: 'POST',
         headers,
         body: JSON.stringify({

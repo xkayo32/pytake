@@ -86,7 +86,7 @@ export default function WhatsAppNumbersPage() {
       setLoading(true)
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/`, { headers })
+      const response = await fetch(`${apiUrl}/whatsapp/`, { headers })
       
       if (response.ok) {
         const data = await response.json()
@@ -109,7 +109,7 @@ export default function WhatsAppNumbersPage() {
 
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/`, {
+      const response = await fetch(`${apiUrl}/whatsapp/`, {
         method: 'POST',
         headers,
         body: JSON.stringify(payload)
@@ -148,7 +148,7 @@ export default function WhatsAppNumbersPage() {
     try {
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/${configId}/default`, {
+      const response = await fetch(`${apiUrl}/whatsapp/${configId}/default`, {
         method: 'PUT',
         headers
       })
@@ -169,7 +169,7 @@ export default function WhatsAppNumbersPage() {
     try {
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/${configId}`, {
+      const response = await fetch(`${apiUrl}/whatsapp/${configId}`, {
         method: 'DELETE',
         headers
       })
@@ -186,7 +186,7 @@ export default function WhatsAppNumbersPage() {
     try {
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/${configId}/test`, {
+      const response = await fetch(`${apiUrl}/whatsapp/${configId}/test`, {
         method: 'POST',
         headers
       })

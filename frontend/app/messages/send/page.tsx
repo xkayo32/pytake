@@ -74,7 +74,7 @@ export default function SendMessagePage() {
       const headers = getAuthHeaders()
       
       // Load templates (only approved ones)
-      const templatesRes = await fetch(`${apiUrl}/api/v1/whatsapp/templates/manage`, { headers })
+      const templatesRes = await fetch(`${apiUrl}/whatsapp/templates/manage`, { headers })
       if (templatesRes.ok) {
         const data = await templatesRes.json()
         // Filter only approved templates
@@ -82,7 +82,7 @@ export default function SendMessagePage() {
       }
       
       // Load contacts
-      const contactsRes = await fetch(`${apiUrl}/api/v1/contacts`, { headers })
+      const contactsRes = await fetch(`${apiUrl}/contacts`, { headers })
       if (contactsRes.ok) {
         const data = await contactsRes.json()
         setContacts(data.contacts || [])
@@ -185,7 +185,7 @@ export default function SendMessagePage() {
       
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
-      const response = await fetch(`${apiUrl}/api/v1/whatsapp/send-template`, {
+      const response = await fetch(`${apiUrl}/whatsapp/send-template`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
