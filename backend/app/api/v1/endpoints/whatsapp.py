@@ -270,6 +270,9 @@ async def test_whatsapp_connection(
     - For Official API: Tests Meta API connection
     - For Evolution API: Tests Evolution connection and retrieves connection status
     """
+    from datetime import datetime
+    from sqlalchemy import update
+    
     service = WhatsAppService(db)
     
     # Get WhatsApp number
@@ -345,6 +348,27 @@ async def test_whatsapp_connection(
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Error testing WhatsApp connection {number_id}: {str(e)}")
+    
+    # ✅ UPDATE STATUS IN DATABASE
+    try:
+        from app.models.whatsapp_number import WhatsAppNumber as WhatsAppNumberModel
+        
+        update_stmt = (
+            update(WhatsAppNumberModel)
+            .where(WhatsAppNumberModel.id == number_id)
+            .values(
+                status=result["status"],
+                last_seen_at=datetime.now(datetime.now().astimezone().tzinfo),
+                connected_at=datetime.now(datetime.now().astimezone().tzinfo) if result["status"] == "connected" else number.connected_at
+            )
+        )
+        await db.execute(update_stmt)
+        await db.commit()
+    except Exception as e:
+        # Log but don't fail the response
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Could not update status for {number_id}: {str(e)}")
     
     return result
 

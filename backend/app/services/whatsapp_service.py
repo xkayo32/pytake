@@ -3931,8 +3931,83 @@ __result__ = __script_func__()
         return self._enrich_number_with_node_info(number)
 
     async def list_numbers(self, organization_id: UUID) -> List[WhatsAppNumber]:
-        """List all WhatsApp numbers"""
+        """List all WhatsApp numbers with updated status"""
         numbers = await self.repo.get_by_organization(organization_id)
+        
+        # Update status for each number asynchronously (non-blocking)
+        # This ensures fresh status on each list
+        import asyncio
+        from datetime import datetime
+        from sqlalchemy import update
+        from app.models.whatsapp_number import WhatsAppNumber as WhatsAppNumberModel
+        
+        async def update_status_for_number(number):
+            """Update status for a single number without blocking"""
+            try:
+                if number.connection_type == "official":
+                    # Quick test for Official API
+                    if number.access_token and number.phone_number_id:
+                        import httpx
+                        async with httpx.AsyncClient(timeout=5.0) as client:
+                            response = await client.get(
+                                f"https://graph.facebook.com/v18.0/{number.phone_number_id}",
+                                params={"access_token": number.access_token}
+                            )
+                            new_status = "connected" if response.status_code == 200 else "disconnected"
+                    else:
+                        new_status = "disconnected"
+                        
+                elif number.connection_type == "qrcode":
+                    # Quick test for Evolution API
+                    if number.evolution_api_url and number.evolution_api_key and number.evolution_instance_name:
+                        try:
+                            from app.integrations.evolution_api import EvolutionAPIClient
+                            evolution = EvolutionAPIClient(
+                                api_url=number.evolution_api_url,
+                                api_key=number.evolution_api_key
+                            )
+                            status_data = await asyncio.wait_for(
+                                evolution.get_instance_status(number.evolution_instance_name),
+                                timeout=5.0
+                            )
+                            new_status = "connected" if status_data.get("state") == "open" else "disconnected"
+                        except asyncio.TimeoutError:
+                            new_status = "disconnected"
+                    else:
+                        new_status = "disconnected"
+                else:
+                    new_status = number.status or "disconnected"
+                
+                # Update only if status changed
+                if new_status != number.status:
+                    update_stmt = (
+                        update(WhatsAppNumberModel)
+                        .where(WhatsAppNumberModel.id == number.id)
+                        .values(
+                            status=new_status,
+                            last_seen_at=datetime.now(datetime.now().astimezone().tzinfo),
+                            connected_at=datetime.now(datetime.now().astimezone().tzinfo) if new_status == "connected" else number.connected_at
+                        )
+                    )
+                    await self.db.execute(update_stmt)
+                    # Update the in-memory object
+                    number.status = new_status
+            except Exception as e:
+                # Log but don't fail
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.debug(f"Could not update status for {number.id}: {str(e)}")
+        
+        # Run status updates concurrently but don't wait (fire and forget)
+        # This keeps the list operation fast
+        asyncio.create_task(asyncio.gather(*[update_status_for_number(num) for num in numbers]))
+        
+        # Commit any pending changes
+        try:
+            await self.db.commit()
+        except:
+            pass  # Ignore commit errors
+        
         return [self._enrich_number_with_node_info(num) for num in numbers]
 
     async def create_number(
