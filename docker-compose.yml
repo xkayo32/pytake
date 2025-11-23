@@ -121,24 +121,20 @@ services:
       retries: 3
       start_period: 40s
 
-  # Next.js Frontend - DEVELOPMENT MODE
+  # Next.js Frontend - PRODUCTION BUILD MODE
   frontend:
-    image: node:20-alpine
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: pytake-frontend-dev
     restart: unless-stopped
-    working_dir: /app
     ports:
       - "3002:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_PUBLIC_API_URL: https://api-dev.pytake.net/api/v1
-      WATCHPACK_POLLING: true
-      CHOKIDAR_USEPOLLING: true
-    command: sh -c "npm install && npm run dev"
+      PORT: 3000
     depends_on:
       - backend
       - mongodb
