@@ -137,14 +137,28 @@ export default function WhatsAppSettingsPage() {
       setLoading(true)
       const apiUrl = getApiUrl()
       const headers = getAuthHeaders()
+      
+      console.log('🔄 Loading WhatsApp configs from:', apiUrl)
+      console.log('📋 Headers:', headers)
+      
       const response = await fetch(`${apiUrl}/whatsapp/`, { headers })
+      
+      console.log('📡 Response status:', response.status)
       
       if (response.ok) {
         const data = await response.json()
         setConfigs(Array.isArray(data) ? data : [])
+      } else if (response.status === 403) {
+        console.warn('⚠️ Not authenticated - redirecting to login')
+        // Handle 403 gracefully
+        setConfigs([])
+      } else {
+        const errorText = await response.text()
+        console.error('❌ Error loading configs:', response.status, errorText)
       }
     } catch (error) {
-      console.error('Error loading configs:', error)
+      console.error('❌ Fetch error:', error)
+      setConfigs([])
     } finally {
       setLoading(false)
     }
