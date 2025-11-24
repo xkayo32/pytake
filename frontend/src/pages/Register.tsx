@@ -7,7 +7,8 @@ import { Label } from '@components/ui/label'
 import { Eye, EyeOff, AlertCircle, MessageSquare, Loader2, ArrowRight, CheckCircle, Check } from 'lucide-react'
 
 export default function Register() {
-  const [name, setName] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [organizationName, setOrganizationName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
@@ -38,11 +39,11 @@ export default function Register() {
     setLoading(true)
 
     try {
-      await register(email, password, name)
+      await register(email, password, fullName, organizationName)
       setSuccess('Conta criada com sucesso!')
       setTimeout(() => navigate('/dashboard'), 1500)
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Erro ao criar conta')
+      setError(err?.message || 'Erro ao criar conta')
     } finally {
       setLoading(false)
     }
@@ -81,17 +82,33 @@ export default function Register() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Name Field */}
+            {/* Full Name Field */}
             <div className="space-y-2">
-              <Label htmlFor="name" className="text-sm font-medium text-slate-900 dark:text-white">
+              <Label htmlFor="fullName" className="text-sm font-medium text-slate-900 dark:text-white">
                 Nome Completo
               </Label>
               <Input
-                id="name"
+                id="fullName"
                 type="text"
                 placeholder="Seu nome completo"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                className="h-10 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600"
+              />
+            </div>
+
+            {/* Organization Name Field */}
+            <div className="space-y-2">
+              <Label htmlFor="organizationName" className="text-sm font-medium text-slate-900 dark:text-white">
+                Nome da Organização
+              </Label>
+              <Input
+                id="organizationName"
+                type="text"
+                placeholder="Nome da sua empresa ou projeto"
+                value={organizationName}
+                onChange={(e) => setOrganizationName(e.target.value)}
                 required
                 className="h-10 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600"
               />

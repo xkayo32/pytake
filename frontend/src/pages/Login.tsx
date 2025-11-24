@@ -27,7 +27,7 @@ export default function Login() {
       setSuccess('Login realizado com sucesso!')
       setTimeout(() => navigate('/dashboard'), 1000)
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Erro ao fazer login')
+      setError(err?.message || 'Erro ao fazer login')
     } finally {
       setLoading(false)
     }
