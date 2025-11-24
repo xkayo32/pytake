@@ -5,20 +5,18 @@
 
 /**
  * Get the API base URL
- * Usa VITE_API_URL ou defaults para https://api-dev.pytake.net
+ * Sempre usa https://api-dev.pytake.net (ou VITE_API_URL se definida)
+ * O Nginx proxy-passa todas as requisições em desenvolvimento
  */
 export function getApiUrl(): string {
+  // Use VITE_API_URL se definida (production/staging)
   const apiUrl = import.meta.env.VITE_API_URL
   if (apiUrl) {
     return apiUrl
   }
   
-  // Default para desenvolvimento com Nginx
-  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    return 'http://localhost:8002'
-  }
-  
-  // Default para produção/staging
+  // Default: sempre https://api-dev.pytake.net
+  // Em desenvolvimento, o Nginx faz proxy da porta 443 → backend:8002
   return 'https://api-dev.pytake.net'
 }
 

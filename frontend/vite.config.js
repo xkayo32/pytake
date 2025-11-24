@@ -23,13 +23,8 @@ export default defineConfig({
     port: 3000,
     host: '0.0.0.0',
     allowedHosts: ['app-dev.pytake.net', 'localhost', '127.0.0.1'],
-    proxy: {
-      '/api': {
-        target: 'https://api-dev.pytake.net',
-        changeOrigin: true,
-        rewrite: (path) => path,
-      },
-    },
+    // Sem proxy necessário - frontend faz requisições diretas para https://api-dev.pytake.net
+    // O Nginx cuida do roteamento e CORS
   },
   build: {
     outDir: 'dist',
