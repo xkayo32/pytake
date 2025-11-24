@@ -75,6 +75,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const refreshToken = async () => {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
+    if (!refreshToken) return false
+
+    try {
+      const response = await fetch(`${getApiUrl()}/api/v1/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      })
+
+      if (!response.ok) throw new Error('Refresh failed')
+
+      const data = await response.json()
+      localStorage.setItem(TOKEN_KEY, data.access_token)
+      localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token)
+
+      setToken({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        token_type: 'bearer',
+      })
+      return true
+    } catch (err) {
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(REFRESH_TOKEN_KEY)
+      setUser(null)
+      setToken(null)
+      return false
+    }
+  }
+
   const login = async (email: string, password: string) => {
     try {
       setError(null)
@@ -105,6 +139,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(message)
       throw err
     }
+  }
+
+  const withTokenRefresh = async (fn: (token: string) => Promise<Response>): Promise<Response> => {
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (!token) throw new Error('No token available')
+
+    let response = await fn(token)
+
+    if (response.status === 401) {
+      const refreshed = await refreshToken()
+      if (refreshed) {
+        const newToken = localStorage.getItem(TOKEN_KEY)
+        if (newToken) {
+          response = await fn(newToken)
+        }
+      }
+    }
+
+    return response
   }
 
   const register = async (
