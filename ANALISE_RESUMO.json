@@ -1,0 +1,498 @@
+{
+    "projeto": "PyTake",
+    "analise_data": "2025-11-24",
+    "analista": "Kayo Carvalho Fernandes",
+    "sumario_executivo": {
+        "status_backend": "✅ 100% COMPLETO",
+        "total_endpoints": 145,
+        "status_frontend": "⚠️ 31% COMPLETO",
+        "paginas_implementadas": 12,
+        "paginas_totais": 38,
+        "paginas_faltando": 12,
+        "impacto": "CRÍTICO - funcionalidades core faltando no frontend"
+    },
+    "next_js_original": {
+        "total_paginas": 38,
+        "localizacao": "frontend_old/app/",
+        "arquitetura": "Next.js App Router",
+        "categorias": {
+            "publicas": 6,
+            "dashboard": 6,
+            "flows": 5,
+            "contatos": 2,
+            "conversas": 2,
+            "campanhas": 3,
+            "templates": 3,
+            "ia_integracao": 4,
+            "dev_suporte": 4
+        },
+        "paginas": [
+            "/",
+            "/login",
+            "/register",
+            "/pricing",
+            "/privacy",
+            "/terms",
+            "/dashboard",
+            "/dashboard/profile",
+            "/analytics",
+            "/reports",
+            "/settings",
+            "/settings/team",
+            "/settings/whatsapp",
+            "/flows",
+            "/flows/create",
+            "/flows/[id]",
+            "/automations",
+            "/automations/create",
+            "/contacts",
+            "/contact/[id]",
+            "/conversations",
+            "/conversations/[id]",
+            "/campaigns",
+            "/campaigns/create",
+            "/campaigns/[id]",
+            "/templates",
+            "/templates/create",
+            "/templates/[id]",
+            "/ai-assistant",
+            "/integrations",
+            "/integrations/[erpType]",
+            "/messages/send",
+            "/whatsapp",
+            "/whatsapp-numbers",
+            "/demo",
+            "/test-whatsapp",
+            "/test-notifications",
+            "/403"
+        ]
+    },
+    "vite_atual": {
+        "total_paginas": 12,
+        "localizacao": "frontend/src/pages/",
+        "arquitetura": "Vite + React Router (SPA)",
+        "paginas": [
+            {
+                "rota": "/",
+                "nome": "Home",
+                "arquivo": "Home.tsx",
+                "status": "✅"
+            },
+            {
+                "rota": "/login",
+                "nome": "Login",
+                "arquivo": "Login.tsx",
+                "status": "✅"
+            },
+            {
+                "rota": "/register",
+                "nome": "Register",
+                "arquivo": "Register.tsx",
+                "status": "✅"
+            },
+            {
+                "rota": "/dashboard",
+                "nome": "Dashboard",
+                "arquivo": "Dashboard.tsx",
+                "status": "✅"
+            },
+            {
+                "rota": "/flows",
+                "nome": "Flows",
+                "arquivo": "Flows.tsx",
+                "status": "✅"
+            },
+            {
+                "rota": "/flows/:id/edit",
+                "nome": "FlowEdit",
+                "arquivo": "flows/FlowEdit.tsx",
+                "status": "✅"
+            },
+            {
+                "rota": "/templates",
+                "nome": "Templates",
+                "arquivo": "Templates.tsx",
+                "status": "✅"
+            },
+            {
+                "rota": "/contacts",
+                "nome": "Contacts",
+                "arquivo": "Contacts.tsx",
+                "status": "✅"
+            },
+            {
+                "rota": "/automations",
+                "nome": "Automations",
+                "arquivo": "Automations.tsx",
+                "status": "✅"
+            },
+            {
+                "rota": "/analytics",
+                "nome": "Analytics",
+                "arquivo": "Analytics.tsx",
+                "status": "✅"
+            },
+            {
+                "rota": "/settings",
+                "nome": "Settings",
+                "arquivo": "Settings.tsx",
+                "status": "✅"
+            },
+            {
+                "rota": "/profile",
+                "nome": "Profile",
+                "arquivo": "Profile.tsx",
+                "status": "✅"
+            }
+        ]
+    },
+    "paginas_faltando": [
+        {
+            "id": 1,
+            "rota": "/campaigns",
+            "nome": "Campaigns (List)",
+            "prioridade": "🔴 CRÍTICA",
+            "impacto": "ALTA",
+            "backend_pronto": true,
+            "tipos_prontos": true,
+            "esforço": "2-3 dias",
+            "arquivo": "src/pages/Campaigns.tsx",
+            "endpoints": [
+                "GET /api/v1/campaigns",
+                "GET /api/v1/campaigns/{id}/stats"
+            ]
+        },
+        {
+            "id": 2,
+            "rota": "/campaigns/create",
+            "nome": "Campaigns (Create)",
+            "prioridade": "🔴 CRÍTICA",
+            "impacto": "ALTA",
+            "backend_pronto": true,
+            "tipos_prontos": true,
+            "esforço": "2-3 dias",
+            "arquivo": "src/pages/campaigns/Create.tsx",
+            "endpoints": [
+                "POST /api/v1/campaigns"
+            ]
+        },
+        {
+            "id": 3,
+            "rota": "/campaigns/[id]",
+            "nome": "Campaigns (Detail)",
+            "prioridade": "🔴 CRÍTICA",
+            "impacto": "ALTA",
+            "backend_pronto": true,
+            "tipos_prontos": true,
+            "esforço": "2-3 dias",
+            "arquivo": "src/pages/campaigns/[id].tsx",
+            "endpoints": [
+                "GET /api/v1/campaigns/{id}",
+                "PUT /api/v1/campaigns/{id}",
+                "DELETE /api/v1/campaigns/{id}",
+                "POST /api/v1/campaigns/{id}/start",
+                "POST /api/v1/campaigns/{id}/pause",
+                "POST /api/v1/campaigns/{id}/resume"
+            ]
+        },
+        {
+            "id": 4,
+            "rota": "/conversations",
+            "nome": "Conversations (Inbox)",
+            "prioridade": "🔴 CRÍTICA",
+            "impacto": "ALTA",
+            "backend_pronto": true,
+            "tipos_prontos": true,
+            "esforço": "2-3 dias",
+            "arquivo": "src/pages/Conversations.tsx",
+            "endpoints": [
+                "GET /api/v1/conversations",
+                "GET /api/v1/conversations/metrics"
+            ],
+            "requisitos": [
+                "WebSocket para real-time"
+            ]
+        },
+        {
+            "id": 5,
+            "rota": "/conversations/[id]",
+            "nome": "Conversations (Thread)",
+            "prioridade": "🔴 CRÍTICA",
+            "impacto": "ALTA",
+            "backend_pronto": true,
+            "tipos_prontos": true,
+            "esforço": "2-3 dias",
+            "arquivo": "src/pages/conversations/[id].tsx",
+            "endpoints": [
+                "GET /api/v1/conversations/{id}",
+                "GET /api/v1/conversations/{id}/messages",
+                "POST /api/v1/conversations/{id}/messages",
+                "POST /api/v1/conversations/{id}/assign",
+                "POST /api/v1/conversations/{id}/transfer",
+                "POST /api/v1/conversations/{id}/close"
+            ],
+            "requisitos": [
+                "WebSocket para mensagens real-time"
+            ]
+        },
+        {
+            "id": 6,
+            "rota": "/templates/create",
+            "nome": "Templates (Create)",
+            "prioridade": "🟠 ALTA",
+            "impacto": "MÉDIA",
+            "backend_pronto": true,
+            "tipos_prontos": true,
+            "esforço": "1-2 dias",
+            "arquivo": "src/pages/templates/Create.tsx",
+            "endpoints": [
+                "POST /api/v1/whatsapp/{number_id}/templates"
+            ]
+        },
+        {
+            "id": 7,
+            "rota": "/templates/[id]",
+            "nome": "Templates (Detail)",
+            "prioridade": "🟠 ALTA",
+            "impacto": "MÉDIA",
+            "backend_pronto": true,
+            "tipos_prontos": true,
+            "esforço": "1-2 dias",
+            "arquivo": "src/pages/templates/[id].tsx",
+            "endpoints": [
+                "GET /api/v1/whatsapp/{number_id}/templates/{template_id}",
+                "PUT /api/v1/whatsapp/{number_id}/templates/{template_id}",
+                "DELETE /api/v1/whatsapp/{number_id}/templates/{template_id}"
+            ]
+        },
+        {
+            "id": 8,
+            "rota": "/ai-assistant",
+            "nome": "AI Assistant",
+            "prioridade": "🟠 ALTA",
+            "impacto": "MÉDIA",
+            "backend_pronto": true,
+            "tipos_prontos": true,
+            "esforço": "2-3 dias",
+            "arquivo": "src/pages/AIAssistant.tsx",
+            "endpoints": [
+                "POST /api/v1/ai-assistant/generate-flow",
+                "POST /api/v1/ai-assistant/suggest-improvements",
+                "GET /api/v1/ai-assistant/templates"
+            ]
+        },
+        {
+            "id": 9,
+            "rota": "/reports",
+            "nome": "Reports",
+            "prioridade": "🟡 MÉDIA",
+            "impacto": "MÉDIA",
+            "backend_pronto": true,
+            "tipos_prontos": true,
+            "esforço": "1-2 dias",
+            "arquivo": "src/pages/Reports.tsx",
+            "endpoints": [
+                "GET /api/v1/analytics/reports/full"
+            ]
+        },
+        {
+            "id": 10,
+            "rota": "/integrations",
+            "nome": "Integrations (List)",
+            "prioridade": "🟡 BAIXA",
+            "impacto": "BAIXA",
+            "backend_pronto": false,
+            "tipos_prontos": false,
+            "esforço": "1-2 dias",
+            "arquivo": "src/pages/Integrations.tsx"
+        },
+        {
+            "id": 11,
+            "rota": "/integrations/[type]",
+            "nome": "Integrations (Setup)",
+            "prioridade": "🟡 BAIXA",
+            "impacto": "BAIXA",
+            "backend_pronto": false,
+            "tipos_prontos": false,
+            "esforço": "1-2 dias",
+            "arquivo": "src/pages/integrations/[type].tsx"
+        },
+        {
+            "id": 12,
+            "rota": "/messages/send",
+            "nome": "Send Message Manual",
+            "prioridade": "🟠 MÉDIA",
+            "impacto": "MÉDIA",
+            "backend_pronto": true,
+            "tipos_prontos": true,
+            "esforço": "1 dia",
+            "arquivo": "src/pages/SendMessage.tsx",
+            "endpoints": [
+                "POST /api/v1/conversations/{id}/messages"
+            ]
+        }
+    ],
+    "backend_endpoints_completo": {
+        "auth": {
+            "prefix": "/auth",
+            "total": 4,
+            "endpoints": [
+                "POST /register",
+                "POST /login",
+                "POST /refresh-token",
+                "POST /logout"
+            ],
+            "status": "✅"
+        },
+        "organizations": {
+            "prefix": "/organizations",
+            "total": 7,
+            "status": "✅"
+        },
+        "users": {
+            "prefix": "/users",
+            "total": 10,
+            "status": "✅"
+        },
+        "contacts": {
+            "prefix": "/contacts",
+            "total": 19,
+            "status": "✅"
+        },
+        "conversations": {
+            "prefix": "/conversations",
+            "total": 12,
+            "status": "✅"
+        },
+        "departments": {
+            "prefix": "/departments",
+            "total": 9,
+            "status": "✅"
+        },
+        "queues": {
+            "prefix": "/queues",
+            "total": 8,
+            "status": "✅"
+        },
+        "whatsapp": {
+            "prefix": "/whatsapp",
+            "total": 13,
+            "status": "✅"
+        },
+        "chatbots": {
+            "prefix": "/chatbots",
+            "total": 20,
+            "status": "✅"
+        },
+        "campaigns": {
+            "prefix": "/campaigns",
+            "total": 10,
+            "endpoints": [
+                "POST / (create)",
+                "GET / (list)",
+                "GET /{id} (detail)",
+                "PUT /{id} (update)",
+                "DELETE /{id}",
+                "GET /{id}/stats",
+                "POST /{id}/start",
+                "POST /{id}/pause",
+                "POST /{id}/resume",
+                "POST /{id}/cancel"
+            ],
+            "status": "✅"
+        },
+        "analytics": {
+            "prefix": "/analytics",
+            "total": 9,
+            "status": "✅"
+        },
+        "ai_assistant": {
+            "prefix": "/ai-assistant",
+            "total": 12,
+            "status": "✅"
+        },
+        "flow_automations": {
+            "prefix": "/flow-automations",
+            "total": 5,
+            "status": "✅"
+        },
+        "agent_skills": {
+            "prefix": "/users/{id}/skills",
+            "total": 3,
+            "status": "✅"
+        },
+        "secrets": {
+            "prefix": "/secrets",
+            "total": 3,
+            "status": "✅"
+        },
+        "total_endpoints": 145
+    },
+    "tipos_typescript": {
+        "disponíveis": [
+            "flow.ts",
+            "contact.ts",
+            "campaign.ts",
+            "automation.ts",
+            "template.ts",
+            "ai.ts",
+            "report.ts",
+            "user.ts",
+            "flow-execution.ts",
+            "node-schemas.ts",
+            "flow-nodes.ts",
+            "erp.ts"
+        ],
+        "localizacao": "frontend/src/types/",
+        "status": "✅ Todos definidos"
+    },
+    "infraestrutura": {
+        "database": {
+            "engine": "PostgreSQL",
+            "status": "✅ Pronto",
+            "tabelas": "30+"
+        },
+        "cache": {
+            "engine": "Redis",
+            "status": "✅ Pronto"
+        },
+        "logs": {
+            "engine": "MongoDB",
+            "status": "✅ Pronto"
+        },
+        "real_time": {
+            "engine": "WebSocket",
+            "status": "✅ Pronto",
+            "configurado": "backend/app/api/v1/endpoints/websocket.py"
+        },
+        "auth": {
+            "tipo": "JWT + Refresh Token",
+            "status": "✅ Pronto"
+        },
+        "multi_tenancy": {
+            "chave": "organization_id",
+            "status": "✅ Em todos os dados"
+        }
+    },
+    "recomendacoes": {
+        "prioridade_1_critica": [
+            "Implementar Campanhas (3 páginas) - 7-10 dias",
+            "Implementar Conversas/Inbox (2 páginas) - 5-7 dias"
+        ],
+        "prioridade_2_alta": [
+            "AI Assistant page - 2-3 dias",
+            "Templates detail/create - 2-3 dias"
+        ],
+        "prioridade_3_media": [
+            "Reports page - 1-2 dias",
+            "Send message manual - 1 dia"
+        ],
+        "total_esforço": "20-30 dias",
+        "timeline": "4-6 semanas com 1 desenvolvedor"
+    },
+    "arquivos_analise": {
+        "json": "ANALISE_ESTRUTURA_FRONTEND.json (este arquivo)",
+        "markdown_detalhado": "ANALISE_ESTRUTURA_FRONTEND.md",
+        "roadmap": "ROADMAP_IMPLEMENTACAO_FRONTEND.md"
+    }
+}

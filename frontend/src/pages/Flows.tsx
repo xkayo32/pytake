@@ -15,7 +15,7 @@ export default function Flows() {
     const fetchFlows = async () => {
       try {
         const response = await fetch(
-          `${getApiUrl()}/api/v1/flows`,
+          `${getApiUrl()}/api/v1/flow-automations`,
           { headers: getAuthHeaders() }
         )
         if (!response.ok) throw new Error('Failed to fetch flows')

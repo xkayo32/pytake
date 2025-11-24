@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { getApiUrl } from './api'
 
 export type WebSocketMessage = {
   type: string
@@ -138,7 +139,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
 }
 
 export function getWebSocketUrl(path: string): string {
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000'
+  const apiUrl = getApiUrl()
   const wsProtocol = apiUrl.startsWith('https') ? 'wss' : 'ws'
   const host = apiUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
   return `${wsProtocol}://${host}${path}`
