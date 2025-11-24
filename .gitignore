@@ -55,6 +55,9 @@ temp/
 *.temp
 *.cache
 
+# Frontend
+frontend_old/
+
 # Docker
 docker-compose.override.yml
 
