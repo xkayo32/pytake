@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@lib/auth/AuthContext'
 import { getApiUrl, getAuthHeaders } from '@lib/api'
+import { useWebSocket, getWebSocketUrl } from '@lib/websocket'
 import { BarChart3, MessageSquare, Users, TrendingUp, Calendar, Settings, MoreVertical, ArrowUpRight, AlertCircle } from 'lucide-react'
 
 export default function Dashboard() {
@@ -8,6 +9,21 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [metrics, setMetrics] = useState<any>(null)
+  const [wsStatus, setWsStatus] = useState<string>('disconnected')
+
+  const { status, isConnected } = useWebSocket({
+    url: getWebSocketUrl('/api/v1/ws/analytics'),
+    onMessage: (message) => {
+      if (message.type === 'metrics_update') {
+        setMetrics((prev: any) => ({
+          ...prev,
+          ...message.data
+        }))
+      }
+    },
+    onStatusChange: setWsStatus,
+    autoConnect: false
+  })
 
   useEffect(() => {
     const fetchMetrics = async () => {
