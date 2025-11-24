@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PyTake Frontend - Vite
 
-## Getting Started
+Frontend da plataforma PyTake construído com Vite + React + TypeScript + Tailwind CSS.
 
-First, run the development server:
+## Estrutura
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+src/
+├── components/     # Componentes React reutilizáveis
+│   ├── layout/     # Componentes de layout (Sidebar, Layout)
+│   └── ui/         # Componentes UI (Button, Input, etc)
+├── lib/            # Utilidades, hooks, tipos
+│   ├── auth/       # Autenticação e contexto
+│   └── hooks/      # Custom hooks
+├── pages/          # Páginas/views da aplicação
+├── types/          # Definições de tipos TypeScript
+├── assets/         # Imagens e recursos estáticos
+└── App.tsx         # Componente raiz com rotas
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Desenvolvimento
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Acessar em http://localhost:3000
 
-## Learn More
+## Build
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build
+npm run preview
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Rotas
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `/` - Home (pública)
+- `/login` - Login (pública)
+- `/register` - Registro (pública)
+- `/dashboard` - Dashboard (protegida)
+- `/flows` - Fluxos (protegida)
+- `/templates` - Templates (protegida)
+- `/contacts` - Contatos (protegida)
+- `/automations` - Automações (protegida)
+- `/analytics` - Analytics (protegida)
+- `/settings` - Configurações (protegida)
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+**Implementado por:** Kayo Carvalho Fernandes

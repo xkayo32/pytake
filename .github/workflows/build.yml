@@ -61,12 +61,17 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: cd frontend && npm ci
+        run: cd frontend && npm ci --legacy-peer-deps
 
       - name: Check for syntax errors (frontend)
         run: |
           cd frontend
-          npm run build 2>&1 | grep -i "error\|critical" && exit 1 || echo "✅ Frontend build OK"
+          npm run build 2>&1 | tee build.log
+          if grep -q "error\|Error" build.log; then
+            echo "❌ Frontend build has errors"
+            exit 1
+          fi
+          echo "✅ Frontend build OK"
 
   frontend-build:
     runs-on: ubuntu-latest
@@ -83,7 +88,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: cd frontend && npm ci
+        run: cd frontend && npm ci --legacy-peer-deps
 
       - name: Build frontend
         run: cd frontend && npm run build
