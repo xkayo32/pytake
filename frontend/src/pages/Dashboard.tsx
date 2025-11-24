@@ -1,34 +1,59 @@
+import { useEffect, useState } from 'react'
 import { useAuth } from '@lib/auth/AuthContext'
-import { BarChart3, MessageSquare, Users, TrendingUp, Calendar, Settings, MoreVertical, ArrowUpRight } from 'lucide-react'
+import { getApiUrl, getAuthHeaders } from '@lib/api'
+import { BarChart3, MessageSquare, Users, TrendingUp, Calendar, Settings, MoreVertical, ArrowUpRight, AlertCircle } from 'lucide-react'
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [metrics, setMetrics] = useState<any>(null)
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const response = await fetch(
+          `${getApiUrl()}/api/v1/analytics/overview`,
+          { headers: getAuthHeaders() }
+        )
+        if (!response.ok) throw new Error('Failed to fetch metrics')
+        const data = await response.json()
+        setMetrics(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erro ao carregar dados')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchMetrics()
+  }, [])
 
   const stats = [
     {
       label: 'Mensagens Hoje',
-      value: '2,543',
+      value: metrics?.total_messages_today?.toLocaleString() || '0',
       icon: MessageSquare,
       change: '+12%',
       color: 'text-blue-600'
     },
     {
       label: 'Contatos Ativos',
-      value: '1,234',
+      value: metrics?.active_contacts?.toLocaleString() || '0',
       icon: Users,
       change: '+8%',
       color: 'text-green-600'
     },
     {
       label: 'Taxa de Conversão',
-      value: '34.2%',
+      value: metrics?.conversion_rate?.toFixed(1) + '%' || '0%',
       icon: TrendingUp,
       change: '+4.3%',
       color: 'text-purple-600'
     },
     {
       label: 'Fluxos Ativos',
-      value: '12',
+      value: metrics?.active_flows?.toString() || '0',
       icon: BarChart3,
       change: '+2',
       color: 'text-orange-600'
