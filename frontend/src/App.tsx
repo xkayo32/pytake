@@ -15,6 +15,7 @@ import FlowEdit from '@pages/flows/FlowEdit'
 import Templates from '@pages/Templates'
 import Contacts from '@pages/Contacts'
 import Settings from '@pages/Settings'
+import Profile from '@pages/Profile'
 import Automations from '@pages/Automations'
 import Analytics from '@pages/Analytics'
 
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="/automations" element={<Automations />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/profile" element={<Profile />} />
           </Route>
 
           {/* Rota 404 */}

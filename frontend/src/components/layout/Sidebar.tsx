@@ -8,6 +8,7 @@ import {
   Users,
   BarChart,
   Settings,
+  User,
   LogOut,
 } from 'lucide-react'
 
@@ -23,6 +24,7 @@ export default function Sidebar() {
     { icon: Users, label: 'Contatos', href: '/contacts' },
     { icon: BarChart, label: 'Analytics', href: '/analytics' },
     { icon: Settings, label: 'Configurações', href: '/settings' },
+    { icon: User, label: 'Perfil', href: '/profile' },
   ]
 
   return (
