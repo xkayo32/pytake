@@ -126,6 +126,7 @@ export default function Register() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="email"
                 className="h-10 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600"
               />
             </div>
@@ -143,6 +144,7 @@ export default function Register() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  autoComplete="new-password"
                   className="h-10 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 pr-10"
                 />
                 <button

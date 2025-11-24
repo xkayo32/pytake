@@ -199,6 +199,7 @@ export default function Profile() {
                 type="email"
                 value={formData.email}
                 disabled
+                autoComplete="email"
                 className="mt-2 bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 cursor-not-allowed"
               />
             </div>
