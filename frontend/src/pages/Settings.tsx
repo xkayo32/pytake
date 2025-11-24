@@ -1,17 +1,45 @@
-import { useState } from 'react'
-import { User, Lock, Bell, CreditCard, Shield, LogOut, ChevronRight, Save } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { User, Lock, Bell, CreditCard, Shield, LogOut, ChevronRight, Save, AlertCircle, CheckCircle } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
+import { getApiUrl, getAuthHeaders } from '@lib/api'
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('profile')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: 'João Silva',
     email: 'joao@example.com',
     phone: '+55 11 99999-9999',
     company: 'Minha Empresa'
   })
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch(
+          `${getApiUrl()}/api/v1/users/me/profile`,
+          { headers: getAuthHeaders() }
+        )
+        if (response.ok) {
+          const data = await response.json()
+          setFormData({
+            name: data.full_name || formData.name,
+            email: data.email || formData.email,
+            phone: data.phone_number || formData.phone,
+            company: data.company || formData.company
+          })
+        }
+      } catch (err) {
+        console.error('Erro ao carregar preferências:', err)
+      }
+    }
+
+    fetchSettings()
+  }, [])
 
   const tabs = [
     { id: 'profile', label: 'Perfil', icon: User },
@@ -22,6 +50,36 @@ export default function Settings() {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleSaveProfile = async () => {
+    setLoading(true)
+    setError(null)
+    setSuccess(null)
+    
+    try {
+      const response = await fetch(
+        `${getApiUrl()}/api/v1/users/me/profile`,
+        {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            full_name: formData.name,
+            phone_number: formData.phone,
+            company: formData.company
+          })
+        }
+      )
+
+      if (!response.ok) throw new Error('Erro ao salvar perfil')
+      
+      setSuccess('Perfil salvo com sucesso!')
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro desconhecido')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -124,9 +182,28 @@ export default function Settings() {
             </div>
 
             <div className="pt-4 flex gap-2">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
+              {error && (
+                <div className="w-full flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded text-red-700 dark:text-red-300">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span className="text-sm">{error}</span>
+                </div>
+              )}
+              {success && (
+                <div className="w-full flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 rounded text-green-700 dark:text-green-300">
+                  <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                  <span className="text-sm">{success}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleSaveProfile}
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+              >
                 <Save className="w-4 h-4" />
-                Salvar Alterações
+                {loading ? 'Salvando...' : 'Salvar Alterações'}
               </Button>
               <Button variant="outline">Cancelar</Button>
             </div>
