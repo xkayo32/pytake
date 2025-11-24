@@ -1,58 +1,39 @@
-import { useState } from 'react'
-import { Plus, Search, MoreVertical, Trash2, Edit2, Play, Pause, Copy, MessageSquare } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Plus, Search, MoreVertical, Trash2, Edit2, Play, Pause, Copy, MessageSquare, AlertCircle } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
+import { getApiUrl, getAuthHeaders } from '@lib/api'
 
 export default function Flows() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [flows, setFlows] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const flows = [
-    {
-      id: 1,
-      name: 'Fluxo de Boas-vindas',
-      description: 'Automação de mensagem de boas-vindas para novos contatos',
-      status: 'ativo',
-      messages: 2543,
-      triggers: 3,
-      created: '2025-01-15',
-      updated: 'Hoje'
-    },
-    {
-      id: 2,
-      name: 'Follow-up de Vendas',
-      description: 'Acompanhamento automático de leads interessados',
-      status: 'ativo',
-      messages: 1854,
-      triggers: 5,
-      created: '2025-01-10',
-      updated: 'Ontem'
-    },
-    {
-      id: 3,
-      name: 'Suporte Automático',
-      description: 'Respostas automáticas para perguntas frequentes',
-      status: 'pausado',
-      messages: 342,
-      triggers: 2,
-      created: '2025-01-05',
-      updated: '3 dias atrás'
-    },
-    {
-      id: 4,
-      name: 'Campanha de Aniversário',
-      description: 'Mensagens personalizadas de aniversário',
-      status: 'ativo',
-      messages: 523,
-      triggers: 1,
-      created: '2024-12-20',
-      updated: '10 dias atrás'
+  useEffect(() => {
+    const fetchFlows = async () => {
+      try {
+        const response = await fetch(
+          `${getApiUrl()}/api/v1/flows`,
+          { headers: getAuthHeaders() }
+        )
+        if (!response.ok) throw new Error('Failed to fetch flows')
+        const data = await response.json()
+        setFlows(Array.isArray(data) ? data : data.items || [])
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erro ao carregar fluxos')
+      } finally {
+        setLoading(false)
+      }
     }
-  ]
+
+    fetchFlows()
+  }, [])
 
   const filteredFlows = flows.filter(flow => {
-    const matchesSearch = flow.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         flow.description.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = flow.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         flow.description?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = filterStatus === 'all' || flow.status === filterStatus
     return matchesSearch && matchesStatus
   })
