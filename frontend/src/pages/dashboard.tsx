@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, MessageSquare, Users, TrendingUp, ArrowUpRight, ArrowDownRight, AlertCircle } from 'lucide-react'
+import { Activity, MessageSquare, Users, TrendingUp, ArrowUpRight, ArrowDownRight, AlertCircle, Zap } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { getApiUrl, getAuthHeaders } from '@lib/api'
 
@@ -8,7 +8,7 @@ interface KPICard {
   value: string | number
   change: number
   icon: React.ReactNode
-  color: string
+  gradient: string
 }
 
 export default function Dashboard() {
@@ -42,29 +42,29 @@ export default function Dashboard() {
       title: 'Total de Conversas',
       value: summary?.total_conversations || 0,
       change: 12.5,
-      icon: <MessageSquare className="w-8 h-8" />,
-      color: 'from-blue-500 to-blue-600',
+      icon: <MessageSquare className="w-6 h-6" />,
+      gradient: 'from-primary-500 to-primary-600',
     },
     {
       title: 'Total de Mensagens',
       value: summary?.total_messages || 0,
       change: 8.2,
-      icon: <Activity className="w-8 h-8" />,
-      color: 'from-purple-500 to-purple-600',
+      icon: <Activity className="w-6 h-6" />,
+      gradient: 'from-secondary-500 to-secondary-600',
     },
     {
       title: 'Agentes Ativos',
       value: summary?.active_agents || 0,
       change: 5.1,
-      icon: <Users className="w-8 h-8" />,
-      color: 'from-green-500 to-green-600',
+      icon: <Users className="w-6 h-6" />,
+      gradient: 'from-blue-500 to-blue-600',
     },
     {
       title: 'Taxa de Crescimento',
       value: '23.5%',
       change: 3.2,
-      icon: <TrendingUp className="w-8 h-8" />,
-      color: 'from-orange-500 to-orange-600',
+      icon: <TrendingUp className="w-6 h-6" />,
+      gradient: 'from-amber-500 to-orange-500',
     },
   ]
 
@@ -72,9 +72,12 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-background p-4 md:p-8">
         <div className="max-w-6xl mx-auto">
-          <div className="p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
+          <div className="p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-3 animate-fade-in">
             <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-            <p className="text-red-800 dark:text-red-400">{error}</p>
+            <div>
+              <h3 className="font-semibold text-red-800 dark:text-red-300">Erro ao carregar</h3>
+              <p className="text-red-700 dark:text-red-400 text-sm mt-1">{error}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -82,121 +85,145 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 p-4 md:p-8">
+    <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-12 animate-fade-in">
-          <h1 className="section-title flex items-center gap-3">
-            <Activity className="w-8 h-8 text-primary" />
-            Dashboard
-          </h1>
-          <p className="section-subtitle">Bem-vindo! Aqui está um resumo da sua atividade</p>
+        <div className="mb-8 animate-fade-in">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-gradient-whatsapp rounded-xl flex items-center justify-center shadow-md">
+              <Activity className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Dashboard</h1>
+          </div>
+          <p className="text-muted-foreground ml-[52px]">Bem-vindo! Aqui está um resumo da sua atividade</p>
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
           {kpis.map((kpi, index) => (
             <div
               key={index}
-              className="card-interactive group relative overflow-hidden"
+              className="bg-card border border-border rounded-xl p-5 hover:shadow-md hover:border-primary/20 transition-all duration-200 animate-fade-in group"
+              style={{ animationDelay: `${index * 100}ms` }}
             >
-              {/* Background Gradient */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${kpi.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}></div>
+              {/* Icon */}
+              <div className={`inline-flex p-2.5 bg-gradient-to-br ${kpi.gradient} rounded-xl text-white shadow-sm mb-4`}>
+                {kpi.icon}
+              </div>
 
-              <div className="relative">
-                {/* Icon */}
-                <div className={`inline-flex p-3 bg-gradient-to-br ${kpi.color} rounded-lg mb-4 text-white`}>
-                  {kpi.icon}
-                </div>
-
-                {/* Content */}
-                <p className="text-sm text-muted-foreground mb-2">{kpi.title}</p>
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="text-3xl font-bold">{kpi.value}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {kpi.change > 0 ? (
-                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                          <ArrowUpRight className="w-3 h-3" />
-                          {kpi.change}% vs mês passado
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
-                          <ArrowDownRight className="w-3 h-3" />
-                          {Math.abs(kpi.change)}% vs mês passado
-                        </span>
-                      )}
-                    </p>
-                  </div>
+              {/* Content */}
+              <p className="text-sm text-muted-foreground mb-1">{kpi.title}</p>
+              <div className="flex items-end justify-between">
+                <p className="text-2xl md:text-3xl font-bold text-foreground">{kpi.value}</p>
+                <div
+                  className={`flex items-center gap-0.5 text-xs font-medium px-2 py-1 rounded-full ${
+                    kpi.change > 0
+                      ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
+                      : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                  }`}
+                >
+                  {kpi.change > 0 ? (
+                    <ArrowUpRight className="w-3 h-3" />
+                  ) : (
+                    <ArrowDownRight className="w-3 h-3" />
+                  )}
+                  {Math.abs(kpi.change)}%
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Activity Section */}
+        {/* Main Content Grid */}
         {loading ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="card-interactive skeleton h-64"></div>
+              <div key={i} className="bg-card border border-border rounded-xl p-6 h-64 skeleton"></div>
             ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Recent Conversations */}
-            <div className="lg:col-span-2 card-interactive">
+            <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6 animate-fade-in">
               <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-primary" />
+                <MessageSquare className="w-5 h-5 text-primary-500" />
                 Conversas Recentes
               </h3>
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center gap-4 p-3 hover:bg-secondary/50 rounded-lg transition-colors">
-                    <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center text-white font-semibold text-sm">
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-4 p-3 hover:bg-muted/50 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <div className="w-10 h-10 bg-gradient-whatsapp rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm">
                       C{i}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">Cliente #{i}</p>
+                      <p className="font-medium text-foreground truncate group-hover:text-primary-600 transition-colors">
+                        Cliente #{i}
+                      </p>
                       <p className="text-sm text-muted-foreground truncate">Última mensagem há {i} minutos</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium">{5 - i} msgs</p>
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-primary-500 text-white text-xs font-bold rounded-full">
+                        {5 - i}
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
-              <Button className="btn-secondary w-full mt-6">Ver Todas as Conversas</Button>
+              <Button variant="secondary" className="w-full mt-6">
+                Ver Todas as Conversas
+              </Button>
             </div>
 
             {/* Quick Stats */}
-            <div className="card-interactive">
+            <div className="bg-card border border-border rounded-xl p-6 animate-fade-in">
               <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-accent" />
+                <TrendingUp className="w-5 h-5 text-secondary-500" />
                 Estatísticas
               </h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Taxa Resposta</span>
-                  <span className="font-semibold">98.5%</span>
-                </div>
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div className="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full w-[98.5%]"></div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4">
-                  <span className="text-muted-foreground">Tempo Médio</span>
-                  <span className="font-semibold">2.3min</span>
-                </div>
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div className="bg-gradient-to-r from-blue-500 to-cyan-600 h-2 rounded-full w-[65%]"></div>
+              <div className="space-y-6">
+                {/* Response Rate */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Taxa Resposta</span>
+                    <span className="text-sm font-semibold text-foreground">98.5%</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary-500 to-primary-400 rounded-full transition-all duration-500"
+                      style={{ width: '98.5%' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-4">
-                  <span className="text-muted-foreground">Satisfação</span>
-                  <span className="font-semibold">4.8/5</span>
+                {/* Average Time */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Tempo Médio</span>
+                    <span className="text-sm font-semibold text-foreground">2.3min</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-secondary-500 to-secondary-400 rounded-full transition-all duration-500"
+                      style={{ width: '65%' }}
+                    />
+                  </div>
                 </div>
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div className="bg-gradient-to-r from-purple-500 to-pink-600 h-2 rounded-full w-[96%]"></div>
+
+                {/* Satisfaction */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Satisfação</span>
+                    <span className="text-sm font-semibold text-foreground">4.8/5</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-500 to-orange-400 rounded-full transition-all duration-500"
+                      style={{ width: '96%' }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -204,14 +231,23 @@ export default function Dashboard() {
         )}
 
         {/* CTA Section */}
-        <div className="mt-12 p-8 bg-gradient-to-r from-primary/10 via-secondary/10 to-accent/10 rounded-2xl border border-primary/20">
-          <h3 className="text-2xl font-bold mb-4">Comece a otimizar suas conversas</h3>
-          <p className="text-muted-foreground mb-6">
-            Configure automações, templates e muito mais para aumentar a eficiência da sua equipe.
-          </p>
-          <div className="flex flex-wrap gap-4">
-            <Button className="btn-primary">Criar Automação</Button>
-            <Button className="btn-secondary">Explorar Templates</Button>
+        <div className="mt-8 p-6 md:p-8 bg-gradient-to-br from-primary-500/10 via-secondary-500/10 to-primary-500/5 rounded-2xl border border-primary/20 animate-fade-in">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-gradient-whatsapp rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                <Zap className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-foreground mb-1">Comece a otimizar suas conversas</h3>
+                <p className="text-muted-foreground text-sm">
+                  Configure automações, templates e muito mais para aumentar a eficiência.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button>Criar Automação</Button>
+              <Button variant="secondary">Explorar Templates</Button>
+            </div>
           </div>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { useAuth } from '@lib/auth/AuthContext'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
-import { Eye, EyeOff, AlertCircle, MessageSquare, Loader2, ArrowRight, CheckCircle } from 'lucide-react'
+import { Eye, EyeOff, AlertCircle, MessageSquare, Loader2, ArrowRight, CheckCircle, Sparkles } from 'lucide-react'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -34,43 +34,46 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-background">
       <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen">
         {/* Left Column - Form */}
-        <div className="flex flex-col justify-center px-4 sm:px-6 lg:px-8 py-8 lg:py-0 lg:border-r border-slate-200 dark:border-slate-700">
-          <div className="w-full max-w-md mx-auto">
-            {/* Header */}
-            <div className="flex items-center justify-center mb-8 lg:hidden">
-              <MessageSquare className="w-8 h-8 text-blue-600 mr-2" />
-              <span className="text-2xl font-bold text-slate-900 dark:text-white">PyTake</span>
+        <div className="flex flex-col justify-center px-4 sm:px-6 lg:px-8 py-8 lg:py-0">
+          <div className="w-full max-w-md mx-auto animate-fade-in">
+            {/* Logo */}
+            <div className="flex items-center gap-2 mb-8">
+              <div className="w-10 h-10 bg-gradient-whatsapp rounded-xl flex items-center justify-center shadow-lg">
+                <MessageSquare className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-2xl font-bold text-foreground">PyTake</span>
             </div>
 
+            {/* Header */}
             <div className="mb-8">
-              <h1 className="text-3xl font-bold mb-2 text-slate-900 dark:text-white">Bem-vindo de volta</h1>
-              <p className="text-slate-600 dark:text-slate-400">Entre com sua conta para acessar o painel</p>
+              <h1 className="text-3xl font-bold mb-2 text-foreground">Bem-vindo de volta</h1>
+              <p className="text-muted-foreground">Entre com sua conta para acessar o painel</p>
             </div>
 
             {/* Success Alert */}
             {success && (
-              <div className="flex items-start gap-3 rounded-lg bg-green-50 dark:bg-green-900/20 p-4 border border-green-200 dark:border-green-800 animate-in fade-in duration-300 mb-4">
-                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-                <span className="text-sm text-green-600 dark:text-green-400 font-medium">{success}</span>
+              <div className="flex items-start gap-3 rounded-xl bg-primary-50 dark:bg-primary-900/20 p-4 border border-primary-200 dark:border-primary-800 animate-scale-in mb-4">
+                <CheckCircle className="h-5 w-5 text-primary-600 dark:text-primary-400 mt-0.5 flex-shrink-0" />
+                <span className="text-sm text-primary-700 dark:text-primary-300 font-medium">{success}</span>
               </div>
             )}
 
             {/* Error Alert */}
             {error && (
-              <div className="flex items-start gap-3 rounded-lg bg-red-50 dark:bg-red-900/20 p-4 border border-red-200 dark:border-red-800 animate-in fade-in duration-300 mb-4">
+              <div className="flex items-start gap-3 rounded-xl bg-red-50 dark:bg-red-900/20 p-4 border border-red-200 dark:border-red-800 animate-scale-in mb-4">
                 <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-                <span className="text-sm text-red-600 dark:text-red-400 font-medium">{error}</span>
+                <span className="text-sm text-red-700 dark:text-red-300 font-medium">{error}</span>
               </div>
             )}
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {/* Email Field */}
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium text-slate-900 dark:text-white">
+                <Label htmlFor="email" className="text-sm font-medium text-foreground">
                   Email
                 </Label>
                 <Input
@@ -81,17 +84,17 @@ export default function Login() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoComplete="email"
-                  className="h-10 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600"
+                  className="h-11"
                 />
               </div>
 
               {/* Password Field */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-sm font-medium text-slate-900 dark:text-white">
+                  <Label htmlFor="password" className="text-sm font-medium text-foreground">
                     Senha
                   </Label>
-                  <Link to="#" className="text-xs text-blue-600 hover:text-blue-700">
+                  <Link to="#" className="text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors">
                     Esqueceu a senha?
                   </Link>
                 </div>
@@ -104,12 +107,13 @@ export default function Login() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="current-password"
-                    className="h-10 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 pr-10"
+                    className="h-11 pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    tabIndex={-1}
                   >
                     {showPassword ? (
                       <EyeOff className="w-4 h-4" />
@@ -124,26 +128,27 @@ export default function Login() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white font-medium mt-6"
+                className="w-full h-11"
+                size="lg"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     Entrando...
                   </>
                 ) : (
                   <>
                     Entrar
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </Button>
             </form>
 
             {/* Register Link */}
-            <p className="text-center mt-6 text-slate-600 dark:text-slate-400">
+            <p className="text-center mt-6 text-muted-foreground">
               Não tem conta?{' '}
-              <Link to="/register" className="text-blue-600 hover:text-blue-700 font-semibold">
+              <Link to="/register" className="text-primary-600 hover:text-primary-700 font-semibold transition-colors">
                 Registre-se grátis
               </Link>
             </p>
@@ -151,29 +156,59 @@ export default function Login() {
         </div>
 
         {/* Right Column - Benefits (Desktop only) */}
-        <div className="hidden lg:flex flex-col justify-center px-8 py-8 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
-          <h2 className="text-3xl font-bold mb-12 text-slate-900 dark:text-white">
-            Por que escolher PyTake?
-          </h2>
-          <ul className="space-y-6">
-            {[
-              'Automação completa de fluxos WhatsApp',
-              'Analytics em tempo real',
-              'Suporte 24/7 em português',
-              'Segurança de nível enterprise',
-              'Integração com suas ferramentas favoritas',
-              'Começar grátis, sem cartão'
-            ].map((benefit, idx) => (
-              <li key={idx} className="flex items-center gap-3">
-                <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                  </svg>
+        <div className="hidden lg:flex flex-col justify-center px-8 py-8 bg-gradient-to-br from-primary-500 via-primary-600 to-secondary-600 relative overflow-hidden">
+          {/* Background decoration */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-20 left-20 w-64 h-64 bg-white rounded-full blur-3xl" />
+            <div className="absolute bottom-20 right-20 w-96 h-96 bg-white rounded-full blur-3xl" />
+          </div>
+
+          <div className="relative z-10 max-w-md">
+            <div className="flex items-center gap-2 mb-6">
+              <Sparkles className="w-6 h-6 text-white/80" />
+              <span className="text-white/80 text-sm font-medium">Plataforma líder em automação</span>
+            </div>
+
+            <h2 className="text-4xl font-bold mb-8 text-white leading-tight">
+              Automatize seu WhatsApp Business com inteligência
+            </h2>
+
+            <ul className="space-y-4">
+              {[
+                'Automação completa de fluxos WhatsApp',
+                'Analytics em tempo real',
+                'Suporte 24/7 em português',
+                'Segurança de nível enterprise',
+                'Integração com suas ferramentas',
+                'Começar grátis, sem cartão',
+              ].map((benefit, idx) => (
+                <li key={idx} className="flex items-center gap-3 animate-fade-in" style={{ animationDelay: `${idx * 100}ms` }}>
+                  <div className="w-6 h-6 bg-white/20 backdrop-blur rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-lg text-white/90">{benefit}</span>
+                </li>
+              ))}
+            </ul>
+
+            {/* Testimonial */}
+            <div className="mt-12 p-6 bg-white/10 backdrop-blur rounded-2xl border border-white/20">
+              <p className="text-white/90 italic mb-4">
+                "PyTake revolucionou nosso atendimento. Reduzimos o tempo de resposta em 70%."
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white font-semibold">
+                  MC
                 </div>
-                <span className="text-lg text-slate-700 dark:text-slate-300">{benefit}</span>
-              </li>
-            ))}
-          </ul>
+                <div>
+                  <p className="text-white font-medium text-sm">Maria Clara</p>
+                  <p className="text-white/60 text-xs">Gerente de Atendimento, TechCorp</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
