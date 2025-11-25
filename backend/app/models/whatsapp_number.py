@@ -73,6 +73,13 @@ class WhatsAppNumber(Base, TimestampMixin, SoftDeleteMixin):
     )
     verified_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Connection Status
+    status = Column(
+        String(20), default="disconnected", server_default="disconnected", nullable=False
+    )  # connected, disconnected, error
+    connected_at = Column(DateTime(timezone=True), nullable=True)
+    last_seen_at = Column(DateTime(timezone=True), nullable=True)
+
     # Meta Quality Rating
     quality_rating = Column(
         String(50), nullable=True

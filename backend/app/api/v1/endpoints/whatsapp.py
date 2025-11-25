@@ -64,51 +64,6 @@ async def create_whatsapp_number(
     )
 
 
-@router.get("/{number_id}", response_model=WhatsAppNumber)
-async def get_whatsapp_number(
-    number_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Get WhatsApp number by ID"""
-    service = WhatsAppService(db)
-    return await service.get_by_id(
-        number_id=number_id,
-        organization_id=current_user.organization_id,
-    )
-
-
-@router.put("/{number_id}", response_model=WhatsAppNumber)
-async def update_whatsapp_number(
-    number_id: UUID,
-    data: WhatsAppNumberUpdate,
-    current_user: User = Depends(get_current_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Update WhatsApp number"""
-    service = WhatsAppService(db)
-    return await service.update_number(
-        number_id=number_id,
-        data=data,
-        organization_id=current_user.organization_id,
-    )
-
-
-@router.delete("/{number_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_whatsapp_number(
-    number_id: UUID,
-    current_user: User = Depends(get_current_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Delete WhatsApp number"""
-    service = WhatsAppService(db)
-    await service.delete_number(
-        number_id=number_id,
-        organization_id=current_user.organization_id,
-    )
-    return None
-
-
 # ============= Webhook Endpoints (Meta Cloud API) =============
 
 
@@ -213,58 +168,48 @@ async def receive_webhook(
             if entries:
                 changes = entries[0].get("changes", [])
                 if changes:
-                    metadata = changes[0].get("value", {}).get("metadata", {})
+                    value = changes[0].get("value", {})
+                    metadata = value.get("metadata", {})
                     phone_number_id = metadata.get("phone_number_id")
-        except Exception as e:
-            logger.warning(f"Could not extract phone_number_id from payload: {e}")
+        except (IndexError, KeyError, TypeError):
+            pass
 
-        # Verify signature if we have phone_number_id
-        if phone_number_id:
-            from app.core.database import async_session
+        if not phone_number_id:
+            logger.error("Could not extract phone_number_id from webhook")
+            return {"status": "ok"}
 
-            async with async_session() as db:
-                # Get WhatsApp number to retrieve app_secret
-                stmt = select(WhatsAppNumber).where(
-                    WhatsAppNumber.phone_number_id == phone_number_id
-                )
-                result = await db.execute(stmt)
-                whatsapp_number = result.scalar_one_or_none()
-
-                if whatsapp_number and whatsapp_number.app_secret:
-                    if not signature:
-                        logger.error("❌ Missing X-Hub-Signature-256 header")
-                        raise HTTPException(
-                            status_code=403,
-                            detail="Missing X-Hub-Signature-256 header"
-                        )
-
-                    # Verify signature
-                    is_valid = verify_whatsapp_signature(
-                        payload=raw_body,
-                        signature=signature,
-                        app_secret=whatsapp_number.app_secret
-                    )
-
-                    if not is_valid:
-                        logger.error(f"❌ Invalid webhook signature for {whatsapp_number.phone_number}")
-                        raise HTTPException(
-                            status_code=403,
-                            detail="Invalid webhook signature"
-                        )
-
-                    logger.info(f"✅ Webhook signature verified for {whatsapp_number.phone_number}")
-                elif whatsapp_number:
-                    logger.warning(
-                        f"⚠️ Webhook signature verification skipped for {whatsapp_number.phone_number} "
-                        f"- no app_secret configured"
-                    )
-
-        # Process webhook manually (without dependency injection)
+        # Find WhatsApp number by phone_number_id
         from app.core.database import async_session
-
         async with async_session() as db:
+            stmt = select(WhatsAppNumber).where(
+                WhatsAppNumber.phone_number_id == phone_number_id,
+                WhatsAppNumber.deleted_at.is_(None),
+            )
+            result = await db.execute(stmt)
+            number = result.scalar_one_or_none()
+
+            if not number:
+                logger.error(f"WhatsApp number not found for phone_number_id: {phone_number_id}")
+                return {"status": "ok"}
+
+            # Verify signature if token is set
+            if number.webhook_verify_token:
+                if not signature:
+                    logger.error("Missing X-Hub-Signature-256 header")
+                    raise HTTPException(status_code=403, detail="Forbidden")
+
+                if not verify_whatsapp_signature(
+                    signature=signature,
+                    body=raw_body,
+                    verify_token=number.webhook_verify_token
+                ):
+                    logger.error("Invalid webhook signature")
+                    raise HTTPException(status_code=403, detail="Forbidden")
+
+            # Process webhook
+            from app.services.whatsapp_service import WhatsAppService
             service = WhatsAppService(db)
-            await service.process_webhook(body)
+            await service.process_webhook(body, number.id, number.organization_id)
 
         # Always return 200 OK to Meta
         return {"status": "ok"}
@@ -277,6 +222,170 @@ async def receive_webhook(
         # Log error but still return 200 to prevent Meta from retrying
         logger.error(f"Webhook error: {e}")
         return {"status": "error", "message": str(e)}
+
+
+# ============= WhatsApp Number Endpoints =============
+
+
+@router.get("/{number_id}", response_model=WhatsAppNumber)
+async def get_whatsapp_number(
+    number_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get WhatsApp number by ID"""
+    service = WhatsAppService(db)
+    return await service.get_by_id(
+        number_id=number_id,
+        organization_id=current_user.organization_id,
+    )
+
+
+@router.put("/{number_id}", response_model=WhatsAppNumber)
+async def update_whatsapp_number(
+    number_id: UUID,
+    data: WhatsAppNumberUpdate,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update WhatsApp number"""
+    service = WhatsAppService(db)
+    return await service.update_number(
+        number_id=number_id,
+        data=data,
+        organization_id=current_user.organization_id,
+    )
+
+
+@router.post("/{number_id}/test")
+async def test_whatsapp_connection(
+    number_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Test WhatsApp connection status.
+    
+    Returns:
+    - For Official API: Tests Meta API connection
+    - For Evolution API: Tests Evolution connection and retrieves connection status
+    """
+    from datetime import datetime
+    from sqlalchemy import update
+    
+    service = WhatsAppService(db)
+    
+    # Get WhatsApp number
+    number = await service.get_by_id(number_id, current_user.organization_id)
+    
+    if not number:
+        raise HTTPException(
+            status_code=404,
+            detail="WhatsApp number not found"
+        )
+    
+    result = {
+        "status": "connected",
+        "message": "WhatsApp connection is working",
+        "connection_type": number.connection_type,
+        "phone_number": number.phone_number
+    }
+    
+    try:
+        if number.connection_type == "official":
+            # Test Official API connection
+            from app.integrations.meta_api import MetaCloudAPI
+            
+            meta_api = MetaCloudAPI(
+                phone_number_id=number.phone_number_id,
+                access_token=number.access_token
+            )
+            
+            # Try to fetch phone number details as a test
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"https://graph.facebook.com/v18.0/{number.phone_number_id}",
+                    params={"access_token": number.access_token}
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    result["status"] = "connected"
+                    result["display_name"] = data.get("display_phone_number", number.phone_number)
+                    result["message"] = "✅ Official API connection successful"
+                elif response.status_code == 401:
+                    result["status"] = "disconnected"
+                    result["message"] = "❌ Invalid access token - connection failed"
+                else:
+                    result["status"] = "error"
+                    result["message"] = f"❌ API returned status {response.status_code}"
+                    
+        elif number.connection_type == "qrcode":
+            # Test Evolution API connection
+            from app.integrations.evolution_api import EvolutionAPIClient
+            
+            evolution = EvolutionAPIClient(
+                api_url=number.evolution_api_url,
+                api_key=number.evolution_api_key
+            )
+            
+            # Get instance status
+            status_data = await evolution.get_instance_status(
+                instance_name=number.evolution_instance_name
+            )
+            
+            if status_data.get("state") == "open":
+                result["status"] = "connected"
+                result["message"] = "✅ Evolution API connection successful"
+            else:
+                result["status"] = "disconnected"
+                result["message"] = f"❌ Instance is {status_data.get('state', 'unknown')}"
+                
+    except Exception as e:
+        result["status"] = "error"
+        result["message"] = f"❌ Error testing connection: {str(e)}"
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error testing WhatsApp connection {number_id}: {str(e)}")
+    
+    # ✅ UPDATE STATUS IN DATABASE
+    try:
+        from app.models.whatsapp_number import WhatsAppNumber as WhatsAppNumberModel
+        
+        update_stmt = (
+            update(WhatsAppNumberModel)
+            .where(WhatsAppNumberModel.id == number_id)
+            .values(
+                status=result["status"],
+                last_seen_at=datetime.now(datetime.now().astimezone().tzinfo),
+                connected_at=datetime.now(datetime.now().astimezone().tzinfo) if result["status"] == "connected" else number.connected_at
+            )
+        )
+        await db.execute(update_stmt)
+        await db.commit()
+    except Exception as e:
+        # Log but don't fail the response
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Could not update status for {number_id}: {str(e)}")
+    
+    return result
+
+
+@router.delete("/{number_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_whatsapp_number(
+    number_id: UUID,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete WhatsApp number"""
+    service = WhatsAppService(db)
+    await service.delete_number(
+        number_id=number_id,
+        organization_id=current_user.organization_id,
+    )
+    return None
 
 
 # ============= Evolution API Endpoints (QR Code) =============

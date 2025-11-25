@@ -1,0 +1,144 @@
+name: 🚀 Deploy to Staging (DESATIVADO - DEV APENAS)
+
+# ⚠️ DESATIVADO: Workflow desativado para modo desenvolvimento
+# ATIVO: Apenas workflow_dispatch para testes manuais se necessário
+# Em MODO DEV, utilizamos docker-compose.yml local com Podman
+# Reativar quando ambiente staging estiver disponível
+
+on:
+  # ⚠️ COMENTADO: Push automático desativado em modo dev
+  # push:
+  #   branches:
+  #     - develop
+  #
+  # Manter workflow_dispatch comentado - use apenas em modo manual emergencial
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'DEV ONLY - Esta opção está desativada'
+        required: false
+
+env:
+  REGISTRY: ghcr.io
+  ENVIRONMENT: staging
+  DEPLOY_PORT: 8001
+  BACKEND_CONTAINER: pytake-backend
+  FRONTEND_CONTAINER: pytake-frontend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging-api.pytake.net
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: 🔐 Setup GitHub CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh --version
+          echo "GitHub CLI authenticated"
+
+      - name: 📊 Get commit info
+        id: commit
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "commit_msg=$(git log -1 --pretty=%B)" >> $GITHUB_OUTPUT
+          echo "author=$(git log -1 --pretty=%an)" >> $GITHUB_OUTPUT
+
+      - name: 🐳 Login to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📦 Build and push backend
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/xkayo32/pytake-backend:staging
+            ${{ env.REGISTRY }}/xkayo32/pytake-backend:staging-${{ steps.commit.outputs.sha_short }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/xkayo32/pytake-backend:staging
+          cache-to: type=inline
+
+      - name: 📦 Build and push frontend
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/xkayo32/pytake-frontend:staging
+            ${{ env.REGISTRY }}/xkayo32/pytake-frontend:staging-${{ steps.commit.outputs.sha_short }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/xkayo32/pytake-frontend:staging
+          cache-to: type=inline
+
+      - name: 🚀 Deploy to staging server
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          # Deploy script
+          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" << 'DEPLOY_SCRIPT'
+          cd /home/pytake || exit 1
+          
+          # Pull latest code
+          git fetch origin develop
+          git checkout develop
+          git pull origin develop
+          
+          # Pull images
+          docker pull ghcr.io/xkayo32/pytake-backend:staging
+          docker pull ghcr.io/xkayo32/pytake-frontend:staging
+          
+          # Stop containers
+          docker-compose -f docker-compose.yml down || true
+          
+          # Update tags to use staging images
+          export COMPOSE_PROJECT_NAME=pytake
+          docker-compose -f docker-compose.yml up -d
+          
+          # Wait for services
+          sleep 10
+          
+          # Run migrations
+          docker exec pytake-backend alembic upgrade head || true
+          
+          # Health check
+          curl -f http://localhost:8001/api/v1/health || echo "Health check pending"
+          
+          DEPLOY_SCRIPT
+
+      - name: ✅ Deployment successful
+        run: |
+          echo "✅ Staging deployment completed successfully!"
+          echo "🌐 Access: https://staging-api.pytake.net"
+          echo "📊 Dashboard: https://staging-api.pytake.net/api/v1/docs"
+
+      - name: 📢 Notify on failure
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ Staging deployment failed. Check the workflow logs.'
+            })

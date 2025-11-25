@@ -6,6 +6,7 @@ Using Pydantic Settings for environment variable management
 import os
 from functools import lru_cache
 from typing import Annotated, List, Optional, Union
+from urllib.parse import quote
 
 from pydantic import AnyHttpUrl, EmailStr, Field, PostgresDsn, RedisDsn, field_validator, BeforeValidator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
     # Application
     ENVIRONMENT: str = Field(default="development", description="Environment: development, staging, production")
     DEBUG: bool = Field(default=True)
-    SECRET_KEY: str = Field(min_length=32, description="Secret key for app")
+    SECRET_KEY: str = Field(default="dev-secret-key-32chars-minimum-length-1234567890", min_length=32, description="Secret key for app")
     APP_NAME: str = Field(default="PyTake")
     APP_VERSION: str = Field(default="1.0.0")
     API_V1_PREFIX: str = Field(default="/api/v1")
@@ -96,7 +97,7 @@ class Settings(BaseSettings):
     MONGODB_DB: str = Field(default="pytake_logs")
 
     # JWT & Security
-    JWT_SECRET_KEY: str = Field(min_length=32)
+    JWT_SECRET_KEY: str = Field(default="jwt-secret-key-32chars-minimum-length-1234567890-test", min_length=32)
     JWT_ALGORITHM: str = Field(default="HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=15)
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7)
@@ -112,8 +113,38 @@ class Settings(BaseSettings):
     )
 
     # Celery
-    CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/1")
-    CELERY_RESULT_BACKEND: str = Field(default="redis://localhost:6379/2")
+    CELERY_BROKER_URL: Optional[str] = None
+    CELERY_RESULT_BACKEND: Optional[str] = None
+
+    @field_validator("CELERY_BROKER_URL", mode="before")
+    @classmethod
+    def assemble_celery_broker(cls, v, info):
+        if isinstance(v, str):
+            return v
+        values = info.data
+        host = values.get("REDIS_HOST", "localhost")
+        port = values.get("REDIS_PORT", 6379)
+        password = values.get("REDIS_PASSWORD")
+        if password:
+            # URL-encode the password to handle special characters
+            encoded_password = quote(password, safe='')
+            return f"redis://default:{encoded_password}@{host}:{port}/1"
+        return f"redis://{host}:{port}/1"
+
+    @field_validator("CELERY_RESULT_BACKEND", mode="before")
+    @classmethod
+    def assemble_celery_backend(cls, v, info):
+        if isinstance(v, str):
+            return v
+        values = info.data
+        host = values.get("REDIS_HOST", "localhost")
+        port = values.get("REDIS_PORT", 6379)
+        password = values.get("REDIS_PASSWORD")
+        if password:
+            # URL-encode the password to handle special characters
+            encoded_password = quote(password, safe='')
+            return f"redis://default:{encoded_password}@{host}:{port}/2"
+        return f"redis://{host}:{port}/2"
 
     # WhatsApp Business API
     WHATSAPP_API_URL: str = Field(default="https://graph.facebook.com/v18.0")
@@ -128,14 +159,50 @@ class Settings(BaseSettings):
         default=None,
         description="App secret from Meta dashboard for signature verification"
     )
+    
+    # Public API URLs (for webhooks and external references)
+    PUBLIC_API_URL: str = Field(
+        default="http://localhost:8000",
+        description="Public API URL for webhooks (e.g., https://api.pytake.net for prod)"
+    )
+    WHATSAPP_WEBHOOK_URL: str = Field(
+        default="http://localhost:8000/api/v1/whatsapp/webhook",
+        description="Public WhatsApp webhook URL"
+    )
+    
+    # FastAPI root_path (used when behind reverse proxy, e.g., /prod, /staging)
+    API_ROOT_PATH: str = Field(
+        default="",
+        description="Root path for FastAPI when behind reverse proxy (e.g., /prod, /staging)"
+    )
 
-    # Email
-    SMTP_HOST: Optional[str] = None
+    # Email Configuration
+    SMTP_HOST: Optional[str] = Field(default="smtp.gmail.com")
     SMTP_PORT: int = Field(default=587)
-    SMTP_USER: Optional[str] = None
-    SMTP_PASSWORD: Optional[str] = None
-    SMTP_FROM: EmailStr = Field(default="noreply@pytake.com")
+    SMTP_USERNAME: Optional[str] = Field(default=None, description="SMTP username/email")
+    SMTP_PASSWORD: Optional[str] = Field(default=None, description="SMTP password or app password")
+    SMTP_FROM_EMAIL: str = Field(default="noreply@pytake.com")
     SMTP_FROM_NAME: str = Field(default="PyTake")
+    SMTP_USE_TLS: bool = Field(default=True)
+    SMTP_TIMEOUT: int = Field(default=10)
+    
+    # Email Rate Limiting
+    EMAIL_RATE_LIMIT_PER_HOUR: int = Field(default=100)
+    EMAIL_BATCH_SIZE: int = Field(default=50)
+    
+    # Celery Configuration
+    CELERY_BROKER_URL: str = Field(
+        default="redis://default:redis_password@redis:6379/1",
+        description="Redis broker URL for Celery"
+    )
+    CELERY_RESULT_BACKEND: str = Field(
+        default="redis://default:redis_password@redis:6379/2",
+        description="Redis backend for Celery results"
+    )
+    
+    # Legacy SMTP fields (kept for backwards compatibility)
+    SMTP_USER: Optional[str] = None
+    SMTP_FROM: EmailStr = Field(default="noreply@pytake.com")
 
     # AWS S3
     AWS_ACCESS_KEY_ID: Optional[str] = None

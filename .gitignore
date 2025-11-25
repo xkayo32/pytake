@@ -11,7 +11,9 @@
 SECURITY_CREDENTIALS.md
 CREDENTIALS.md
 **/credentials.*
-**/secrets.*
+# Block secret config files but allow endpoint modules
+**/secrets.*.* 
+!**/endpoints/secrets.py
 *.key
 *.pem
 *.crt
@@ -58,6 +60,9 @@ temp/
 *.temp
 *.cache
 
+# Frontend
+frontend_old/
+
 # Docker
 docker-compose.override.yml
 
@@ -99,7 +104,10 @@ media/certbot/
 .claude*
 CLAUDE.md
 *.claude.md
-nul
 
-# SSL Certificates (Let's Encrypt)
-certbot/
+# SSL/TLS Certificates - Let's Encrypt
+certbot/conf/live/*/
+certbot/conf/archive/*/
+certbot/conf/renewal/
+certbot/conf/accounts/
+

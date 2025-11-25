@@ -1,0 +1,262 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light Mode - Modern Vibrant Theme */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.6%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.6%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.6%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    
+    /* Primary: Modern Blue - Professional & Trustworthy */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary: Modern Purple - Creative & Elegant */
+    --secondary: 280 85% 65%;
+    --secondary-foreground: 0 0% 100%;
+    
+    /* Accent: Vibrant Teal - Energy & Attention */
+    --accent: 173 80% 50%;
+    --accent-foreground: 0 0% 100%;
+    
+    /* Status Colors */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
+    
+    /* Neutrals */
+    --border: 0 0% 89.8%;
+    --input: 0 0% 96.1%;
+    --ring: 217 91% 60%;
+    --radius: 0.75rem;
+    
+    /* Shadows for depth */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.15);
+  }
+
+  .dark {
+    /* Dark Mode - Modern Dark Theme */
+    --background: 220 13% 9%;
+    --foreground: 0 0% 98.2%;
+    --card: 220 13% 13%;
+    --card-foreground: 0 0% 98.2%;
+    --popover: 220 13% 13%;
+    --popover-foreground: 0 0% 98.2%;
+    --muted: 220 13% 22%;
+    --muted-foreground: 0 0% 63.9%;
+    
+    /* Primary: Modern Blue */
+    --primary: 217 91% 65%;
+    --primary-foreground: 220 13% 9%;
+    
+    /* Secondary: Modern Purple */
+    --secondary: 280 85% 70%;
+    --secondary-foreground: 220 13% 9%;
+    
+    /* Accent: Vibrant Teal */
+    --accent: 173 80% 55%;
+    --accent-foreground: 220 13% 9%;
+    
+    /* Status Colors */
+    --success: 142 71% 50%;
+    --success-foreground: 220 13% 9%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 220 13% 9%;
+    --destructive: 0 84.2% 65%;
+    --destructive-foreground: 220 13% 9%;
+    --info: 217 91% 65%;
+    --info-foreground: 220 13% 9%;
+    
+    /* Neutrals */
+    --border: 220 13% 20%;
+    --input: 220 13% 18%;
+    --ring: 217 91% 65%;
+    --radius: 0.75rem;
+    
+    /* Shadows for depth */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.6);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  
+  /* Smooth transitions for theme switching */
+  body {
+    @apply transition-colors duration-300;
+  }
+}
+
+/* Custom utility classes for enhanced UX */
+@layer components {
+  /* Gradient backgrounds */
+  .bg-gradient-primary {
+    @apply bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700;
+  }
+  
+  .bg-gradient-secondary {
+    @apply bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700;
+  }
+  
+  .bg-gradient-accent {
+    @apply bg-gradient-to-br from-teal-400 via-teal-500 to-teal-600;
+  }
+  
+  /* Card with subtle shadow and hover effect */
+  .card-hover {
+    @apply bg-card hover:shadow-lg transition-all duration-300 cursor-pointer transform hover:scale-105;
+  }
+  
+  .card-interactive {
+    @apply bg-card border border-border rounded-lg p-6 hover:shadow-md transition-shadow duration-200;
+  }
+  
+  /* Button base styles */
+  .btn-base {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-primary {
+    @apply btn-base bg-gradient-to-r from-primary to-blue-600 text-primary-foreground hover:shadow-lg hover:scale-105 active:scale-95;
+  }
+  
+  .btn-secondary {
+    @apply btn-base bg-secondary text-secondary-foreground hover:bg-opacity-90;
+  }
+  
+  .btn-accent {
+    @apply btn-base bg-accent text-accent-foreground hover:shadow-md;
+  }
+  
+  /* Input focus states */
+  .input-focus {
+    @apply focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-background;
+  }
+  
+  /* Badge variants */
+  .badge-success {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300;
+  }
+  
+  .badge-warning {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300;
+  }
+  
+  .badge-error {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300;
+  }
+  
+  .badge-info {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300;
+  }
+  
+  /* Section title styles */
+  .section-title {
+    @apply text-2xl md:text-3xl font-bold text-foreground mb-2;
+  }
+  
+  .section-subtitle {
+    @apply text-sm md:text-base text-muted-foreground mb-6;
+  }
+  
+  /* Loading skeleton */
+  .skeleton {
+    @apply animate-pulse bg-muted rounded-lg;
+  }
+  
+  /* Smooth fade in animation */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fade-in {
+    @apply animate-[fadeIn_0.3s_ease-out];
+  }
+  
+  /* Slide in from bottom (toasts) */
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(100px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-slide-up {
+    @apply animate-[slideUp_0.4s_ease-out];
+  }
+  
+  /* Scale in animation (modals) */
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  .animate-scale-in {
+    @apply animate-[scaleIn_0.3s_ease-out];
+  }
+  
+  /* Pulse animation (loading states) */
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+  
+  .animate-pulse-custom {
+    @apply animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite];
+  }
+  
+  /* Spin animation (loading spinner) */
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  .animate-spin-custom {
+    @apply animate-[spin_1s_linear_infinite];
+  }
+}

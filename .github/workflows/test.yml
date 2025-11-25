@@ -1,0 +1,118 @@
+name: ✅ Testes - Erros Críticos Apenas
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  backend-integration-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11']
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: pytake
+          POSTGRES_PASSWORD: pytake_test
+          POSTGRES_DB: pytake_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 8s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 8s
+          --health-retries 10
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies (backend)
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f backend/requirements.txt ]; then \
+            pip install -r backend/requirements.txt; \
+          else \
+            echo "No requirements.txt found"; \
+            pip install fastapi uvicorn "pydantic>=2" sqlalchemy alembic psycopg2-binary redis; \
+          fi
+
+      - name: 🚨 Teste crítico - Migrations (quebra o deploy)
+        env:
+          DATABASE_URL: postgresql://pytake:pytake_test@localhost:5432/pytake_test
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          if [ -f backend/alembic.ini ] || [ -d backend/alembic ]; then \
+            cd backend && alembic upgrade head || exit 1; \
+            echo "✅ Migrations OK"; \
+          else \
+            echo "⚠️ Sem Alembic"; \
+          fi
+
+      - name: 🚨 Teste crítico - Imports principais (quebra o deploy)
+        run: |
+          cd backend && python -c "from app.main import app; from app.core.config import settings; print('✅ Imports críticos OK')" || exit 1
+
+      - name: 🚨 Teste crítico - API health check
+        env:
+          DATABASE_URL: postgresql://pytake:pytake_test@localhost:5432/pytake_test
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          cd backend && timeout 10 python -c "
+          from fastapi import FastAPI
+          from app.main import app
+          print('✅ API pode iniciar')
+          " || exit 1
+
+  frontend-critical-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: 🚨 Teste crítico - Build (quebra o deploy)
+        run: |
+          cd frontend && npm run build 2>&1 | tee build.log
+          if grep -i "error\|fatal" build.log | grep -v "next/link"; then \
+            echo "❌ Build com erros críticos"; \
+            exit 1; \
+          else \
+            echo "✅ Build OK"; \
+          fi

@@ -6,13 +6,43 @@ Combines all v1 endpoints
 from fastapi import APIRouter, Request, Query, HTTPException
 from fastapi.responses import PlainTextResponse
 
-from app.api.v1.endpoints import auth, organizations, users, contacts, conversations, whatsapp, chatbots, campaigns, analytics, queue, queues, departments, ai_assistant, agent_skills, secrets, database, websocket, debug
-from app.api.webhooks import meta as webhooks_meta
+# Lazy imports at the end of file to avoid circular dependencies
+# Individual modules are imported directly by filename (not as package)
+import importlib.util
+import sys
+
+def _load_endpoint_module(module_name: str):
+    """Load endpoint module dynamically to avoid circular imports"""
+    import os
+    
+    # Get the directory of this file
+    router_dir = os.path.dirname(os.path.abspath(__file__))
+    endpoints_dir = os.path.join(router_dir, "endpoints")
+    module_path = os.path.join(endpoints_dir, f"{module_name}.py")
+    
+    if not os.path.exists(module_path):
+        raise FileNotFoundError(f"Endpoint module not found: {module_path}")
+    
+    spec = importlib.util.spec_from_file_location(f"app.api.v1.endpoints.{module_name}", module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Failed to load spec for {module_name}")
+    
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[f"app.api.v1.endpoints.{module_name}"] = module
+    spec.loader.exec_module(module)
+    return module
 
 api_router = APIRouter()
 
 # ============= PUBLIC WEBHOOKS (NO AUTH REQUIRED) =============
 # These endpoints must be public for external services to call them
+
+@api_router.get("/health", tags=["Health"])
+async def health_check():
+    """Simple health check endpoint returning 200 OK.
+    Used by container healthcheck to avoid 400 responses on /docs.
+    """
+    return {"status": "ok"}
 
 @api_router.get("/whatsapp/webhook", response_class=PlainTextResponse, include_in_schema=True)
 async def whatsapp_webhook_verify(
@@ -154,31 +184,69 @@ async def whatsapp_webhook_receive(request: Request):
     return {"status": "ok"}
 
 
-# Include all endpoint routers
+# Include all endpoint routers using lazy loading
+auth = _load_endpoint_module("auth")
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
-api_router.include_router(organizations.router, prefix="/organizations", tags=["Organizations"])
-api_router.include_router(users.router, prefix="/users", tags=["Users"])
-api_router.include_router(contacts.router, prefix="/contacts", tags=["Contacts"])
-api_router.include_router(conversations.router, prefix="/conversations", tags=["Conversations"])
-api_router.include_router(queue.router, prefix="/queue", tags=["Queue"])
-api_router.include_router(queues.router, prefix="/queues", tags=["Queues"])
-api_router.include_router(departments.router, prefix="/departments", tags=["Departments"])
-api_router.include_router(whatsapp.router, prefix="/whatsapp", tags=["WhatsApp"])
-api_router.include_router(chatbots.router, prefix="/chatbots", tags=["Chatbots"])
-api_router.include_router(campaigns.router, prefix="/campaigns", tags=["Campaigns"])
-api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
-api_router.include_router(secrets.router, prefix="/secrets", tags=["Secrets"])
-api_router.include_router(database.router, prefix="/database", tags=["Database"])
-api_router.include_router(ai_assistant.router, prefix="/ai-assistant", tags=["AI Assistant"])
-api_router.include_router(agent_skills.router, tags=["Users", "Agent Skills"])  # Mounted under /users/{id}/skills
 
-# WebSocket endpoint
+organizations = _load_endpoint_module("organizations")
+api_router.include_router(organizations.router, prefix="/organizations", tags=["Organizations"])
+
+users = _load_endpoint_module("users")
+api_router.include_router(users.router, prefix="/users", tags=["Users"])
+
+contacts = _load_endpoint_module("contacts")
+api_router.include_router(contacts.router, prefix="/contacts", tags=["Contacts"])
+
+conversations = _load_endpoint_module("conversations")
+api_router.include_router(conversations.router, prefix="/conversations", tags=["Conversations"])
+
+queue = _load_endpoint_module("queue")
+api_router.include_router(queue.router, prefix="/queue", tags=["Queue"])
+
+queues = _load_endpoint_module("queues")
+api_router.include_router(queues.router, prefix="/queues", tags=["Queues"])
+
+departments = _load_endpoint_module("departments")
+api_router.include_router(departments.router, prefix="/departments", tags=["Departments"])
+
+whatsapp = _load_endpoint_module("whatsapp")
+api_router.include_router(whatsapp.router, prefix="/whatsapp", tags=["WhatsApp"])
+
+chatbots = _load_endpoint_module("chatbots")
+api_router.include_router(chatbots.router, prefix="/chatbots", tags=["Chatbots"])
+
+campaigns = _load_endpoint_module("campaigns")
+api_router.include_router(campaigns.router, prefix="/campaigns", tags=["Campaigns"])
+
+analytics = _load_endpoint_module("analytics")
+api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
+
+dashboard = _load_endpoint_module("dashboard")
+api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
+
+flow_automations = _load_endpoint_module("flow_automations")
+api_router.include_router(flow_automations.router, prefix="/flow-automations", tags=["Flow Automations"])
+
+secrets = _load_endpoint_module("secrets")
+api_router.include_router(secrets.router, prefix="/secrets", tags=["Secrets"])
+
+database = _load_endpoint_module("database")
+api_router.include_router(database.router, prefix="/database", tags=["Database"])
+
+ai_assistant = _load_endpoint_module("ai_assistant")
+api_router.include_router(ai_assistant.router, prefix="/ai-assistant", tags=["AI Assistant"])
+
+agent_skills = _load_endpoint_module("agent_skills")
+api_router.include_router(agent_skills.router, tags=["Users", "Agent Skills"])
+
+websocket = _load_endpoint_module("websocket")
 api_router.include_router(websocket.router, tags=["WebSocket"])
 
-# Debug routes (development only)
+debug = _load_endpoint_module("debug")
 api_router.include_router(debug.router, prefix="/debug", tags=["Debug"])
 
 # Webhooks (public endpoints)
+from app.api.webhooks import meta as webhooks_meta
 api_router.include_router(webhooks_meta.router, prefix="/webhooks/meta", tags=["Webhooks"])
 
 # Future routers will be added here:

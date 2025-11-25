@@ -1,0 +1,26 @@
+name: 🔄 Auto-Merge on CI Pass (DESATIVADO - Merge manual via GitHub)
+
+# ⚠️ AUTO-MERGE DESATIVADO - Use o botão de merge no GitHub
+on:
+  workflow_dispatch: # Só dispara manualmente, nunca automaticamente
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  auto-merge:
+    name: Auto-Merge PRs
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'develop'
+    steps:
+      - name: 🔄 Enable Auto-Merge
+        uses: pascalgn/automerge-action@v0.16.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MERGE_LABELS: ""
+          MERGE_METHOD: "rebase"
+          MERGE_COMMIT_MESSAGE: "automatic"
+          MERGE_FUZZ_FACTOR: "0"
+          UPDATE_METHOD: "rebase"
+          AUTOMERGE_COMMENT: "Auto-merged by bot"

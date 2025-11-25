@@ -1,0 +1,163 @@
+name: 🔗 Domain Routing Tests
+
+on:
+  # ⚠️ DESATIVADO: Testes de routing removidos do CI/CD automatizado
+  # Usar workflow_dispatch manual quando necessário testar routing
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - prod
+          - staging
+          - dev
+
+env:
+  TIMEOUT: 30
+
+jobs:
+  domain-routing-tests:
+    runs-on: ubuntu-latest
+    name: Test Domain Routing (${{ matrix.environment }})
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        # ⚠️ MODO DEV: Apenas 'dev' ativo durante desenvolvimento
+        # Descomentar quando staging/prod estiverem prontos:
+        # environment: [prod, staging, dev]
+        environment: [dev]
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install httpx pytest pytest-asyncio pytest-timeout pytest-json-report
+
+      - name: 🌐 Test Domain Routing (${{ matrix.environment }})
+        env:
+          TEST_ENV: ${{ matrix.environment }}
+        run: |
+          pytest backend/tests/test_domain_routing.py -v \
+            --tb=short \
+            --timeout=30 \
+            --json-report \
+            --json-report-file=test-report-${{ matrix.environment }}.json \
+            -k "${{ matrix.environment }} or (not prod and not staging and not dev)"
+
+      - name: 🔍 Shell Script Tests
+        if: always()
+        run: |
+          bash scripts/test-domains-routing.sh > domain-test-output-${{ matrix.environment }}.txt 2>&1 || true
+          cat domain-test-output-${{ matrix.environment }}.txt
+
+      - name: 📊 Upload Test Reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-reports-${{ matrix.environment }}
+          path: |
+            test-report-${{ matrix.environment }}.json
+            domain-test-output-${{ matrix.environment }}.txt
+
+  aggregate-results:
+    runs-on: ubuntu-latest
+    name: Aggregate Test Results
+    needs: domain-routing-tests
+    if: always()
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 📥 Download All Reports
+        uses: actions/download-artifact@v3
+
+      - name: 📊 Generate Summary
+        run: |
+          echo "# 🔗 Domain Routing Tests Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------------|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          # ⚠️ MODO DEV: Apenas 'dev' durante desenvolvimento
+          # for env in prod staging dev; do
+          for env in dev; do
+            if [ -f "test-report-$env/test-report-$env.json" ]; then
+              FAILED=$(cat "test-report-$env/test-report-$env.json" | grep -o '"failed": [0-9]*' | grep -o '[0-9]*' || echo "0")
+              if [ "$FAILED" -eq 0 ]; then
+                echo "| $env | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "| $env | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+              fi
+            else
+              echo "| $env | ⚠️ UNKNOWN |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+      - name: 💬 Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            let comment = '## 🔗 Domain Routing Tests Results\n\n';
+            
+            // ⚠️ MODO DEV: Apenas 'dev' durante desenvolvimento
+            // const environments = ['prod', 'staging', 'dev'];
+            const environments = ['dev'];
+            for (const env of environments) {
+              const reportPath = `test-report-${env}/test-report-${env}.json`;
+              if (fs.existsSync(reportPath)) {
+                const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+                const emoji = report.summary.failed === 0 ? '✅' : '❌';
+                comment += `${emoji} **${env}**: ${report.summary.passed} passed, ${report.summary.failed} failed\n`;
+              }
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  notify-slack:
+    runs-on: ubuntu-latest
+    name: Notify Slack
+    needs: aggregate-results
+    if: failure()
+    
+    steps:
+      - name: 📢 Send Slack Notification
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "🚨 Domain Routing Tests Failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*🚨 Domain Routing Tests Failed*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

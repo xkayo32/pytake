@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  backend:
+    image: pytake_backend:latest
+    container_name: pytake-backend-dev
+    restart: unless-stopped
+    ports:
+      - "8002:8000"
+    environment:
+      ENVIRONMENT: development
+      DEBUG: "true"
+      PORT: 8000
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-pytake}:${POSTGRES_PASSWORD}@postgres-dev/${POSTGRES_DB:-pytake_dev}
+      POSTGRES_SERVER: postgres-dev
+      POSTGRES_DB: ${POSTGRES_DB:-pytake_dev}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis-dev:6379/0
+      SECRET_KEY: ${SECRET_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis-dev:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis-dev:6379/0
+      MONGODB_URL: mongodb://mongodb-dev:27017
+    volumes:
+      - ./config:/app/config:ro
+    depends_on:
+      - postgres-dev
+      - redis-dev
+      - mongodb-dev
+    networks:
+      - pytake-dev
+
+  frontend:
+    image: pytake_frontend:latest
+    container_name: pytake-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8002/api/v1
+      ENVIRONMENT: development
+    depends_on:
+      - backend
+    networks:
+      - pytake-dev
+
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: pytake-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pytake_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-pytake}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_dev:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    networks:
+      - pytake-dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pytake}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-dev:
+    image: redis:7-alpine
+    container_name: pytake-redis-dev
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_dev:/data
+    ports:
+      - "6381:6379"
+    networks:
+      - pytake-dev
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb-dev:
+    image: docker.io/mongo:7
+    container_name: pytake-mongodb-dev
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: pytake_logs
+    volumes:
+      - mongodb_dev:/data/db
+    ports:
+      - "27019:27017"
+    networks:
+      - pytake-dev
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_dev:
+    driver: local
+  redis_dev:
+    driver: local
+  mongodb_dev:
+    driver: local
+
+networks:
+  pytake-dev:
+    driver: bridge

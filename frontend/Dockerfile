@@ -1,30 +1,24 @@
-FROM node:20-alpine
+FROM node:20-alpine AS builder
 
-# Accept build arguments
-ARG NEXT_PUBLIC_API_URL=https://api.pytake.net/api/v1
-ARG DOCKER=false
-
-# Set as environment variable (crucial for Next.js build)
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-ENV DOCKER=${DOCKER}
-
-# Set working directory
 WORKDIR /app
 
-# Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+RUN npm ci --legacy-peer-deps
 
-# Copy application code
 COPY . .
 
-# Build the application (ENV var will be embedded)
 RUN npm run build
 
-# Expose port
+# Stage de produção
+FROM node:20-alpine
+
+WORKDIR /app
+
+RUN npm install -g serve
+
+COPY --from=builder /app/dist ./dist
+
 EXPOSE 3000
 
-# Start production server
-CMD ["npm", "start"]
+CMD ["serve", "-s", "dist", "-l", "3000"]

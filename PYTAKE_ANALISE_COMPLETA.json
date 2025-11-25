@@ -1,0 +1,426 @@
+{
+    "analise_completa": {
+        "projeto": "PyTake",
+        "data_analise": "2025-11-24T00:00:00Z",
+        "analista": "Kayo Carvalho Fernandes",
+        "versao": "1.0"
+    },
+    "next_pages": [
+        "Home",
+        "Login",
+        "Register",
+        "Dashboard",
+        "Dashboard/Profile",
+        "Analytics",
+        "Reports",
+        "Settings",
+        "Settings/Team",
+        "Settings/WhatsApp",
+        "Flows",
+        "Flows/Create",
+        "Flows/[id]",
+        "Automations",
+        "Automations/Create",
+        "Contacts",
+        "Contact/[id]",
+        "Conversations",
+        "Conversations/[id]",
+        "Campaigns",
+        "Campaigns/Create",
+        "Campaigns/[id]",
+        "Templates",
+        "Templates/Create",
+        "Templates/[id]",
+        "AI-Assistant",
+        "Integrations",
+        "Integrations/[erpType]",
+        "Messages/Send",
+        "WhatsApp",
+        "WhatsApp-Numbers",
+        "Demo",
+        "Pricing",
+        "Privacy",
+        "Terms",
+        "Test-WhatsApp",
+        "Test-Notifications",
+        "403 Error"
+    ],
+    "vite_pages": [
+        "Home",
+        "Login",
+        "Register",
+        "Dashboard",
+        "Flows",
+        "Flows/Edit",
+        "Templates",
+        "Contacts",
+        "Automations",
+        "Analytics",
+        "Settings",
+        "Profile"
+    ],
+    "missing_pages": [
+        "Campaigns",
+        "Campaigns/Create",
+        "Campaigns/[id]",
+        "Conversations",
+        "Conversations/[id]",
+        "Templates/Create",
+        "Templates/[id]",
+        "AI-Assistant",
+        "Reports",
+        "Messages/Send",
+        "Integrations",
+        "Integrations/[erpType]"
+    ],
+    "endpoints": {
+        "auth": {
+            "path": "/auth",
+            "total": 4,
+            "endpoints": [
+                {
+                    "method": "POST",
+                    "path": "/register",
+                    "description": "Register new user and organization"
+                },
+                {
+                    "method": "POST",
+                    "path": "/login",
+                    "description": "User login with email/password"
+                },
+                {
+                    "method": "POST",
+                    "path": "/refresh-token",
+                    "description": "Refresh JWT token"
+                },
+                {
+                    "method": "POST",
+                    "path": "/logout",
+                    "description": "User logout"
+                }
+            ]
+        },
+        "organizations": {
+            "path": "/organizations",
+            "total": 7,
+            "endpoints": [
+                "GET / (list)",
+                "POST / (create)",
+                "GET /{org_id}",
+                "PUT /{org_id}",
+                "DELETE /{org_id}",
+                "GET /{org_id}/stats",
+                "POST /{org_id}/invite"
+            ]
+        },
+        "users": {
+            "path": "/users",
+            "total": 10,
+            "endpoints": [
+                "GET / (list)",
+                "POST / (create)",
+                "GET /{user_id}",
+                "PUT /{user_id}",
+                "DELETE /{user_id}",
+                "GET /me",
+                "PUT /me",
+                "GET /{user_id}/skills",
+                "POST /{user_id}/skills",
+                "DELETE /{user_id}/skills/{skill_id}"
+            ]
+        },
+        "contacts": {
+            "path": "/contacts",
+            "total": 19,
+            "endpoints": [
+                "GET /stats",
+                "GET / (list)",
+                "POST / (create)",
+                "GET /{contact_id}",
+                "GET /{contact_id}/stats",
+                "PUT /{contact_id}",
+                "DELETE /{contact_id}",
+                "POST /{contact_id}/block",
+                "POST /{contact_id}/unblock",
+                "POST /{contact_id}/vip",
+                "DELETE /{contact_id}/vip",
+                "PUT /{contact_id}/tags",
+                "POST /{contact_id}/tags",
+                "DELETE /{contact_id}/tags",
+                "GET /tags/",
+                "POST /tags/",
+                "GET /tags/{tag_id}",
+                "PUT /tags/{tag_id}",
+                "DELETE /tags/{tag_id}"
+            ]
+        },
+        "conversations": {
+            "path": "/conversations",
+            "total": 12,
+            "endpoints": [
+                "GET / (list)",
+                "POST / (create)",
+                "GET /metrics",
+                "GET /{conversation_id}",
+                "PUT /{conversation_id}",
+                "GET /{conversation_id}/messages",
+                "POST /{conversation_id}/messages",
+                "POST /{conversation_id}/read",
+                "POST /{conversation_id}/assign",
+                "POST /{conversation_id}/transfer",
+                "POST /{conversation_id}/close",
+                "GET /sla-alerts"
+            ]
+        },
+        "departments": {
+            "path": "/departments",
+            "total": 9,
+            "endpoints": [
+                "GET / (list)",
+                "GET /active",
+                "GET /stats",
+                "POST / (create)",
+                "GET /{department_id}",
+                "PUT /{department_id}",
+                "DELETE /{department_id}",
+                "POST /{department_id}/agents/{agent_id}",
+                "DELETE /{department_id}/agents/{agent_id}"
+            ]
+        },
+        "queues": {
+            "path": "/queues",
+            "total": 8,
+            "endpoints": [
+                "POST / (create)",
+                "GET / (list)",
+                "GET /{queue_id}",
+                "PUT /{queue_id}",
+                "DELETE /{queue_id}",
+                "POST /bulk-delete",
+                "GET /by-slug/{slug}",
+                "GET /{queue_id}/metrics"
+            ]
+        },
+        "whatsapp": {
+            "path": "/whatsapp",
+            "total": 13,
+            "endpoints": [
+                "GET / (list numbers)",
+                "POST / (add number)",
+                "GET /{number_id}",
+                "PUT /{number_id}",
+                "DELETE /{number_id}",
+                "GET /{number_id}/templates",
+                "POST /{number_id}/templates",
+                "GET /{number_id}/templates/local",
+                "GET /{number_id}/templates/{template_id}",
+                "PUT /{number_id}/templates/{template_id}",
+                "DELETE /{number_id}/templates/{template_id}",
+                "POST /{number_id}/templates/{template_id}/submit",
+                "POST /webhook"
+            ]
+        },
+        "chatbots": {
+            "path": "/chatbots",
+            "total": 20,
+            "endpoints": [
+                "POST / (create)",
+                "GET / (list)",
+                "GET /{chatbot_id}",
+                "PUT /{chatbot_id}",
+                "DELETE /{chatbot_id}",
+                "GET /{chatbot_id}/stats",
+                "POST /{chatbot_id}/activate",
+                "POST /{chatbot_id}/deactivate",
+                "GET /{chatbot_id}/flows",
+                "POST /{chatbot_id}/flows",
+                "GET /{chatbot_id}/flows/{flow_id}",
+                "PATCH /{chatbot_id}/flows/{flow_id}",
+                "DELETE /{chatbot_id}/flows/{flow_id}",
+                "GET /{chatbot_id}/flows/{flow_id}/full",
+                "GET /{chatbot_id}/flows/{flow_id}/export",
+                "POST /{chatbot_id}/import",
+                "POST /{chatbot_id}/flows/{flow_id}/nodes",
+                "GET /{chatbot_id}/flows/{flow_id}/nodes",
+                "PATCH /{chatbot_id}/flows/{flow_id}/nodes/{node_id}",
+                "DELETE /{chatbot_id}/flows/{flow_id}/nodes/{node_id}"
+            ]
+        },
+        "campaigns": {
+            "path": "/campaigns",
+            "total": 10,
+            "endpoints": [
+                {
+                    "method": "POST",
+                    "path": "/",
+                    "description": "Create campaign"
+                },
+                {
+                    "method": "GET",
+                    "path": "/",
+                    "description": "List campaigns"
+                },
+                {
+                    "method": "GET",
+                    "path": "/{campaign_id}",
+                    "description": "Get campaign details"
+                },
+                {
+                    "method": "GET",
+                    "path": "/{campaign_id}/stats",
+                    "description": "Get campaign statistics"
+                },
+                {
+                    "method": "PUT",
+                    "path": "/{campaign_id}",
+                    "description": "Update campaign"
+                },
+                {
+                    "method": "DELETE",
+                    "path": "/{campaign_id}",
+                    "description": "Delete campaign"
+                },
+                {
+                    "method": "POST",
+                    "path": "/{campaign_id}/start",
+                    "description": "Start campaign"
+                },
+                {
+                    "method": "POST",
+                    "path": "/{campaign_id}/pause",
+                    "description": "Pause campaign"
+                },
+                {
+                    "method": "POST",
+                    "path": "/{campaign_id}/resume",
+                    "description": "Resume campaign"
+                },
+                {
+                    "method": "POST",
+                    "path": "/{campaign_id}/cancel",
+                    "description": "Cancel campaign"
+                }
+            ]
+        },
+        "analytics": {
+            "path": "/analytics",
+            "total": 9,
+            "endpoints": [
+                "GET /overview",
+                "GET /conversations",
+                "GET /agents",
+                "GET /campaigns",
+                "GET /contacts",
+                "GET /chatbots",
+                "GET /messages",
+                "GET /reports/full",
+                "GET /timeseries"
+            ]
+        },
+        "ai_assistant": {
+            "path": "/ai-assistant",
+            "total": 12,
+            "endpoints": [
+                "GET /models",
+                "GET /models/{id}",
+                "POST /models/custom",
+                "GET /settings",
+                "POST /settings",
+                "POST /test",
+                "POST /generate-flow",
+                "POST /suggest-improvements",
+                "GET /templates",
+                "GET /templates/{template_id}",
+                "GET /templates/search/{query}",
+                "POST /templates/{template_id}/import"
+            ]
+        },
+        "flow_automations": {
+            "path": "/flow-automations",
+            "total": 5,
+            "endpoints": [
+                "GET / (list)",
+                "POST / (create)",
+                "GET /{automation_id}",
+                "PUT /{automation_id}",
+                "DELETE /{automation_id}"
+            ]
+        },
+        "agent_skills": {
+            "path": "/users",
+            "total": 3,
+            "endpoints": [
+                "GET /{user_id}/skills",
+                "POST /{user_id}/skills",
+                "DELETE /{user_id}/skills/{skill_id}"
+            ]
+        },
+        "secrets": {
+            "path": "/secrets",
+            "total": 3,
+            "endpoints": [
+                "GET / (list)",
+                "POST / (create)",
+                "DELETE /{secret_id}"
+            ]
+        },
+        "summary": {
+            "total_modules": 15,
+            "total_endpoints": 145,
+            "status": "100% COMPLETO"
+        }
+    },
+    "observations": {
+        "resumo": "PyTake tem backend completo (145+ endpoints) mas frontend incompleto (12 de 38 páginas). Todas as páginas faltando têm endpoints backend prontos.",
+        "status_geral": "MIGRAÇÃO PARCIAL DE NEXT.JS PARA VITE",
+        "impacto": "CRÍTICO - Campanhas e Conversas são funcionalidades core que faltam",
+        "riscos_tecnicos": "NENHUM - Tudo foi pré-planejado e tem suporte técnico completo",
+        "bloqueadores": "NENHUM - Backend está 100% funcional",
+        "proximos_passos": [
+            "1. Implementar páginas de Campanhas (prioridade máxima)",
+            "2. Implementar páginas de Conversas (prioridade alta)",
+            "3. Implementar AI Assistant (diferencial competitivo)",
+            "4. Implementar Templates detail/create",
+            "5. Implementar Relatórios"
+        ],
+        "timeline_realista": "4-6 semanas com 1 desenvolvedor",
+        "esforço_total": "82-100 horas",
+        "complexidade_media": "⭐⭐ Média",
+        "padrão_implementacao": "Consistente - reutilizar código existente, seguir UI patterns, usar componentes já prontos"
+    },
+    "arquivos_gerados": {
+        "ANALISE_ESTRUTURA_FRONTEND.md": "Análise detalhada com todas as páginas Next.js original vs Vite atual",
+        "ANALISE_ESTRUTURA_FRONTEND.json": "Estrutura completa em formato JSON",
+        "ROADMAP_IMPLEMENTACAO_FRONTEND.md": "Roadmap com checklist para cada página",
+        "QUICK_START_IMPLEMENTACAO.md": "Guia copy-paste para começar",
+        "ANALISE_RESUMO.json": "Resumo executivo em JSON",
+        "ANALYSIS_FINAL.md": "Análise final com visual summary",
+        "PYTAKE_ANALISE_COMPLETA.json": "Este arquivo - JSON estruturado com toda a informação"
+    },
+    "resumo_estrutura": {
+        "frontend_old": {
+            "framework": "Next.js",
+            "router": "App Router",
+            "localizacao": "frontend_old/app/",
+            "paginas_totais": 38,
+            "status": "Design/Backup"
+        },
+        "frontend_current": {
+            "framework": "Vite + React",
+            "router": "React Router (SPA)",
+            "localizacao": "frontend/src/",
+            "paginas_implementadas": 12,
+            "paginas_totais": 38,
+            "percentual_completo": "31%",
+            "status": "Em desenvolvimento"
+        },
+        "backend": {
+            "framework": "FastAPI",
+            "database": "PostgreSQL",
+            "endpoints_totais": 145,
+            "modulos": 15,
+            "status": "100% Completo",
+            "localizacao": "backend/app/api/v1/"
+        }
+    }
+}
