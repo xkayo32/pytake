@@ -3,6 +3,7 @@
 import { RoleGuard } from '@/lib/auth/roleGuard';
 import { AdminSidebar } from '@/components/layouts/AdminSidebar';
 import { Header } from '@/components/layouts/Header';
+import { MobileSidebar } from '@/components/layouts/MobileSidebar';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -40,20 +41,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <AdminSidebar />
           </div>
 
-          {/* Mobile Sidebar Overlay (será implementado na próxima fase) */}
-          {mobileMenuOpen && (
-            <div
-              className="fixed inset-0 z-40 bg-black bg-opacity-50 md:hidden"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <div
-                className="w-64 h-full bg-white dark:bg-dark-bg-primary"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <AdminSidebar />
-              </div>
-            </div>
-          )}
+          {/* Mobile Sidebar with smooth animations */}
+          <MobileSidebar
+            isOpen={mobileMenuOpen}
+            onClose={() => setMobileMenuOpen(false)}
+            side="left"
+          >
+            <AdminSidebar />
+          </MobileSidebar>
 
           {/* Main Content */}
           <div className="flex flex-col flex-1 overflow-hidden">
