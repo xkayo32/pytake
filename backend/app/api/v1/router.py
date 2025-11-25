@@ -221,6 +221,9 @@ api_router.include_router(campaigns.router, prefix="/campaigns", tags=["Campaign
 analytics = _load_endpoint_module("analytics")
 api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 
+dashboard = _load_endpoint_module("dashboard")
+api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
+
 flow_automations = _load_endpoint_module("flow_automations")
 api_router.include_router(flow_automations.router, prefix="/flow-automations", tags=["Flow Automations"])
 

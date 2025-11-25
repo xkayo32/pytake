@@ -1,399 +1,383 @@
 {
-  "project": "PyTake Frontend Migration (Next.js → Vite + React 19)",
-  "date": "2025-11-24",
-  "author": "Kayo Carvalho Fernandes",
-  "status": "🟡 Planning Complete - Ready for Implementation",
-  "version": "1.0",
-  
-  "overview": {
-    "backend": {
-      "status": "✅ 100% Complete",
-      "endpoints": 145,
-      "modules": 15,
-      "blockers": 0
-    },
-    "frontend": {
-      "status": "🟡 31% Complete",
-      "pages_total": 38,
-      "pages_done": 12,
-      "pages_missing": 26,
-      "critical_missing": 7,
-      "important_missing": 11,
-      "secondary_missing": 8
-    },
-    "infrastructure": {
-      "status": "✅ 100% Operational",
-      "containers": 6,
-      "health": "All Healthy",
-      "cors_fixed": true,
-      "websocket": true
-    }
-  },
-
-  "pages_status": {
-    "complete": [
-      "Home",
-      "Login",
-      "Register",
-      "Dashboard (basic)",
-      "Profile",
-      "Flows (basic)",
-      "Flows Edit",
-      "Templates (basic)",
-      "Contacts (basic)",
-      "Automations (basic)",
-      "Analytics (basic)",
-      "Settings (basic)"
-    ],
-    "critical_missing": [
-      "Conversations (list + detail)",
-      "Templates Create",
-      "Templates Edit",
-      "Campaigns (list)",
-      "Campaigns Create",
-      "Campaigns Edit",
-      "Campaigns Execution History"
-    ],
-    "important_missing": [
-      "Contacts Enhanced (import/export)",
-      "Flows Enhanced (modals + logs)",
-      "Dashboard Enhanced (charts + real-time)",
-      "Settings - Team",
-      "Settings - WhatsApp",
-      "Settings - Webhooks",
-      "AI Assistant",
-      "Integrations",
-      "Integrations Detail",
-      "Reports",
-      "API Documentation"
-    ],
-    "secondary": [
-      "Messages Send",
-      "Profile Detail",
-      "Error Pages (403, 404, 500)",
-      "Pricing",
-      "Demo",
-      "Privacy",
-      "Terms",
-      "Changelog"
-    ]
-  },
-
-  "priorities": {
-    "week_1": {
-      "label": "Critical Path (Must Have)",
-      "days": 5,
-      "tasks": [
-        {
-          "id": "TASK-001",
-          "name": "Conversations (list + detail + WebSocket)",
-          "days": "2-3",
-          "priority": "🔴 MÁXIMA",
-          "impact": "Core Business",
-          "backend_ready": true,
-          "new_files": [
-            "conversations.tsx",
-            "ConversationList.tsx",
-            "ConversationDetail.tsx",
-            "MessageComposer.tsx",
-            "ContactSidebar.tsx"
-          ]
+    "project": "PyTake Frontend Migration (Next.js → Vite + React 19)",
+    "date": "2025-11-24",
+    "author": "Kayo Carvalho Fernandes",
+    "status": "🟡 Planning Complete - Ready for Implementation",
+    "version": "1.0",
+    "overview": {
+        "backend": {
+            "status": "✅ 100% Complete",
+            "endpoints": 145,
+            "modules": 15,
+            "blockers": 0
         },
-        {
-          "id": "TASK-002",
-          "name": "Templates (create + edit pages with editor)",
-          "days": "2-3",
-          "priority": "🔴 MÁXIMA",
-          "impact": "Core Business",
-          "backend_ready": true,
-          "new_files": [
-            "templates/create.tsx",
-            "templates/[id].tsx",
-            "TemplateForm.tsx",
-            "TemplateEditor.tsx",
-            "TemplatePreview.tsx"
-          ]
+        "frontend": {
+            "status": "🟡 31% Complete",
+            "pages_total": 38,
+            "pages_done": 12,
+            "pages_missing": 26,
+            "critical_missing": 7,
+            "important_missing": 11,
+            "secondary_missing": 8
         },
-        {
-          "id": "TASK-003",
-          "name": "Campaigns (list + wizard CRUD)",
-          "days": "2-3",
-          "priority": "🔴 MÁXIMA",
-          "impact": "Revenue Driver",
-          "backend_ready": true,
-          "new_files": [
-            "campaigns.tsx",
-            "campaigns/create.tsx",
-            "campaigns/[id].tsx",
-            "CampaignWizard.tsx",
-            "CampaignScheduler.tsx"
-          ]
+        "infrastructure": {
+            "status": "✅ 100% Operational",
+            "containers": 6,
+            "health": "All Healthy",
+            "cors_fixed": true,
+            "websocket": true
         }
-      ]
     },
-    "week_2": {
-      "label": "Important Features (Should Have)",
-      "days": 8,
-      "tasks": [
-        {
-          "id": "TASK-004",
-          "name": "Contacts Enhanced (import/export)",
-          "days": "2",
-          "priority": "🟡 ALTA",
-          "backend_ready": true
+    "pages_status": {
+        "complete": [
+            "Home",
+            "Login",
+            "Register",
+            "Dashboard (basic)",
+            "Profile",
+            "Flows (basic)",
+            "Flows Edit",
+            "Templates (basic)",
+            "Contacts (basic)",
+            "Automations (basic)",
+            "Analytics (basic)",
+            "Settings (basic)"
+        ],
+        "critical_missing": [
+            "Conversations (list + detail)",
+            "Templates Create",
+            "Templates Edit",
+            "Campaigns (list)",
+            "Campaigns Create",
+            "Campaigns Edit",
+            "Campaigns Execution History"
+        ],
+        "important_missing": [
+            "Contacts Enhanced (import/export)",
+            "Flows Enhanced (modals + logs)",
+            "Dashboard Enhanced (charts + real-time)",
+            "Settings - Team",
+            "Settings - WhatsApp",
+            "Settings - Webhooks",
+            "AI Assistant",
+            "Integrations",
+            "Integrations Detail",
+            "Reports",
+            "API Documentation"
+        ],
+        "secondary": [
+            "Messages Send",
+            "Profile Detail",
+            "Error Pages (403, 404, 500)",
+            "Pricing",
+            "Demo",
+            "Privacy",
+            "Terms",
+            "Changelog"
+        ]
+    },
+    "priorities": {
+        "week_1": {
+            "label": "Critical Path (Must Have)",
+            "days": 5,
+            "tasks": [
+                {
+                    "id": "TASK-001",
+                    "name": "Conversations (list + detail + WebSocket)",
+                    "days": "2-3",
+                    "priority": "🔴 MÁXIMA",
+                    "impact": "Core Business",
+                    "backend_ready": true,
+                    "new_files": [
+                        "conversations.tsx",
+                        "ConversationList.tsx",
+                        "ConversationDetail.tsx",
+                        "MessageComposer.tsx",
+                        "ContactSidebar.tsx"
+                    ]
+                },
+                {
+                    "id": "TASK-002",
+                    "name": "Templates (create + edit pages with editor)",
+                    "days": "2-3",
+                    "priority": "🔴 MÁXIMA",
+                    "impact": "Core Business",
+                    "backend_ready": true,
+                    "new_files": [
+                        "templates/create.tsx",
+                        "templates/[id].tsx",
+                        "TemplateForm.tsx",
+                        "TemplateEditor.tsx",
+                        "TemplatePreview.tsx"
+                    ]
+                },
+                {
+                    "id": "TASK-003",
+                    "name": "Campaigns (list + wizard CRUD)",
+                    "days": "2-3",
+                    "priority": "🔴 MÁXIMA",
+                    "impact": "Revenue Driver",
+                    "backend_ready": true,
+                    "new_files": [
+                        "campaigns.tsx",
+                        "campaigns/create.tsx",
+                        "campaigns/[id].tsx",
+                        "CampaignWizard.tsx",
+                        "CampaignScheduler.tsx"
+                    ]
+                }
+            ]
         },
-        {
-          "id": "TASK-005",
-          "name": "Flows Enhanced (modals + logs)",
-          "days": "2",
-          "priority": "🟡 ALTA",
-          "backend_ready": true
+        "week_2": {
+            "label": "Important Features (Should Have)",
+            "days": 8,
+            "tasks": [
+                {
+                    "id": "TASK-004",
+                    "name": "Contacts Enhanced (import/export)",
+                    "days": "2",
+                    "priority": "🟡 ALTA",
+                    "backend_ready": true
+                },
+                {
+                    "id": "TASK-005",
+                    "name": "Flows Enhanced (modals + logs)",
+                    "days": "2",
+                    "priority": "🟡 ALTA",
+                    "backend_ready": true
+                },
+                {
+                    "id": "TASK-006",
+                    "name": "Dashboard Enhanced (charts + real-time)",
+                    "days": "2",
+                    "priority": "🟡 ALTA",
+                    "backend_ready": true
+                },
+                {
+                    "id": "TASK-007",
+                    "name": "Settings (team + WhatsApp + webhooks)",
+                    "days": "3",
+                    "priority": "🟡 ALTA",
+                    "backend_ready": true
+                }
+            ]
         },
-        {
-          "id": "TASK-006",
-          "name": "Dashboard Enhanced (charts + real-time)",
-          "days": "2",
-          "priority": "🟡 ALTA",
-          "backend_ready": true
+        "week_3_4": {
+            "label": "Nice to Have (Nice to Have)",
+            "days": 10,
+            "tasks": [
+                {
+                    "id": "TASK-008",
+                    "name": "AI Assistant",
+                    "days": "2",
+                    "priority": "🟢 MÉDIA",
+                    "backend_ready": true
+                },
+                {
+                    "id": "TASK-009",
+                    "name": "Integrations (list + detail)",
+                    "days": "3",
+                    "priority": "🟢 MÉDIA",
+                    "backend_ready": true
+                },
+                {
+                    "id": "TASK-010",
+                    "name": "Reports",
+                    "days": "3",
+                    "priority": "🟢 MÉDIA",
+                    "backend_ready": true
+                }
+            ]
         },
-        {
-          "id": "TASK-007",
-          "name": "Settings (team + WhatsApp + webhooks)",
-          "days": "3",
-          "priority": "🟡 ALTA",
-          "backend_ready": true
+        "week_5_6": {
+            "label": "Polish & Testing",
+            "days": 10,
+            "tasks": [
+                "Create shared components library",
+                "Setup E2E testing (Playwright/Cypress)",
+                "Add error boundaries + fallbacks",
+                "Add loading skeletons (all pages)",
+                "Performance optimization",
+                "Accessibility audit (WCAG 2.1)"
+            ]
         }
-      ]
     },
-    "week_3_4": {
-      "label": "Nice to Have (Nice to Have)",
-      "days": 10,
-      "tasks": [
-        {
-          "id": "TASK-008",
-          "name": "AI Assistant",
-          "days": "2",
-          "priority": "🟢 MÉDIA",
-          "backend_ready": true
+    "timeline": {
+        "total_days": "30-40",
+        "total_weeks": "4-6",
+        "per_developer": "1 dev",
+        "per_team": "2-3 devs = 2-3 weeks"
+    },
+    "backend_endpoints_ready": {
+        "conversations": [
+            "GET /conversations",
+            "GET /conversations/{id}",
+            "PUT /conversations/{id}/status",
+            "WebSocket /ws/conversations/{id}"
+        ],
+        "templates": [
+            "GET /templates",
+            "POST /templates",
+            "PUT /templates/{id}",
+            "DELETE /templates/{id}"
+        ],
+        "campaigns": [
+            "GET /campaigns",
+            "POST /campaigns",
+            "PUT /campaigns/{id}",
+            "DELETE /campaigns/{id}",
+            "GET /campaigns/{id}/executions"
+        ],
+        "contacts": [
+            "GET /contacts",
+            "POST /contacts",
+            "PUT /contacts/{id}",
+            "DELETE /contacts/{id}",
+            "POST /contacts/import",
+            "GET /contacts/export"
+        ],
+        "flows": [
+            "GET /flow-automations",
+            "POST /flow-automations",
+            "PUT /flow-automations/{id}",
+            "DELETE /flow-automations/{id}"
+        ],
+        "analytics": [
+            "GET /analytics/dashboard",
+            "GET /analytics/conversations",
+            "GET /analytics/campaigns",
+            "GET /analytics/contacts"
+        ],
+        "total_endpoints": "145+"
+    },
+    "technology_stack": {
+        "framework": "React 19",
+        "bundler": "Vite",
+        "language": "TypeScript",
+        "styling": "Tailwind CSS",
+        "components": "Shadcn/ui",
+        "forms": "React Hook Form",
+        "charts": "Recharts (recommend)",
+        "real_time": "WebSocket (native)",
+        "testing": "Playwright or Cypress (recommend)",
+        "date_handling": "date-fns"
+    },
+    "code_patterns_available": {
+        "pattern_1_list_page": "See: frontend/src/pages/Flows.tsx",
+        "pattern_2_form_modal": "See: frontend/src/pages/templates.tsx",
+        "pattern_3_websocket": "See: frontend/src/lib/websocket.ts",
+        "pattern_4_api_client": "See: frontend/src/lib/api.ts",
+        "pattern_5_auth": "See: frontend/src/lib/auth/roleGuard.tsx"
+    },
+    "documentation_files": {
+        "1_VITE_FRONTEND_README.md": {
+            "purpose": "This overview - how to use all docs",
+            "read_time_minutes": 10,
+            "focus": "Navigation & quick reference"
         },
-        {
-          "id": "TASK-009",
-          "name": "Integrations (list + detail)",
-          "days": "3",
-          "priority": "🟢 MÉDIA",
-          "backend_ready": true
+        "2_VITE_FRONTEND_EXECUTIVE_SUMMARY.md": {
+            "purpose": "Quick start & executive overview",
+            "read_time_minutes": 10,
+            "focus": "What's missing, how to start, roadmap"
         },
-        {
-          "id": "TASK-010",
-          "name": "Reports",
-          "days": "3",
-          "priority": "🟢 MÉDIA",
-          "backend_ready": true
+        "3_VITE_FRONTEND_MIGRATION_PLAN.md": {
+            "purpose": "Complete technical plan",
+            "read_time_minutes": 20,
+            "focus": "Detailed timeline, patterns, checklist"
+        },
+        "4_VITE_PAGES_DETAILED_ANALYSIS.md": {
+            "purpose": "Page-by-page analysis",
+            "read_time_minutes": 30,
+            "focus": "What each page needs, components required"
+        },
+        "5_FRONTEND_IMPLEMENTATION_TASKS.md": {
+            "purpose": "Actionable tasks with checkboxes",
+            "read_time_minutes": 15,
+            "focus": "Execute tasks with sub-tasks and tracking"
         }
-      ]
     },
-    "week_5_6": {
-      "label": "Polish & Testing",
-      "days": 10,
-      "tasks": [
-        "Create shared components library",
-        "Setup E2E testing (Playwright/Cypress)",
-        "Add error boundaries + fallbacks",
-        "Add loading skeletons (all pages)",
-        "Performance optimization",
-        "Accessibility audit (WCAG 2.1)"
-      ]
-    }
-  },
-
-  "timeline": {
-    "total_days": "30-40",
-    "total_weeks": "4-6",
-    "per_developer": "1 dev",
-    "per_team": "2-3 devs = 2-3 weeks"
-  },
-
-  "backend_endpoints_ready": {
-    "conversations": [
-      "GET /conversations",
-      "GET /conversations/{id}",
-      "PUT /conversations/{id}/status",
-      "WebSocket /ws/conversations/{id}"
-    ],
-    "templates": [
-      "GET /templates",
-      "POST /templates",
-      "PUT /templates/{id}",
-      "DELETE /templates/{id}"
-    ],
-    "campaigns": [
-      "GET /campaigns",
-      "POST /campaigns",
-      "PUT /campaigns/{id}",
-      "DELETE /campaigns/{id}",
-      "GET /campaigns/{id}/executions"
-    ],
-    "contacts": [
-      "GET /contacts",
-      "POST /contacts",
-      "PUT /contacts/{id}",
-      "DELETE /contacts/{id}",
-      "POST /contacts/import",
-      "GET /contacts/export"
-    ],
-    "flows": [
-      "GET /flow-automations",
-      "POST /flow-automations",
-      "PUT /flow-automations/{id}",
-      "DELETE /flow-automations/{id}"
-    ],
-    "analytics": [
-      "GET /analytics/dashboard",
-      "GET /analytics/conversations",
-      "GET /analytics/campaigns",
-      "GET /analytics/contacts"
-    ],
-    "total_endpoints": "145+"
-  },
-
-  "technology_stack": {
-    "framework": "React 19",
-    "bundler": "Vite",
-    "language": "TypeScript",
-    "styling": "Tailwind CSS",
-    "components": "Shadcn/ui",
-    "forms": "React Hook Form",
-    "charts": "Recharts (recommend)",
-    "real_time": "WebSocket (native)",
-    "testing": "Playwright or Cypress (recommend)",
-    "date_handling": "date-fns"
-  },
-
-  "code_patterns_available": {
-    "pattern_1_list_page": "See: frontend/src/pages/Flows.tsx",
-    "pattern_2_form_modal": "See: frontend/src/pages/templates.tsx",
-    "pattern_3_websocket": "See: frontend/src/lib/websocket.ts",
-    "pattern_4_api_client": "See: frontend/src/lib/api.ts",
-    "pattern_5_auth": "See: frontend/src/lib/auth/roleGuard.tsx"
-  },
-
-  "documentation_files": {
-    "1_VITE_FRONTEND_README.md": {
-      "purpose": "This overview - how to use all docs",
-      "read_time_minutes": 10,
-      "focus": "Navigation & quick reference"
+    "quick_start": {
+        "step_1": "Read VITE_FRONTEND_EXECUTIVE_SUMMARY.md (10 min)",
+        "step_2": "Read FRONTEND_IMPLEMENTATION_TASKS.md (10 min)",
+        "step_3": "Review frontend/src/pages/Flows.tsx (15 min)",
+        "step_4": "Create branch: feature/TASK-001-conversations",
+        "step_5": "Start implementing TASK 1",
+        "step_6": "Make first PR to develop",
+        "total_time": "45 minutes to first PR"
     },
-    "2_VITE_FRONTEND_EXECUTIVE_SUMMARY.md": {
-      "purpose": "Quick start & executive overview",
-      "read_time_minutes": 10,
-      "focus": "What's missing, how to start, roadmap"
+    "success_criteria": [
+        "✅ Conversations list loads from API",
+        "✅ Can filter/search conversations",
+        "✅ Can open detail drawer/modal",
+        "✅ WebSocket real-time updates working",
+        "✅ Can update conversation status (resolve/assign)",
+        "✅ PR passes CI/CD (test + build)",
+        "✅ Code review approved",
+        "✅ Merged to develop (not main)"
+    ],
+    "common_mistakes_avoid": [
+        "❌ Not using getApiUrl() - always use this!",
+        "❌ Not using getAuthHeaders() - always include!",
+        "❌ No error handling - add try/catch",
+        "❌ No loading states - add skeleton/spinner",
+        "❌ Forgetting pagination - breaks with large data",
+        "❌ Not testing mobile - test all screen sizes",
+        "❌ Wrong endpoint - check backend router first",
+        "❌ Committing to main - always use feature branch"
+    ],
+    "reference_code": {
+        "api_pattern": "frontend/src/lib/api.ts - getApiUrl() & getAuthHeaders()",
+        "list_pattern": "frontend/src/pages/Flows.tsx - Complete example",
+        "form_pattern": "frontend/src/pages/templates.tsx - Form with validation",
+        "websocket_pattern": "frontend/src/lib/websocket.ts - Real-time connection",
+        "auth_pattern": "frontend/src/lib/auth/roleGuard.tsx - Protected routes"
     },
-    "3_VITE_FRONTEND_MIGRATION_PLAN.md": {
-      "purpose": "Complete technical plan",
-      "read_time_minutes": 20,
-      "focus": "Detailed timeline, patterns, checklist"
+    "blockers": {
+        "technical": [],
+        "dependencies": [],
+        "backend": "None - all 145+ endpoints ready",
+        "ui_components": "None - Shadcn/ui complete"
     },
-    "4_VITE_PAGES_DETAILED_ANALYSIS.md": {
-      "purpose": "Page-by-page analysis",
-      "read_time_minutes": 30,
-      "focus": "What each page needs, components required"
+    "recommendations": {
+        "start_with": "Conversations (most complex - good for learning)",
+        "then": "Templates (form pattern)",
+        "then": "Campaigns (wizard pattern)",
+        "parallel_tasks": "Shared components + setup testing",
+        "avoid_parallelizing": "UI state management - do sequentially"
     },
-    "5_FRONTEND_IMPLEMENTATION_TASKS.md": {
-      "purpose": "Actionable tasks with checkboxes",
-      "read_time_minutes": 15,
-      "focus": "Execute tasks with sub-tasks and tracking"
-    }
-  },
-
-  "quick_start": {
-    "step_1": "Read VITE_FRONTEND_EXECUTIVE_SUMMARY.md (10 min)",
-    "step_2": "Read FRONTEND_IMPLEMENTATION_TASKS.md (10 min)",
-    "step_3": "Review frontend/src/pages/Flows.tsx (15 min)",
-    "step_4": "Create branch: feature/TASK-001-conversations",
-    "step_5": "Start implementing TASK 1",
-    "step_6": "Make first PR to develop",
-    "total_time": "45 minutes to first PR"
-  },
-
-  "success_criteria": [
-    "✅ Conversations list loads from API",
-    "✅ Can filter/search conversations",
-    "✅ Can open detail drawer/modal",
-    "✅ WebSocket real-time updates working",
-    "✅ Can update conversation status (resolve/assign)",
-    "✅ PR passes CI/CD (test + build)",
-    "✅ Code review approved",
-    "✅ Merged to develop (not main)"
-  ],
-
-  "common_mistakes_avoid": [
-    "❌ Not using getApiUrl() - always use this!",
-    "❌ Not using getAuthHeaders() - always include!",
-    "❌ No error handling - add try/catch",
-    "❌ No loading states - add skeleton/spinner",
-    "❌ Forgetting pagination - breaks with large data",
-    "❌ Not testing mobile - test all screen sizes",
-    "❌ Wrong endpoint - check backend router first",
-    "❌ Committing to main - always use feature branch"
-  ],
-
-  "reference_code": {
-    "api_pattern": "frontend/src/lib/api.ts - getApiUrl() & getAuthHeaders()",
-    "list_pattern": "frontend/src/pages/Flows.tsx - Complete example",
-    "form_pattern": "frontend/src/pages/templates.tsx - Form with validation",
-    "websocket_pattern": "frontend/src/lib/websocket.ts - Real-time connection",
-    "auth_pattern": "frontend/src/lib/auth/roleGuard.tsx - Protected routes"
-  },
-
-  "blockers": {
-    "technical": [],
-    "dependencies": [],
-    "backend": "None - all 145+ endpoints ready",
-    "ui_components": "None - Shadcn/ui complete"
-  },
-
-  "recommendations": {
-    "start_with": "Conversations (most complex - good for learning)",
-    "then": "Templates (form pattern)",
-    "then": "Campaigns (wizard pattern)",
-    "parallel_tasks": "Shared components + setup testing",
-    "avoid_parallelizing": "UI state management - do sequentially"
-  },
-
-  "improvements_beyond_next_js": [
-    "Add error boundaries (not in original)",
-    "Add loading skeletons (not in original)",
-    "Add real-time WebSocket (expand from original)",
-    "Add data export/import (enhance from original)",
-    "Add accessibility audit (WCAG 2.1)",
-    "Add E2E testing suite",
-    "Implement caching strategy (React Query or SWR)"
-  ],
-
-  "deployment_notes": {
-    "development": "podman compose up -d && npm run dev",
-    "build": "npm run build",
-    "test": "playwright test or cypress run",
-    "frontend_port": 3001,
-    "backend_port": 8000,
-    "api_url": "https://api-dev.pytake.net"
-  },
-
-  "git_workflow": {
-    "branch_pattern": "feature/TASK-XXX-description",
-    "base_branch": "develop (NOT main)",
-    "commit_format": "feat: description | Author: Kayo Carvalho Fernandes",
-    "pr_base": "develop",
-    "required_checks": ["test.yml", "build.yml"]
-  },
-
-  "contact_info": {
-    "maintainer": "Kayo Carvalho Fernandes",
-    "questions": "Check VITE_PAGES_DETAILED_ANALYSIS.md for detailed answers",
-    "help": "Review code patterns in VITE_FRONTEND_MIGRATION_PLAN.md"
-  },
-
-  "generated_date": "2025-11-24T00:00:00Z",
-  "version": "1.0",
-  "status": "🟢 Ready for Implementation"
+    "improvements_beyond_next_js": [
+        "Add error boundaries (not in original)",
+        "Add loading skeletons (not in original)",
+        "Add real-time WebSocket (expand from original)",
+        "Add data export/import (enhance from original)",
+        "Add accessibility audit (WCAG 2.1)",
+        "Add E2E testing suite",
+        "Implement caching strategy (React Query or SWR)"
+    ],
+    "deployment_notes": {
+        "development": "podman compose up -d && npm run dev",
+        "build": "npm run build",
+        "test": "playwright test or cypress run",
+        "frontend_port": 3001,
+        "backend_port": 8000,
+        "api_url": "https://api-dev.pytake.net"
+    },
+    "git_workflow": {
+        "branch_pattern": "feature/TASK-XXX-description",
+        "base_branch": "develop (NOT main)",
+        "commit_format": "feat: description | Author: Kayo Carvalho Fernandes",
+        "pr_base": "develop",
+        "required_checks": [
+            "test.yml",
+            "build.yml"
+        ]
+    },
+    "contact_info": {
+        "maintainer": "Kayo Carvalho Fernandes",
+        "questions": "Check VITE_PAGES_DETAILED_ANALYSIS.md for detailed answers",
+        "help": "Review code patterns in VITE_FRONTEND_MIGRATION_PLAN.md"
+    },
+    "generated_date": "2025-11-24T00:00:00Z",
+    "version": "1.0",
+    "status": "🟢 Ready for Implementation"
 }

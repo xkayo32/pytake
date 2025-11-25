@@ -1,314 +1,183 @@
-import { useEffect, useState } from 'react'
-import { Plus, Edit2, Trash2, Search, Shield, Mail, CheckCircle, AlertCircle } from 'lucide-react'
+import { useState } from 'react'
+import { Users, Plus, Search, MoreVertical, Edit2, Trash2, Shield } from 'lucide-react'
 import { Button } from '@components/ui/button'
-import { Badge } from '@components/ui/badge'
-import { getApiUrl, getAuthHeaders } from '@lib/api'
+import { Input } from '@components/ui/input'
 
-export default function UserManagement() {
-  const [users, setUsers] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [editingUser, setEditingUser] = useState<any>(null)
-  const [formData, setFormData] = useState({ name: '', email: '', role: 'agent' })
-  const [submitting, setSubmitting] = useState(false)
+interface User {
+  id: string
+  name: string
+  email: string
+  role: string
+  status: 'active' | 'inactive'
+  joinedDate: string
+  avatar: string
+}
 
-  // Fetch users
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        setLoading(true)
-        const response = await fetch(`${getApiUrl()}/api/v1/users`, {
-          headers: getAuthHeaders(),
-        })
-        if (!response.ok) throw new Error('Falha ao carregar usuários')
-        const data = await response.json()
-        setUsers(data.data || data)
-        setError(null)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao carregar usuários')
-      } finally {
-        setLoading(false)
-      }
+export default function UsersList() {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedRole, setSelectedRole] = useState('all')
+
+  const users: User[] = [
+    {
+      id: '1',
+      name: 'João Silva',
+      email: 'joao@empresa.com',
+      role: 'super_admin',
+      status: 'active',
+      joinedDate: '01/01/2024',
+      avatar: 'JS',
+    },
+    {
+      id: '2',
+      name: 'Maria Santos',
+      email: 'maria@empresa.com',
+      role: 'org_admin',
+      status: 'active',
+      joinedDate: '15/02/2024',
+      avatar: 'MS',
+    },
+    {
+      id: '3',
+      name: 'Carlos Oliveira',
+      email: 'carlos@empresa.com',
+      role: 'agent',
+      status: 'active',
+      joinedDate: '20/03/2024',
+      avatar: 'CO',
+    },
+    {
+      id: '4',
+      name: 'Ana Costa',
+      email: 'ana@empresa.com',
+      role: 'viewer',
+      status: 'inactive',
+      joinedDate: '10/04/2024',
+      avatar: 'AC',
+    },
+  ]
+
+  const getRoleColor = (role: string) => {
+    const colors: { [key: string]: string } = {
+      super_admin: 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400',
+      org_admin: 'bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-400',
+      agent: 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400',
+      viewer: 'bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400',
     }
-
-    fetchUsers()
-  }, [])
-
-  // Add/Edit user
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!formData.name || !formData.email) {
-      setError('Nome e email são obrigatórios')
-      return
-    }
-
-    try {
-      setSubmitting(true)
-      const method = editingUser ? 'PUT' : 'POST'
-      const url = editingUser
-        ? `${getApiUrl()}/api/v1/users/${editingUser.id}`
-        : `${getApiUrl()}/api/v1/users`
-
-      const response = await fetch(url, {
-        method,
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      })
-
-      if (!response.ok) throw new Error('Erro ao salvar usuário')
-
-      // Refresh list
-      const listResponse = await fetch(`${getApiUrl()}/api/v1/users`, {
-        headers: getAuthHeaders(),
-      })
-      const data = await listResponse.json()
-      setUsers(data.data || data)
-
-      setShowForm(false)
-      setEditingUser(null)
-      setFormData({ name: '', email: '', role: 'agent' })
-      setError(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao salvar usuário')
-    } finally {
-      setSubmitting(false)
-    }
+    return colors[role] || colors.viewer
   }
 
-  // Delete user
-  const handleDelete = async (userId: string) => {
-    if (!window.confirm('Tem certeza que deseja deletar este usuário?')) return
-
-    try {
-      const response = await fetch(`${getApiUrl()}/api/v1/users/${userId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      })
-
-      if (!response.ok) throw new Error('Erro ao deletar usuário')
-
-      // Remove from list
-      setUsers(users.filter(u => u.id !== userId))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao deletar usuário')
+  const getRoleLabel = (role: string) => {
+    const labels: { [key: string]: string } = {
+      super_admin: 'Super Admin',
+      org_admin: 'Admin Org',
+      agent: 'Agente',
+      viewer: 'Visualizador',
     }
+    return labels[role] || role
   }
 
-  const handleEdit = (user: any) => {
-    setEditingUser(user)
-    setFormData({ name: user.name, email: user.email, role: user.role })
-    setShowForm(true)
-  }
-
-  const handleCancel = () => {
-    setShowForm(false)
-    setEditingUser(null)
-    setFormData({ name: '', email: '', role: 'agent' })
-  }
-
-  const filteredUsers = users.filter(u =>
-    u.name.toLowerCase().includes(search.toLowerCase()) ||
-    u.email.toLowerCase().includes(search.toLowerCase())
-  )
-
-  const getRoleBadge = (role: string) => {
-    const roleConfig = {
-      super_admin: { label: 'Super Admin', color: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' },
-      org_admin: { label: 'Admin', color: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300' },
-      agent: { label: 'Agente', color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' },
-      viewer: { label: 'Visualizador', color: 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-300' },
-    }
-    const config = roleConfig[role as keyof typeof roleConfig] || roleConfig.agent
-    return <Badge className={config.color}>{config.label}</Badge>
-  }
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesRole = selectedRole === 'all' || user.role === selectedRole
+    return matchesSearch && matchesRole
+  })
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-4 md:p-8">
-      {/* Header */}
-      <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-2">
-            Gerenciamento de Usuários
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400">
-            Controle de acesso e permissões da equipe
-          </p>
-        </div>
-        {!showForm && (
-          <Button
-            onClick={() => setShowForm(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="section-title flex items-center gap-3">
+              <Users className="w-8 h-8 text-primary" />
+              Usuários
+            </h1>
+            <p className="section-subtitle">Gerencie usuários e suas permissões</p>
+          </div>
+          <Button className="btn-primary gap-2">
+            <Plus className="w-5 h-5" />
             Novo Usuário
           </Button>
-        )}
-      </div>
-
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-          <p className="text-red-800 dark:text-red-400">{error}</p>
         </div>
-      )}
 
-      {/* Form */}
-      {showForm && (
-        <div className="mb-8 bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-            {editingUser ? 'Editar Usuário' : 'Novo Usuário'}
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Nome
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
-                  placeholder="Nome completo"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
-                  placeholder="usuario@exemplo.com"
-                />
-              </div>
+        {/* Filters */}
+        <div className="card-interactive mb-8">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Buscar por nome ou email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Função
-              </label>
-              <select
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
-              >
-                <option value="viewer">Visualizador</option>
-                <option value="agent">Agente</option>
-                <option value="org_admin">Admin</option>
-                <option value="super_admin">Super Admin</option>
-              </select>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                type="submit"
-                disabled={submitting}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                {submitting ? 'Salvando...' : editingUser ? 'Atualizar' : 'Criar'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancel}
-                disabled={submitting}
-              >
-                Cancelar
-              </Button>
-            </div>
-          </form>
+            <select
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value)}
+              className="px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary"
+            >
+              <option value="all">Todos os Papéis</option>
+              <option value="super_admin">Super Admin</option>
+              <option value="org_admin">Admin Org</option>
+              <option value="agent">Agente</option>
+              <option value="viewer">Visualizador</option>
+            </select>
+          </div>
         </div>
-      )}
 
-      {/* Search */}
-      <div className="mb-6 relative">
-        <Search className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Buscar por nome ou email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-        />
-      </div>
-
-      {/* Users List */}
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-16 bg-white dark:bg-slate-800 rounded-lg animate-pulse" />
-          ))}
-        </div>
-      ) : filteredUsers.length > 0 ? (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+        {/* Table */}
+        <div className="card-interactive overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">
-                    Usuário
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">
-                    Função
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900 dark:text-white">
-                    Ações
-                  </th>
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-4 px-6 font-semibold">Usuário</th>
+                  <th className="text-left py-4 px-6 font-semibold">Email</th>
+                  <th className="text-left py-4 px-6 font-semibold">Papel</th>
+                  <th className="text-left py-4 px-6 font-semibold">Data Entrada</th>
+                  <th className="text-left py-4 px-6 font-semibold">Status</th>
+                  <th className="text-left py-4 px-6 font-semibold">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+              <tbody>
                 {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-slate-900 dark:text-white">{user.name}</p>
-                    </td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                      <Mail className="w-4 h-4" />
-                      {user.email}
-                    </td>
-                    <td className="px-6 py-4">
-                      {getRoleBadge(user.role)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        {user.is_active ? (
-                          <Badge className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">
-                            Ativo
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline">Inativo</Badge>
-                        )}
+                  <tr key={user.id} className="border-b border-border/50 hover:bg-secondary/20 transition-colors">
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-white text-sm font-semibold">
+                          {user.avatar}
+                        </div>
+                        <p className="font-medium">{user.name}</p>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(user)}
-                          className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(user.id)}
-                          className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                    <td className="py-4 px-6 text-muted-foreground text-sm">{user.email}</td>
+                    <td className="py-4 px-6">
+                      <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
+                        <Shield className="w-3 h-3" />
+                        {getRoleLabel(user.role)}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-sm text-muted-foreground">{user.joinedDate}</td>
+                    <td className="py-4 px-6">
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                        user.status === 'active'
+                          ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400'
+                          : 'bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400'
+                      }`}>
+                        {user.status === 'active' ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-2">
+                        <button className="p-2 hover:bg-secondary/50 rounded-lg transition-colors">
+                          <Edit2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        </button>
+                        <button className="p-2 hover:bg-secondary/50 rounded-lg transition-colors">
+                          <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -316,15 +185,15 @@ export default function UserManagement() {
               </tbody>
             </table>
           </div>
+
+          {filteredUsers.length === 0 && (
+            <div className="py-12 text-center">
+              <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-muted-foreground">Nenhum usuário encontrado</p>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-          <Shield className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-          <p className="text-slate-600 dark:text-slate-400">
-            {search ? 'Nenhum usuário encontrado' : 'Nenhum usuário cadastrado'}
-          </p>
-        </div>
-      )}
+      </div>
     </div>
   )
 }

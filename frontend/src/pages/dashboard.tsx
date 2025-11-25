@@ -1,8 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Activity, Users, MessageSquare, TrendingUp, ArrowRight, AlertCircle } from 'lucide-react'
+import { Activity, MessageSquare, Users, TrendingUp, ArrowUpRight, ArrowDownRight, AlertCircle } from 'lucide-react'
 import { Button } from '@components/ui/button'
-import { Badge } from '@components/ui/badge'
 import { getApiUrl, getAuthHeaders } from '@lib/api'
+
+interface KPICard {
+  title: string
+  value: string | number
+  change: number
+  icon: React.ReactNode
+  color: string
+}
 
 export default function Dashboard() {
   const [summary, setSummary] = useState<any>(null)
@@ -30,273 +37,184 @@ export default function Dashboard() {
     fetchSummary()
   }, [])
 
+  const kpis: KPICard[] = [
+    {
+      title: 'Total de Conversas',
+      value: summary?.total_conversations || 0,
+      change: 12.5,
+      icon: <MessageSquare className="w-8 h-8" />,
+      color: 'from-blue-500 to-blue-600',
+    },
+    {
+      title: 'Total de Mensagens',
+      value: summary?.total_messages || 0,
+      change: 8.2,
+      icon: <Activity className="w-8 h-8" />,
+      color: 'from-purple-500 to-purple-600',
+    },
+    {
+      title: 'Agentes Ativos',
+      value: summary?.active_agents || 0,
+      change: 5.1,
+      icon: <Users className="w-8 h-8" />,
+      color: 'from-green-500 to-green-600',
+    },
+    {
+      title: 'Taxa de Crescimento',
+      value: '23.5%',
+      change: 3.2,
+      icon: <TrendingUp className="w-8 h-8" />,
+      color: 'from-orange-500 to-orange-600',
+    },
+  ]
+
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-4 md:p-8">
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-          <p className="text-red-800 dark:text-red-400">{error}</p>
+      <div className="min-h-screen bg-background p-4 md:p-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+            <p className="text-red-800 dark:text-red-400">{error}</p>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-4 md:p-8">
-      {/* Welcome Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-          <Activity className="w-8 h-8" />
-          Dashboard
-        </h1>
-        <p className="text-slate-600 dark:text-slate-400">
-          Bem-vindo ao seu painel de controle. Acompanhe o desempenho em tempo real.
-        </p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-12 animate-fade-in">
+          <h1 className="section-title flex items-center gap-3">
+            <Activity className="w-8 h-8 text-primary" />
+            Dashboard
+          </h1>
+          <p className="section-subtitle">Bem-vindo! Aqui está um resumo da sua atividade</p>
+        </div>
 
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-32 bg-white dark:bg-slate-800 rounded-lg animate-pulse" />
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {kpis.map((kpi, index) => (
+            <div
+              key={index}
+              className="card-interactive group relative overflow-hidden"
+            >
+              {/* Background Gradient */}
+              <div className={`absolute inset-0 bg-gradient-to-br ${kpi.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}></div>
+
+              <div className="relative">
+                {/* Icon */}
+                <div className={`inline-flex p-3 bg-gradient-to-br ${kpi.color} rounded-lg mb-4 text-white`}>
+                  {kpi.icon}
+                </div>
+
+                {/* Content */}
+                <p className="text-sm text-muted-foreground mb-2">{kpi.title}</p>
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-3xl font-bold">{kpi.value}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {kpi.change > 0 ? (
+                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                          <ArrowUpRight className="w-3 h-3" />
+                          {kpi.change}% vs mês passado
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                          <ArrowDownRight className="w-3 h-3" />
+                          {Math.abs(kpi.change)}% vs mês passado
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
-      ) : summary ? (
-        <>
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700 hover:shadow-md transition">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-slate-700 dark:text-slate-300">Mensagens Hoje</h3>
-                <MessageSquare className="w-5 h-5 text-blue-500" />
-              </div>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
-                {summary.messages_today || 0}
-              </p>
-              <p className="text-sm text-green-600 flex items-center gap-1">
-                ↑ {summary.messages_today_growth || 0}% vs ontem
-              </p>
-            </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700 hover:shadow-md transition">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-slate-700 dark:text-slate-300">Conversas Ativas</h3>
-                <Users className="w-5 h-5 text-purple-500" />
-              </div>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
-                {summary.active_conversations || 0}
-              </p>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {summary.pending_responses || 0} aguardando resposta
-              </p>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700 hover:shadow-md transition">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-slate-700 dark:text-slate-300">Campanhas</h3>
-                <TrendingUp className="w-5 h-5 text-green-500" />
-              </div>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
-                {summary.active_campaigns || 0}
-              </p>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {summary.scheduled_campaigns || 0} agendadas
-              </p>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700 hover:shadow-md transition">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-slate-700 dark:text-slate-300">Taxa Sucesso</h3>
-                <Activity className="w-5 h-5 text-green-600" />
-              </div>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
-                {summary.success_rate || 0}%
-              </p>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {summary.successful_messages || 0} bem-sucedidas
-              </p>
-            </div>
+        {/* Activity Section */}
+        {loading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="card-interactive skeleton h-64"></div>
+            ))}
           </div>
-
-          {/* Recent Activity & Quick Links */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            {/* Recent Activity */}
-            <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                Atividade Recente
-              </h2>
-              <div className="space-y-3">
-                {summary.recent_activities?.map((activity: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
-                        {activity.title}
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {activity.timestamp}
-                      </p>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Recent Conversations */}
+            <div className="lg:col-span-2 card-interactive">
+              <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-primary" />
+                Conversas Recentes
+              </h3>
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-4 p-3 hover:bg-secondary/50 rounded-lg transition-colors">
+                    <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                      C{i}
                     </div>
-                    <Badge className={
-                      activity.type === 'success'
-                        ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-                        : activity.type === 'warning'
-                        ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300'
-                        : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                    }>
-                      {activity.type}
-                    </Badge>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">Cliente #{i}</p>
+                      <p className="text-sm text-muted-foreground truncate">Última mensagem há {i} minutos</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{5 - i} msgs</p>
+                    </div>
                   </div>
-                )) || (
-                  <p className="text-slate-500 dark:text-slate-400 text-sm">Nenhuma atividade recente</p>
-                )}
-              </div>
-            </div>
-
-            {/* Quick Links */}
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                Atalhos Rápidos
-              </h2>
-              <div className="space-y-2">
-                {[
-                  { label: 'Nova Campanha', href: '/campaigns/create' },
-                  { label: 'Novo Template', href: '/templates/create' },
-                  { label: 'Ver Conversas', href: '/conversations' },
-                  { label: 'Relatórios', href: '/reports' },
-                  { label: 'Usuários', href: '/users' },
-                  { label: 'Configurações', href: '/settings' },
-                ].map((link, idx) => (
-                  <a
-                    key={idx}
-                    href={link.href}
-                    className="flex items-center justify-between p-2 text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition group"
-                  >
-                    <span className="text-sm">{link.label}</span>
-                    <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition transform group-hover:translate-x-1" />
-                  </a>
                 ))}
               </div>
-            </div>
-          </div>
-
-          {/* Performance Breakdown */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Message Performance */}
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700">
-              <h3 className="font-semibold text-slate-900 dark:text-white mb-4">
-                Status de Mensagens
-              </h3>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-600 dark:text-slate-400">Entregues</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">
-                    {summary.delivered_count || 0}
-                  </span>
-                </div>
-                <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-green-500"
-                    style={{ width: `${summary.delivered_pct || 0}%` }}
-                  />
-                </div>
-
-                <div className="flex justify-between text-sm mb-1 mt-3">
-                  <span className="text-slate-600 dark:text-slate-400">Lidas</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">
-                    {summary.read_count || 0}
-                  </span>
-                </div>
-                <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-500"
-                    style={{ width: `${summary.read_pct || 0}%` }}
-                  />
-                </div>
-
-                <div className="flex justify-between text-sm mb-1 mt-3">
-                  <span className="text-slate-600 dark:text-slate-400">Falhas</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">
-                    {summary.failed_count || 0}
-                  </span>
-                </div>
-                <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-red-500"
-                    style={{ width: `${summary.failed_pct || 0}%` }}
-                  />
-                </div>
-              </div>
+              <Button className="btn-secondary w-full mt-6">Ver Todas as Conversas</Button>
             </div>
 
-            {/* Top Campaigns */}
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700">
-              <h3 className="font-semibold text-slate-900 dark:text-white mb-4">
-                Campanhas em Destaque
+            {/* Quick Stats */}
+            <div className="card-interactive">
+              <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-accent" />
+                Estatísticas
               </h3>
-              <div className="space-y-2">
-                {summary.top_campaigns?.map((campaign: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="p-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg"
-                  >
-                    <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
-                      {campaign.name}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {campaign.success_rate}% sucesso
-                    </p>
-                  </div>
-                )) || (
-                  <p className="text-slate-500 dark:text-slate-400 text-sm">Nenhuma campanha</p>
-                )}
-              </div>
-            </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Taxa Resposta</span>
+                  <span className="font-semibold">98.5%</span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div className="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full w-[98.5%]"></div>
+                </div>
 
-            {/* System Health */}
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700">
-              <h3 className="font-semibold text-slate-900 dark:text-white mb-4">
-                Saúde do Sistema
-              </h3>
-              <div className="space-y-3">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-slate-600 dark:text-slate-400">API</span>
-                    <Badge className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">
-                      Online
-                    </Badge>
-                  </div>
+                <div className="flex items-center justify-between pt-4">
+                  <span className="text-muted-foreground">Tempo Médio</span>
+                  <span className="font-semibold">2.3min</span>
                 </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-slate-600 dark:text-slate-400">Database</span>
-                    <Badge className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">
-                      Online
-                    </Badge>
-                  </div>
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div className="bg-gradient-to-r from-blue-500 to-cyan-600 h-2 rounded-full w-[65%]"></div>
                 </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-slate-600 dark:text-slate-400">WebSocket</span>
-                    <Badge className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">
-                      Online
-                    </Badge>
-                  </div>
+
+                <div className="flex items-center justify-between pt-4">
+                  <span className="text-muted-foreground">Satisfação</span>
+                  <span className="font-semibold">4.8/5</span>
                 </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-slate-600 dark:text-slate-400">Cache</span>
-                    <Badge className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">
-                      Online
-                    </Badge>
-                  </div>
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div className="bg-gradient-to-r from-purple-500 to-pink-600 h-2 rounded-full w-[96%]"></div>
                 </div>
               </div>
             </div>
           </div>
-        </>
-      ) : null}
+        )}
+
+        {/* CTA Section */}
+        <div className="mt-12 p-8 bg-gradient-to-r from-primary/10 via-secondary/10 to-accent/10 rounded-2xl border border-primary/20">
+          <h3 className="text-2xl font-bold mb-4">Comece a otimizar suas conversas</h3>
+          <p className="text-muted-foreground mb-6">
+            Configure automações, templates e muito mais para aumentar a eficiência da sua equipe.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <Button className="btn-primary">Criar Automação</Button>
+            <Button className="btn-secondary">Explorar Templates</Button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

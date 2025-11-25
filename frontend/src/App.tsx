@@ -8,15 +8,23 @@ import Layout from '@components/layout/Layout'
 import Login from '@pages/Login'
 import Register from '@pages/Register'
 import Home from '@pages/Home'
+import Logout from '@pages/logout'
 
 // Páginas protegidas - lazy loading para melhor performance
-const Dashboard = lazy(() => import('@pages/Dashboard'))
+const Dashboard = lazy(() => import('@pages/dashboard'))
+const Conversations = lazy(() => import('@pages/conversations'))
+const Templates = lazy(() => import('@pages/templates'))
+const Campaigns = lazy(() => import('@pages/campaigns'))
+const Broadcast = lazy(() => import('@pages/broadcast'))
+const Reports = lazy(() => import('@pages/reports'))
+const Users = lazy(() => import('@pages/users'))
+const Settings = lazy(() => import('@pages/settings'))
+const Integrations = lazy(() => import('@pages/integrations'))
+const APIValidation = lazy(() => import('@pages/api-validation'))
+const Profile = lazy(() => import('@pages/Profile'))
 const Flows = lazy(() => import('@pages/Flows'))
 const FlowEdit = lazy(() => import('@pages/flows/FlowEdit'))
-const Templates = lazy(() => import('@pages/Templates'))
 const Contacts = lazy(() => import('@pages/Contacts'))
-const Settings = lazy(() => import('@pages/Settings'))
-const Profile = lazy(() => import('@pages/Profile'))
 const Automations = lazy(() => import('@pages/Automations'))
 const Analytics = lazy(() => import('@pages/Analytics'))
 
@@ -43,6 +51,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/logout" element={<Logout />} />
 
           {/* Rotas protegidas */}
           <Route
@@ -52,14 +61,46 @@ export default function App() {
               </ProtectedRoute>
             }
           >
+            {/* Dashboard */}
             <Route path="/dashboard" element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
+
+            {/* Conversations */}
+            <Route path="/conversations" element={<Suspense fallback={<PageLoader />}><Conversations /></Suspense>} />
+
+            {/* Templates */}
+            <Route path="/templates" element={<Suspense fallback={<PageLoader />}><Templates /></Suspense>} />
+            <Route path="/templates/create" element={<Suspense fallback={<PageLoader />}><Templates /></Suspense>} />
+            <Route path="/templates/:id" element={<Suspense fallback={<PageLoader />}><Templates /></Suspense>} />
+
+            {/* Campaigns */}
+            <Route path="/campaigns" element={<Suspense fallback={<PageLoader />}><Campaigns /></Suspense>} />
+            <Route path="/campaigns/create" element={<Suspense fallback={<PageLoader />}><Campaigns /></Suspense>} />
+            <Route path="/campaigns/:id" element={<Suspense fallback={<PageLoader />}><Campaigns /></Suspense>} />
+
+            {/* Broadcast */}
+            <Route path="/broadcast" element={<Suspense fallback={<PageLoader />}><Broadcast /></Suspense>} />
+
+            {/* Reports */}
+            <Route path="/reports" element={<Suspense fallback={<PageLoader />}><Reports /></Suspense>} />
+
+            {/* Users */}
+            <Route path="/users" element={<Suspense fallback={<PageLoader />}><Users /></Suspense>} />
+
+            {/* Settings */}
+            <Route path="/settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
+
+            {/* Integrations */}
+            <Route path="/integrations" element={<Suspense fallback={<PageLoader />}><Integrations /></Suspense>} />
+
+            {/* API Validation */}
+            <Route path="/api-validation" element={<Suspense fallback={<PageLoader />}><APIValidation /></Suspense>} />
+
+            {/* Legacy routes - keep for compatibility */}
             <Route path="/flows" element={<Suspense fallback={<PageLoader />}><Flows /></Suspense>} />
             <Route path="/flows/:id/edit" element={<Suspense fallback={<PageLoader />}><FlowEdit /></Suspense>} />
-            <Route path="/templates" element={<Suspense fallback={<PageLoader />}><Templates /></Suspense>} />
             <Route path="/contacts" element={<Suspense fallback={<PageLoader />}><Contacts /></Suspense>} />
             <Route path="/automations" element={<Suspense fallback={<PageLoader />}><Automations /></Suspense>} />
             <Route path="/analytics" element={<Suspense fallback={<PageLoader />}><Analytics /></Suspense>} />
-            <Route path="/settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
             <Route path="/profile" element={<Suspense fallback={<PageLoader />}><Profile /></Suspense>} />
           </Route>
 

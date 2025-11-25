@@ -1,296 +1,109 @@
-import { useEffect, useState } from 'react'
-import { Settings, Save, AlertCircle, CheckCircle, Bell, Lock, Globe, Zap } from 'lucide-react'
+import { useState } from 'react'
+import { Settings, Lock, Bell, Palette, Shield, Save, X } from 'lucide-react'
 import { Button } from '@components/ui/button'
-import { Badge } from '@components/ui/badge'
-import { getApiUrl, getAuthHeaders } from '@lib/api'
+import { Input } from '@components/ui/input'
 
-export default function OrganizationSettings() {
-  const [org, setOrg] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'general' | 'notification' | 'security' | 'integrations'>('general')
-
+export default function Settings() {
+  const [activeTab, setActiveTab] = useState('account')
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    website: '',
-    phone: '',
-    notification_email: '',
-    notification_settings: {
-      email_on_campaign_complete: true,
-      email_on_error: true,
-      sms_alerts_enabled: false,
+    fullName: 'João Silva',
+    email: 'joao@empresa.com',
+    language: 'pt-BR',
+    timezone: 'America/Sao_Paulo',
+    notifications: {
+      email: true,
+      sms: false,
+      push: true,
     },
-    security_settings: {
-      two_factor_auth: false,
-      ip_whitelist_enabled: false,
-      session_timeout: 30,
-    },
+    theme: 'auto',
+    twoFactor: true,
   })
 
-  // Fetch org data
-  useEffect(() => {
-    const fetchOrg = async () => {
-      try {
-        setLoading(true)
-        const response = await fetch(`${getApiUrl()}/api/v1/organization`, {
-          headers: getAuthHeaders(),
-        })
-        if (!response.ok) throw new Error('Falha ao carregar configurações')
-        const data = await response.json()
-        setOrg(data)
-        setFormData({
-          name: data.name || '',
-          description: data.description || '',
-          website: data.website || '',
-          phone: data.phone || '',
-          notification_email: data.notification_email || '',
-          notification_settings: data.notification_settings || formData.notification_settings,
-          security_settings: data.security_settings || formData.security_settings,
-        })
-        setError(null)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao carregar configurações')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchOrg()
-  }, [])
-
-  const handleSave = async () => {
-    try {
-      setSaving(true)
-      const response = await fetch(`${getApiUrl()}/api/v1/organization`, {
-        method: 'PUT',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      })
-
-      if (!response.ok) throw new Error('Erro ao salvar configurações')
-
-      const data = await response.json()
-      setOrg(data)
-      setSuccess('Configurações salvas com sucesso!')
-      setTimeout(() => setSuccess(null), 3000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao salvar configurações')
-    } finally {
-      setSaving(false)
-    }
-  }
+  const tabs = [
+    { id: 'account', label: 'Conta', icon: 'User' },
+    { id: 'security', label: 'Segurança', icon: 'Lock' },
+    { id: 'notifications', label: 'Notificações', icon: 'Bell' },
+    { id: 'appearance', label: 'Aparência', icon: 'Palette' },
+  ]
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-4 md:p-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-          <Settings className="w-8 h-8" />
-          Configurações da Organização
-        </h1>
-        <p className="text-slate-600 dark:text-slate-400">
-          Gerenciar dados, notificações e segurança da sua organização
-        </p>
-      </div>
-
-      {/* Alerts */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-          <p className="text-red-800 dark:text-red-400">{error}</p>
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 p-4 md:p-8">
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="section-title flex items-center gap-3">
+            <Settings className="w-8 h-8 text-primary" />
+            Configurações
+          </h1>
+          <p className="section-subtitle">Manage your account preferences and settings</p>
         </div>
-      )}
 
-      {success && (
-        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3">
-          <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-          <p className="text-green-800 dark:text-green-400">{success}</p>
+        {/* Tabs */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-8">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-3 rounded-lg font-medium transition-all ${
+                activeTab === tab.id
+                  ? 'bg-primary text-white'
+                  : 'bg-secondary/20 text-foreground hover:bg-secondary/30'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* Tabs */}
-      {!loading && (
-        <>
-          <div className="mb-6 flex gap-2 border-b border-slate-200 dark:border-slate-700 overflow-x-auto">
-            {[
-              { id: 'general', label: 'Geral', icon: Globe },
-              { id: 'notification', label: 'Notificações', icon: Bell },
-              { id: 'security', label: 'Segurança', icon: Lock },
-              { id: 'integrations', label: 'Integrações', icon: Zap },
-            ].map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => setActiveTab(id as any)}
-                className={`px-4 py-3 font-medium border-b-2 transition flex items-center gap-2 ${
-                  activeTab === id
-                    ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-300'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {label}
-              </button>
-            ))}
-          </div>
+        {/* Content */}
+        <div className="card-interactive">
+          {/* Account Tab */}
+          {activeTab === 'account' && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold">Informações da Conta</h2>
 
-          {/* General Tab */}
-          {activeTab === 'general' && (
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700 max-w-2xl">
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Nome da Organização
-                  </label>
-                  <input
+                  <label className="block text-sm font-medium mb-2">Nome Completo</label>
+                  <Input
                     type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                    value={formData.fullName}
+                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Descrição
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
-                    placeholder="Descrição da sua organização..."
-                  />
+                  <label className="block text-sm font-medium mb-2">Email</label>
+                  <Input type="email" value={formData.email} disabled />
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Website
-                    </label>
-                    <input
-                      type="url"
-                      value={formData.website}
-                      onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
-                      placeholder="https://exemplo.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Telefone
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
-                      placeholder="(11) 9999-9999"
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 mt-4"
-                >
-                  <Save className="w-4 h-4" />
-                  {saving ? 'Salvando...' : 'Salvar Alterações'}
-                </Button>
               </div>
-            </div>
-          )}
 
-          {/* Notification Tab */}
-          {activeTab === 'notification' && (
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700 max-w-2xl">
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Email para Notificações
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.notification_email}
-                    onChange={(e) => setFormData({ ...formData, notification_email: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
-                    placeholder="notificacoes@exemplo.com"
-                  />
+                  <label className="block text-sm font-medium mb-2">Idioma</label>
+                  <select className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary">
+                    <option value="pt-BR">Português (Brasil)</option>
+                    <option value="en-US">English (US)</option>
+                    <option value="es-ES">Español</option>
+                  </select>
                 </div>
-
-                <div className="space-y-3">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.notification_settings.email_on_campaign_complete}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          notification_settings: {
-                            ...formData.notification_settings,
-                            email_on_campaign_complete: e.target.checked,
-                          },
-                        })
-                      }
-                      className="w-4 h-4 rounded border-slate-300"
-                    />
-                    <span className="text-slate-700 dark:text-slate-300">
-                      Notificar quando campanha for concluída
-                    </span>
-                  </label>
-
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.notification_settings.email_on_error}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          notification_settings: {
-                            ...formData.notification_settings,
-                            email_on_error: e.target.checked,
-                          },
-                        })
-                      }
-                      className="w-4 h-4 rounded border-slate-300"
-                    />
-                    <span className="text-slate-700 dark:text-slate-300">
-                      Notificar quando houver erros
-                    </span>
-                  </label>
-
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.notification_settings.sms_alerts_enabled}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          notification_settings: {
-                            ...formData.notification_settings,
-                            sms_alerts_enabled: e.target.checked,
-                          },
-                        })
-                      }
-                      className="w-4 h-4 rounded border-slate-300"
-                    />
-                    <span className="text-slate-700 dark:text-slate-300">
-                      Ativar alertas SMS
-                    </span>
-                  </label>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Fuso Horário</label>
+                  <select className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary">
+                    <option value="America/Sao_Paulo">America/São Paulo (GMT-3)</option>
+                    <option value="America/New_York">America/New York (GMT-5)</option>
+                    <option value="Europe/London">Europe/London (GMT+0)</option>
+                  </select>
                 </div>
+              </div>
 
-                <Button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 mt-4"
-                >
+              <div className="pt-4 border-t border-border flex gap-3">
+                <Button className="btn-primary">
                   <Save className="w-4 h-4" />
-                  {saving ? 'Salvando...' : 'Salvar Alterações'}
+                  Salvar Mudanças
+                </Button>
+                <Button className="btn-secondary">
+                  <X className="w-4 h-4" />
+                  Cancelar
                 </Button>
               </div>
             </div>
@@ -298,145 +111,135 @@ export default function OrganizationSettings() {
 
           {/* Security Tab */}
           {activeTab === 'security' && (
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700 max-w-2xl">
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold">Segurança</h2>
+
               <div className="space-y-4">
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <p className="text-sm text-blue-800 dark:text-blue-300">
-                    Essas configurações de segurança ajudam a proteger sua conta e dados.
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.security_settings.two_factor_auth}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          security_settings: {
-                            ...formData.security_settings,
-                            two_factor_auth: e.target.checked,
-                          },
-                        })
-                      }
-                      className="w-4 h-4 rounded border-slate-300"
-                    />
+                <div className="p-4 bg-secondary/20 rounded-lg border border-border">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-slate-700 dark:text-slate-300 font-medium">
-                        Autenticação de Dois Fatores
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Requerer código de verificação ao login
-                      </p>
+                      <p className="font-medium">Autenticação de Dois Fatores</p>
+                      <p className="text-sm text-muted-foreground mt-1">Adicione uma camada extra de segurança</p>
                     </div>
-                  </label>
+                    <label className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={formData.twoFactor}
+                        onChange={(e) => setFormData({ ...formData, twoFactor: e.target.checked })}
+                        className="w-5 h-5 rounded"
+                      />
+                      <span className={formData.twoFactor ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}>
+                        {formData.twoFactor ? 'Ativado' : 'Desativado'}
+                      </span>
+                    </label>
+                  </div>
+                </div>
 
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.security_settings.ip_whitelist_enabled}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          security_settings: {
-                            ...formData.security_settings,
-                            ip_whitelist_enabled: e.target.checked,
-                          },
-                        })
-                      }
-                      className="w-4 h-4 rounded border-slate-300"
-                    />
+                <div className="p-4 bg-secondary/20 rounded-lg border border-border">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-slate-700 dark:text-slate-300 font-medium">
-                        Whitelist de IP
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Permitir acesso apenas de IPs específicos
-                      </p>
+                      <p className="font-medium">Alterar Senha</p>
+                      <p className="text-sm text-muted-foreground mt-1">Última alteração: 45 dias atrás</p>
                     </div>
-                  </label>
+                    <Button className="btn-secondary text-sm">Alterar</Button>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Tempo de Sessão (minutos)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.security_settings.session_timeout}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        security_settings: {
-                          ...formData.security_settings,
-                          session_timeout: parseInt(e.target.value),
-                        },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
-                    min="5"
-                    max="480"
-                  />
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Sessão será encerrada após inatividade
-                  </p>
+                <div className="p-4 bg-secondary/20 rounded-lg border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Sessões Ativas</p>
+                      <p className="text-sm text-muted-foreground mt-1">3 dispositivos conectados</p>
+                    </div>
+                    <Button className="btn-secondary text-sm">Ver Detalhes</Button>
+                  </div>
                 </div>
+              </div>
+            </div>
+          )}
 
-                <Button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 mt-4"
-                >
+          {/* Notifications Tab */}
+          {activeTab === 'notifications' && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold">Preferências de Notificações</h2>
+
+              <div className="space-y-4">
+                {[
+                  { key: 'email', label: 'Email', description: 'Receba notificações por email' },
+                  { key: 'sms', label: 'SMS', description: 'Receba notificações por SMS' },
+                  { key: 'push', label: 'Notificações Push', description: 'Receba notificações no navegador' },
+                ].map((notif) => (
+                  <div key={notif.key} className="p-4 bg-secondary/20 rounded-lg border border-border flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{notif.label}</p>
+                      <p className="text-sm text-muted-foreground">{notif.description}</p>
+                    </div>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={formData.notifications[notif.key as keyof typeof formData.notifications]}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          notifications: {
+                            ...formData.notifications,
+                            [notif.key]: e.target.checked,
+                          },
+                        })}
+                        className="w-5 h-5 rounded"
+                      />
+                    </label>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-4 border-t border-border">
+                <Button className="btn-primary">
                   <Save className="w-4 h-4" />
-                  {saving ? 'Salvando...' : 'Salvar Alterações'}
+                  Salvar Preferências
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Integrations Tab */}
-          {activeTab === 'integrations' && (
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700 max-w-2xl">
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Appearance Tab */}
+          {activeTab === 'appearance' && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold">Aparência</h2>
+
+              <div>
+                <label className="block text-sm font-medium mb-4">Tema</label>
+                <div className="grid grid-cols-3 gap-4">
                   {[
-                    { name: 'WhatsApp API', status: 'connected' },
-                    { name: 'Webhook', status: 'configured' },
-                    { name: 'Analytics', status: 'active' },
-                    { name: 'CRM', status: 'pending' },
-                  ].map((integration, idx) => (
-                    <div key={idx} className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-slate-900 dark:text-white">{integration.name}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">
-                          {integration.status === 'connected' && '✓ Conectado'}
-                          {integration.status === 'configured' && '✓ Configurado'}
-                          {integration.status === 'active' && '✓ Ativo'}
-                          {integration.status === 'pending' && '○ Pendente'}
-                        </p>
-                      </div>
-                      <Badge
-                        className={
-                          integration.status === 'pending'
-                            ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300'
-                            : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-                        }
-                      >
-                        {integration.status === 'pending' ? 'Pendente' : 'Ativo'}
-                      </Badge>
-                    </div>
+                    { value: 'light', label: 'Claro', icon: '☀️' },
+                    { value: 'dark', label: 'Escuro', icon: '🌙' },
+                    { value: 'auto', label: 'Automático', icon: '⚙️' },
+                  ].map((theme) => (
+                    <button
+                      key={theme.value}
+                      onClick={() => setFormData({ ...formData, theme: theme.value })}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        formData.theme === theme.value
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <p className="text-2xl mb-2">{theme.icon}</p>
+                      <p className="font-medium text-sm">{theme.label}</p>
+                    </button>
                   ))}
                 </div>
               </div>
+
+              <div className="pt-4 border-t border-border">
+                <Button className="btn-primary">
+                  <Save className="w-4 h-4" />
+                  Salvar Aparência
+                </Button>
+              </div>
             </div>
           )}
-        </>
-      )}
-
-      {loading && (
-        <div className="h-64 bg-white dark:bg-slate-800 rounded-lg animate-pulse" />
-      )}
+        </div>
+      </div>
     </div>
   )
 }
