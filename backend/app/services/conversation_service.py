@@ -6,6 +6,7 @@ Business logic for conversation and message management
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
+import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
@@ -14,6 +15,7 @@ from app.models.conversation import Conversation, Message
 from app.repositories.conversation import ConversationRepository, MessageRepository
 from app.repositories.contact import ContactRepository
 from app.repositories.queue import QueueRepository
+from app.repositories.notification import NotificationPreferenceRepository
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationUpdate,
@@ -21,6 +23,10 @@ from app.schemas.conversation import (
 )
 from app.schemas.sla import SlaAlert
 from app.core.exceptions import NotFoundException
+
+logger = logging.getLogger(__name__)
+
+
 
 
 class ConversationService:
@@ -409,6 +415,31 @@ class ConversationService:
             update_data["queued_at"] = None
 
         updated = await self.repo.update(conversation_id, update_data)
+
+        # Send notification to assigned agent
+        try:
+            from app.services.notification_service import NotificationService
+            from app.repositories.user import UserRepository
+
+            user_repo = UserRepository(self.db)
+            agent = await user_repo.get(agent_id)
+            contact_repo = ContactRepository(self.db)
+            contact = await contact_repo.get(conversation.contact_id)
+
+            if agent and contact:
+                notif_repo = NotificationPreferenceRepository(self.db)
+                notif_svc = NotificationService(notif_repo)
+                await notif_svc.notify_conversation_assigned(
+                    org_id=str(organization_id),
+                    user_id=str(agent_id),
+                    user_email=agent.email,
+                    user_name=agent.full_name or agent.email,
+                    contact_name=contact.name,
+                    conversation_id=str(conversation_id)
+                )
+        except Exception as e:
+            logger.warning(f"Failed to send notification: {e}")
+
         return updated
 
     async def transfer_to_department(
