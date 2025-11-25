@@ -108,7 +108,7 @@ export function MobileSidebar({
   );
 }
 
-// Hook para gerenciar o estado do mobile sidebar
+// Hook to manage mobile sidebar state
 export function useMobileSidebar() {
   const [isOpen, setIsOpen] = useState(false);
 

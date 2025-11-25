@@ -8,7 +8,7 @@ interface PageTransitionProps {
   className?: string;
 }
 
-// Variantes de animação para transições de página
+// Animation variants for page transitions
 const pageVariants = {
   initial: {
     opacity: 0,
@@ -32,7 +32,7 @@ const pageVariants = {
   },
 };
 
-// Variantes para fade simples
+// Variants for simple fade
 const fadeVariants = {
   initial: { opacity: 0 },
   enter: {
@@ -45,7 +45,7 @@ const fadeVariants = {
   },
 };
 
-// Variantes para slide
+// Variants for slide
 const slideVariants = {
   initial: { opacity: 0, x: 20 },
   enter: {
@@ -65,7 +65,7 @@ const slideVariants = {
   },
 };
 
-// Variantes para scale
+// Variants for scale
 const scaleVariants = {
   initial: { opacity: 0, scale: 0.95 },
   enter: {
@@ -187,7 +187,7 @@ export function StaggerItem({ children, className = '' }: PageTransitionProps) {
   );
 }
 
-// Loading spinner com animação
+// Loading spinner with animation
 export function LoadingSpinner({ size = 'md', className = '' }: { size?: 'sm' | 'md' | 'lg'; className?: string }) {
   const sizes = {
     sm: 'w-4 h-4',

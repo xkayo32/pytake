@@ -46,7 +46,7 @@ export function Skeleton({
   );
 }
 
-// Skeleton presets para casos comuns
+// Skeleton presets for common cases
 export function SkeletonText({ lines = 3, className = '' }: { lines?: number; className?: string }) {
   return (
     <div className={cn('space-y-2', className)}>
@@ -141,7 +141,7 @@ export function SkeletonStats({ count = 4, className = '' }: { count?: number; c
   );
 }
 
-// Skeleton para conversa/chat
+// Skeleton for conversation/chat
 export function SkeletonConversation({ className = '' }: { className?: string }) {
   return (
     <div className={cn('flex items-start gap-3 p-4', className)}>
