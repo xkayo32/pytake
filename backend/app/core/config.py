@@ -176,13 +176,33 @@ class Settings(BaseSettings):
         description="Root path for FastAPI when behind reverse proxy (e.g., /prod, /staging)"
     )
 
-    # Email
-    SMTP_HOST: Optional[str] = None
+    # Email Configuration
+    SMTP_HOST: Optional[str] = Field(default="smtp.gmail.com")
     SMTP_PORT: int = Field(default=587)
-    SMTP_USER: Optional[str] = None
-    SMTP_PASSWORD: Optional[str] = None
-    SMTP_FROM: EmailStr = Field(default="noreply@pytake.com")
+    SMTP_USERNAME: Optional[str] = Field(default=None, description="SMTP username/email")
+    SMTP_PASSWORD: Optional[str] = Field(default=None, description="SMTP password or app password")
+    SMTP_FROM_EMAIL: str = Field(default="noreply@pytake.com")
     SMTP_FROM_NAME: str = Field(default="PyTake")
+    SMTP_USE_TLS: bool = Field(default=True)
+    SMTP_TIMEOUT: int = Field(default=10)
+    
+    # Email Rate Limiting
+    EMAIL_RATE_LIMIT_PER_HOUR: int = Field(default=100)
+    EMAIL_BATCH_SIZE: int = Field(default=50)
+    
+    # Celery Configuration
+    CELERY_BROKER_URL: str = Field(
+        default="redis://default:redis_password@redis:6379/1",
+        description="Redis broker URL for Celery"
+    )
+    CELERY_RESULT_BACKEND: str = Field(
+        default="redis://default:redis_password@redis:6379/2",
+        description="Redis backend for Celery results"
+    )
+    
+    # Legacy SMTP fields (kept for backwards compatibility)
+    SMTP_USER: Optional[str] = None
+    SMTP_FROM: EmailStr = Field(default="noreply@pytake.com")
 
     # AWS S3
     AWS_ACCESS_KEY_ID: Optional[str] = None
