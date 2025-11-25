@@ -28,3 +28,5 @@ export {
   LoadingSpinner,
   PulsingDot,
 } from './Animations';
+export { Tooltip, IconButton } from './Tooltip';
+export { Avatar, AvatarGroup } from './Avatar';
