@@ -148,7 +148,7 @@ export default function Integrations() {
                       <div className="flex-1">
                         <h3 className="font-semibold text-lg">{key.name}</h3>
                         <p className="text-sm text-muted-foreground mt-1 font-mono">
-                          sk_live_51234567890abcdefghijklmnop
+                          {key.value?.substring(0, 8)}...{key.value?.slice(-4) || 'hidden'}
                         </p>
                         <div className="flex items-center gap-4 mt-3">
                           <span className="badge-success">Ativa</span>
@@ -159,7 +159,7 @@ export default function Integrations() {
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => copyToClipboard('sk_live_51234567890abcdefghijklmnop', key.id)}
+                        onClick={() => copyToClipboard(key.value || '', key.id)}
                         className="p-2 hover:bg-secondary/50 rounded-lg transition-colors"
                       >
                         {copiedId === key.id ? (

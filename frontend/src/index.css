@@ -202,4 +202,61 @@
   .animate-fade-in {
     @apply animate-[fadeIn_0.3s_ease-out];
   }
+  
+  /* Slide in from bottom (toasts) */
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(100px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-slide-up {
+    @apply animate-[slideUp_0.4s_ease-out];
+  }
+  
+  /* Scale in animation (modals) */
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  .animate-scale-in {
+    @apply animate-[scaleIn_0.3s_ease-out];
+  }
+  
+  /* Pulse animation (loading states) */
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+  
+  .animate-pulse-custom {
+    @apply animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite];
+  }
+  
+  /* Spin animation (loading spinner) */
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  .animate-spin-custom {
+    @apply animate-[spin_1s_linear_infinite];
+  }
 }

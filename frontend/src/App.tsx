@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react'
 import { AuthProvider } from '@lib/auth/AuthContext'
 import ProtectedRoute from '@lib/auth/ProtectedRoute'
 import Layout from '@components/layout/Layout'
+import { NotificationProvider } from '@components/NotificationProvider'
 
 // Páginas públicas - carregadas normalmente
 import Login from '@pages/Login'
@@ -27,6 +28,7 @@ const FlowEdit = lazy(() => import('@pages/flows/FlowEdit'))
 const Contacts = lazy(() => import('@pages/Contacts'))
 const Automations = lazy(() => import('@pages/Automations'))
 const Analytics = lazy(() => import('@pages/Analytics'))
+const NotificationDemo = lazy(() => import('@pages/notification-demo'))
 
 // Componente de carregamento
 function PageLoader() {
@@ -46,12 +48,14 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
+        <NotificationProvider>
+          <Routes>
           {/* Rotas públicas */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/logout" element={<Logout />} />
+          <Route path="/notification-demo" element={<Suspense fallback={<PageLoader />}><NotificationDemo /></Suspense>} />
 
           {/* Rotas protegidas */}
           <Route
@@ -107,6 +111,7 @@ export default function App() {
           {/* Rota 404 */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
   )
