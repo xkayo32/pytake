@@ -5,7 +5,7 @@ import { Input } from '@components/ui/input'
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('account')
-  const [formData, setFormData] = useState({
+  const formDataState = useState({
     fullName: 'João Silva',
     email: 'joao@empresa.com',
     language: 'pt-BR',
@@ -18,6 +18,8 @@ export default function Settings() {
     theme: 'auto',
     twoFactor: true,
   })
+  const formData = formDataState[0]
+  const setFormData = formDataState[1]
 
   const tabs = [
     { id: 'account', label: 'Conta', icon: 'User' },

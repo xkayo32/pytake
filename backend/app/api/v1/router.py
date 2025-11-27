@@ -236,6 +236,9 @@ api_router.include_router(database.router, prefix="/database", tags=["Database"]
 ai_assistant = _load_endpoint_module("ai_assistant")
 api_router.include_router(ai_assistant.router, prefix="/ai-assistant", tags=["AI Assistant"])
 
+# Alias for backward compatibility: /templates → /ai-assistant/templates
+api_router.include_router(ai_assistant.router, prefix="/templates", tags=["Templates"])
+
 agent_skills = _load_endpoint_module("agent_skills")
 api_router.include_router(agent_skills.router, tags=["Users", "Agent Skills"])
 
