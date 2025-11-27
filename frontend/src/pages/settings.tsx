@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Settings, Lock, Bell, Palette, Shield, Save, X } from 'lucide-react'
+import { Settings as SettingsIcon, Lock, Bell, Palette, Shield, Save, X } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
 
@@ -34,7 +34,7 @@ export default function Settings() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="section-title flex items-center gap-3">
-            <Settings className="w-8 h-8 text-primary" />
+            <SettingsIcon className="w-8 h-8 text-primary" />
             Configurações
           </h1>
           <p className="section-subtitle">Manage your account preferences and settings</p>
