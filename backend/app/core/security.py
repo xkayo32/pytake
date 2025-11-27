@@ -10,20 +10,13 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
-# Password hashing context
-# Use argon2 as default (more reliable than bcrypt in containers)
-# Fallback to plaintext for development only
-pwd_context = None
-
-# Initialize password context with fallback chain
-try:
-    pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
-except Exception as e:
-    try:
-        pwd_context = CryptContext(schemes=["plaintext"], deprecated="auto")
-    except Exception:
-        # Ultimate fallback
-        pwd_context = CryptContext(schemes=["plaintext"], deprecated="auto")
+# Password hashing context using argon2
+# Argon2 is more robust and doesn't have bcrypt's 72-byte limitation
+# Support bcrypt for backward compatibility with existing hashes
+pwd_context = CryptContext(
+    schemes=["argon2", "bcrypt"],
+    deprecated="bcrypt"  # Deprecate bcrypt, upgrade to argon2
+)
 
 
 # ============================================
@@ -31,21 +24,13 @@ except Exception as e:
 # ============================================
 
 def hash_password(password: str) -> str:
-    """Hash a password using configured context"""
-    try:
-        return pwd_context.hash(password)
-    except Exception as e:
-        # If hashing fails, just return plaintext as fallback
-        return password
+    """Hash a password using argon2"""
+    return pwd_context.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash"""
-    try:
-        return pwd_context.verify(plain_password, hashed_password)
-    except Exception as e:
-        # Fallback to plaintext comparison
-        return plain_password == hashed_password
+    """Verify a password against its hash (supports both argon2 and bcrypt for backward compatibility)"""
+    return pwd_context.verify(plain_password, hashed_password)
 
 
 # ============================================
