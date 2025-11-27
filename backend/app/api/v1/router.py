@@ -236,9 +236,6 @@ api_router.include_router(database.router, prefix="/database", tags=["Database"]
 ai_assistant = _load_endpoint_module("ai_assistant")
 api_router.include_router(ai_assistant.router, prefix="/ai-assistant", tags=["AI Assistant"])
 
-# Alias for backward compatibility: /templates → /ai-assistant/templates
-api_router.include_router(ai_assistant.router, prefix="/ai-assistant", tags=["AI Assistant"])
-
 agent_skills = _load_endpoint_module("agent_skills")
 api_router.include_router(agent_skills.router, tags=["Users", "Agent Skills"])
 
@@ -251,10 +248,3 @@ api_router.include_router(debug.router, prefix="/debug", tags=["Debug"])
 # Webhooks (public endpoints)
 from app.api.webhooks import meta as webhooks_meta
 api_router.include_router(webhooks_meta.router, prefix="/webhooks/meta", tags=["Webhooks"])
-
-# Future routers will be added here:
-# api_router.include_router(chatbots.router, prefix="/chatbots", tags=["Chatbots"])
-# api_router.include_router(conversations.router, prefix="/conversations", tags=["Conversations"])
-# api_router.include_router(contacts.router, prefix="/contacts", tags=["Contacts"])
-# api_router.include_router(campaigns.router, prefix="/campaigns", tags=["Campaigns"])
-# api_router.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])

@@ -26,7 +26,7 @@ export default function Templates() {
       try {
         setLoading(true)
         const response = await fetch(
-          `${getApiUrl()}/api/v1/templates`,
+          `${getApiUrl()}/api/v1/ai-assistant/templates`,
           { headers: getAuthHeaders() }
         )
         if (!response.ok) throw new Error('Falha ao carregar templates')
