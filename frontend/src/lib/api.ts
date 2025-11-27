@@ -7,11 +7,14 @@
  * Get the API base URL
  * Sempre usa https://api-dev.pytake.net (ou VITE_API_URL se definida)
  * O Nginx proxy-passa todas as requisições em desenvolvimento
+ * Force HTTPS - never allow HTTP in production/staging
  */
 export function getApiUrl(): string {
   // Use VITE_API_URL se definida (production/staging)
-  const apiUrl = import.meta.env.VITE_API_URL
+  let apiUrl = import.meta.env.VITE_API_URL
   if (apiUrl) {
+    // Force HTTPS: replace http:// with https://
+    apiUrl = apiUrl.replace(/^http:\/\//, 'https://')
     return apiUrl
   }
   
