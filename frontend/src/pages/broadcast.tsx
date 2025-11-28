@@ -43,102 +43,93 @@ export default function Broadcast() {
   const messageLength = formData.message.length
   const characterLimit = 1000
 
+  const stats = [
+    { icon: Users, label: 'Contatos', value: '1.234', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/20' },
+    { icon: CheckCircle2, label: 'Enviadas', value: '856', color: 'text-primary-600 dark:text-primary-400', bg: 'bg-primary-100 dark:bg-primary-900/20' },
+    { icon: MessageSquare, label: 'Taxa', value: '69.4%', color: 'text-secondary-600 dark:text-secondary-400', bg: 'bg-secondary-100 dark:bg-secondary-900/20' },
+  ]
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 p-4 md:p-8">
+    <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="section-title flex items-center gap-3">
-            <Zap className="w-8 h-8 text-primary" />
-            Envio em Massa
-          </h1>
-          <p className="section-subtitle">Envie mensagens para vários contatos de uma vez</p>
+        <div className="mb-8 animate-fade-in">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-gradient-whatsapp rounded-xl flex items-center justify-center shadow-md">
+              <Zap className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Envio em Massa</h1>
+          </div>
+          <p className="text-muted-foreground ml-[52px]">Envie mensagens para vários contatos de uma vez</p>
         </div>
 
         {/* Info Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="card-interactive">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase">Contatos</p>
-                <p className="text-2xl font-bold">1.234</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="card-interactive">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase">Enviadas</p>
-                <p className="text-2xl font-bold">856</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 animate-fade-in">
+          {stats.map((stat, idx) => (
+            <div 
+              key={stat.label} 
+              className="bg-card border border-border rounded-xl p-4 hover:shadow-sm transition-shadow"
+              style={{ animationDelay: `${idx * 50}ms` }}
+            >
+              <div className="flex items-start gap-3">
+                <div className={`p-2 ${stat.bg} rounded-lg`}>
+                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase font-medium">{stat.label}</p>
+                  <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                </div>
               </div>
             </div>
-          </div>
-
-          <div className="card-interactive">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                <MessageSquare className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase">Taxa</p>
-                <p className="text-2xl font-bold">69.4%</p>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Form */}
-        <div className="card-interactive">
-          <h2 className="text-xl font-semibold mb-6">Criar Nova Campanha</h2>
+        <div className="bg-card border border-border rounded-xl p-6 animate-fade-in">
+          <h2 className="text-xl font-semibold mb-6 text-foreground">Criar Nova Campanha</h2>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex gap-3">
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex gap-3 animate-scale-in">
               <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-red-800 dark:text-red-400">{error}</p>
+              <p className="text-red-700 dark:text-red-400">{error}</p>
             </div>
           )}
 
           {success && (
-            <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex gap-3">
-              <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
-              <p className="text-green-800 dark:text-green-400">Broadcast enviado com sucesso!</p>
+            <div className="mb-6 p-4 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-xl flex gap-3 animate-scale-in">
+              <CheckCircle2 className="w-5 h-5 text-primary-600 dark:text-primary-400 flex-shrink-0 mt-0.5" />
+              <p className="text-primary-700 dark:text-primary-400">Broadcast enviado com sucesso!</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium mb-2">Título da Campanha</label>
+              <label className="block text-sm font-medium mb-2 text-foreground">Título da Campanha</label>
               <Input
                 placeholder="Ex: Promoção de Verão"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 required
+                className="h-11"
               />
             </div>
 
             {/* Message */}
             <div>
-              <label className="block text-sm font-medium mb-2">Mensagem</label>
+              <label className="block text-sm font-medium mb-2 text-foreground">Mensagem</label>
               <textarea
                 placeholder="Escreva sua mensagem aqui..."
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                 rows={6}
-                className="w-full px-4 py-3 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
+                className="w-full px-4 py-3 border border-border rounded-xl bg-background text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
                 required
               />
-              <div className="flex justify-between items-center mt-2 text-sm text-muted-foreground">
-                <p>Caracteres: {messageLength}/{characterLimit}</p>
+              <div className="flex justify-between items-center mt-2 text-sm">
+                <p className="text-muted-foreground">Caracteres: {messageLength}/{characterLimit}</p>
                 {messageLength > characterLimit && (
-                  <p className="text-red-600 dark:text-red-400">Limite excedido!</p>
+                  <p className="text-red-600 dark:text-red-400 font-medium">Limite excedido!</p>
                 )}
               </div>
             </div>
@@ -146,17 +137,18 @@ export default function Broadcast() {
             {/* Schedule */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Agendar Para</label>
+                <label className="block text-sm font-medium mb-2 text-foreground">Agendar Para</label>
                 <Input
                   type="datetime-local"
                   value={formData.scheduled_for || ''}
                   onChange={(e) => setFormData({ ...formData, scheduled_for: e.target.value })}
+                  className="h-11"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Selecionar Contatos</label>
-                <select className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary">
+                <label className="block text-sm font-medium mb-2 text-foreground">Selecionar Contatos</label>
+                <select className="w-full h-11 px-3 border border-border rounded-xl bg-background text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
                   <option>Todos os contatos (1.234)</option>
                   <option>Segmento: Premium (456)</option>
                   <option>Segmento: Novos (234)</option>
@@ -167,29 +159,29 @@ export default function Broadcast() {
 
             {/* Preview */}
             <div>
-              <label className="block text-sm font-medium mb-2">Pré-visualização</label>
-              <div className="p-4 bg-secondary/30 rounded-lg border border-border">
-                <div className="bg-white dark:bg-slate-800 rounded-lg p-4 max-w-sm">
-                  <p className="text-sm font-medium mb-2">Pré-visualização da Mensagem</p>
-                  <div className="text-sm text-muted-foreground">
+              <label className="block text-sm font-medium mb-2 text-foreground">Pré-visualização</label>
+              <div className="p-4 bg-muted/30 rounded-xl border border-border">
+                <div className="bg-card rounded-xl p-4 max-w-sm shadow-sm border border-border">
+                  <p className="text-sm font-medium mb-2 text-muted-foreground">Pré-visualização da Mensagem</p>
+                  <div className="text-sm">
                     <p className="font-semibold text-foreground mb-2">{formData.title || 'Título da campanha'}</p>
-                    <p>{formData.message || 'Sua mensagem aparecerá aqui...'}</p>
+                    <p className="text-muted-foreground">{formData.message || 'Sua mensagem aparecerá aqui...'}</p>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex gap-4 pt-4 border-t border-border">
+            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
               <Button
                 type="submit"
                 disabled={loading || !formData.title || !formData.message}
-                className="btn-primary flex-1"
+                className="flex-1 h-11 gap-2"
               >
                 {loading ? 'Enviando...' : 'Enviar Agora'}
-                {!loading && <Send className="w-5 h-5" />}
+                {!loading && <Send className="w-4 h-4" />}
               </Button>
-              <Button type="button" className="btn-secondary flex-1">
+              <Button type="button" variant="secondary" className="flex-1 h-11">
                 Salvar Como Rascunho
               </Button>
             </div>

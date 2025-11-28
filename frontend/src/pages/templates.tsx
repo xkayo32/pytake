@@ -51,44 +51,46 @@ export default function Templates() {
   const categories = ['all', ...new Set(templates.map(t => t.category))]
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 p-4 md:p-8">
+    <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
           <div>
-            <h1 className="section-title flex items-center gap-3">
-              <MessageSquare className="w-8 h-8 text-primary" />
-              Modelos de Mensagem
-            </h1>
-            <p className="section-subtitle">Crie e gerencie templates reutilizáveis</p>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-gradient-whatsapp rounded-xl flex items-center justify-center shadow-md">
+                <MessageSquare className="w-5 h-5 text-white" />
+              </div>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">Modelos de Mensagem</h1>
+            </div>
+            <p className="text-muted-foreground ml-[52px]">Crie e gerencie templates reutilizáveis</p>
           </div>
-          <Button className="btn-primary">
-            <Plus className="w-5 h-5" />
+          <Button className="gap-2">
+            <Plus className="w-4 h-4" />
             Novo Modelo
           </Button>
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 animate-fade-in">
           <div>
-            <label className="block text-sm font-medium mb-2">Buscar</label>
+            <label className="block text-sm font-medium mb-2 text-muted-foreground">Buscar</label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <Input
                 placeholder="Nome do modelo..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-9 h-10"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Categoria</label>
+            <label className="block text-sm font-medium mb-2 text-muted-foreground">Categoria</label>
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary"
+              className="w-full h-10 px-3 border border-border rounded-xl bg-background text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             >
               {categories.map(cat => (
                 <option key={cat} value={cat}>
@@ -99,53 +101,60 @@ export default function Templates() {
           </div>
 
           <div className="flex items-end">
-            <div className="w-full p-3 bg-info/10 border border-info/30 rounded-lg text-sm">
-              <strong>{filteredTemplates.length}</strong> modelos encontrados
+            <div className="w-full p-3 bg-primary-50 dark:bg-primary-900/20 border border-primary/20 rounded-xl text-sm">
+              <strong className="text-primary-700 dark:text-primary-400">{filteredTemplates.length}</strong>
+              <span className="text-primary-600 dark:text-primary-500"> modelos encontrados</span>
             </div>
           </div>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex gap-3">
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex gap-3 animate-scale-in">
             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-            <p className="text-red-800 dark:text-red-400">{error}</p>
+            <p className="text-red-700 dark:text-red-400">{error}</p>
           </div>
         )}
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="card-interactive h-64 skeleton"></div>
+              <div key={i} className="bg-card border border-border rounded-xl p-6 h-64 skeleton"></div>
             ))}
           </div>
         ) : filteredTemplates.length === 0 ? (
-          <div className="card-interactive text-center py-12">
-            <MessageSquare className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-            <p className="text-lg font-medium mb-2">Nenhum modelo encontrado</p>
-            <p className="text-muted-foreground mb-6">Crie seu primeiro modelo para começar</p>
-            <Button className="btn-primary">
-              <Plus className="w-5 h-5" />
+          <div className="bg-card border border-border rounded-xl text-center py-12 animate-fade-in">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <MessageSquare className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <p className="text-lg font-medium mb-2 text-foreground">Nenhum modelo encontrado</p>
+            <p className="text-muted-foreground mb-6 text-sm">Crie seu primeiro modelo para começar</p>
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
               Criar Modelo
             </Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTemplates.map((template) => (
-              <div key={template.id} className="card-interactive flex flex-col">
+            {filteredTemplates.map((template, index) => (
+              <div 
+                key={template.id} 
+                className="bg-card border border-border rounded-xl p-5 flex flex-col hover:shadow-md hover:border-primary/20 transition-all duration-200 animate-fade-in group"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg mb-1">{template.name}</h3>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-lg text-foreground truncate group-hover:text-primary-600 transition-colors">
+                      {template.name}
+                    </h3>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mt-1">
                       {template.category}
                     </p>
                   </div>
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    template.status === 'active'
-                      ? 'badge-success'
-                      : 'badge-warning'
+                  <span className={`ml-2 flex-shrink-0 ${
+                    template.status === 'active' ? 'badge-success' : 'badge-warning'
                   }`}>
                     {template.status === 'active' ? '● Ativo' : '● Rascunho'}
-                  </div>
+                  </span>
                 </div>
 
                 <p className="text-sm text-muted-foreground mb-4 flex-1 line-clamp-3">
@@ -154,17 +163,17 @@ export default function Templates() {
 
                 <div className="flex items-center justify-between pt-4 border-t border-border">
                   <div className="text-xs text-muted-foreground">
-                    <strong>{template.usage_count}</strong> usos
+                    <strong className="text-foreground">{template.usage_count}</strong> usos
                   </div>
-                  <div className="flex gap-2">
-                    <button className="p-2 hover:bg-secondary rounded-lg transition-colors" title="Copiar">
-                      <Copy className="w-4 h-4" />
+                  <div className="flex gap-1">
+                    <button className="p-2 hover:bg-muted rounded-lg transition-colors" title="Copiar">
+                      <Copy className="w-4 h-4 text-muted-foreground" />
                     </button>
-                    <button className="p-2 hover:bg-secondary rounded-lg transition-colors" title="Editar">
-                      <Edit className="w-4 h-4" />
+                    <button className="p-2 hover:bg-muted rounded-lg transition-colors" title="Editar">
+                      <Edit className="w-4 h-4 text-primary-600" />
                     </button>
-                    <button className="p-2 hover:bg-secondary rounded-lg transition-colors" title="Deletar">
-                      <Trash2 className="w-4 h-4" />
+                    <button className="p-2 hover:bg-muted rounded-lg transition-colors" title="Deletar">
+                      <Trash2 className="w-4 h-4 text-destructive" />
                     </button>
                   </div>
                 </div>

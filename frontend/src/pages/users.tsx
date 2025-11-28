@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Users, Plus, Search, MoreVertical, Edit2, Trash2, Shield } from 'lucide-react'
+import { Users, Plus, Search, Edit2, Trash2, Shield, MoreVertical } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
 
@@ -56,24 +56,14 @@ export default function UsersList() {
     },
   ]
 
-  const getRoleColor = (role: string) => {
-    const colors: { [key: string]: string } = {
-      super_admin: 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400',
-      org_admin: 'bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-400',
-      agent: 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400',
-      viewer: 'bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400',
+  const getRoleBadge = (role: string) => {
+    const config: { [key: string]: { class: string; label: string } } = {
+      super_admin: { class: 'badge-error', label: 'Super Admin' },
+      org_admin: { class: 'badge-warning', label: 'Admin Org' },
+      agent: { class: 'badge-info', label: 'Agente' },
+      viewer: { class: 'badge-neutral', label: 'Visualizador' },
     }
-    return colors[role] || colors.viewer
-  }
-
-  const getRoleLabel = (role: string) => {
-    const labels: { [key: string]: string } = {
-      super_admin: 'Super Admin',
-      org_admin: 'Admin Org',
-      agent: 'Agente',
-      viewer: 'Visualizador',
-    }
-    return labels[role] || role
+    return config[role] || config.viewer
   }
 
   const filteredUsers = users.filter(user => {
@@ -84,40 +74,42 @@ export default function UsersList() {
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 p-4 md:p-8">
+    <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
           <div>
-            <h1 className="section-title flex items-center gap-3">
-              <Users className="w-8 h-8 text-primary" />
-              Usuários
-            </h1>
-            <p className="section-subtitle">Gerencie usuários e suas permissões</p>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-gradient-whatsapp rounded-xl flex items-center justify-center shadow-md">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">Usuários</h1>
+            </div>
+            <p className="text-muted-foreground ml-[52px]">Gerencie usuários e suas permissões</p>
           </div>
-          <Button className="btn-primary gap-2">
-            <Plus className="w-5 h-5" />
+          <Button className="gap-2">
+            <Plus className="w-4 h-4" />
             Novo Usuário
           </Button>
         </div>
 
         {/* Filters */}
-        <div className="card-interactive mb-8">
+        <div className="bg-card border border-border rounded-xl p-4 mb-6 animate-fade-in">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 type="text"
                 placeholder="Buscar por nome ou email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-9 h-10"
               />
             </div>
             <select
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value)}
-              className="px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary"
+              className="h-10 px-4 border border-border rounded-xl bg-background text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             >
               <option value="all">Todos os Papéis</option>
               <option value="super_admin">Super Admin</option>
@@ -129,66 +121,78 @@ export default function UsersList() {
         </div>
 
         {/* Table */}
-        <div className="card-interactive overflow-hidden">
+        <div className="bg-card border border-border rounded-xl overflow-hidden animate-fade-in">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-4 px-6 font-semibold">Usuário</th>
-                  <th className="text-left py-4 px-6 font-semibold">Email</th>
-                  <th className="text-left py-4 px-6 font-semibold">Papel</th>
-                  <th className="text-left py-4 px-6 font-semibold">Data Entrada</th>
-                  <th className="text-left py-4 px-6 font-semibold">Status</th>
-                  <th className="text-left py-4 px-6 font-semibold">Ações</th>
+                <tr className="bg-muted/50 border-b border-border">
+                  <th className="text-left py-4 px-6 font-semibold text-sm text-muted-foreground">Usuário</th>
+                  <th className="text-left py-4 px-6 font-semibold text-sm text-muted-foreground hidden md:table-cell">Email</th>
+                  <th className="text-left py-4 px-6 font-semibold text-sm text-muted-foreground">Papel</th>
+                  <th className="text-left py-4 px-6 font-semibold text-sm text-muted-foreground hidden lg:table-cell">Data Entrada</th>
+                  <th className="text-left py-4 px-6 font-semibold text-sm text-muted-foreground">Status</th>
+                  <th className="text-left py-4 px-6 font-semibold text-sm text-muted-foreground">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="border-b border-border/50 hover:bg-secondary/20 transition-colors">
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-white text-sm font-semibold">
-                          {user.avatar}
+                {filteredUsers.map((user, index) => {
+                  const roleBadge = getRoleBadge(user.role)
+                  return (
+                    <tr 
+                      key={user.id} 
+                      className="border-b border-border/50 hover:bg-muted/30 transition-colors animate-fade-in"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-whatsapp flex items-center justify-center text-white text-sm font-semibold shadow-sm">
+                            {user.avatar}
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">{user.name}</p>
+                            <p className="text-sm text-muted-foreground md:hidden">{user.email}</p>
+                          </div>
                         </div>
-                        <p className="font-medium">{user.name}</p>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6 text-muted-foreground text-sm">{user.email}</td>
-                    <td className="py-4 px-6">
-                      <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
-                        <Shield className="w-3 h-3" />
-                        {getRoleLabel(user.role)}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6 text-sm text-muted-foreground">{user.joinedDate}</td>
-                    <td className="py-4 px-6">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                        user.status === 'active'
-                          ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400'
-                          : 'bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400'
-                      }`}>
-                        {user.status === 'active' ? 'Ativo' : 'Inativo'}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-2">
-                        <button className="p-2 hover:bg-secondary/50 rounded-lg transition-colors">
-                          <Edit2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        </button>
-                        <button className="p-2 hover:bg-secondary/50 rounded-lg transition-colors">
-                          <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-4 px-6 text-muted-foreground text-sm hidden md:table-cell">{user.email}</td>
+                      <td className="py-4 px-6">
+                        <span className={`${roleBadge.class} inline-flex items-center gap-1`}>
+                          <Shield className="w-3 h-3" />
+                          {roleBadge.label}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-sm text-muted-foreground hidden lg:table-cell">{user.joinedDate}</td>
+                      <td className="py-4 px-6">
+                        <span className={`badge-base ${
+                          user.status === 'active'
+                            ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
+                            : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'
+                        }`}>
+                          {user.status === 'active' ? '● Ativo' : '○ Inativo'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-1">
+                          <button className="p-2 hover:bg-muted rounded-lg transition-colors" title="Editar">
+                            <Edit2 className="w-4 h-4 text-primary-600" />
+                          </button>
+                          <button className="p-2 hover:bg-muted rounded-lg transition-colors" title="Excluir">
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
 
           {filteredUsers.length === 0 && (
             <div className="py-12 text-center">
-              <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="w-8 h-8 text-muted-foreground" />
+              </div>
               <p className="text-muted-foreground">Nenhum usuário encontrado</p>
             </div>
           )}

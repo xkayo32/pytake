@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Zap, Key, Webhook, Copy, Check, Trash2, Settings, Plus } from 'lucide-react'
 import { Button } from '@components/ui/button'
-import { Input } from '@components/ui/input'
 
 interface Integration {
   id: string
@@ -52,38 +51,42 @@ export default function Integrations() {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
+  const tabs = [
+    { id: 'webhooks', label: 'Webhooks', icon: Webhook },
+    { id: 'api', label: 'Chaves de API', icon: Key },
+    { id: 'oauth', label: 'OAuth & Conexões', icon: Settings },
+  ]
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 p-4 md:p-8">
+    <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
           <div>
-            <h1 className="section-title flex items-center gap-3">
-              <Zap className="w-8 h-8 text-primary" />
-              Integrações
-            </h1>
-            <p className="section-subtitle">Conecte ferramentas externas e gerencie chaves de API</p>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-gradient-whatsapp rounded-xl flex items-center justify-center shadow-md">
+                <Zap className="w-5 h-5 text-white" />
+              </div>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">Integrações</h1>
+            </div>
+            <p className="text-muted-foreground ml-[52px]">Conecte ferramentas externas e gerencie chaves de API</p>
           </div>
-          <Button className="btn-primary gap-2">
-            <Plus className="w-5 h-5" />
+          <Button className="gap-2">
+            <Plus className="w-4 h-4" />
             Nova Integração
           </Button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-8">
-          {[
-            { id: 'webhooks', label: 'Webhooks', icon: Webhook },
-            { id: 'api', label: 'Chaves de API', icon: Key },
-            { id: 'oauth', label: 'OAuth & Conexões', icon: Settings },
-          ].map((tab) => (
+        <div className="flex flex-wrap gap-2 mb-8 animate-fade-in">
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+              className={`px-4 py-2.5 rounded-xl font-medium transition-all flex items-center gap-2 ${
                 activeTab === tab.id
-                  ? 'bg-primary text-white'
-                  : 'bg-secondary/20 text-foreground hover:bg-secondary/30'
+                  ? 'bg-primary-500 text-white shadow-sm'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
               }`}
             >
               <tab.icon className="w-4 h-4" />
@@ -93,42 +96,47 @@ export default function Integrations() {
         </div>
 
         {/* Content */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Webhooks Tab */}
           {activeTab === 'webhooks' && (
-            <div className="space-y-6">
-              {webhooks.map((webhook) => (
-                <div key={webhook.id} className="card-interactive">
-                  <div className="flex items-start justify-between">
+            <div className="space-y-4">
+              {webhooks.map((webhook, index) => (
+                <div 
+                  key={webhook.id} 
+                  className="bg-card border border-border rounded-xl p-5 hover:shadow-md hover:border-primary/20 transition-all duration-200 animate-fade-in"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div className="flex items-start gap-4 flex-1">
                       <div className="text-3xl">{webhook.icon}</div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg">{webhook.name}</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          URL: https://api.exemplo.com/webhooks/{webhook.id}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-lg text-foreground">{webhook.name}</h3>
+                        <p className="text-sm text-muted-foreground mt-1 font-mono truncate">
+                          https://api.exemplo.com/webhooks/{webhook.id}
                         </p>
-                        <div className="flex items-center gap-4 mt-3">
-                          <span className="badge-success">{webhook.status === 'active' ? 'Ativo' : 'Inativo'}</span>
+                        <div className="flex flex-wrap items-center gap-3 mt-3">
+                          <span className="badge-success">● Ativo</span>
                           <p className="text-xs text-muted-foreground">Último uso: {webhook.lastUsed}</p>
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-shrink-0">
                       <button
                         onClick={() => copyToClipboard(`https://api.exemplo.com/webhooks/${webhook.id}`, webhook.id)}
-                        className="p-2 hover:bg-secondary/50 rounded-lg transition-colors"
+                        className="p-2.5 hover:bg-muted rounded-xl transition-colors"
+                        title="Copiar URL"
                       >
                         {copiedId === webhook.id ? (
-                          <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+                          <Check className="w-5 h-5 text-primary-600" />
                         ) : (
                           <Copy className="w-5 h-5 text-muted-foreground" />
                         )}
                       </button>
-                      <button className="p-2 hover:bg-secondary/50 rounded-lg transition-colors">
-                        <Settings className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <button className="p-2.5 hover:bg-muted rounded-xl transition-colors" title="Configurar">
+                        <Settings className="w-5 h-5 text-blue-600" />
                       </button>
-                      <button className="p-2 hover:bg-secondary/50 rounded-lg transition-colors">
-                        <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+                      <button className="p-2.5 hover:bg-muted rounded-xl transition-colors" title="Excluir">
+                        <Trash2 className="w-5 h-5 text-destructive" />
                       </button>
                     </div>
                   </div>
@@ -139,45 +147,50 @@ export default function Integrations() {
 
           {/* API Keys Tab */}
           {activeTab === 'api' && (
-            <div className="space-y-6">
-              {apiKeys.map((key) => (
-                <div key={key.id} className="card-interactive">
-                  <div className="flex items-start justify-between">
+            <div className="space-y-4">
+              {apiKeys.map((key, index) => (
+                <div 
+                  key={key.id} 
+                  className="bg-card border border-border rounded-xl p-5 hover:shadow-md hover:border-primary/20 transition-all duration-200 animate-fade-in"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div className="flex items-start gap-4 flex-1">
                       <div className="text-3xl">{key.icon}</div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg">{key.name}</h3>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-lg text-foreground">{key.name}</h3>
                         <p className="text-sm text-muted-foreground mt-1 font-mono">
-                          {key.value?.substring(0, 8)}...{key.value?.slice(-4) || 'hidden'}
+                          sk_live_****...****abcd
                         </p>
-                        <div className="flex items-center gap-4 mt-3">
-                          <span className="badge-success">Ativa</span>
+                        <div className="flex flex-wrap items-center gap-3 mt-3">
+                          <span className="badge-success">● Ativa</span>
                           <p className="text-xs text-muted-foreground">Último uso: {key.lastUsed}</p>
                           <p className="text-xs text-muted-foreground">Criada em: 15/01/2024</p>
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-shrink-0">
                       <button
-                        onClick={() => copyToClipboard(key.value || '', key.id)}
-                        className="p-2 hover:bg-secondary/50 rounded-lg transition-colors"
+                        onClick={() => copyToClipboard('sk_live_example_key', key.id)}
+                        className="p-2.5 hover:bg-muted rounded-xl transition-colors"
+                        title="Copiar chave"
                       >
                         {copiedId === key.id ? (
-                          <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+                          <Check className="w-5 h-5 text-primary-600" />
                         ) : (
                           <Copy className="w-5 h-5 text-muted-foreground" />
                         )}
                       </button>
-                      <button className="p-2 hover:bg-secondary/50 rounded-lg transition-colors">
-                        <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+                      <button className="p-2.5 hover:bg-muted rounded-xl transition-colors" title="Excluir">
+                        <Trash2 className="w-5 h-5 text-destructive" />
                       </button>
                     </div>
                   </div>
                 </div>
               ))}
 
-              <Button className="btn-primary gap-2 w-full">
-                <Plus className="w-5 h-5" />
+              <Button className="w-full gap-2">
+                <Plus className="w-4 h-4" />
                 Gerar Nova Chave de API
               </Button>
             </div>
@@ -185,45 +198,52 @@ export default function Integrations() {
 
           {/* OAuth Tab */}
           {activeTab === 'oauth' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {[
-                  { name: 'Google', icon: '🔵', status: 'connected' },
-                  { name: 'GitHub', icon: '⬛', status: 'not_connected' },
-                  { name: 'Slack', icon: '🟣', status: 'connected' },
-                  { name: 'Microsoft', icon: '🟦', status: 'not_connected' },
-                ].map((service) => (
-                  <div key={service.name} className="card-interactive">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-3xl">{service.icon}</span>
-                        <div>
-                          <h3 className="font-semibold">{service.name}</h3>
-                          <p className="text-xs text-muted-foreground">
-                            {service.status === 'connected' ? 'Conectado' : 'Não conectado'}
-                          </p>
-                        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+              {[
+                { name: 'Google', icon: '🔵', status: 'connected' },
+                { name: 'GitHub', icon: '⬛', status: 'not_connected' },
+                { name: 'Slack', icon: '🟣', status: 'connected' },
+                { name: 'Microsoft', icon: '🟦', status: 'not_connected' },
+              ].map((service, index) => (
+                <div 
+                  key={service.name} 
+                  className="bg-card border border-border rounded-xl p-5 hover:shadow-md hover:border-primary/20 transition-all duration-200"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">{service.icon}</span>
+                      <div>
+                        <h3 className="font-semibold text-foreground">{service.name}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          {service.status === 'connected' ? '✓ Conectado' : '○ Não conectado'}
+                        </p>
                       </div>
-                      <Button className={service.status === 'connected' ? 'btn-secondary' : 'btn-primary'}>
-                        {service.status === 'connected' ? 'Desconectar' : 'Conectar'}
-                      </Button>
                     </div>
+                    <Button 
+                      variant={service.status === 'connected' ? 'secondary' : 'primary'}
+                      size="sm"
+                    >
+                      {service.status === 'connected' ? 'Desconectar' : 'Conectar'}
+                    </Button>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
 
         {/* Documentation */}
-        <div className="card-interactive mt-8">
-          <h3 className="font-semibold mb-4">📚 Documentação da API</h3>
+        <div className="bg-card border border-border rounded-xl p-6 mt-8 animate-fade-in">
+          <h3 className="font-semibold mb-3 text-foreground flex items-center gap-2">
+            📚 Documentação da API
+          </h3>
           <p className="text-sm text-muted-foreground mb-4">
             Acesse a documentação completa da API para integrar com suas aplicações
           </p>
-          <div className="flex gap-3">
-            <Button className="btn-primary">Ver Documentação</Button>
-            <Button className="btn-secondary">Baixar Postman Collection</Button>
+          <div className="flex flex-wrap gap-3">
+            <Button>Ver Documentação</Button>
+            <Button variant="secondary">Baixar Postman Collection</Button>
           </div>
         </div>
       </div>
