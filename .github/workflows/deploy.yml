@@ -162,7 +162,6 @@ jobs:
         run: |
           echo "🏥 Running health checks..."
           echo "   API: https://api.pytake.net/api/v1/health"
-          echo "   Frontend: https://app.pytake.net"
           echo ""
           echo "⏳ Health checks would run here"
 
@@ -181,7 +180,6 @@ jobs:
             
             ### Deployed Images
             - Backend: `ghcr.io/${{ github.repository }}-backend:${{ needs.pre-deploy-checks.outputs.version }}`
-            - Frontend: `ghcr.io/${{ github.repository }}-frontend:${{ needs.pre-deploy-checks.outputs.version }}`
           draft: false
           prerelease: false
 

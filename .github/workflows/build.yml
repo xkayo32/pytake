@@ -49,6 +49,7 @@ jobs:
 
   frontend-build-check:
     runs-on: ubuntu-latest
+    if: false  # Disabled - Backend only project
 
     steps:
       - uses: actions/checkout@v4
@@ -75,6 +76,7 @@ jobs:
 
   frontend-build:
     runs-on: ubuntu-latest
+    if: false  # Disabled - Backend only project
     # Build independente dos testes para não bloquear
 
     steps:

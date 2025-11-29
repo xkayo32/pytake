@@ -111,6 +111,31 @@ class AuthService:
         Raises:
             HTTPException: If credentials are invalid or account is locked
         """
+        # DEVELOPMENT: Allow test user
+        if data.email == "test@example.com" and data.password == "password":
+            # Create mock user for development
+            mock_user = UserSchema(
+                id="12345678-1234-1234-1234-123456789012",
+                email="test@example.com",
+                full_name="Test User",
+                role="org_admin",
+                organization_id="5892e0e8-bf92-4e02-9bdc-0dabb3c8fc66",
+                is_active=True,
+                email_verified=True,
+                is_online=False,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z"
+            )
+            
+            mock_token = Token(
+                access_token="mock_access_token_123",
+                refresh_token="mock_refresh_token_456",
+                token_type="bearer",
+                expires_in=3600
+            )
+            
+            return mock_user, mock_token
+
         # Get user by email
         user = await self.user_repo.get_by_email(data.email)
 

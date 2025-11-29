@@ -5,7 +5,7 @@ FastAPI Application Entry Point
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -121,6 +121,7 @@ app = FastAPI(
     redoc_url=f"{settings.API_V1_PREFIX}/redoc" if settings.DEBUG else None,
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json" if settings.DEBUG else None,
     root_path=settings.API_ROOT_PATH,  # Support for reverse proxy paths like /prod, /staging
+    redirect_slashes=False,  # Disable redirects to avoid CORS issues
 )
 
 # ============================================
@@ -174,6 +175,22 @@ app.add_middleware(
 
 # GZip Compression
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Custom CORS middleware to ensure headers are always present (including on errors)
+@app.middleware("http")
+async def cors_headers_middleware(request: Request, call_next):
+    """Ensure CORS headers are present on all responses, including errors"""
+    response = await call_next(request)
+    
+    # Add CORS headers if not already present
+    if "access-control-allow-origin" not in response.headers:
+        response.headers["access-control-allow-origin"] = "https://app-dev.pytake.net"
+        response.headers["access-control-allow-credentials"] = "true"
+        response.headers["access-control-allow-methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        response.headers["access-control-allow-headers"] = "Authorization, Content-Type, X-Requested-With"
+        response.headers["access-control-expose-headers"] = "X-Total-Count, X-Page, X-Per-Page"
+    
+    return response
 
 # Trusted Host (only in production)
 if settings.is_production:

@@ -245,6 +245,189 @@ api_router.include_router(websocket.router, tags=["WebSocket"])
 debug = _load_endpoint_module("debug")
 api_router.include_router(debug.router, prefix="/debug", tags=["Debug"])
 
+# ============================================
+# FLOWS ENDPOINTS (Mock for now)
+# ============================================
+
+@api_router.get("/flows", tags=["Flows"])
+async def list_flows(organization_id: str = Query(...)):
+    """List flows for organization (mock data)"""
+    return [
+        {
+            "id": "1",
+            "name": "Welcome Flow",
+            "description": "Automated welcome message flow",
+            "status": "active",
+            "version": 1,
+            "trigger_type": "manual",
+            "organization_id": organization_id,
+            "nodes": [],
+            "edges": [],
+            "created_by": "user1",
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z",
+            "execution_count": 10,
+        }
+    ]
+
+@api_router.get("/campaigns", tags=["Campaigns"])
+async def list_campaigns(organization_id: str = Query(...)):
+    """List campaigns for organization (mock data)"""
+    return [
+        {
+            "id": "1",
+            "name": "Welcome Campaign",
+            "description": "Welcome new subscribers",
+            "status": "active",
+            "organization_id": organization_id,
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z",
+        }
+    ]
+
 # Webhooks (public endpoints)
 from app.api.webhooks import meta as webhooks_meta
 api_router.include_router(webhooks_meta.router, prefix="/webhooks/meta", tags=["Webhooks"])
+
+# Auth endpoints (public - no auth required)
+# auth = _load_endpoint_module("auth")
+# api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+
+# Simple login endpoint for development
+@api_router.post("/auth/login", tags=["Authentication"])
+async def dev_login():
+    """Development login endpoint"""
+    return {
+        "user": {
+            "id": "12345678-1234-1234-1234-123456789012",
+            "email": "test@example.com",
+            "full_name": "Test User",
+            "role": "org_admin",
+            "organization_id": "5892e0e8-bf92-4e02-9bdc-0dabb3c8fc66",
+            "is_active": True,
+            "email_verified": True,
+            "is_online": False,
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z"
+        },
+        "token": {
+            "access_token": "mock_access_token_123",
+            "refresh_token": "mock_refresh_token_456",
+            "token_type": "bearer",
+            "expires_in": 3600
+        },
+        "message": "Login successful (development)"
+    }
+
+# ============= DEVELOPMENT MOCK ENDPOINTS =============
+# These are temporary mock endpoints for frontend development
+
+@api_router.get("/dev/ai/conversations", tags=["AI Assistant"])
+async def get_ai_conversations():
+    """Mock endpoint to get AI conversations"""
+    return [
+        {
+            "id": "1",
+            "title": "Análise de Sentimento",
+            "createdAt": "2024-01-20T10:00:00Z",
+            "messages": 5,
+        },
+        {
+            "id": "2",
+            "title": "Classificação de Intenções",
+            "createdAt": "2024-01-19T14:30:00Z",
+            "messages": 3,
+        }
+    ]
+
+@api_router.post("/dev/ai/chat", tags=["AI Assistant"])
+async def chat_with_ai(message: dict):
+    """Mock endpoint for AI chat"""
+    return {
+        "response": f"Recebi sua mensagem: '{message.get('content')}'. Como assistente IA, posso ajudar com análises, sugestões e muito mais.",
+        "tokens": 45,
+        "duration": 0.5
+    }
+
+@api_router.get("/dev/contacts", tags=["Contacts"])
+async def get_contacts():
+    """Mock endpoint to get contacts"""
+    return [
+        {
+            "id": "1",
+            "name": "João Silva",
+            "email": "joao@example.com",
+            "phone": "(11) 98765-4321",
+            "whatsapp": "5511987654321",
+            "groups": ["Leads", "VIP"],
+            "tags": ["potencial", "ativo"],
+            "createdAt": "2024-01-10T00:00:00Z",
+            "lastInteraction": "2024-01-20T14:30:00Z",
+            "messageCount": 45
+        },
+        {
+            "id": "2",
+            "name": "Maria Santos",
+            "email": "maria@example.com",
+            "phone": "(21) 99876-5432",
+            "whatsapp": "5521998765432",
+            "groups": ["Clientes"],
+            "tags": ["cliente", "satisfeito"],
+            "createdAt": "2023-12-15T00:00:00Z",
+            "lastInteraction": "2024-01-19T10:15:00Z",
+            "messageCount": 120
+        }
+    ]
+
+@api_router.get("/dev/analytics/metrics", tags=["Analytics"])
+async def get_analytics_metrics():
+    """Mock endpoint to get analytics metrics"""
+    return {
+        "period": "7d",
+        "conversations": {
+            "total": 1243,
+            "change": 12.5
+        },
+        "messages_sent": {
+            "total": 12548,
+            "change": 8.3
+        },
+        "active_contacts": {
+            "total": 842,
+            "change": -2.1
+        },
+        "avg_response_time": {
+            "total": "2m 34s",
+            "change": -15.2
+        },
+        "daily_activity": [
+            {"day": "Seg", "conversations": 240},
+            {"day": "Ter", "conversations": 420},
+            {"day": "Qua", "conversations": 380},
+            {"day": "Qui", "conversations": 520},
+            {"day": "Sex", "conversations": 610},
+            {"day": "Sab", "conversations": 480},
+            {"day": "Dom", "conversations": 390}
+        ],
+        "status_overview": {
+            "resolved": 723,
+            "in_progress": 392,
+            "pending": 128
+        }
+    }
+
+@api_router.get("/flows", tags=["Flows"])
+async def get_flows():
+    """Mock endpoint to get flows"""
+    return []
+
+@api_router.get("/campaigns", tags=["Campaigns"])
+async def get_campaigns():
+    """Mock endpoint to get campaigns"""
+    return []
+
+@api_router.get("/contacts", tags=["Contacts"])
+async def get_contacts_list():
+    """Mock endpoint to get contacts"""
+    return []
+

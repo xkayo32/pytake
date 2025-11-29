@@ -30,20 +30,6 @@ services:
     networks:
       - pytake-staging
 
-  frontend:
-    image: pytake_frontend:latest
-    container_name: pytake-frontend-staging
-    restart: unless-stopped
-    ports:
-      - "3001:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: https://staging-api.pytake.net/api/v1
-      ENVIRONMENT: staging
-    depends_on:
-      - backend
-    networks:
-      - pytake-staging
-
   postgres-staging:
     image: postgres:15-alpine
     container_name: pytake-postgres-staging

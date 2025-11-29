@@ -21,9 +21,9 @@ PyTake é uma plataforma completa para automação de WhatsApp Business API, per
 ## 🛠 Stack Tecnológica
 
 - **Backend**: Python (FastAPI + SQLAlchemy + Alembic)
-- **Frontend**: Next.js 15 com React 19 + TypeScript
 - **Database**: PostgreSQL 15 com JSONB
 - **Cache**: Redis 7
+- **Logs**: MongoDB
 - **Proxy**: Nginx com SSL
 - **Containerização**: Podman/Docker Compose
 
@@ -48,8 +48,6 @@ bash scripts/deployment/QUICK_START.sh
 
 # 3. Iniciar serviços
 bash scripts/utilities/startup-all.sh
-
-# 4. Frontend rodando em http://localhost:3001
 ```
 
 ### 📂 Estrutura de Documentação
@@ -57,7 +55,6 @@ bash scripts/utilities/startup-all.sh
 ```
 .github/docs/
 ├── INDEX.md                                    # 👈 COMECE AQUI
-├── FRONTEND_QUICK_REFERENCE.md                # Referência frontend
 ├── GUIDES/                                    # Guias detalhados
 │   ├── QUICK_START_MULTI_ENV.md              # Setup completo
 │   ├── PRODUCTION_DEPLOYMENT_GUIDE.md        # Deploy produção
@@ -85,7 +82,6 @@ scripts/
 ├── utilities/                                 # Utilitários gerais
 │   ├── startup-all.sh
 │   ├── shutdown-all.sh
-│   ├── start-frontend.sh
 │   └── ...
 └── [outros scripts de validação]
 ```
@@ -147,7 +143,6 @@ podman-compose ps
 ```
 
 **Acesso:**
-- Frontend: http://localhost:3001
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/api/v1/docs
 
@@ -173,14 +168,14 @@ Consulte [.github/MIGRATION_GUIDE.md](.github/MIGRATION_GUIDE.md) para detalhes 
 
 ## 📊 Arquitetura
 
-### Atual (Monorepo)
+### Atual (Backend Only)
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Next.js App   │────│  FastAPI Backend│────│  PostgreSQL DB  │
-│  (Frontend)     │    │     (Python)    │    │   + Redis       │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                        │                        │
-         └──────────── Nginx Proxy ──────────────────────────┘
+┌─────────────────┐    ┌─────────────────┐
+│  FastAPI Backend│────│  PostgreSQL DB  │
+│     (Python)    │    │   + Redis       │
+└─────────────────┘    └─────────────────┘
+         │                        │
+         └──────────── Nginx Proxy ──────────┘
 ```
 
 ### Futura (Multi-repo)
@@ -229,7 +224,6 @@ cat .copilot-instructions
 ```
 pytake/
 ├── backend/             # API FastAPI (Python)
-├── frontend/            # Next.js App (TypeScript)
 ├── migrations/          # Scripts SQL
 ├── docker-compose.yml   # Orquestração Podman/Docker
 ├── nginx.conf          # Configuração Nginx
@@ -246,7 +240,7 @@ pytake/
 docker-compose logs -f
 
 # Rebuild de um serviço específico
-docker-compose up -d --build frontend
+docker-compose up -d --build backend
 
 # Executar migrations
 docker exec pytake-postgres psql -U pytake_user -d pytake -f /migrations/script.sql

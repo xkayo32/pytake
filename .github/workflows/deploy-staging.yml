@@ -23,7 +23,6 @@ env:
   ENVIRONMENT: staging
   DEPLOY_PORT: 8001
   BACKEND_CONTAINER: pytake-backend
-  FRONTEND_CONTAINER: pytake-frontend
 
 jobs:
   deploy:
@@ -71,17 +70,6 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/xkayo32/pytake-backend:staging
           cache-to: type=inline
 
-      - name: 📦 Build and push frontend
-        uses: docker/build-push-action@v4
-        with:
-          context: ./frontend
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/xkayo32/pytake-frontend:staging
-            ${{ env.REGISTRY }}/xkayo32/pytake-frontend:staging-${{ steps.commit.outputs.sha_short }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/xkayo32/pytake-frontend:staging
-          cache-to: type=inline
-
       - name: 🚀 Deploy to staging server
         env:
           DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
@@ -105,7 +93,6 @@ jobs:
           
           # Pull images
           docker pull ghcr.io/xkayo32/pytake-backend:staging
-          docker pull ghcr.io/xkayo32/pytake-frontend:staging
           
           # Stop containers
           docker-compose -f docker-compose.yml down || true

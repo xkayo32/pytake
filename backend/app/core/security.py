@@ -1,10 +1,45 @@
 """
 Security utilities: JWT tokens, password hashing, encryption
+
+Best practices:
+- Uses Argon2 for password hashing (more robust than bcrypt)
+- JWT tokens with expiration and token type verification
+- Fernet encryption for sensitive data
+- HMAC webhook signature verification
+- Rate limiting with token bucket algorithm
+
+Usage:
+    # Password hashing
+    hashed = hash_password("user_password")
+    is_valid = verify_password("user_password", hashed)
+
+    # JWT tokens
+    tokens = create_token_pair(user_id="123")
+    access_token = tokens["access_token"]
+    user_id = verify_token(access_token, token_type="access")
+
+    # Encryption (for sensitive data like WhatsApp tokens)
+    encrypted = encrypt_string("sensitive_data")
+    decrypted = decrypt_string(encrypted)
+
+    # Rate limiting
+    bucket = TokenBucket(capacity=100, refill_rate=10.0)
+    if bucket.consume():  # Allow
+        pass
 """
 
-from datetime import datetime, timedelta
+import base64
+import hashlib
+import hmac
+import re
+import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Union
 
+from cryptography.fernet import Fernet
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -54,9 +89,9 @@ def create_access_token(
         Encoded JWT token string
     """
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(
+        expire = datetime.now(timezone.utc) + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
 
@@ -92,9 +127,9 @@ def create_refresh_token(
         Encoded JWT token string
     """
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(
+        expire = datetime.now(timezone.utc) + timedelta(
             days=settings.REFRESH_TOKEN_EXPIRE_DAYS
         )
 
@@ -125,12 +160,16 @@ def decode_token(token: str) -> dict:
     Raises:
         JWTError: If token is invalid or expired
     """
-    payload = jwt.decode(
-        token,
-        settings.JWT_SECRET_KEY,
-        algorithms=[settings.JWT_ALGORITHM],
-    )
-    return payload
+    try:
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM],
+        )
+        return payload
+    except JWTError as e:
+        # Log token decoding error (e.g., expired, invalid signature)
+        raise JWTError(f"Token validation failed: {str(e)}") from e
 
 
 def verify_token(token: str, token_type: str = "access") -> Optional[str]:
@@ -184,19 +223,31 @@ def create_token_pair(user_id: str) -> dict:
 # ENCRYPTION (for sensitive data like WhatsApp tokens)
 # ============================================
 
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.backends import default_backend
-import base64
+def _get_encryption_salt() -> bytes:
+    """
+    Get encryption salt from environment or use default
+    In production, should be stored in secure environment variable
+    """
+    import os
+    
+    # Try to get from environment, fallback to default
+    salt_env = os.getenv('ENCRYPTION_SALT', 'pytake_salt_v1')
+    return salt_env.encode() if isinstance(salt_env, str) else salt_env
 
 
 def _get_encryption_key() -> bytes:
-    """Derive encryption key from SECRET_KEY"""
+    """
+    Derive encryption key from SECRET_KEY using PBKDF2
+    
+    Uses:
+    - SHA256 hash algorithm
+    - 100,000 iterations (OWASP recommendation)
+    - Salt from environment or default
+    """
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
-        salt=b"pytake_salt_v1",  # In production, use a proper salt
+        salt=_get_encryption_salt(),
         iterations=100000,
         backend=default_backend(),
     )
@@ -208,40 +259,50 @@ def _get_encryption_key() -> bytes:
 
 def encrypt_string(plaintext: str) -> str:
     """
-    Encrypt sensitive string data
+    Encrypt sensitive string data using Fernet (AES-128)
 
     Args:
-        plaintext: String to encrypt
+        plaintext: String to encrypt (e.g., WhatsApp token, API key)
 
     Returns:
-        Base64 encoded encrypted string
+        Base64 encoded encrypted string (safe to store in database)
+        
+    Example:
+        >>> encrypted = encrypt_string("my_secret_token")
+        >>> decrypted = decrypt_string(encrypted)
     """
-    f = Fernet(_get_encryption_key())
-    encrypted = f.encrypt(plaintext.encode())
-    return encrypted.decode()
+    try:
+        f = Fernet(_get_encryption_key())
+        encrypted = f.encrypt(plaintext.encode())
+        return encrypted.decode()
+    except Exception as e:
+        raise ValueError(f"Encryption failed: {str(e)}") from e
 
 
 def decrypt_string(encrypted: str) -> str:
     """
-    Decrypt sensitive string data
+    Decrypt sensitive string data using Fernet (AES-128)
 
     Args:
-        encrypted: Base64 encoded encrypted string
+        encrypted: Base64 encoded encrypted string from database
 
     Returns:
         Decrypted plaintext string
+        
+    Raises:
+        ValueError: If decryption fails (invalid token or wrong key)
     """
-    f = Fernet(_get_encryption_key())
-    decrypted = f.decrypt(encrypted.encode())
-    return decrypted.decode()
+    try:
+        f = Fernet(_get_encryption_key())
+        decrypted = f.decrypt(encrypted.encode())
+        return decrypted.decode()
+    except Exception as e:
+        raise ValueError(f"Decryption failed: {str(e)}") from e
 
 
 # ============================================
 # API KEY GENERATION
 # ============================================
-
-import secrets
-
 
 def generate_api_key() -> str:
     """Generate a secure random API key"""
@@ -261,10 +322,6 @@ def generate_webhook_secret() -> str:
 # ============================================
 # WEBHOOK SIGNATURE VERIFICATION
 # ============================================
-
-import hmac
-import hashlib
-
 
 def generate_webhook_signature(payload: str, secret: str) -> str:
     """
@@ -343,9 +400,6 @@ def verify_whatsapp_signature(
 # PASSWORD VALIDATION
 # ============================================
 
-import re
-
-
 def validate_password_strength(password: str) -> tuple[bool, Optional[str]]:
     """
     Validate password strength
@@ -382,9 +436,6 @@ def validate_password_strength(password: str) -> tuple[bool, Optional[str]]:
 # RATE LIMITING TOKEN BUCKET
 # ============================================
 
-from datetime import datetime as dt
-
-
 class TokenBucket:
     """
     Token bucket algorithm for rate limiting
@@ -393,14 +444,21 @@ class TokenBucket:
 
     def __init__(self, capacity: int, refill_rate: float):
         """
+        Initialize token bucket for rate limiting
+        
         Args:
-            capacity: Maximum number of tokens
-            refill_rate: Tokens added per second
+            capacity: Maximum number of tokens (burst size)
+            refill_rate: Tokens added per second (sustained rate)
+            
+        Example:
+            >>> bucket = TokenBucket(capacity=100, refill_rate=10.0)
+            >>> if bucket.consume(5):  # Try to consume 5 tokens
+            ...     # Request allowed
         """
         self.capacity = capacity
         self.refill_rate = refill_rate
         self.tokens = capacity
-        self.last_refill = dt.utcnow()
+        self.last_refill = datetime.now(timezone.utc)
 
     def consume(self, tokens: int = 1) -> bool:
         """
@@ -418,7 +476,7 @@ class TokenBucket:
 
     def _refill(self):
         """Refill tokens based on time elapsed"""
-        now = dt.utcnow()
+        now = datetime.now(timezone.utc)
         elapsed = (now - self.last_refill).total_seconds()
 
         new_tokens = elapsed * self.refill_rate

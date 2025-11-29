@@ -93,6 +93,7 @@ jobs:
 
   frontend-critical-test:
     runs-on: ubuntu-latest
+    if: false  # Disabled - Backend only project
 
     steps:
       - uses: actions/checkout@v4

@@ -30,20 +30,6 @@ services:
     networks:
       - pytake-prod
 
-  frontend:
-    image: pytake_frontend:latest
-    container_name: pytake-frontend-prod
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: https://api.pytake.net/api/v1
-      ENVIRONMENT: production
-    depends_on:
-      - backend
-    networks:
-      - pytake-prod
-
   postgres-prod:
     image: postgres:15-alpine
     container_name: pytake-postgres-prod

@@ -121,34 +121,6 @@ services:
       retries: 3
       start_period: 40s
 
-  # Vite Frontend - DEV SERVER
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.dev
-    container_name: pytake-frontend-dev
-    restart: unless-stopped
-    ports:
-      - "3001:3000"
-    environment:
-      NODE_ENV: development
-      VITE_API_URL: https://api-dev.pytake.net
-    volumes:
-      - ./frontend/src:/app/src
-      - ./frontend/public:/app/public
-      - ./frontend/index.html:/app/index.html
-      - ./frontend/vite.config.js:/app/vite.config.js
-    depends_on:
-      - backend
-    networks:
-      - pytake-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
   # Nginx Reverse Proxy
   nginx:
     image: nginx:1.25-alpine
@@ -163,11 +135,10 @@ services:
       - ./certbot/www:/var/www/certbot:ro
     depends_on:
       - backend
-      - frontend
     networks:
       - pytake-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "https://localhost/nginx-health", "--no-check-certificate"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "https://api-dev.pytake.net/nginx-health", "--no-check-certificate"]
       interval: 30s
       timeout: 5s
       retries: 3

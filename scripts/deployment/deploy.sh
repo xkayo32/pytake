@@ -44,7 +44,6 @@ fi
 if [[ "$ENVIRONMENT" == "staging" ]]; then
     BRANCH="develop"
     PORT_BACKEND=8001
-    PORT_FRONTEND=3001
     COMPOSE_FILE="docker-compose.yml"
     SUBDOMAIN="staging-api"
     PUBLIC_API_URL="https://staging-api.pytake.net"
@@ -55,7 +54,6 @@ if [[ "$ENVIRONMENT" == "staging" ]]; then
 else
     BRANCH="main"
     PORT_BACKEND=8000
-    PORT_FRONTEND=3000
     COMPOSE_FILE="docker-compose.yml"
     SUBDOMAIN="api"
     PUBLIC_API_URL="https://api.pytake.net"
@@ -81,7 +79,7 @@ echo -e "${GREEN}✅ Repository up-to-date${NC}"
 
 # Build images
 echo -e "${BLUE}Building Docker images...${NC}"
-COMPOSE_PROJECT_NAME="pytake" docker-compose -f "$COMPOSE_FILE" build backend frontend
+COMPOSE_PROJECT_NAME="pytake" docker-compose -f "$COMPOSE_FILE" build backend
 echo -e "${GREEN}✅ Images built successfully${NC}"
 
 ##############################################################################
@@ -192,14 +190,6 @@ if curl -sf "$HEALTH_URL" > /dev/null 2>&1; then
     echo -e "${GREEN}✅ Backend is healthy${NC}"
 else
     echo -e "${YELLOW}⚠️  Backend health check not yet available${NC}"
-fi
-
-# Check frontend
-echo -e "${BLUE}Checking frontend health...${NC}"
-if curl -sf "http://localhost:${PORT_FRONTEND}" > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ Frontend is responding${NC}"
-else
-    echo -e "${YELLOW}⚠️  Frontend not yet available${NC}"
 fi
 
 # Check database

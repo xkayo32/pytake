@@ -107,7 +107,6 @@ cd /home/administrator/pytake
 
 # Build imagens
 podman build -t pytake_backend:latest backend/
-podman build -t pytake_frontend:latest frontend/
 
 # Subir production
 cd environments/production

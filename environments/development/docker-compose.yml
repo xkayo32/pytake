@@ -30,20 +30,6 @@ services:
     networks:
       - pytake-dev
 
-  frontend:
-    image: pytake_frontend:latest
-    container_name: pytake-frontend-dev
-    restart: unless-stopped
-    ports:
-      - "3002:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8002/api/v1
-      ENVIRONMENT: development
-    depends_on:
-      - backend
-    networks:
-      - pytake-dev
-
   postgres-dev:
     image: postgres:15-alpine
     container_name: pytake-postgres-dev

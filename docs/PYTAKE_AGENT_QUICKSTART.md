@@ -35,17 +35,6 @@ O agente irá:
 3. Planejar com scoping de `organization_id`
 4. Criar implementação com testes
 
-### Feature Frontend
-```
-@PyTake Criar modal para editar configurações de webhook do WhatsApp
-```
-
-O agente irá:
-1. Pesquisar componentes modais existentes
-2. Validar API client (`frontend/src/lib/api.ts`)
-3. Planejar com role guards apropriados
-4. Implementar com dark mode support
-
 ### Bug Fix
 ```
 @PyTake Corrigir erro CORS na integração de pagamentos
@@ -74,7 +63,7 @@ O agente **irá parar e alertar** se você tentar:
 
 - ❌ Commitar direto em `main` ou `develop` → ✅ Branch `feature/TICKET-XXX-*`
 - ❌ Esquecer `organization_id` em queries → ✅ Multi-tenancy scoping
-- ❌ URLs relativas no frontend → ✅ `getApiUrl()` + `getAuthHeaders()`
+- ❌ URLs hardcoded → ✅ `getApiUrl()` + `getAuthHeaders()`
 - ❌ Armazenar secrets em código → ✅ GitHub secrets
 - ❌ Editar migrations aplicadas → ✅ Criar nova migration
 - ❌ Ativar staging/prod workflows → ✅ Dev-only CI/CD
@@ -112,7 +101,6 @@ podman exec pytake-backend alembic upgrade head
 
 # Testes
 podman exec pytake-backend pytest
-podman exec pytake-frontend npm run dev
 
 # Git workflow
 git checkout develop
@@ -131,12 +119,6 @@ gh pr create --base develop
 - `backend/app/services/` - Business logic
 - `backend/app/repositories/` - Data access
 - `backend/alembic/versions/` - Migrations
-
-**Frontend:**
-- `frontend/src/app/page.tsx` - Entry point
-- `frontend/src/lib/api.ts` - API client com interceptors
-- `frontend/src/lib/auth/roleGuard.tsx` - Protected routes
-- `frontend/src/app/(admin|agent)/*` - Feature pages
 
 **Config:**
 - `.github/copilot-instructions.md` - Regras gerais
@@ -166,7 +148,7 @@ gh pr create --base develop
 
 ✅ Bom:
 ```
-@PyTake Corrigir bug de login onde token não está sendo renovado corretamente (frontend side)
+@PyTake Corrigir bug de login onde token não está sendo renovado corretamente
 ```
 
 ### 3. Aproveitar Handoffs
