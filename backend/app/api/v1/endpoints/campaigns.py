@@ -50,6 +50,14 @@ class ScheduleCampaignRequest(BaseModel):
     response_model=CampaignInDB,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    summary="Create campaign",
+    description="Create a new bulk messaging campaign. Campaign starts in draft status and must be scheduled or started manually.",
+    responses={
+        201: {"description": "Campaign created successfully"},
+        400: {"description": "Invalid campaign data"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Insufficient permissions (requires org_admin or agent role)"},
+    }
 )
 async def create_campaign(
     data: CampaignCreate,
@@ -70,11 +78,20 @@ async def create_campaign(
     return campaign
 
 
-@router.get("/", response_model=CampaignListResponse)
+@router.get(
+    "/",
+    response_model=CampaignListResponse,
+    summary="List campaigns",
+    description="List all campaigns for the organization with optional filtering by status and pagination support.",
+    responses={
+        200: {"description": "List of campaigns returned successfully"},
+        401: {"description": "Not authenticated"},
+    }
+)
 async def list_campaigns(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
-    status: Optional[str] = Query(None, description="Filter by status"),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum records to return"),
+    status: Optional[str] = Query(None, description="Filter by status (draft, scheduled, running, paused, completed, cancelled)"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -90,7 +107,17 @@ async def list_campaigns(
     return CampaignListResponse(total=total, items=campaigns)
 
 
-@router.get("/{campaign_id}", response_model=CampaignInDB)
+@router.get(
+    "/{campaign_id}",
+    response_model=CampaignInDB,
+    summary="Get campaign by ID",
+    description="Retrieve detailed information about a specific campaign including configuration, audience settings, and current status.",
+    responses={
+        200: {"description": "Campaign details returned successfully"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Campaign not found"},
+    }
+)
 async def get_campaign(
     campaign_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -106,7 +133,32 @@ async def get_campaign(
     return campaign
 
 
-@router.get("/{campaign_id}/stats", response_model=CampaignStats)
+@router.get(
+    "/{campaign_id}/stats",
+    response_model=CampaignStats,
+    summary="Get campaign statistics",
+    description="Get detailed campaign statistics including message counts, delivery rates, read rates, and reply rates.",
+    responses={
+        200: {
+            "description": "Campaign statistics returned successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "messages_sent": 1000,
+                        "messages_delivered": 950,
+                        "messages_read": 800,
+                        "messages_failed": 50,
+                        "delivery_rate": 95.0,
+                        "read_rate": 84.2,
+                        "reply_rate": 12.5
+                    }
+                }
+            }
+        },
+        401: {"description": "Not authenticated"},
+        404: {"description": "Campaign not found"},
+    }
+)
 async def get_campaign_stats(
     campaign_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -122,7 +174,30 @@ async def get_campaign_stats(
     return stats
 
 
-@router.get("/{campaign_id}/progress", response_model=CampaignProgress)
+@router.get(
+    "/{campaign_id}/progress",
+    response_model=CampaignProgress,
+    summary="Get campaign progress",
+    description="Get real-time campaign progress including percentage complete, messages processed, and estimated time remaining.",
+    responses={
+        200: {
+            "description": "Campaign progress returned successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "progress_percentage": 45.5,
+                        "messages_processed": 455,
+                        "total_messages": 1000,
+                        "estimated_completion": "2024-01-15T15:30:00Z",
+                        "current_rate": 50
+                    }
+                }
+            }
+        },
+        401: {"description": "Not authenticated"},
+        404: {"description": "Campaign not found"},
+    }
+)
 async def get_campaign_progress(
     campaign_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -140,7 +215,36 @@ async def get_campaign_progress(
     return progress
 
 
-@router.get("/{campaign_id}/retry-stats")
+@router.get(
+    "/{campaign_id}/retry-stats",
+    summary="Get retry statistics",
+    description="Get detailed retry statistics including success rates, average attempts, and error breakdown for failed messages.",
+    responses={
+        200: {
+            "description": "Retry statistics returned successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "total_contacts": 1000,
+                        "successful_first_attempt": 900,
+                        "required_retries": 80,
+                        "failed_after_retries": 20,
+                        "avg_attempts": 1.12,
+                        "retry_rate": 10.0,
+                        "configuration": {
+                            "retry_max_attempts": 3,
+                            "retry_base_delay": 60,
+                            "retry_max_delay": 300
+                        },
+                        "recent_errors": []
+                    }
+                }
+            }
+        },
+        401: {"description": "Not authenticated"},
+        404: {"description": "Campaign not found"},
+    }
+)
 async def get_campaign_retry_stats(
     campaign_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -182,7 +286,30 @@ async def get_campaign_retry_stats(
     return stats
 
 
-@router.get("/{campaign_id}/audience/preview", response_model=AudiencePreview)
+@router.get(
+    "/{campaign_id}/audience/preview",
+    response_model=AudiencePreview,
+    summary="Preview campaign audience",
+    description="Preview the target audience for a campaign including total count and a sample of contacts that will receive messages.",
+    responses={
+        200: {
+            "description": "Audience preview returned successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "total_count": 1500,
+                        "sample_contacts": [
+                            {"id": "uuid", "name": "John Doe", "phone": "+5511999999999"}
+                        ],
+                        "filters_applied": ["tag:vip", "created_after:2024-01-01"]
+                    }
+                }
+            }
+        },
+        401: {"description": "Not authenticated"},
+        404: {"description": "Campaign not found"},
+    }
+)
 async def preview_campaign_audience(
     campaign_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -202,6 +329,15 @@ async def preview_campaign_audience(
     "/{campaign_id}",
     response_model=CampaignInDB,
     dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    summary="Update campaign",
+    description="Update campaign settings. Only draft or scheduled campaigns can be modified. Running campaigns must be paused first.",
+    responses={
+        200: {"description": "Campaign updated successfully"},
+        400: {"description": "Cannot update campaign in current status"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Insufficient permissions"},
+        404: {"description": "Campaign not found"},
+    }
 )
 async def update_campaign(
     campaign_id: UUID,
@@ -227,6 +363,15 @@ async def update_campaign(
     "/{campaign_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(require_role(["org_admin"]))],
+    summary="Delete campaign",
+    description="Soft delete a campaign. Running campaigns must be cancelled before deletion. Data is preserved but hidden from listings.",
+    responses={
+        204: {"description": "Campaign deleted successfully"},
+        400: {"description": "Cannot delete running campaign"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Insufficient permissions (requires org_admin)"},
+        404: {"description": "Campaign not found"},
+    }
 )
 async def delete_campaign(
     campaign_id: UUID,
@@ -253,6 +398,15 @@ async def delete_campaign(
     "/{campaign_id}/schedule",
     response_model=CampaignScheduleResponse,
     dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    summary="Schedule campaign",
+    description="Schedule a draft campaign for future execution. The campaign will automatically start at the specified time.",
+    responses={
+        200: {"description": "Campaign scheduled successfully"},
+        400: {"description": "Invalid schedule time or campaign not in draft status"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Insufficient permissions"},
+        404: {"description": "Campaign not found"},
+    }
 )
 async def schedule_campaign(
     campaign_id: UUID,
@@ -278,6 +432,15 @@ async def schedule_campaign(
     "/{campaign_id}/start",
     response_model=CampaignStartResponse,
     dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    summary="Start campaign",
+    description="Start a draft or scheduled campaign immediately. Messages will begin sending to the target audience.",
+    responses={
+        200: {"description": "Campaign started successfully"},
+        400: {"description": "Campaign cannot be started (invalid status or no audience)"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Insufficient permissions"},
+        404: {"description": "Campaign not found"},
+    }
 )
 async def start_campaign(
     campaign_id: UUID,
@@ -300,6 +463,15 @@ async def start_campaign(
     "/{campaign_id}/pause",
     response_model=CampaignInDB,
     dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    summary="Pause campaign",
+    description="Pause a running campaign. Message sending will stop and can be resumed later from where it left off.",
+    responses={
+        200: {"description": "Campaign paused successfully"},
+        400: {"description": "Campaign is not running"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Insufficient permissions"},
+        404: {"description": "Campaign not found"},
+    }
 )
 async def pause_campaign(
     campaign_id: UUID,
@@ -322,6 +494,15 @@ async def pause_campaign(
     "/{campaign_id}/resume",
     response_model=CampaignInDB,
     dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    summary="Resume campaign",
+    description="Resume a paused campaign. Message sending will continue from where it stopped.",
+    responses={
+        200: {"description": "Campaign resumed successfully"},
+        400: {"description": "Campaign is not paused"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Insufficient permissions"},
+        404: {"description": "Campaign not found"},
+    }
 )
 async def resume_campaign(
     campaign_id: UUID,
@@ -344,6 +525,15 @@ async def resume_campaign(
     "/{campaign_id}/cancel",
     response_model=CampaignInDB,
     dependencies=[Depends(require_role(["org_admin"]))],
+    summary="Cancel campaign",
+    description="Permanently cancel a campaign. This action cannot be undone and the campaign cannot be resumed.",
+    responses={
+        200: {"description": "Campaign cancelled successfully"},
+        400: {"description": "Campaign is already completed or cancelled"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Insufficient permissions (requires org_admin)"},
+        404: {"description": "Campaign not found"},
+    }
 )
 async def cancel_campaign(
     campaign_id: UUID,
