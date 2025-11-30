@@ -51,7 +51,16 @@ router = APIRouter()
 
 # ==================== AI Models Management ====================
 
-@router.get("/models", response_model=AIModelListResponse)
+@router.get(
+    "/models",
+    response_model=AIModelListResponse,
+    summary="Listar modelos de IA",
+    description="Lista todos os modelos de IA disponíveis (predefinidos + customizados). Retorna modelos de todos os providers com preços e capacidades.",
+    responses={
+        200: {"description": "Lista de modelos de IA"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def list_ai_models(
     provider: Optional[str] = Query(None, description="Filter by provider (openai, anthropic)"),
     recommended: bool = Query(False, description="Show only recommended models"),
@@ -95,7 +104,16 @@ async def list_ai_models(
     )
 
 
-@router.get("/models/{model_id}")
+@router.get(
+    "/models/{model_id}",
+    summary="Obter detalhes do modelo",
+    description="Retorna informações detalhadas sobre um modelo de IA específico.",
+    responses={
+        200: {"description": "Detalhes do modelo"},
+        401: {"description": "Não autenticado"},
+        404: {"description": "Modelo não encontrado"}
+    }
+)
 async def get_model_details(
     model_id: str,
     current_user: User = Depends(get_current_user),
@@ -118,7 +136,18 @@ async def get_model_details(
     )
 
 
-@router.post("/models/custom", response_model=AIModel, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/models/custom",
+    response_model=AIModel,
+    status_code=status.HTTP_201_CREATED,
+    summary="Criar modelo customizado",
+    description="Cria um modelo de IA customizado para sua organização. Útil para modelos fine-tuned ou novos modelos. Apenas org_admin pode criar.",
+    responses={
+        201: {"description": "Modelo customizado criado"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão (apenas admins)"}
+    }
+)
 async def create_custom_model(
     model: AIModelCreate,
     current_user: User = Depends(get_current_user),
@@ -151,7 +180,17 @@ async def create_custom_model(
 
 # ==================== AI Assistant Settings ====================
 
-@router.get("/settings", response_model=Optional[AIAssistantSettings])
+@router.get(
+    "/settings",
+    response_model=Optional[AIAssistantSettings],
+    summary="Obter configurações de IA",
+    description="Retorna as configurações do AI Assistant para a organização. Retorna None se não configurado.",
+    responses={
+        200: {"description": "Configurações de IA (ou null se não configurado)"},
+        401: {"description": "Não autenticado"},
+        404: {"description": "Organização não encontrada"}
+    }
+)
 async def get_ai_settings(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -185,7 +224,19 @@ async def get_ai_settings(
         )
 
 
-@router.post("/settings", response_model=AIAssistantSettings)
+@router.post(
+    "/settings",
+    response_model=AIAssistantSettings,
+    summary="Atualizar configurações de IA",
+    description="Atualiza as configurações do AI Assistant para a organização. Apenas org_admin pode atualizar.",
+    responses={
+        200: {"description": "Configurações atualizadas"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão (apenas admins)"},
+        404: {"description": "Organização não encontrada"},
+        422: {"description": "Configurações inválidas"}
+    }
+)
 async def update_ai_settings(
     settings: AIAssistantSettingsUpdate,
     current_user: User = Depends(get_current_user),
@@ -261,7 +312,18 @@ async def update_ai_settings(
     return validated_settings
 
 
-@router.post("/test")
+@router.post(
+    "/test",
+    summary="Testar conexão com IA",
+    description="Testa a conexão com o provider de IA configurado. Valida API keys e faz uma chamada de teste.",
+    responses={
+        200: {"description": "Conexão bem-sucedida", "content": {"application/json": {"example": {"success": True, "provider": "anthropic", "message": "Connection successful!"}}}},
+        400: {"description": "IA não configurada"},
+        401: {"description": "API key inválida"},
+        403: {"description": "Sem permissão (apenas admins)"},
+        429: {"description": "Rate limit excedido"}
+    }
+)
 async def test_ai_connection(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -425,7 +487,17 @@ async def test_ai_connection(
 
 # ==================== Flow Generation ====================
 
-@router.post("/generate-flow", response_model=GenerateFlowResponse)
+@router.post(
+    "/generate-flow",
+    response_model=GenerateFlowResponse,
+    summary="Gerar flow com IA",
+    description="Gera um flow a partir de descrição em linguagem natural usando IA. Requer AI Assistant configurado e habilitado.",
+    responses={
+        200: {"description": "Flow gerado com sucesso"},
+        401: {"description": "Não autenticado"},
+        500: {"description": "Erro ao gerar flow"}
+    }
+)
 async def generate_flow(
     request: GenerateFlowRequest,
     current_user: User = Depends(get_current_user),
@@ -463,7 +535,18 @@ async def generate_flow(
         )
 
 
-@router.post("/suggest-improvements", response_model=SuggestImprovementsResponse)
+@router.post(
+    "/suggest-improvements",
+    response_model=SuggestImprovementsResponse,
+    summary="Sugerir melhorias no flow",
+    description="Analisa um flow existente e sugere melhorias usando IA. Requer AI Assistant configurado.",
+    responses={
+        200: {"description": "Sugestões de melhoria"},
+        400: {"description": "Dados inválidos"},
+        401: {"description": "Não autenticado"},
+        404: {"description": "Flow não encontrado"}
+    }
+)
 async def suggest_improvements(
     request: SuggestImprovementsRequest,
     current_user: User = Depends(get_current_user),
@@ -512,7 +595,16 @@ async def suggest_improvements(
 
 # ==================== Flow Templates ====================
 
-@router.get("/templates/categories", response_model=List[TemplateCategory])
+@router.get(
+    "/templates/categories",
+    response_model=List[TemplateCategory],
+    summary="Listar categorias de templates",
+    description="Lista todas as categorias de templates de flow disponíveis.",
+    responses={
+        200: {"description": "Lista de categorias"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def list_template_categories(
     current_user: User = Depends(get_current_user),
 ):
@@ -523,7 +615,16 @@ async def list_template_categories(
     return categories
 
 
-@router.get("/templates", response_model=TemplateListResponse)
+@router.get(
+    "/templates",
+    response_model=TemplateListResponse,
+    summary="Listar templates de flow",
+    description="Lista templates de flow disponíveis com suporte a filtros por categoria, complexidade e tags.",
+    responses={
+        200: {"description": "Lista paginada de templates"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def list_templates(
     category: Optional[str] = Query(None, description="Filter by category"),
     complexity: Optional[str] = Query(None, description="Filter by complexity"),
@@ -559,7 +660,17 @@ async def list_templates(
     )
 
 
-@router.get("/templates/{template_id}", response_model=FlowTemplateDetail)
+@router.get(
+    "/templates/{template_id}",
+    response_model=FlowTemplateDetail,
+    summary="Obter template por ID",
+    description="Retorna um template específico com dados completos do flow.",
+    responses={
+        200: {"description": "Detalhes do template"},
+        401: {"description": "Não autenticado"},
+        404: {"description": "Template não encontrado"}
+    }
+)
 async def get_template(
     template_id: str,
     current_user: User = Depends(get_current_user),
@@ -578,7 +689,16 @@ async def get_template(
     return template
 
 
-@router.get("/templates/search/{query}", response_model=List[FlowTemplate])
+@router.get(
+    "/templates/search/{query}",
+    response_model=List[FlowTemplate],
+    summary="Buscar templates",
+    description="Busca templates de flow por termo de pesquisa.",
+    responses={
+        200: {"description": "Templates encontrados"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def search_templates(
     query: str,
     language: str = Query("pt-BR"),
@@ -597,7 +717,17 @@ async def search_templates(
     return templates
 
 
-@router.post("/templates/{template_id}/import", response_model=FlowInDB)
+@router.post(
+    "/templates/{template_id}/import",
+    response_model=FlowInDB,
+    summary="Importar template",
+    description="Importa um template como um novo flow em um chatbot existente.",
+    responses={
+        200: {"description": "Flow criado a partir do template"},
+        401: {"description": "Não autenticado"},
+        404: {"description": "Template ou chatbot não encontrado"}
+    }
+)
 async def import_template(
     template_id: str,
     request: ImportTemplateRequest,
