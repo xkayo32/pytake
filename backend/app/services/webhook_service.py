@@ -16,7 +16,7 @@ from datetime import datetime
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.conversation import Message
+from app.models.conversation import Message, Conversation
 from app.models.campaign import Campaign
 from app.models.contact import Contact
 from app.tasks.campaign_retry import CampaignRetryManager

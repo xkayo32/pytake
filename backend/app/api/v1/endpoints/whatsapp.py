@@ -974,7 +974,9 @@ async def reset_rate_limit(
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Reset rate limit counters."""
+    """
+    Reset rate limit counters.
+    
     Requires: org_admin or super_admin role
     
     Use with caution - only for testing or manual intervention.

@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.auth import get_current_user, get_current_organization
+from app.api.deps import get_current_user
 from app.models.user import User
 from app.services.notification_service import NotificationService
 from app.schemas.notification import (
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 )
 async def get_preferences(
     current_user: User = Depends(get_current_user),
-    organization_id: UUID = Depends(get_current_organization),
+    
     db: AsyncSession = Depends(get_db),
 ):
     """Get notification preferences for current user"""
@@ -54,7 +54,7 @@ async def get_preferences(
 async def update_preferences(
     data: NotificationPreferenceUpdate,
     current_user: User = Depends(get_current_user),
-    organization_id: UUID = Depends(get_current_organization),
+    
     db: AsyncSession = Depends(get_db),
 ):
     """Update notification preferences"""
@@ -80,14 +80,14 @@ async def list_notifications(
     status: Optional[str] = Query(None, description="Filter by status (sent, read, failed)"),
     channel: Optional[str] = Query(None, description="Filter by channel (email, websocket, in_app)"),
     current_user: User = Depends(get_current_user),
-    organization_id: UUID = Depends(get_current_organization),
+    
     db: AsyncSession = Depends(get_db),
 ):
     """List notifications with optional filters"""
     service = NotificationService(db)
     return await service.list_notifications(
         user_id=current_user.id,
-        organization_id=organization_id,
+        organization_id=current_user.organization_id,
         skip=skip,
         limit=limit,
         status=status,
@@ -102,7 +102,7 @@ async def list_notifications(
 )
 async def get_unread_count(
     current_user: User = Depends(get_current_user),
-    organization_id: UUID = Depends(get_current_organization),
+    
     db: AsyncSession = Depends(get_db),
 ):
     """Get unread notification count"""
@@ -120,7 +120,7 @@ async def get_unread_count(
 async def get_notification(
     notification_id: int,
     current_user: User = Depends(get_current_user),
-    organization_id: UUID = Depends(get_current_organization),
+    
     db: AsyncSession = Depends(get_db),
 ):
     """Get single notification"""
@@ -141,7 +141,7 @@ async def get_notification(
 async def mark_as_read(
     notification_id: int,
     current_user: User = Depends(get_current_user),
-    organization_id: UUID = Depends(get_current_organization),
+    
     db: AsyncSession = Depends(get_db),
 ):
     """Mark notification as read"""
@@ -160,7 +160,7 @@ async def mark_as_read(
 )
 async def mark_all_as_read(
     current_user: User = Depends(get_current_user),
-    organization_id: UUID = Depends(get_current_organization),
+    
     db: AsyncSession = Depends(get_db),
 ):
     """Mark all notifications as read"""
@@ -177,7 +177,7 @@ async def mark_all_as_read(
 async def delete_notification(
     notification_id: int,
     current_user: User = Depends(get_current_user),
-    organization_id: UUID = Depends(get_current_organization),
+    
     db: AsyncSession = Depends(get_db),
 ):
     """Delete notification"""
