@@ -26,7 +26,30 @@ router = APIRouter(tags=["Contacts"])
 
 # ============= Contacts =============
 
-@router.get("/stats", response_model=dict)
+@router.get(
+    "/stats",
+    response_model=dict,
+    summary="Get organization statistics",
+    description="Retrieve aggregated contact statistics for the organization including total contacts, active contacts, blocked contacts, and VIP contacts count.",
+    responses={
+        200: {
+            "description": "Statistics retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "total_contacts": 1250,
+                        "active_contacts": 1100,
+                        "blocked_contacts": 45,
+                        "vip_contacts": 78,
+                        "new_this_week": 32,
+                        "new_this_month": 145
+                    }
+                }
+            }
+        },
+        401: {"description": "Not authenticated"},
+    }
+)
 async def get_organization_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -40,13 +63,22 @@ async def get_organization_stats(
     )
 
 
-@router.get("/", response_model=List[Contact])
+@router.get(
+    "/",
+    response_model=List[Contact],
+    summary="List contacts",
+    description="List all contacts with optional filtering by search query, assigned agent, or blocked status. Supports pagination.",
+    responses={
+        200: {"description": "List of contacts returned successfully"},
+        401: {"description": "Not authenticated"},
+    }
+)
 async def list_contacts(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
+    skip: int = Query(0, ge=0, description="Number of records to skip for pagination"),
+    limit: int = Query(100, ge=1, le=100, description="Maximum number of records to return"),
     query: Optional[str] = Query(None, description="Search query (name, email, phone, company)"),
-    assigned_agent_id: Optional[UUID] = None,
-    is_blocked: Optional[bool] = None,
+    assigned_agent_id: Optional[UUID] = Query(None, description="Filter by assigned agent UUID"),
+    is_blocked: Optional[bool] = Query(None, description="Filter by blocked status"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -64,7 +96,19 @@ async def list_contacts(
     )
 
 
-@router.post("/", response_model=Contact, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=Contact,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create contact",
+    description="Create a new contact with the provided information including name, phone, email, and optional metadata.",
+    responses={
+        201: {"description": "Contact created successfully"},
+        400: {"description": "Invalid contact data or phone number format"},
+        401: {"description": "Not authenticated"},
+        409: {"description": "Contact with this phone number already exists"},
+    }
+)
 async def create_contact(
     data: ContactCreate,
     current_user: User = Depends(get_current_user),
@@ -80,7 +124,17 @@ async def create_contact(
     )
 
 
-@router.get("/{contact_id}", response_model=Contact)
+@router.get(
+    "/{contact_id}",
+    response_model=Contact,
+    summary="Get contact by ID",
+    description="Retrieve detailed information about a specific contact including tags, conversation history count, and metadata.",
+    responses={
+        200: {"description": "Contact details returned successfully"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Contact not found"},
+    }
+)
 async def get_contact(
     contact_id: UUID,
     current_user: User = Depends(get_current_user),
@@ -96,7 +150,30 @@ async def get_contact(
     )
 
 
-@router.get("/{contact_id}/stats", response_model=dict)
+@router.get(
+    "/{contact_id}/stats",
+    response_model=dict,
+    summary="Get contact statistics",
+    description="Retrieve messaging statistics for a specific contact including total messages, response rates, and engagement metrics.",
+    responses={
+        200: {
+            "description": "Contact statistics returned successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "total_conversations": 12,
+                        "total_messages_sent": 156,
+                        "total_messages_received": 89,
+                        "avg_response_time_seconds": 45.5,
+                        "last_interaction": "2024-01-15T10:30:00Z"
+                    }
+                }
+            }
+        },
+        401: {"description": "Not authenticated"},
+        404: {"description": "Contact not found"},
+    }
+)
 async def get_contact_stats(
     contact_id: UUID,
     current_user: User = Depends(get_current_user),
@@ -112,7 +189,18 @@ async def get_contact_stats(
     )
 
 
-@router.put("/{contact_id}", response_model=Contact)
+@router.put(
+    "/{contact_id}",
+    response_model=Contact,
+    summary="Update contact",
+    description="Update an existing contact's information. Only provided fields will be updated.",
+    responses={
+        200: {"description": "Contact updated successfully"},
+        400: {"description": "Invalid update data"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Contact not found"},
+    }
+)
 async def update_contact(
     contact_id: UUID,
     data: ContactUpdate,
@@ -130,7 +218,17 @@ async def update_contact(
     )
 
 
-@router.delete("/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{contact_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete contact",
+    description="Soft delete a contact. The contact data is preserved but marked as deleted and won't appear in listings.",
+    responses={
+        204: {"description": "Contact deleted successfully"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Contact not found"},
+    }
+)
 async def delete_contact(
     contact_id: UUID,
     current_user: User = Depends(get_current_user),
@@ -147,10 +245,20 @@ async def delete_contact(
     return None
 
 
-@router.post("/{contact_id}/block", response_model=Contact)
+@router.post(
+    "/{contact_id}/block",
+    response_model=Contact,
+    summary="Block contact",
+    description="Block a contact to prevent them from sending messages. Optionally provide a reason for blocking.",
+    responses={
+        200: {"description": "Contact blocked successfully"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Contact not found"},
+    }
+)
 async def block_contact(
     contact_id: UUID,
-    reason: Optional[str] = Query(None, description="Reason for blocking"),
+    reason: Optional[str] = Query(None, description="Reason for blocking the contact"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -165,7 +273,17 @@ async def block_contact(
     )
 
 
-@router.post("/{contact_id}/unblock", response_model=Contact)
+@router.post(
+    "/{contact_id}/unblock",
+    response_model=Contact,
+    summary="Unblock contact",
+    description="Remove the block from a previously blocked contact, allowing them to send messages again.",
+    responses={
+        200: {"description": "Contact unblocked successfully"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Contact not found"},
+    }
+)
 async def unblock_contact(
     contact_id: UUID,
     current_user: User = Depends(get_current_user),
@@ -181,7 +299,17 @@ async def unblock_contact(
     )
 
 
-@router.post("/{contact_id}/vip", response_model=Contact)
+@router.post(
+    "/{contact_id}/vip",
+    response_model=Contact,
+    summary="Mark contact as VIP",
+    description="Mark a contact as VIP to prioritize their messages and enable special handling in the system.",
+    responses={
+        200: {"description": "Contact marked as VIP successfully"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Contact not found"},
+    }
+)
 async def mark_as_vip(
     contact_id: UUID,
     current_user: User = Depends(get_current_user),
@@ -197,7 +325,17 @@ async def mark_as_vip(
     )
 
 
-@router.delete("/{contact_id}/vip", response_model=Contact)
+@router.delete(
+    "/{contact_id}/vip",
+    response_model=Contact,
+    summary="Remove VIP status",
+    description="Remove the VIP status from a contact, returning them to normal priority handling.",
+    responses={
+        200: {"description": "VIP status removed successfully"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Contact not found"},
+    }
+)
 async def unmark_as_vip(
     contact_id: UUID,
     current_user: User = Depends(get_current_user),
@@ -213,7 +351,17 @@ async def unmark_as_vip(
     )
 
 
-@router.put("/{contact_id}/tags", response_model=Contact)
+@router.put(
+    "/{contact_id}/tags",
+    response_model=Contact,
+    summary="Replace contact tags",
+    description="Replace all tags on a contact with the provided list of tag names. Tags that don't exist will be created automatically.",
+    responses={
+        200: {"description": "Contact tags replaced successfully"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Contact not found"},
+    }
+)
 async def update_contact_tags(
     contact_id: UUID,
     tag_names: List[str],
@@ -252,7 +400,17 @@ async def update_contact_tags(
     )
 
 
-@router.post("/{contact_id}/tags", response_model=Contact)
+@router.post(
+    "/{contact_id}/tags",
+    response_model=Contact,
+    summary="Add tags to contact",
+    description="Add one or more tags to a contact by their UUIDs. Existing tags on the contact are preserved.",
+    responses={
+        200: {"description": "Tags added to contact successfully"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Contact or tag not found"},
+    }
+)
 async def add_contact_tags(
     contact_id: UUID,
     tag_ids: List[UUID],
@@ -270,7 +428,17 @@ async def add_contact_tags(
     )
 
 
-@router.delete("/{contact_id}/tags", response_model=Contact)
+@router.delete(
+    "/{contact_id}/tags",
+    response_model=Contact,
+    summary="Remove tags from contact",
+    description="Remove one or more tags from a contact by their UUIDs. Other tags on the contact are preserved.",
+    responses={
+        200: {"description": "Tags removed from contact successfully"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Contact not found"},
+    }
+)
 async def remove_contact_tags(
     contact_id: UUID,
     tag_ids: List[UUID],
@@ -290,7 +458,16 @@ async def remove_contact_tags(
 
 # ============= Tags =============
 
-@router.get("/tags/", response_model=List[Tag])
+@router.get(
+    "/tags/",
+    response_model=List[Tag],
+    summary="List all tags",
+    description="Retrieve all tags available in the organization for categorizing contacts.",
+    responses={
+        200: {"description": "List of tags returned successfully"},
+        401: {"description": "Not authenticated"},
+    }
+)
 async def list_tags(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -304,7 +481,19 @@ async def list_tags(
     )
 
 
-@router.post("/tags/", response_model=Tag, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/tags/",
+    response_model=Tag,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create tag",
+    description="Create a new tag for categorizing contacts. Tags can have a name and optional color.",
+    responses={
+        201: {"description": "Tag created successfully"},
+        400: {"description": "Invalid tag data"},
+        401: {"description": "Not authenticated"},
+        409: {"description": "Tag with this name already exists"},
+    }
+)
 async def create_tag(
     data: TagCreate,
     current_user: User = Depends(get_current_user),
@@ -320,7 +509,17 @@ async def create_tag(
     )
 
 
-@router.get("/tags/{tag_id}", response_model=Tag)
+@router.get(
+    "/tags/{tag_id}",
+    response_model=Tag,
+    summary="Get tag by ID",
+    description="Retrieve details about a specific tag including its name, color, and usage count.",
+    responses={
+        200: {"description": "Tag details returned successfully"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Tag not found"},
+    }
+)
 async def get_tag(
     tag_id: UUID,
     current_user: User = Depends(get_current_user),
@@ -336,7 +535,19 @@ async def get_tag(
     )
 
 
-@router.put("/tags/{tag_id}", response_model=Tag)
+@router.put(
+    "/tags/{tag_id}",
+    response_model=Tag,
+    summary="Update tag",
+    description="Update an existing tag's name or color.",
+    responses={
+        200: {"description": "Tag updated successfully"},
+        400: {"description": "Invalid update data"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Tag not found"},
+        409: {"description": "Tag with this name already exists"},
+    }
+)
 async def update_tag(
     tag_id: UUID,
     data: TagUpdate,
@@ -354,7 +565,17 @@ async def update_tag(
     )
 
 
-@router.delete("/tags/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/tags/{tag_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete tag",
+    description="Delete a tag. The tag will be removed from all contacts that have it.",
+    responses={
+        204: {"description": "Tag deleted successfully"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Tag not found"},
+    }
+)
 async def delete_tag(
     tag_id: UUID,
     current_user: User = Depends(get_current_user),

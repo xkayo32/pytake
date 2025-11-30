@@ -6,13 +6,13 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.campaign import Campaign
 from app.models.chatbot import Chatbot
 from app.models.contact import Contact
-from app.models.conversation import Conversation
+from app.models.conversation import Conversation, Message
 from app.models.user import User
 from app.schemas.analytics import (
     AgentMetrics,
@@ -83,9 +83,13 @@ class AnalyticsService:
         total_messages_received = await self._sum_field(
             Contact, "total_messages_received", organization_id
         )
-        # TODO: Implement when Message model is created
-        messages_sent_today = 0
-        messages_received_today = 0
+        # Count messages from Message model
+        messages_sent_today = await self._count_messages_today(
+            organization_id, direction="outbound"
+        )
+        messages_received_today = await self._count_messages_today(
+            organization_id, direction="inbound"
+        )
 
         # Campaigns
         total_campaigns = await self._count_model(Campaign, organization_id)
@@ -467,6 +471,17 @@ class AnalyticsService:
             .where(User.deleted_at.is_(None))
         )
         return result.scalar() or 0
+
+    async def _count_messages_today(
+        self, organization_id: UUID, direction: str
+    ) -> int:
+        """Count messages sent or received today"""
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        return await self._count_messages(
+            organization_id=organization_id,
+            direction=direction,
+            created_after=today_start,
+        )
 
     async def _count_messages(
         self,

@@ -1,5 +1,14 @@
 """
 WhatsApp Number Endpoints
+
+Provides complete management for WhatsApp Business integration:
+- WhatsApp number registration (Official API and Evolution API)
+- Webhook handling for Meta Cloud API
+- QR Code connection for Evolution API
+- Template management and synchronization
+- Message sending capabilities
+
+All endpoints require authentication except webhooks which are public.
 """
 
 from typing import List, Dict, Any, Optional
@@ -26,7 +35,7 @@ from app.schemas.template import (
 from app.services.whatsapp_service import WhatsAppService
 from sqlalchemy.ext.asyncio import AsyncSession
 
-router = APIRouter()
+router = APIRouter(tags=["WhatsApp"])
 
 
 # ============= Request/Response Schemas =============
@@ -38,25 +47,46 @@ class QRCodeResponse(BaseModel):
     message: str
 
 
-@router.get("/", response_model=List[WhatsAppNumber])
+@router.get(
+    "/",
+    response_model=List[WhatsAppNumber],
+    summary="List WhatsApp numbers",
+    description="List all WhatsApp numbers registered for the organization",
+    responses={
+        200: {"description": "List of WhatsApp numbers"},
+        401: {"description": "Not authenticated"},
+    },
+)
 async def list_whatsapp_numbers(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all WhatsApp numbers"""
+    """List all WhatsApp numbers for the organization."""
     service = WhatsAppService(db)
     return await service.list_numbers(
         organization_id=current_user.organization_id
     )
 
 
-@router.post("/", response_model=WhatsAppNumber, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=WhatsAppNumber,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register WhatsApp number",
+    description="Register a new WhatsApp number (Official API or Evolution API)",
+    responses={
+        201: {"description": "WhatsApp number registered"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Requires admin role"},
+        422: {"description": "Validation error"},
+    },
+)
 async def create_whatsapp_number(
     data: WhatsAppNumberCreate,
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Register a new WhatsApp number"""
+    """Register a new WhatsApp number."""
     service = WhatsAppService(db)
     return await service.create_number(
         data=data,
@@ -67,24 +97,25 @@ async def create_whatsapp_number(
 # ============= Webhook Endpoints (Meta Cloud API) =============
 
 
-@router.get("/webhook", response_class=PlainTextResponse, dependencies=[])
+@router.get(
+    "/webhook",
+    response_class=PlainTextResponse,
+    dependencies=[],
+    summary="Verify webhook (Meta)",
+    description="PUBLIC endpoint for Meta Cloud API webhook verification. Returns hub.challenge on success.",
+    responses={
+        200: {"description": "Challenge echoed back"},
+        400: {"description": "Missing parameters"},
+        403: {"description": "Invalid verify token"},
+    },
+)
 async def verify_webhook(
     request: Request,
     mode: str = Query(None, alias="hub.mode"),
     token: str = Query(None, alias="hub.verify_token"),
     challenge: str = Query(None, alias="hub.challenge"),
 ):
-    """
-    Webhook verification endpoint for Meta Cloud API.
-    Meta will send a GET request to verify the webhook.
-
-    Query params:
-    - hub.mode: should be "subscribe"
-    - hub.verify_token: the token we provided in Meta dashboard
-    - hub.challenge: random string to echo back
-
-    NOTE: This endpoint is PUBLIC and does not require authentication
-    """
+    """Webhook verification endpoint for Meta Cloud API (PUBLIC)."""
     if not mode or not token or not challenge:
         raise HTTPException(
             status_code=400,
@@ -129,20 +160,20 @@ async def verify_webhook(
     return challenge
 
 
-@router.post("/webhook", dependencies=[])
+@router.post(
+    "/webhook",
+    dependencies=[],
+    summary="Receive webhook (Meta)",
+    description="PUBLIC endpoint for receiving WhatsApp events from Meta Cloud API",
+    responses={
+        200: {"description": "Webhook processed"},
+        403: {"description": "Invalid signature"},
+    },
+)
 async def receive_webhook(
     request: Request,
 ):
-    """
-    Webhook endpoint for receiving WhatsApp messages and events from Meta Cloud API.
-
-    This endpoint receives:
-    - Incoming messages
-    - Message status updates (sent, delivered, read, failed)
-    - Customer information updates
-
-    NOTE: This endpoint is PUBLIC and does not require authentication
-    """
+    """Webhook endpoint for receiving WhatsApp messages and events (PUBLIC)."""
     import logging
     from app.core.security import verify_whatsapp_signature
     from sqlalchemy import select
@@ -227,13 +258,23 @@ async def receive_webhook(
 # ============= WhatsApp Number Endpoints =============
 
 
-@router.get("/{number_id}", response_model=WhatsAppNumber)
+@router.get(
+    "/{number_id}",
+    response_model=WhatsAppNumber,
+    summary="Get WhatsApp number",
+    description="Get a specific WhatsApp number by its ID",
+    responses={
+        200: {"description": "WhatsApp number details"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Number not found"},
+    },
+)
 async def get_whatsapp_number(
     number_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get WhatsApp number by ID"""
+    """Get WhatsApp number by ID."""
     service = WhatsAppService(db)
     return await service.get_by_id(
         number_id=number_id,
@@ -241,14 +282,25 @@ async def get_whatsapp_number(
     )
 
 
-@router.put("/{number_id}", response_model=WhatsAppNumber)
+@router.put(
+    "/{number_id}",
+    response_model=WhatsAppNumber,
+    summary="Update WhatsApp number",
+    description="Update WhatsApp number configuration",
+    responses={
+        200: {"description": "Number updated"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Requires admin role"},
+        404: {"description": "Number not found"},
+    },
+)
 async def update_whatsapp_number(
     number_id: UUID,
     data: WhatsAppNumberUpdate,
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update WhatsApp number"""
+    """Update WhatsApp number."""
     service = WhatsAppService(db)
     return await service.update_number(
         number_id=number_id,
@@ -257,19 +309,22 @@ async def update_whatsapp_number(
     )
 
 
-@router.post("/{number_id}/test")
+@router.post(
+    "/{number_id}/test",
+    summary="Test connection",
+    description="Test WhatsApp connection status for Official or Evolution API",
+    responses={
+        200: {"description": "Connection status"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Number not found"},
+    },
+)
 async def test_whatsapp_connection(
     number_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Test WhatsApp connection status.
-    
-    Returns:
-    - For Official API: Tests Meta API connection
-    - For Evolution API: Tests Evolution connection and retrieves connection status
-    """
+    """Test WhatsApp connection status."""
     from datetime import datetime
     from sqlalchemy import update
     
@@ -373,13 +428,24 @@ async def test_whatsapp_connection(
     return result
 
 
-@router.delete("/{number_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{number_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete WhatsApp number",
+    description="Soft delete a WhatsApp number",
+    responses={
+        204: {"description": "Number deleted"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Requires admin role"},
+        404: {"description": "Number not found"},
+    },
+)
 async def delete_whatsapp_number(
     number_id: UUID,
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete WhatsApp number"""
+    """Delete WhatsApp number."""
     service = WhatsAppService(db)
     await service.delete_number(
         number_id=number_id,
@@ -391,16 +457,25 @@ async def delete_whatsapp_number(
 # ============= Evolution API Endpoints (QR Code) =============
 
 
-@router.post("/{number_id}/qrcode", response_model=QRCodeResponse)
+@router.post(
+    "/{number_id}/qrcode",
+    response_model=QRCodeResponse,
+    summary="Generate QR Code",
+    description="Generate QR Code for Evolution API connection. Only for qrcode connection type.",
+    responses={
+        200: {"description": "QR Code generated"},
+        400: {"description": "Invalid connection type"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Requires admin role"},
+        404: {"description": "Number not found"},
+    },
+)
 async def generate_qrcode(
     number_id: UUID,
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Generate QR Code for WhatsApp connection via Evolution API.
-    Only works for numbers with connection_type='qrcode'.
-    """
+    """Generate QR Code for WhatsApp connection via Evolution API."""
     service = WhatsAppService(db)
 
     # Get WhatsApp number
@@ -422,16 +497,24 @@ async def generate_qrcode(
     )
 
 
-@router.get("/{number_id}/qrcode/status", response_model=QRCodeResponse)
+@router.get(
+    "/{number_id}/qrcode/status",
+    response_model=QRCodeResponse,
+    summary="Check QR Code status",
+    description="Check QR Code connection status. Use for polling during connection.",
+    responses={
+        200: {"description": "QR Code status"},
+        400: {"description": "Invalid connection type"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Number not found"},
+    },
+)
 async def get_qrcode_status(
     number_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Check QR Code status and get updated QR Code if still pending.
-    Used for polling during connection process.
-    """
+    """Check QR Code status for polling."""
     service = WhatsAppService(db)
 
     # Get WhatsApp number
@@ -453,17 +536,23 @@ async def get_qrcode_status(
     )
 
 
-@router.post("/{number_id}/disconnect")
+@router.post(
+    "/{number_id}/disconnect",
+    summary="Disconnect number",
+    description="Disconnect WhatsApp number. Logout from Evolution or deactivate Official API.",
+    responses={
+        200: {"description": "Disconnected successfully"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Requires admin role"},
+        404: {"description": "Number not found"},
+    },
+)
 async def disconnect_number(
     number_id: UUID,
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Disconnect WhatsApp number.
-    - For Evolution API: Logout from instance
-    - For Official API: Deactivate number
-    """
+    """Disconnect WhatsApp number."""
     service = WhatsAppService(db)
 
     # Get WhatsApp number
@@ -478,20 +567,25 @@ async def disconnect_number(
 # ============= Template Endpoints =============
 
 
-@router.get("/{number_id}/templates", response_model=List[Dict[str, Any]])
+@router.get(
+    "/{number_id}/templates",
+    response_model=List[Dict[str, Any]],
+    summary="List templates (Meta)",
+    description="List message templates from Meta. Only for Official API connections.",
+    responses={
+        200: {"description": "List of templates"},
+        400: {"description": "Invalid connection type"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Number not found"},
+    },
+)
 async def list_templates(
     number_id: UUID,
-    status_filter: Optional[str] = Query("APPROVED", alias="status"),
+    status_filter: Optional[str] = Query("APPROVED", alias="status", description="Filter: APPROVED, PENDING, REJECTED"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    List message templates from Meta for a WhatsApp number.
-    Only works for Official API (connection_type='official').
-
-    Query params:
-    - status: Filter by status (APPROVED, PENDING, REJECTED). Default: APPROVED
-    """
+    """List message templates from Meta."""
     service = WhatsAppService(db)
 
     # Get WhatsApp number
@@ -532,7 +626,20 @@ async def list_templates(
         )
 
 
-@router.post("/{number_id}/templates", response_model=TemplateResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{number_id}/templates",
+    response_model=TemplateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create template",
+    description="Create a new WhatsApp message template. Optionally submit to Meta for approval.",
+    responses={
+        201: {"description": "Template created"},
+        400: {"description": "Invalid connection type or missing WABA ID"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Requires admin role"},
+        422: {"description": "Validation error"},
+    },
+)
 async def create_template(
     number_id: UUID,
     data: TemplateCreateRequest,
@@ -540,22 +647,7 @@ async def create_template(
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Create a new WhatsApp template
-
-    Args:
-        number_id: WhatsApp number ID
-        data: Template data (name, language, category, components)
-        submit: Whether to submit to Meta immediately (default: True)
-
-    Returns:
-        Created template with status DRAFT or PENDING
-
-    Notes:
-        - Template names must be lowercase with underscores
-        - If submit=True, template is sent to Meta for approval
-        - Meta takes 24-48h to review templates
-    """
+    """Create a new WhatsApp template."""
     from app.services.template_service import TemplateService
 
     whatsapp_service = WhatsAppService(db)
@@ -597,10 +689,20 @@ async def create_template(
         )
 
 
-@router.get("/{number_id}/templates/local", response_model=List[TemplateResponse])
+@router.get(
+    "/{number_id}/templates/local",
+    response_model=List[TemplateResponse],
+    summary="List local templates",
+    description="List templates stored in local database for a WhatsApp number",
+    responses={
+        200: {"description": "List of local templates"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Number not found"},
+    },
+)
 async def list_local_templates(
     number_id: UUID,
-    status_filter: Optional[str] = Query(None, alias="status"),
+    status_filter: Optional[str] = Query(None, alias="status", description="Filter: DRAFT, PENDING, APPROVED, REJECTED"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -633,14 +735,24 @@ async def list_local_templates(
     return templates
 
 
-@router.get("/{number_id}/templates/{template_id}", response_model=TemplateResponse)
+@router.get(
+    "/{number_id}/templates/{template_id}",
+    response_model=TemplateResponse,
+    summary="Get template",
+    description="Get a specific template by ID",
+    responses={
+        200: {"description": "Template details"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Template not found"},
+    },
+)
 async def get_template(
     number_id: UUID,
     template_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get template by ID"""
+    """Get template by ID."""
     from app.services.template_service import TemplateService
 
     whatsapp_service = WhatsAppService(db)
@@ -657,7 +769,18 @@ async def get_template(
     return template
 
 
-@router.put("/{number_id}/templates/{template_id}", response_model=TemplateResponse)
+@router.put(
+    "/{number_id}/templates/{template_id}",
+    response_model=TemplateResponse,
+    summary="Update template",
+    description="Update local template fields. Content cannot be edited after submission.",
+    responses={
+        200: {"description": "Template updated"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Requires admin role"},
+        404: {"description": "Template not found"},
+    },
+)
 async def update_template(
     number_id: UUID,
     template_id: UUID,
@@ -665,12 +788,7 @@ async def update_template(
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Update template (only local fields)
-
-    Note: Template content cannot be edited after submission.
-    To modify a template, create a new one.
-    """
+    """Update template (local fields only)."""
     from app.services.template_service import TemplateService
 
     whatsapp_service = WhatsAppService(db)
@@ -688,20 +806,26 @@ async def update_template(
     return template
 
 
-@router.delete("/{number_id}/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{number_id}/templates/{template_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete template",
+    description="Delete template. Optionally delete from Meta as well (irreversible).",
+    responses={
+        204: {"description": "Template deleted"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Requires admin role"},
+        404: {"description": "Template not found"},
+    },
+)
 async def delete_template(
     number_id: UUID,
     template_id: UUID,
-    delete_from_meta: bool = Query(False, description="Also delete from Meta"),
+    delete_from_meta: bool = Query(False, description="Also delete from Meta (irreversible)"),
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Delete template
-
-    Query params:
-        - delete_from_meta: If true, also deletes from Meta (irreversible)
-    """
+    """Delete template."""
     from app.services.template_service import TemplateService
 
     whatsapp_service = WhatsAppService(db)
@@ -724,20 +848,24 @@ async def delete_template(
     return None
 
 
-@router.post("/{number_id}/templates/sync", response_model=TemplateSyncResponse)
+@router.post(
+    "/{number_id}/templates/sync",
+    response_model=TemplateSyncResponse,
+    summary="Sync templates",
+    description="Sync templates from Meta API. Creates new and updates existing templates.",
+    responses={
+        200: {"description": "Sync completed"},
+        400: {"description": "Invalid connection type"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Requires admin role"},
+    },
+)
 async def sync_templates(
     number_id: UUID,
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Sync templates from Meta API
-
-    Fetches all templates from Meta and updates local database:
-    - Creates new templates found in Meta
-    - Updates status of existing templates (PENDING → APPROVED/REJECTED)
-    - Useful after creating templates directly in Meta Business Manager
-    """
+    """Sync templates from Meta API."""
     from app.services.template_service import TemplateService
 
     whatsapp_service = WhatsAppService(db)
@@ -784,18 +912,22 @@ async def sync_templates(
 
 # ============= RATE LIMITING ENDPOINTS =============
 
-@router.get("/{number_id}/rate-limit/usage")
+@router.get(
+    "/{number_id}/rate-limit/usage",
+    summary="Get rate limit usage",
+    description="Get current rate limit usage counters (daily, hourly, minute)",
+    responses={
+        200: {"description": "Rate limit usage stats"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Number not found"},
+    },
+)
 async def get_rate_limit_usage(
     number_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Get current rate limit usage for WhatsApp number
-    
-    Shows daily, hourly, and minute usage counters.
-    Useful for monitoring and preventing rate limit issues.
-    """
+    """Get current rate limit usage."""
     from app.core.whatsapp_rate_limit import get_whatsapp_rate_limiter
     
     service = WhatsAppService(db)
@@ -826,15 +958,23 @@ async def get_rate_limit_usage(
     }
 
 
-@router.post("/{number_id}/rate-limit/reset")
+@router.post(
+    "/{number_id}/rate-limit/reset",
+    summary="Reset rate limit",
+    description="Reset rate limit counters for WhatsApp number. Use with caution.",
+    responses={
+        200: {"description": "Rate limit reset"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Requires admin role"},
+        404: {"description": "Number not found"},
+    },
+)
 async def reset_rate_limit(
     number_id: UUID,
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Reset rate limit counters for WhatsApp number
-    
+    """Reset rate limit counters."""
     Requires: org_admin or super_admin role
     
     Use with caution - only for testing or manual intervention.
