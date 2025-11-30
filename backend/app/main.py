@@ -125,6 +125,14 @@ app = FastAPI(
 )
 
 # ============================================
+# OPENAPI SCHEMA CUSTOMIZATION
+# ============================================
+
+from app.core.openapi_schema import custom_openapi
+
+app.openapi = lambda: custom_openapi(app)
+
+# ============================================
 # RATE LIMITING CONFIGURATION
 # ============================================
 

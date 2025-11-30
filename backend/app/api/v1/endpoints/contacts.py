@@ -18,9 +18,10 @@ from app.schemas.contact import (
     TagUpdate,
 )
 from app.services.contact_service import ContactService, TagService
+from app.core.swagger_examples import CONTACT_EXAMPLES, ERROR_EXAMPLES
 from sqlalchemy.ext.asyncio import AsyncSession
 
-router = APIRouter()
+router = APIRouter(tags=["Contacts"])
 
 
 # ============= Contacts =============
