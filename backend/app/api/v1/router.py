@@ -245,6 +245,9 @@ api_router.include_router(websocket.router, tags=["WebSocket"])
 debug = _load_endpoint_module("debug")
 api_router.include_router(debug.router, prefix="/debug", tags=["Debug"])
 
+notifications = _load_endpoint_module("notifications")
+api_router.include_router(notifications.router, tags=["Notifications"])
+
 # ============================================
 # FLOWS ENDPOINTS (Mock for now)
 # ============================================

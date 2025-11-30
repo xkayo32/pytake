@@ -1,0 +1,152 @@
+================================================================================
+📊 SWAGGER DOCUMENTATION STATUS REPORT
+================================================================================
+
+📁 Total Files: 20
+✅ Fully Documented: 1/20
+📍 Total Routes: 190
+📝 Routes with Summary: 6/190
+
+✅ COMPLETE FILES:
+--------------------------------------------------------------------------------
+  ✓ auth.py
+    Routes: 6 | Summaries: 6 | Responses: 6
+
+🔴 INCOMPLETE FILES:
+--------------------------------------------------------------------------------
+  ✗ analytics.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 9 | Summaries: 0 | Responses: 0
+  ✗ ai_assistant.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 13 | Summaries: 0 | Responses: 0
+  ✗ agent_skills.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 6 | Summaries: 0 | Responses: 0
+  ✗ database.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 2 | Summaries: 0 | Responses: 0
+  ✗ whatsapp.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 20 | Summaries: 0 | Responses: 0
+  ✗ dashboard.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 1 | Summaries: 0 | Responses: 0
+  ✗ queue.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 2 | Summaries: 0 | Responses: 0
+  ✗ queues.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 8 | Summaries: 0 | Responses: 0
+  ✗ organizations.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 11 | Summaries: 0 | Responses: 0
+  ✗ chatbots.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 21 | Summaries: 0 | Responses: 0
+  ✗ secrets.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 8 | Summaries: 0 | Responses: 0
+  ✗ users.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 11 | Summaries: 0 | Responses: 0
+  ✗ flow_automations.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 14 | Summaries: 0 | Responses: 0
+  ✗ debug.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 1 | Summaries: 0 | Responses: 0
+  ✗ websocket.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 2 | Summaries: 0 | Responses: 0
+  ✗ departments.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 9 | Summaries: 0 | Responses: 0
+  ✗ conversations.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 13 | Summaries: 0 | Responses: 0
+  ✗ campaigns.py
+    ⚠️ Sem tags de agrupamento em router
+    ⚠️ Não importa exemplos de swagger_examples
+    Routes: 14 | Summaries: 0 | Responses: 0
+  ✗ contacts.py
+    Routes: 19 | Summaries: 0 | Responses: 0
+
+================================================================================
+PRIORITY TO DOCUMENT:
+--------------------------------------------------------------------------------
+1. chatbots.py
+   - Missing summaries: 21
+   - Missing response examples: 21
+2. whatsapp.py
+   - Missing summaries: 20
+   - Missing response examples: 20
+3. contacts.py
+   - Missing summaries: 19
+   - Missing response examples: 19
+4. flow_automations.py
+   - Missing summaries: 14
+   - Missing response examples: 14
+5. campaigns.py
+   - Missing summaries: 14
+   - Missing response examples: 14
+6. ai_assistant.py
+   - Missing summaries: 13
+   - Missing response examples: 13
+7. conversations.py
+   - Missing summaries: 13
+   - Missing response examples: 13
+8. organizations.py
+   - Missing summaries: 11
+   - Missing response examples: 11
+9. users.py
+   - Missing summaries: 11
+   - Missing response examples: 11
+10. analytics.py
+   - Missing summaries: 9
+   - Missing response examples: 9
+11. departments.py
+   - Missing summaries: 9
+   - Missing response examples: 9
+12. queues.py
+   - Missing summaries: 8
+   - Missing response examples: 8
+13. secrets.py
+   - Missing summaries: 8
+   - Missing response examples: 8
+14. agent_skills.py
+   - Missing summaries: 6
+   - Missing response examples: 6
+15. database.py
+   - Missing summaries: 2
+   - Missing response examples: 2
+16. queue.py
+   - Missing summaries: 2
+   - Missing response examples: 2
+17. websocket.py
+   - Missing summaries: 2
+   - Missing response examples: 2
+18. dashboard.py
+   - Missing summaries: 1
+   - Missing response examples: 1
+19. debug.py
+   - Missing summaries: 1
+   - Missing response examples: 1
+================================================================================

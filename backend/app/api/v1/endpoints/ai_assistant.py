@@ -9,9 +9,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import httpx
+
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
 from app.schemas.ai_assistant import (
+    AIProvider,
     AIAssistantSettings,
     AIAssistantSettingsUpdate,
     AIModelListResponse,
@@ -224,11 +227,14 @@ async def update_ai_settings(
     if 'api_key' in update_data:
         api_key = update_data.pop('api_key')
         provider = update_data.get('default_provider', current_settings.get('default_provider', 'anthropic'))
+        provider_value = provider.value if isinstance(provider, AIProvider) else provider
 
-        if provider == 'openai':
+        if provider_value == 'openai':
             update_data['openai_api_key'] = api_key
-        elif provider == 'anthropic':
+        elif provider_value == 'anthropic':
             update_data['anthropic_api_key'] = api_key
+        elif provider_value == 'anythingllm':
+            update_data['anythingllm_api_key'] = api_key
 
     current_settings.update(update_data)
 
@@ -301,7 +307,7 @@ async def test_ai_connection(
 
     # Test connection based on provider
     try:
-        if settings.default_provider == "anthropic":
+        if settings.default_provider == AIProvider.ANTHROPIC:
             # Test Anthropic API
             if not settings.anthropic_api_key:
                 raise HTTPException(
@@ -328,7 +334,7 @@ async def test_ai_connection(
                 "model_tested": "claude-3-5-haiku-20241022"
             }
 
-        elif settings.default_provider == "openai":
+        elif settings.default_provider == AIProvider.OPENAI:
             # Test OpenAI API
             if not settings.openai_api_key:
                 raise HTTPException(
@@ -353,6 +359,33 @@ async def test_ai_connection(
                 "provider": "openai",
                 "message": "Connection successful! OpenAI API is working.",
                 "model_tested": "gpt-4o-mini"
+            }
+
+        elif settings.default_provider == AIProvider.ANYTHINGLLM:
+            if not settings.has_anythingllm_configuration:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="AnythingLLM API não configurada"
+                )
+
+            base_url = settings.anythingllm_base_url.rstrip("/")
+            headers = {
+                "Authorization": f"Bearer {settings.anythingllm_api_key}",
+                "Content-Type": "application/json"
+            }
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(f"{base_url}/v1/workspaces", headers=headers)
+                if response.status_code not in (200, 204):
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail="Não foi possível conectar ao AnythingLLM"
+                    )
+
+            return {
+                "success": True,
+                "provider": "anythingllm",
+                "message": "Connection successful! AnythingLLM API is working."
             }
 
         else:

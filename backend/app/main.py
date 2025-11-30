@@ -130,7 +130,9 @@ app = FastAPI(
 
 from app.core.openapi_schema import custom_openapi
 
-app.openapi = lambda: custom_openapi(app)
+# Store original openapi method before overriding
+_original_openapi = app.openapi
+app.openapi = lambda: custom_openapi(app, _original_openapi)
 
 # ============================================
 # RATE LIMITING CONFIGURATION

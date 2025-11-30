@@ -1501,7 +1501,7 @@ A API também inclui os seguintes módulos com endpoints similares (CRUD complet
 
 - **Departments** (`/departments`) - Gerenciamento de departamentos
 - **Queues** (`/queues`) - Gerenciamento de filas
-- **AI Assistant** (`/ai-assistant`) - Assistente de IA
+- **AI Assistant** (`/ai-assistant`) - Assistente de IA (OpenAI, Anthropic e AnythingLLM)
 - **Agent Skills** (`/agent-skills`) - Habilidades de agentes
 - **Secrets** (`/secrets`) - Gerenciamento de secrets
 - **Database** (`/database`) - Operações de banco de dados
@@ -1509,6 +1509,91 @@ A API também inclui os seguintes módulos com endpoints similares (CRUD complet
 - **Websocket** (`/websocket`) - Conexões WebSocket
 
 Cada módulo segue padrões similares de CRUD com autenticação baseada em roles.
+
+---
+
+## AI Assistant (`/ai-assistant`)
+
+O módulo AI Assistant permite gerar flows de automação e sugerir melhorias usando provedores de IA.
+
+### Provedores Suportados
+
+| Provider | Enum | Descrição |
+|----------|------|-----------|
+| OpenAI | `openai` | GPT-4, GPT-4o, GPT-3.5, etc. |
+| Anthropic | `anthropic` | Claude 3.5 Sonnet/Opus |
+| AnythingLLM | `anythingllm` | Instância auto-hospedada AnythingLLM |
+
+### Configurações (`AIAssistantSettings`)
+
+Armazenadas em `organization.settings.ai_assistant`:
+
+```json
+{
+  "enabled": true,
+  "default_provider": "anythingllm",
+  "openai_api_key": "sk-openai-...",
+  "anthropic_api_key": "sk-anthropic-...",
+  "anythingllm_base_url": "https://llm.example.com/api/v1",
+  "anythingllm_api_key": "sk-any-...",
+  "anythingllm_workspace_slug": "org-workspace",
+  "model": "claude-3-5-sonnet-20241022",
+  "max_tokens": 8192,
+  "temperature": 0.7
+}
+```
+
+### GET `/ai-assistant/settings`
+**Descrição:** Obter configurações do AI Assistant
+
+**Resposta (200):** AIAssistantSettings
+
+### POST `/ai-assistant/settings`
+**Descrição:** Atualizar configurações (org_admin)
+
+**Body (AIAssistantSettingsUpdate):** Campos opcionais para atualização.
+
+**Resposta (200):** AIAssistantSettings
+
+### POST `/ai-assistant/test`
+**Descrição:** Testar conexão com o provedor de IA configurado
+
+**Resposta (200):**
+```json
+{
+  "success": true,
+  "provider": "anythingllm",
+  "message": "Connection successful!"
+}
+```
+
+### POST `/ai-assistant/generate-flow`
+**Descrição:** Gerar flow automaticamente a partir de descrição
+
+**Body:** GenerateFlowRequest
+```json
+{
+  "description": "Flow de atendimento imobiliário",
+  "industry": "real estate",
+  "language": "pt-BR",
+  "chatbot_id": "uuid"
+}
+```
+
+**Resposta (200):** GenerateFlowResponse (flow_data ou clarification_questions)
+
+### POST `/ai-assistant/suggest-improvements`
+**Descrição:** Sugerir melhorias para um flow existente
+
+**Body:** SuggestImprovementsRequest
+```json
+{
+  "flow_id": "uuid",
+  "focus_areas": ["ux", "conversion"]
+}
+```
+
+**Resposta (200):** SuggestImprovementsResponse
 
 ---
 

@@ -273,3 +273,379 @@ class WebhookService:
             )
         except Exception as e:
             logger.error(f"❌ Error broadcasting progress: {e}")
+
+    async def process_incoming_message(
+        self,
+        message: Dict[str, Any],
+        metadata: Dict[str, Any],
+        contacts: list,
+    ) -> Optional[Message]:
+        """
+        Process incoming message from Meta webhook
+        
+        Message structure from Meta:
+        {
+          "from": "5511999999999",
+          "id": "wamid.xxx",
+          "timestamp": "1234567890",
+          "type": "text",
+          "text": {"body": "Hello"}
+        }
+        
+        Metadata structure:
+        {
+          "display_phone_number": "551199999999",
+          "phone_number_id": "123456789"
+        }
+        
+        Args:
+            message: Message object from webhook
+            metadata: Metadata object with phone_number_id
+            contacts: Contact list with profile info
+            
+        Returns:
+            Created Message or None if failed
+        """
+        from app.models.whatsapp_number import WhatsAppNumber
+        from app.models.contact import Contact
+        from app.models.conversation import Conversation, Message as MessageModel
+        
+        try:
+            # Extract message data
+            sender_phone = message.get("from")
+            message_id = message.get("id")
+            timestamp = message.get("timestamp")
+            message_type = message.get("type", "text")
+            
+            # Get phone_number_id to find our WhatsAppNumber
+            phone_number_id = metadata.get("phone_number_id")
+            
+            if not phone_number_id or not sender_phone:
+                logger.error(
+                    f"❌ Missing required fields: "
+                    f"phone_number_id={phone_number_id}, from={sender_phone}"
+                )
+                return None
+            
+            logger.info(
+                f"📨 Processing incoming message: "
+                f"from={sender_phone}, type={message_type}, id={message_id}"
+            )
+            
+            # 1. Find WhatsAppNumber by phone_number_id
+            stmt = select(WhatsAppNumber).where(
+                WhatsAppNumber.phone_number_id == phone_number_id
+            )
+            result = await self.db.execute(stmt)
+            whatsapp_number = result.scalar_one_or_none()
+            
+            if not whatsapp_number:
+                logger.error(
+                    f"❌ WhatsApp number not found for phone_number_id: {phone_number_id}"
+                )
+                return None
+            
+            organization_id = whatsapp_number.organization_id
+            
+            # 2. Find or create Contact
+            contact = await self._find_or_create_contact(
+                organization_id=organization_id,
+                whatsapp_id=sender_phone,
+                contacts_info=contacts,
+            )
+            
+            # 3. Find or create Conversation
+            conversation = await self._find_or_create_conversation(
+                organization_id=organization_id,
+                contact_id=contact.id,
+                whatsapp_number_id=whatsapp_number.id,
+            )
+            
+            # 4. Extract content based on message type
+            content = self._extract_message_content(message, message_type)
+            
+            # 5. Create Message
+            new_message = MessageModel(
+                organization_id=organization_id,
+                conversation_id=conversation.id,
+                whatsapp_number_id=whatsapp_number.id,
+                direction="inbound",
+                sender_type="contact",
+                whatsapp_message_id=message_id,
+                whatsapp_timestamp=int(timestamp) if timestamp else None,
+                message_type=message_type,
+                content=content,
+                status="received",
+            )
+            
+            # Handle media
+            if message_type in ["image", "video", "audio", "document", "sticker"]:
+                media_data = message.get(message_type, {})
+                new_message.media_url = media_data.get("url")
+                new_message.media_mime_type = media_data.get("mime_type")
+                new_message.media_filename = media_data.get("filename")
+            
+            self.db.add(new_message)
+            
+            # 6. Update conversation
+            conversation.last_message_at = datetime.utcnow()
+            conversation.last_inbound_at = datetime.utcnow()
+            conversation.total_messages = (conversation.total_messages or 0) + 1
+            conversation.unread_count = (conversation.unread_count or 0) + 1
+            
+            # Reopen if closed
+            if conversation.status == "closed":
+                conversation.status = "open"
+                conversation.closed_at = None
+            
+            # 7. Update contact stats
+            contact.total_messages_received = (contact.total_messages_received or 0) + 1
+            contact.last_message_at = datetime.utcnow()
+            
+            await self.db.commit()
+            await self.db.refresh(new_message)
+            
+            logger.info(
+                f"✅ Created message {new_message.id} in conversation {conversation.id}"
+            )
+            
+            # 8. Broadcast via WebSocket
+            await self._broadcast_new_message(
+                message=new_message,
+                conversation=conversation,
+                contact=contact,
+                organization_id=organization_id,
+            )
+            
+            return new_message
+            
+        except Exception as e:
+            logger.error(f"❌ Error processing incoming message: {e}")
+            await self.db.rollback()
+            return None
+
+    async def _find_or_create_contact(
+        self,
+        organization_id: UUID,
+        whatsapp_id: str,
+        contacts_info: list,
+    ) -> Contact:
+        """Find existing contact or create new one"""
+        from app.models.contact import Contact
+        
+        # Find existing
+        stmt = select(Contact).where(
+            and_(
+                Contact.organization_id == organization_id,
+                Contact.whatsapp_id == whatsapp_id,
+                Contact.deleted_at.is_(None),
+            )
+        )
+        result = await self.db.execute(stmt)
+        contact = result.scalar_one_or_none()
+        
+        if contact:
+            # Update profile name if available
+            if contacts_info:
+                profile_name = contacts_info[0].get("profile", {}).get("name")
+                if profile_name and profile_name != contact.whatsapp_name:
+                    contact.whatsapp_name = profile_name
+            return contact
+        
+        # Create new contact
+        profile_name = None
+        if contacts_info:
+            profile_name = contacts_info[0].get("profile", {}).get("name")
+        
+        contact = Contact(
+            organization_id=organization_id,
+            whatsapp_id=whatsapp_id,
+            whatsapp_name=profile_name,
+            name=profile_name,
+            source="whatsapp_inbound",
+        )
+        self.db.add(contact)
+        await self.db.flush()
+        
+        logger.info(f"✅ Created new contact: {contact.id} ({whatsapp_id})")
+        return contact
+
+    async def _find_or_create_conversation(
+        self,
+        organization_id: UUID,
+        contact_id: UUID,
+        whatsapp_number_id: UUID,
+    ) -> Conversation:
+        """Find existing open conversation or create new one"""
+        from app.models.conversation import Conversation
+        
+        # Find open conversation with this contact
+        stmt = select(Conversation).where(
+            and_(
+                Conversation.organization_id == organization_id,
+                Conversation.contact_id == contact_id,
+                Conversation.whatsapp_number_id == whatsapp_number_id,
+                Conversation.status.in_(["open", "pending"]),
+                Conversation.deleted_at.is_(None),
+            )
+        )
+        result = await self.db.execute(stmt)
+        conversation = result.scalar_one_or_none()
+        
+        if conversation:
+            return conversation
+        
+        # Create new conversation
+        conversation = Conversation(
+            organization_id=organization_id,
+            contact_id=contact_id,
+            whatsapp_number_id=whatsapp_number_id,
+            status="open",
+            channel="whatsapp",
+            priority="medium",
+            total_messages=0,
+            unread_count=0,
+        )
+        self.db.add(conversation)
+        await self.db.flush()
+        
+        logger.info(f"✅ Created new conversation: {conversation.id}")
+        return conversation
+
+    def _extract_message_content(
+        self,
+        message: Dict[str, Any],
+        message_type: str,
+    ) -> Dict[str, Any]:
+        """Extract content based on message type"""
+        if message_type == "text":
+            return {"text": message.get("text", {}).get("body", "")}
+        
+        elif message_type == "image":
+            img = message.get("image", {})
+            return {
+                "image": {
+                    "id": img.get("id"),
+                    "caption": img.get("caption"),
+                    "mime_type": img.get("mime_type"),
+                }
+            }
+        
+        elif message_type == "video":
+            vid = message.get("video", {})
+            return {
+                "video": {
+                    "id": vid.get("id"),
+                    "caption": vid.get("caption"),
+                    "mime_type": vid.get("mime_type"),
+                }
+            }
+        
+        elif message_type == "audio":
+            aud = message.get("audio", {})
+            return {
+                "audio": {
+                    "id": aud.get("id"),
+                    "mime_type": aud.get("mime_type"),
+                }
+            }
+        
+        elif message_type == "document":
+            doc = message.get("document", {})
+            return {
+                "document": {
+                    "id": doc.get("id"),
+                    "filename": doc.get("filename"),
+                    "caption": doc.get("caption"),
+                    "mime_type": doc.get("mime_type"),
+                }
+            }
+        
+        elif message_type == "location":
+            loc = message.get("location", {})
+            return {
+                "location": {
+                    "latitude": loc.get("latitude"),
+                    "longitude": loc.get("longitude"),
+                    "name": loc.get("name"),
+                    "address": loc.get("address"),
+                }
+            }
+        
+        elif message_type == "contacts":
+            return {"contacts": message.get("contacts", [])}
+        
+        elif message_type == "interactive":
+            inter = message.get("interactive", {})
+            return {
+                "interactive": {
+                    "type": inter.get("type"),
+                    "button_reply": inter.get("button_reply"),
+                    "list_reply": inter.get("list_reply"),
+                }
+            }
+        
+        elif message_type == "button":
+            btn = message.get("button", {})
+            return {
+                "button": {
+                    "text": btn.get("text"),
+                    "payload": btn.get("payload"),
+                }
+            }
+        
+        elif message_type == "sticker":
+            stk = message.get("sticker", {})
+            return {
+                "sticker": {
+                    "id": stk.get("id"),
+                    "animated": stk.get("animated"),
+                }
+            }
+        
+        else:
+            # Unknown type - store raw
+            return {"raw": message}
+
+    async def _broadcast_new_message(
+        self,
+        message: Message,
+        conversation: Any,
+        contact: Any,
+        organization_id: UUID,
+    ) -> None:
+        """Broadcast new message event via WebSocket"""
+        try:
+            from app.core.websocket_manager import websocket_manager
+            
+            payload = {
+                "message_id": str(message.id),
+                "conversation_id": str(conversation.id),
+                "contact_id": str(contact.id),
+                "contact_name": contact.name or contact.whatsapp_name or contact.whatsapp_id,
+                "message_type": message.message_type,
+                "content": message.content,
+                "direction": message.direction,
+                "timestamp": message.created_at.isoformat() if message.created_at else None,
+            }
+            
+            # Broadcast to organization room
+            await websocket_manager.broadcast_to_room(
+                room=f"org:{organization_id}",
+                message=payload,
+                event="message:new",
+            )
+            
+            # Broadcast to conversation room
+            await websocket_manager.broadcast_to_room(
+                room=f"conversation:{conversation.id}",
+                message=payload,
+                event="message:new",
+            )
+            
+            logger.info(f"📡 Broadcasted new message to org:{organization_id}")
+            
+        except ImportError:
+            logger.warning("⚠️ WebSocket manager not available")
+        except Exception as e:
+            logger.error(f"❌ Error broadcasting new message: {e}")

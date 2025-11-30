@@ -153,6 +153,10 @@ async def receive_webhook(
                 value = change.get("value", {})
                 
                 if field == "messages":
+                    # Get metadata for identifying WhatsApp number
+                    msg_metadata = value.get("metadata", {})
+                    contacts_info = value.get("contacts", [])
+                    
                     # Process message status updates
                     statuses = value.get("statuses", [])
                     for status in statuses:
@@ -162,11 +166,17 @@ async def receive_webhook(
                             logger.error(f"❌ Error processing status: {e}")
                             # Continue processing other statuses
                     
-                    # Process incoming messages (future)
+                    # Process incoming messages
                     messages = value.get("messages", [])
                     for message in messages:
-                        logger.info(f"📨 Incoming message: {message.get('id')}")
-                        # TODO: Implement incoming message handler
+                        try:
+                            await webhook_service.process_incoming_message(
+                                message=message,
+                                metadata=msg_metadata,
+                                contacts=contacts_info,
+                            )
+                        except Exception as e:
+                            logger.error(f"❌ Error processing incoming message: {e}")
                 
                 elif field == "message_template_status_update":
                     # Template status update (future)

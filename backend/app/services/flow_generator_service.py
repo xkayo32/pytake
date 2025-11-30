@@ -8,10 +8,13 @@ and suggest improvements for existing flows.
 import json
 import logging
 import re
+from copy import deepcopy
 from typing import Dict, List, Optional, Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
+
+import httpx
 
 from app.schemas.ai_assistant import (
     AIProvider,
@@ -109,6 +112,13 @@ class FlowGeneratorService:
                 error_message="AI Assistant não está configurado ou habilitado para esta organização"
             )
 
+        organization = await self.org_repo.get(organization_id)
+        if not organization:
+            return GenerateFlowResponse(
+                status="error",
+                error_message="Organização não encontrada"
+            )
+
         # Detect WhatsApp type from chatbot
         whatsapp_type = None  # 'official' or 'qrcode'
         if chatbot_id:
@@ -136,30 +146,12 @@ class FlowGeneratorService:
 
         # Call AI API
         try:
-            if ai_settings.provider == AIProvider.ANTHROPIC:
-                ai_response = await self._call_anthropic(
-                    system_prompt=system_prompt,
-                    user_prompt=user_prompt,
-                    api_key=ai_settings.api_key,
-                    model=ai_settings.model,
-                    max_tokens=ai_settings.max_tokens,
-                    temperature=ai_settings.temperature
-                )
-            elif ai_settings.provider == AIProvider.OPENAI:
-                ai_response = await self._call_openai(
-                    system_prompt=system_prompt,
-                    user_prompt=user_prompt,
-                    api_key=ai_settings.api_key,
-                    model=ai_settings.model,
-                    max_tokens=ai_settings.max_tokens,
-                    temperature=ai_settings.temperature
-                )
-            else:
-                return GenerateFlowResponse(
-                    status="error",
-                    error_message=f"Provedor de IA não suportado: {ai_settings.provider}"
-                )
-
+            ai_response = await self._dispatch_flow_generation(
+                organization=organization,
+                ai_settings=ai_settings,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt
+            )
         except Exception as e:
             logger.error(f"Error calling AI API: {e}")
             return GenerateFlowResponse(
@@ -331,6 +323,200 @@ class FlowGeneratorService:
         )
 
         return completion.choices[0].message.content
+
+    async def _call_anythingllm(
+        self,
+        organization: Organization,
+        ai_settings: AIAssistantSettings,
+        system_prompt: str,
+        user_prompt: str
+    ) -> str:
+        """Call AnythingLLM OpenAI-compatible endpoint"""
+        if not ai_settings.has_anythingllm_configuration:
+            raise ValueError("AnythingLLM não está configurado")
+
+        base_url = ai_settings.anythingllm_base_url.rstrip("/")
+        headers = {
+            "Authorization": f"Bearer {ai_settings.anythingllm_api_key}",
+            "Content-Type": "application/json"
+        }
+
+        timeout = httpx.Timeout(120.0)
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            workspace_slug = await self._ensure_anythingllm_workspace(
+                client=client,
+                base_url=base_url,
+                headers=headers,
+                organization=organization,
+                ai_settings=ai_settings
+            )
+
+            payload = {
+                "model": workspace_slug,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                "temperature": ai_settings.temperature,
+                "max_tokens": ai_settings.max_tokens,
+                "stream": False
+            }
+
+            response = await client.post(
+                f"{base_url}/v1/openai/chat/completions",
+                headers=headers,
+                json=payload
+            )
+
+            response.raise_for_status()
+            data = response.json()
+
+            choices = data.get("choices") or []
+            if not choices:
+                raise ValueError("AnythingLLM não retornou escolhas válidas")
+
+            message = choices[0].get("message") or {}
+            content = message.get("content")
+
+            if not content:
+                delta = choices[0].get("delta") or {}
+                content = delta.get("content")
+
+            if not content:
+                raise ValueError("Resposta do AnythingLLM não contém conteúdo")
+
+            return content
+
+    async def _ensure_anythingllm_workspace(
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        headers: Dict[str, str],
+        organization: Organization,
+        ai_settings: AIAssistantSettings
+    ) -> str:
+        """Ensure workspace exists in AnythingLLM and cache slug"""
+        existing_slug = ai_settings.anythingllm_workspace_slug
+
+        if existing_slug:
+            response = await client.get(
+                f"{base_url}/v1/workspace/{existing_slug}",
+                headers=headers
+            )
+
+            if response.status_code == 200:
+                return existing_slug
+
+        workspace_name = organization.name or f"Workspace {organization.id}"
+        workspace_name = workspace_name.strip()
+        if not workspace_name:
+            workspace_name = f"Workspace {organization.id}"
+
+        payload = {"name": f"PyTake - {workspace_name}"[:120]}
+
+        response = await client.post(
+            f"{base_url}/v1/workspace/new",
+            headers=headers,
+            json=payload
+        )
+
+        response.raise_for_status()
+        data = response.json()
+        workspace = data.get("workspace") or {}
+        slug = workspace.get("slug")
+
+        if not slug:
+            raise ValueError("Não foi possível obter slug do workspace AnythingLLM")
+
+        await self._persist_anythingllm_workspace_slug(organization, slug)
+        ai_settings.anythingllm_workspace_slug = slug
+
+        return slug
+
+    async def _persist_anythingllm_workspace_slug(
+        self,
+        organization: Organization,
+        workspace_slug: str
+    ) -> None:
+        """Persist workspace slug back into organization settings"""
+        settings_copy = deepcopy(organization.settings or {})
+        ai_settings_dict = deepcopy(settings_copy.get("ai_assistant", {}))
+        ai_settings_dict["anythingllm_workspace_slug"] = workspace_slug
+        settings_copy["ai_assistant"] = ai_settings_dict
+
+        await self.org_repo.update(organization.id, {"settings": settings_copy})
+        organization.settings = settings_copy
+
+    async def _dispatch_flow_generation(
+        self,
+        organization: Organization,
+        ai_settings: AIAssistantSettings,
+        system_prompt: str,
+        user_prompt: str
+    ) -> str:
+        """Determine appropriate provider with fallbacks"""
+        provider = ai_settings.provider
+
+        # Preferred provider
+        if provider == AIProvider.ANTHROPIC and ai_settings.anthropic_api_key:
+            return await self._call_anthropic(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                api_key=ai_settings.anthropic_api_key,
+                model=ai_settings.model,
+                max_tokens=ai_settings.max_tokens,
+                temperature=ai_settings.temperature
+            )
+
+        if provider == AIProvider.OPENAI and ai_settings.openai_api_key:
+            return await self._call_openai(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                api_key=ai_settings.openai_api_key,
+                model=ai_settings.model,
+                max_tokens=ai_settings.max_tokens,
+                temperature=ai_settings.temperature
+            )
+
+        if provider == AIProvider.ANYTHINGLLM:
+            return await self._call_anythingllm(
+                organization=organization,
+                ai_settings=ai_settings,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt
+            )
+
+        # Fallbacks
+        if ai_settings.openai_api_key:
+            return await self._call_openai(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                api_key=ai_settings.openai_api_key,
+                model=ai_settings.model,
+                max_tokens=ai_settings.max_tokens,
+                temperature=ai_settings.temperature
+            )
+
+        if ai_settings.anthropic_api_key:
+            return await self._call_anthropic(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                api_key=ai_settings.anthropic_api_key,
+                model=ai_settings.model,
+                max_tokens=ai_settings.max_tokens,
+                temperature=ai_settings.temperature
+            )
+
+        if ai_settings.has_anythingllm_configuration:
+            return await self._call_anythingllm(
+                organization=organization,
+                ai_settings=ai_settings,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt
+            )
+
+        raise ValueError("Nenhum provedor de IA configurado")
 
     # ==================== Prompt Building ====================
 

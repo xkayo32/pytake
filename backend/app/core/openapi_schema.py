@@ -292,15 +292,25 @@ For API support and questions:
     }
 
 
-def custom_openapi(app: FastAPI):
+def custom_openapi(app: FastAPI, original_openapi=None):
     """
     Generate custom OpenAPI schema with enhanced documentation
     """
     if app.openapi_schema:
         return app.openapi_schema
 
-    # Get base schema
-    openapi_schema = app.openapi()
+    # Get base schema using original openapi method to avoid recursion
+    if original_openapi:
+        openapi_schema = original_openapi()
+    else:
+        # Fallback: build schema manually from FastAPI
+        from fastapi.openapi.utils import get_openapi
+        openapi_schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
     
     # Update with custom schema
     custom = get_openapi_schema()

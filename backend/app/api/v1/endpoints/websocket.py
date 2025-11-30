@@ -58,21 +58,40 @@ async def websocket_endpoint(
       }
     }
     """
+    from app.core.security import decode_token
+    from jose import JWTError
     
-    # Authenticate user (simplified - use proper JWT validation in production)
+    # Authenticate user
     user_id = None
     org_id = None
     
-    if token:
-        try:
-            # TODO: Implement proper JWT validation
-            # For now, accept any token for development
-            user_id = "authenticated_user"
-            org_id = "user_org"
-        except Exception as e:
-            logger.error(f"❌ WebSocket auth failed: {e}")
-            await websocket.close(code=1008, reason="Authentication failed")
-            return
+    if not token:
+        logger.warning("⚠️ WebSocket connection without token")
+        await websocket.close(code=1008, reason="Authentication required")
+        return
+    
+    try:
+        # Decode and validate JWT token
+        payload = decode_token(token)
+        
+        # Extract user_id from token subject
+        user_id = payload.get("sub")
+        if not user_id:
+            raise JWTError("Missing subject in token")
+        
+        # Extract organization_id if present
+        org_id = payload.get("org_id") or payload.get("organization_id")
+        
+        logger.info(f"✅ WebSocket authenticated: user={user_id}, org={org_id}")
+        
+    except JWTError as e:
+        logger.error(f"❌ WebSocket JWT validation failed: {e}")
+        await websocket.close(code=1008, reason="Invalid or expired token")
+        return
+    except Exception as e:
+        logger.error(f"❌ WebSocket auth failed: {e}")
+        await websocket.close(code=1008, reason="Authentication failed")
+        return
     
     # Generate connection ID
     import time

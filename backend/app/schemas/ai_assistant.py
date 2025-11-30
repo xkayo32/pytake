@@ -11,6 +11,7 @@ class AIProvider(str, Enum):
     """Supported AI providers"""
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    ANYTHINGLLM = "anythingllm"
 
 
 class AIModelBase(BaseModel):
@@ -59,9 +60,12 @@ class AIAssistantSettings(BaseModel):
     {
         "ai_assistant": {
             "enabled": true,
-            "default_provider": "anthropic",
-            "openai_api_key": "sk-...",
-            "anthropic_api_key": "sk-ant-...",
+            "default_provider": "anythingllm",
+            "openai_api_key": "sk-openai-...",
+            "anthropic_api_key": "sk-anthropic-...",
+            "anythingllm_base_url": "https://llm.exemplo.com/api/v1",
+            "anythingllm_api_key": "sk-any-...",
+            "anythingllm_workspace_slug": "org-primary",
             "model": "claude-3-5-sonnet-20241022",
             "max_tokens": 8192,
             "temperature": 0.7
@@ -74,7 +78,7 @@ class AIAssistantSettings(BaseModel):
     )
     default_provider: AIProvider = Field(
         default=AIProvider.ANTHROPIC,
-        description="Default AI provider (openai or anthropic)"
+        description="Default AI provider (openai, anthropic ou anythingllm)"
     )
     openai_api_key: Optional[str] = Field(
         None,
@@ -102,6 +106,23 @@ class AIAssistantSettings(BaseModel):
         le=1.0,
         description="AI temperature (0-1, higher = more creative)"
     )
+    anythingllm_base_url: Optional[str] = Field(
+        default=None,
+        description="Base URL of self-hosted AnythingLLM instance"
+    )
+    anythingllm_api_key: Optional[str] = Field(
+        default=None,
+        min_length=10,
+        description="API key for AnythingLLM"
+    )
+    anythingllm_workspace_slug: Optional[str] = Field(
+        default=None,
+        description="Cached workspace slug created for this organization"
+    )
+    anythingllm_workspace_slug: Optional[str] = Field(
+        default=None,
+        description="Cached workspace slug created for this organization"
+    )
 
     @field_validator('model')
     @classmethod
@@ -112,6 +133,31 @@ class AIAssistantSettings(BaseModel):
         if not v or not v.strip():
             raise ValueError("Model name cannot be empty")
         return v
+
+    @property
+    def provider(self) -> AIProvider:
+        """Return active provider as enum"""
+        if isinstance(self.default_provider, AIProvider):
+            return self.default_provider
+        return AIProvider(self.default_provider)
+
+    @property
+    def api_key(self) -> Optional[str]:
+        """Return API key matching active provider"""
+        provider = self.provider
+
+        if provider == AIProvider.OPENAI:
+            return self.openai_api_key
+        if provider == AIProvider.ANTHROPIC:
+            return self.anthropic_api_key
+        if provider == AIProvider.ANYTHINGLLM:
+            return self.anythingllm_api_key
+        return None
+
+    @property
+    def has_anythingllm_configuration(self) -> bool:
+        """Check if AnythingLLM credentials are available"""
+        return bool(self.anythingllm_base_url and self.anythingllm_api_key)
 
 
 class AIAssistantSettingsUpdate(BaseModel):
@@ -128,6 +174,9 @@ class AIAssistantSettingsUpdate(BaseModel):
     model: Optional[str] = None
     max_tokens: Optional[int] = Field(None, ge=1024, le=200000)
     temperature: Optional[float] = Field(None, ge=0.0, le=1.0)
+    anythingllm_base_url: Optional[str] = None
+    anythingllm_api_key: Optional[str] = Field(None, min_length=10)
+    anythingllm_workspace_slug: Optional[str] = None
 
 
 class GenerateFlowRequest(BaseModel):
