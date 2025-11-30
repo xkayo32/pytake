@@ -16,7 +16,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 router = APIRouter()
 
 
-@router.get("/", response_model=List[Conversation])
+@router.get(
+    "/",
+    response_model=List[Conversation],
+    summary="Obter fila de atendimento",
+    description="Retorna conversas aguardando atribuição, ordenadas por prioridade e tempo de espera.",
+    responses={
+        200: {"description": "Lista de conversas na fila"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def get_queue(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
@@ -45,7 +54,18 @@ async def get_queue(
     )
 
 
-@router.post("/pull", response_model=Conversation)
+@router.post(
+    "/pull",
+    response_model=Conversation,
+    summary="Puxar próxima conversa da fila",
+    description="Retira a próxima conversa da fila baseado em prioridade e tempo de espera, atribuindo ao agente atual.",
+    responses={
+        200: {"description": "Conversa atribuída"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Apenas agentes podem puxar da fila"},
+        404: {"description": "Fila vazia"}
+    }
+)
 async def pull_from_queue(
     department_id: Optional[UUID] = Query(None, description="Filter by department"),
     queue_id: Optional[UUID] = Query(None, description="Filter by queue"),

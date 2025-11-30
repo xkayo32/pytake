@@ -16,7 +16,18 @@ from app.services.queue_service import QueueService
 router = APIRouter()
 
 
-@router.post("/", response_model=Queue, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=Queue,
+    status_code=status.HTTP_201_CREATED,
+    summary="Criar fila",
+    description="Cria uma nova fila de atendimento. Apenas org_admin pode criar.",
+    responses={
+        201: {"description": "Fila criada"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"}
+    }
+)
 async def create_queue(
     data: QueueCreate,
     current_user: User = Depends(get_current_user),
@@ -38,7 +49,16 @@ async def create_queue(
     return await service.create_queue(current_user.organization_id, data)
 
 
-@router.get("/", response_model=List[Queue])
+@router.get(
+    "/",
+    response_model=List[Queue],
+    summary="Listar filas",
+    description="Lista todas as filas de atendimento com filtros opcionais.",
+    responses={
+        200: {"description": "Lista de filas"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def list_queues(
     department_id: Optional[UUID] = Query(None, description="Filter by department"),
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
@@ -67,7 +87,17 @@ async def list_queues(
     )
 
 
-@router.get("/{queue_id}", response_model=Queue)
+@router.get(
+    "/{queue_id}",
+    response_model=Queue,
+    summary="Obter fila por ID",
+    description="Retorna detalhes de uma fila específica.",
+    responses={
+        200: {"description": "Dados da fila"},
+        401: {"description": "Não autenticado"},
+        404: {"description": "Fila não encontrada"}
+    }
+)
 async def get_queue(
     queue_id: UUID,
     current_user: User = Depends(get_current_user),
@@ -86,7 +116,18 @@ async def get_queue(
     return queue
 
 
-@router.put("/{queue_id}", response_model=Queue)
+@router.put(
+    "/{queue_id}",
+    response_model=Queue,
+    summary="Atualizar fila",
+    description="Atualiza uma fila existente. Apenas org_admin pode atualizar.",
+    responses={
+        200: {"description": "Fila atualizada"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"},
+        404: {"description": "Fila não encontrada"}
+    }
+)
 async def update_queue(
     queue_id: UUID,
     data: QueueUpdate,
@@ -117,7 +158,18 @@ async def update_queue(
     return queue
 
 
-@router.delete("/{queue_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{queue_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Excluir fila",
+    description="Exclui uma fila (soft delete). Apenas org_admin pode excluir.",
+    responses={
+        204: {"description": "Fila excluída"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"},
+        404: {"description": "Fila não encontrada"}
+    }
+)
 async def delete_queue(
     queue_id: UUID,
     current_user: User = Depends(get_current_user),
@@ -145,7 +197,18 @@ async def delete_queue(
         )
 
 
-@router.post("/bulk-delete", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/bulk-delete",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Excluir filas em lote",
+    description="Exclui múltiplas filas de uma vez. Apenas org_admin pode excluir.",
+    responses={
+        204: {"description": "Filas excluídas"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"},
+        404: {"description": "Nenhuma fila encontrada"}
+    }
+)
 async def bulk_delete_queues(
     data: QueueBulkDelete,
     current_user: User = Depends(get_current_user),
@@ -175,7 +238,17 @@ async def bulk_delete_queues(
         )
 
 
-@router.get("/by-slug/{slug}", response_model=Queue)
+@router.get(
+    "/by-slug/{slug}",
+    response_model=Queue,
+    summary="Obter fila por slug",
+    description="Retorna uma fila pelo seu slug único.",
+    responses={
+        200: {"description": "Dados da fila"},
+        401: {"description": "Não autenticado"},
+        404: {"description": "Fila não encontrada"}
+    }
+)
 async def get_queue_by_slug(
     slug: str,
     department_id: Optional[UUID] = Query(None, description="Filter by department"),
@@ -197,7 +270,16 @@ async def get_queue_by_slug(
     return queue
 
 
-@router.get("/{queue_id}/metrics")
+@router.get(
+    "/{queue_id}/metrics",
+    summary="Métricas da fila",
+    description="Retorna métricas detalhadas da fila: volume, tempos, SLA, distribuição por hora.",
+    responses={
+        200: {"description": "Métricas da fila"},
+        401: {"description": "Não autenticado"},
+        404: {"description": "Fila não encontrada"}
+    }
+)
 async def get_queue_metrics(
     queue_id: UUID,
     days: int = Query(30, ge=1, le=90, description="Number of days for metrics"),

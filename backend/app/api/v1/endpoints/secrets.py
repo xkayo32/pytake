@@ -24,7 +24,16 @@ from app.services.secret_service import SecretService
 router = APIRouter()
 
 
-@router.get("/", response_model=List[SecretInDB])
+@router.get(
+    "/",
+    response_model=List[SecretInDB],
+    summary="Listar secrets",
+    description="Lista todos os secrets da organização. Valores não são descriptografados.",
+    responses={
+        200: {"description": "Lista de secrets"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def list_secrets(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
@@ -58,7 +67,19 @@ async def list_secrets(
     )
 
 
-@router.post("/", response_model=SecretInDB, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=SecretInDB,
+    status_code=status.HTTP_201_CREATED,
+    summary="Criar secret",
+    description="Cria um novo secret criptografado. Requer org_admin ou super_admin.",
+    responses={
+        201: {"description": "Secret criado"},
+        400: {"description": "Dados inválidos"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"}
+    }
+)
 async def create_secret(
     data: SecretCreate,
     current_user: User = Depends(get_current_admin),
@@ -99,7 +120,17 @@ async def create_secret(
         )
 
 
-@router.get("/{secret_id}", response_model=SecretInDB)
+@router.get(
+    "/{secret_id}",
+    response_model=SecretInDB,
+    summary="Obter secret por ID",
+    description="Retorna um secret sem o valor descriptografado.",
+    responses={
+        200: {"description": "Dados do secret"},
+        401: {"description": "Não autenticado"},
+        404: {"description": "Secret não encontrado"}
+    }
+)
 async def get_secret(
     secret_id: UUID,
     current_user: User = Depends(get_current_user),
@@ -126,7 +157,18 @@ async def get_secret(
     return secret
 
 
-@router.get("/{secret_id}/value", response_model=SecretWithValue)
+@router.get(
+    "/{secret_id}/value",
+    response_model=SecretWithValue,
+    summary="Obter valor do secret",
+    description="Retorna o secret com valor descriptografado. Requer org_admin ou super_admin. ⚠️ USE COM CUIDADO.",
+    responses={
+        200: {"description": "Secret com valor"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"},
+        404: {"description": "Secret não encontrado"}
+    }
+)
 async def get_secret_value(
     secret_id: UUID,
     current_user: User = Depends(get_current_admin),
@@ -163,7 +205,19 @@ async def get_secret_value(
         )
 
 
-@router.put("/{secret_id}", response_model=SecretInDB)
+@router.put(
+    "/{secret_id}",
+    response_model=SecretInDB,
+    summary="Atualizar secret",
+    description="Atualiza um secret. Se value for fornecido, será re-criptografado. Requer org_admin.",
+    responses={
+        200: {"description": "Secret atualizado"},
+        400: {"description": "Dados inválidos"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"},
+        404: {"description": "Secret não encontrado"}
+    }
+)
 async def update_secret(
     secret_id: UUID,
     data: SecretUpdate,
@@ -210,7 +264,18 @@ async def update_secret(
         )
 
 
-@router.delete("/{secret_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{secret_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Excluir secret",
+    description="Exclui permanentemente um secret. ⚠️ Hard delete - valor será removido. Requer org_admin.",
+    responses={
+        204: {"description": "Secret excluído"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"},
+        404: {"description": "Secret não encontrado"}
+    }
+)
 async def delete_secret(
     secret_id: UUID,
     current_user: User = Depends(get_current_admin),
@@ -239,7 +304,18 @@ async def delete_secret(
     return None
 
 
-@router.post("/{secret_id}/rotate", response_model=SecretInDB)
+@router.post(
+    "/{secret_id}/rotate",
+    response_model=SecretInDB,
+    summary="Rotacionar secret",
+    description="Rotaciona o valor de um secret (atualiza com novo valor criptografado). Requer org_admin.",
+    responses={
+        200: {"description": "Secret rotacionado"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"},
+        404: {"description": "Secret não encontrado"}
+    }
+)
 async def rotate_secret(
     secret_id: UUID,
     new_value: str = Query(..., min_length=1, description="New plaintext value"),
@@ -277,7 +353,16 @@ async def rotate_secret(
         )
 
 
-@router.get("/stats", response_model=dict)
+@router.get(
+    "/stats",
+    response_model=dict,
+    summary="Estatísticas de secrets",
+    description="Retorna estatísticas de secrets da organização.",
+    responses={
+        200: {"description": "Estatísticas"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def get_secrets_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

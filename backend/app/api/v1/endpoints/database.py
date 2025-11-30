@@ -16,7 +16,16 @@ from app.services.database_service import DatabaseService
 router = APIRouter()
 
 
-@router.post("/test-connection", response_model=TestConnectionResponse)
+@router.post(
+    "/test-connection",
+    response_model=TestConnectionResponse,
+    summary="Testar conexão com banco",
+    description="Valida configuração e tenta conectar ao banco de dados. Suporta PostgreSQL, MySQL, MongoDB, SQLite.",
+    responses={
+        200: {"description": "Resultado do teste de conexão"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def test_database_connection(
     request: TestConnectionRequest,
     current_user: User = Depends(get_current_user),
@@ -47,7 +56,16 @@ async def test_database_connection(
     )
 
 
-@router.post("/execute-query", response_model=ExecuteQueryResponse)
+@router.post(
+    "/execute-query",
+    response_model=ExecuteQueryResponse,
+    summary="Executar query no banco",
+    description="Executa queries SQL/NoSQL em bancos configurados. Suporta cache e parâmetros para prevenção de SQL injection.",
+    responses={
+        200: {"description": "Resultado da query"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def execute_database_query(
     request: ExecuteQueryRequest,
     current_user: User = Depends(get_current_user),

@@ -6,7 +6,14 @@ from fastapi import APIRouter, Query
 router = APIRouter()
 
 
-@router.get('/conversations/metrics-debug')
+@router.get(
+    '/conversations/metrics-debug',
+    summary="Debug de métricas",
+    description="Endpoint de debug para verificar parâmetros de requisição (apenas desenvolvimento).",
+    responses={
+        200: {"description": "Parâmetros recebidos"}
+    }
+)
 async def conversations_metrics_debug(
     department_id: Optional[str] = Query(None),
     queue_id: Optional[str] = Query(None),

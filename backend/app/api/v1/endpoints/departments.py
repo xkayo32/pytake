@@ -21,7 +21,16 @@ from app.services.department_service import DepartmentService
 router = APIRouter()
 
 
-@router.get("/", response_model=List[Department])
+@router.get(
+    "/",
+    response_model=List[Department],
+    summary="Listar departamentos",
+    description="Lista todos os departamentos da organização com filtros opcionais.",
+    responses={
+        200: {"description": "Lista de departamentos"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def list_departments(
     is_active: Optional[bool] = Query(None),
     skip: int = Query(0, ge=0),
@@ -44,7 +53,16 @@ async def list_departments(
     )
 
 
-@router.get("/active", response_model=List[Department])
+@router.get(
+    "/active",
+    response_model=List[Department],
+    summary="Listar departamentos ativos",
+    description="Retorna apenas departamentos ativos (atalho).",
+    responses={
+        200: {"description": "Lista de departamentos ativos"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def list_active_departments(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -56,7 +74,16 @@ async def list_active_departments(
     )
 
 
-@router.get("/stats", response_model=dict)
+@router.get(
+    "/stats",
+    response_model=dict,
+    summary="Estatísticas de departamentos",
+    description="Retorna estatísticas gerais dos departamentos da organização.",
+    responses={
+        200: {"description": "Estatísticas dos departamentos"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def get_organization_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -68,7 +95,18 @@ async def get_organization_stats(
     )
 
 
-@router.post("/", response_model=Department, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=Department,
+    status_code=status.HTTP_201_CREATED,
+    summary="Criar departamento",
+    description="Cria um novo departamento. Apenas admins podem criar.",
+    responses={
+        201: {"description": "Departamento criado"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"}
+    }
+)
 async def create_department(
     data: DepartmentCreate,
     current_user: User = Depends(get_current_admin),
@@ -86,7 +124,17 @@ async def create_department(
     )
 
 
-@router.get("/{department_id}", response_model=Department)
+@router.get(
+    "/{department_id}",
+    response_model=Department,
+    summary="Obter departamento",
+    description="Retorna um departamento específico por ID.",
+    responses={
+        200: {"description": "Dados do departamento"},
+        401: {"description": "Não autenticado"},
+        404: {"description": "Departamento não encontrado"}
+    }
+)
 async def get_department(
     department_id: UUID,
     current_user: User = Depends(get_current_user),
@@ -100,7 +148,18 @@ async def get_department(
     )
 
 
-@router.put("/{department_id}", response_model=Department)
+@router.put(
+    "/{department_id}",
+    response_model=Department,
+    summary="Atualizar departamento",
+    description="Atualiza um departamento existente. Apenas admins podem atualizar.",
+    responses={
+        200: {"description": "Departamento atualizado"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"},
+        404: {"description": "Departamento não encontrado"}
+    }
+)
 async def update_department(
     department_id: UUID,
     data: DepartmentUpdate,
@@ -120,7 +179,18 @@ async def update_department(
     )
 
 
-@router.delete("/{department_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{department_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Excluir departamento",
+    description="Exclui um departamento (soft delete). Apenas admins podem excluir.",
+    responses={
+        204: {"description": "Departamento excluído"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"},
+        404: {"description": "Departamento não encontrado"}
+    }
+)
 async def delete_department(
     department_id: UUID,
     current_user: User = Depends(get_current_admin),
@@ -139,7 +209,18 @@ async def delete_department(
     return None
 
 
-@router.post("/{department_id}/agents/{agent_id}", response_model=Department)
+@router.post(
+    "/{department_id}/agents/{agent_id}",
+    response_model=Department,
+    summary="Adicionar agente ao departamento",
+    description="Adiciona um agente a um departamento. Apenas admins podem gerenciar.",
+    responses={
+        200: {"description": "Agente adicionado"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"},
+        404: {"description": "Departamento ou agente não encontrado"}
+    }
+)
 async def add_agent_to_department(
     department_id: UUID,
     agent_id: UUID,
@@ -159,7 +240,18 @@ async def add_agent_to_department(
     )
 
 
-@router.delete("/{department_id}/agents/{agent_id}", response_model=Department)
+@router.delete(
+    "/{department_id}/agents/{agent_id}",
+    response_model=Department,
+    summary="Remover agente do departamento",
+    description="Remove um agente de um departamento. Apenas admins podem gerenciar.",
+    responses={
+        200: {"description": "Agente removido"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"},
+        404: {"description": "Departamento ou agente não encontrado"}
+    }
+)
 async def remove_agent_from_department(
     department_id: UUID,
     agent_id: UUID,

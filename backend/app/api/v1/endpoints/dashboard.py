@@ -13,7 +13,16 @@ from app.services.analytics_service import AnalyticsService
 router = APIRouter()
 
 
-@router.get("/summary", response_model=OverviewMetrics)
+@router.get(
+    "/summary",
+    response_model=OverviewMetrics,
+    summary="Resumo do dashboard",
+    description="Retorna métricas agregadas para o dashboard da organização: conversas, mensagens, agentes ativos, atividade recente.",
+    responses={
+        200: {"description": "Métricas do dashboard"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def get_dashboard_summary(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
