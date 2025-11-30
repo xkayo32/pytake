@@ -16,7 +16,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 router = APIRouter()
 
 
-@router.get("/", response_model=List[UserSchema])
+@router.get(
+    "/",
+    response_model=List[UserSchema],
+    summary="Listar usuários",
+    description="Lista os usuários da organização com filtros opcionais por role e status.",
+    responses={
+        200: {"description": "Lista de usuários"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def list_users(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
@@ -38,7 +47,19 @@ async def list_users(
     )
 
 
-@router.post("/", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=UserSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Criar usuário",
+    description="Cria um novo usuário na organização. Requer org_admin ou super_admin.",
+    responses={
+        201: {"description": "Usuário criado"},
+        400: {"description": "Email já existe"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"}
+    }
+)
 async def create_user(
     data: UserCreate,
     current_user: User = Depends(get_current_admin),
@@ -56,7 +77,16 @@ async def create_user(
     )
 
 
-@router.get("/me", response_model=UserSchema)
+@router.get(
+    "/me",
+    response_model=UserSchema,
+    summary="Obter meu perfil",
+    description="Retorna os dados do usuário atual autenticado.",
+    responses={
+        200: {"description": "Dados do usuário"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def get_current_user_profile(
     current_user: User = Depends(get_current_user),
 ):
@@ -66,7 +96,16 @@ async def get_current_user_profile(
     return current_user
 
 
-@router.get("/me/stats", response_model=dict)
+@router.get(
+    "/me/stats",
+    response_model=dict,
+    summary="Minhas estatísticas",
+    description="Retorna estatísticas do usuário atual (atendimentos, mensagens, etc).",
+    responses={
+        200: {"description": "Estatísticas do usuário"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def get_my_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -81,7 +120,16 @@ async def get_my_stats(
     )
 
 
-@router.put("/me", response_model=UserSchema)
+@router.put(
+    "/me",
+    response_model=UserSchema,
+    summary="Atualizar meu perfil",
+    description="Atualiza os dados do usuário atual. Não permite alterar o próprio role.",
+    responses={
+        200: {"description": "Perfil atualizado"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def update_my_profile(
     data: UserUpdate,
     current_user: User = Depends(get_current_user),
@@ -105,7 +153,17 @@ async def update_my_profile(
     )
 
 
-@router.get("/{user_id}", response_model=UserSchema)
+@router.get(
+    "/{user_id}",
+    response_model=UserSchema,
+    summary="Obter usuário por ID",
+    description="Retorna os dados de um usuário específico da organização.",
+    responses={
+        200: {"description": "Dados do usuário"},
+        401: {"description": "Não autenticado"},
+        404: {"description": "Usuário não encontrado"}
+    }
+)
 async def get_user(
     user_id: UUID,
     current_user: User = Depends(get_current_user),
@@ -121,7 +179,17 @@ async def get_user(
     )
 
 
-@router.get("/{user_id}/stats", response_model=dict)
+@router.get(
+    "/{user_id}/stats",
+    response_model=dict,
+    summary="Estatísticas do usuário",
+    description="Retorna estatísticas de um usuário específico.",
+    responses={
+        200: {"description": "Estatísticas do usuário"},
+        401: {"description": "Não autenticado"},
+        404: {"description": "Usuário não encontrado"}
+    }
+)
 async def get_user_stats(
     user_id: UUID,
     current_user: User = Depends(get_current_user),
@@ -137,7 +205,18 @@ async def get_user_stats(
     )
 
 
-@router.put("/{user_id}", response_model=UserSchema)
+@router.put(
+    "/{user_id}",
+    response_model=UserSchema,
+    summary="Atualizar usuário",
+    description="Atualiza os dados de um usuário. Requer org_admin ou super_admin.",
+    responses={
+        200: {"description": "Usuário atualizado"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"},
+        404: {"description": "Usuário não encontrado"}
+    }
+)
 async def update_user(
     user_id: UUID,
     data: UserUpdate,
@@ -157,7 +236,18 @@ async def update_user(
     )
 
 
-@router.post("/{user_id}/activate", response_model=UserSchema)
+@router.post(
+    "/{user_id}/activate",
+    response_model=UserSchema,
+    summary="Ativar usuário",
+    description="Ativa um usuário desativado. Requer org_admin ou super_admin.",
+    responses={
+        200: {"description": "Usuário ativado"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"},
+        404: {"description": "Usuário não encontrado"}
+    }
+)
 async def activate_user(
     user_id: UUID,
     current_user: User = Depends(get_current_admin),
@@ -175,7 +265,18 @@ async def activate_user(
     )
 
 
-@router.post("/{user_id}/deactivate", response_model=UserSchema)
+@router.post(
+    "/{user_id}/deactivate",
+    response_model=UserSchema,
+    summary="Desativar usuário",
+    description="Desativa um usuário. Requer org_admin ou super_admin.",
+    responses={
+        200: {"description": "Usuário desativado"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"},
+        404: {"description": "Usuário não encontrado"}
+    }
+)
 async def deactivate_user(
     user_id: UUID,
     current_user: User = Depends(get_current_admin),
@@ -193,7 +294,18 @@ async def deactivate_user(
     )
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Excluir usuário",
+    description="Exclui um usuário (soft delete). Requer org_admin ou super_admin.",
+    responses={
+        204: {"description": "Usuário excluído"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão"},
+        404: {"description": "Usuário não encontrado"}
+    }
+)
 async def delete_user(
     user_id: UUID,
     current_user: User = Depends(get_current_admin),

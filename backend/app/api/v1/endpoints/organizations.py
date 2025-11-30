@@ -22,7 +22,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 router = APIRouter()
 
 
-@router.get("/me", response_model=Organization)
+@router.get(
+    "/me",
+    response_model=Organization,
+    summary="Obter minha organização",
+    description="Retorna os dados da organização do usuário atual.",
+    responses={
+        200: {"description": "Dados da organização"},
+        401: {"description": "Não autenticado"}
+    }
+)
 async def get_my_organization(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -35,7 +44,17 @@ async def get_my_organization(
     return org
 
 
-@router.get("/", response_model=List[Organization])
+@router.get(
+    "/",
+    response_model=List[Organization],
+    summary="Listar organizações",
+    description="Lista todas as organizações. Apenas Super Admin.",
+    responses={
+        200: {"description": "Lista de organizações"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão (apenas super_admin)"}
+    }
+)
 async def list_organizations(
     skip: int = 0,
     limit: int = 100,
@@ -50,7 +69,18 @@ async def list_organizations(
     return await service.list_organizations(skip=skip, limit=limit, active_only=active_only)
 
 
-@router.get("/{org_id}", response_model=Organization)
+@router.get(
+    "/{org_id}",
+    response_model=Organization,
+    summary="Obter organização por ID",
+    description="Retorna uma organização específica. Apenas Super Admin.",
+    responses={
+        200: {"description": "Dados da organização"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão (apenas super_admin)"},
+        404: {"description": "Organização não encontrada"}
+    }
+)
 async def get_organization(
     org_id: UUID,
     current_user: User = Depends(get_current_super_admin),
@@ -63,7 +93,18 @@ async def get_organization(
     return await service.get_by_id(org_id)
 
 
-@router.get("/{org_id}/stats", response_model=dict)
+@router.get(
+    "/{org_id}/stats",
+    response_model=dict,
+    summary="Estatísticas da organização",
+    description="Retorna estatísticas da organização (usuários, chatbots, mensagens). Apenas Super Admin.",
+    responses={
+        200: {"description": "Estatísticas da organização"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão (apenas super_admin)"},
+        404: {"description": "Organização não encontrada"}
+    }
+)
 async def get_organization_stats(
     org_id: UUID,
     current_user: User = Depends(get_current_super_admin),
@@ -76,7 +117,17 @@ async def get_organization_stats(
     return await service.get_stats(org_id)
 
 
-@router.put("/me", response_model=Organization)
+@router.put(
+    "/me",
+    response_model=Organization,
+    summary="Atualizar minha organização",
+    description="Atualiza os dados da organização do usuário. Requer org_admin.",
+    responses={
+        200: {"description": "Organização atualizada"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão (apenas org_admin)"}
+    }
+)
 async def update_my_organization(
     data: OrganizationUpdate,
     current_user: User = Depends(get_current_user),
@@ -94,7 +145,17 @@ async def update_my_organization(
     return await service.update_organization(current_user.organization_id, data)
 
 
-@router.put("/me/settings", response_model=Organization)
+@router.put(
+    "/me/settings",
+    response_model=Organization,
+    summary="Atualizar configurações da organização",
+    description="Atualiza as configurações da organização do usuário. Requer org_admin.",
+    responses={
+        200: {"description": "Configurações atualizadas"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão (apenas org_admin)"}
+    }
+)
 async def update_my_organization_settings(
     settings: OrganizationSettingsUpdate,
     current_user: User = Depends(get_current_user),
@@ -112,7 +173,18 @@ async def update_my_organization_settings(
     return await service.update_settings(current_user.organization_id, settings)
 
 
-@router.put("/{org_id}", response_model=Organization)
+@router.put(
+    "/{org_id}",
+    response_model=Organization,
+    summary="Atualizar organização",
+    description="Atualiza uma organização específica. Apenas Super Admin.",
+    responses={
+        200: {"description": "Organização atualizada"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão (apenas super_admin)"},
+        404: {"description": "Organização não encontrada"}
+    }
+)
 async def update_organization(
     org_id: UUID,
     data: OrganizationUpdate,
@@ -126,7 +198,18 @@ async def update_organization(
     return await service.update_organization(org_id, data)
 
 
-@router.put("/{org_id}/plan", response_model=Organization)
+@router.put(
+    "/{org_id}/plan",
+    response_model=Organization,
+    summary="Atualizar plano da organização",
+    description="Atualiza o plano de uma organização (free, pro, enterprise). Apenas Super Admin.",
+    responses={
+        200: {"description": "Plano atualizado"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão (apenas super_admin)"},
+        404: {"description": "Organização não encontrada"}
+    }
+)
 async def update_organization_plan(
     org_id: UUID,
     plan_update: OrganizationPlanUpdate,
@@ -140,7 +223,18 @@ async def update_organization_plan(
     return await service.update_plan(org_id, plan_update)
 
 
-@router.post("/{org_id}/activate", response_model=Organization)
+@router.post(
+    "/{org_id}/activate",
+    response_model=Organization,
+    summary="Ativar organização",
+    description="Ativa uma organização desativada. Apenas Super Admin.",
+    responses={
+        200: {"description": "Organização ativada"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão (apenas super_admin)"},
+        404: {"description": "Organização não encontrada"}
+    }
+)
 async def activate_organization(
     org_id: UUID,
     current_user: User = Depends(get_current_super_admin),
@@ -153,7 +247,18 @@ async def activate_organization(
     return await service.activate(org_id)
 
 
-@router.post("/{org_id}/deactivate", response_model=Organization)
+@router.post(
+    "/{org_id}/deactivate",
+    response_model=Organization,
+    summary="Desativar organização",
+    description="Desativa uma organização. Apenas Super Admin.",
+    responses={
+        200: {"description": "Organização desativada"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão (apenas super_admin)"},
+        404: {"description": "Organização não encontrada"}
+    }
+)
 async def deactivate_organization(
     org_id: UUID,
     current_user: User = Depends(get_current_super_admin),
@@ -166,7 +271,18 @@ async def deactivate_organization(
     return await service.deactivate(org_id)
 
 
-@router.delete("/{org_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{org_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Excluir organização",
+    description="Exclui uma organização (soft delete). Apenas Super Admin.",
+    responses={
+        204: {"description": "Organização excluída"},
+        401: {"description": "Não autenticado"},
+        403: {"description": "Sem permissão (apenas super_admin)"},
+        404: {"description": "Organização não encontrada"}
+    }
+)
 async def delete_organization(
     org_id: UUID,
     current_user: User = Depends(get_current_super_admin),
