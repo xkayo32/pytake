@@ -98,9 +98,7 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-0lKDucCTqSt0gh1mbLsvF/d5mhXqCtEW8JfwWwbTeIk=}
       JWT_ALGORITHM: HS256
 
-      # WhatsApp
-      WHATSAPP_API_TOKEN: ${WHATSAPP_API_TOKEN}
-      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN}
+      # WhatsApp (tokens configured in system, not env)
       WHATSAPP_WEBHOOK_URL: ${WHATSAPP_WEBHOOK_URL:-https://api-staging.pytake.net/webhook/whatsapp}
       META_WEBHOOK_VERIFY_TOKEN: ${META_WEBHOOK_VERIFY_TOKEN:-pytake_webhook_verify_token_12345}
 
