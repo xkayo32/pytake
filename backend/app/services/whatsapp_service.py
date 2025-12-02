@@ -4000,7 +4000,10 @@ __result__ = __script_func__()
         
         # Run status updates concurrently but don't wait (fire and forget)
         # This keeps the list operation fast
-        asyncio.create_task(asyncio.gather(*[update_status_for_number(num) for num in numbers]))
+        if numbers:
+            # Create coroutine and schedule it
+            coro = asyncio.gather(*[update_status_for_number(num) for num in numbers])
+            asyncio.create_task(coro)
         
         # Commit any pending changes
         try:

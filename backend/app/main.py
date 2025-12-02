@@ -275,35 +275,6 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-@app.middleware("http")
-async def error_handler(request: Request, call_next):
-    """Global error handler"""
-    try:
-        return await call_next(request)
-    except Exception as e:
-        from app.core.mongodb import log_error
-
-        # Log error
-        try:
-            await log_error(
-                organization_id=getattr(request.state, "organization_id", None),
-                error_type=type(e).__name__,
-                error_message=str(e),
-                severity="error",
-                stack_trace=traceback.format_exc(),
-                context={
-                    "method": request.method,
-                    "endpoint": str(request.url.path),
-                    "user_id": getattr(request.state, "user_id", None),
-                },
-            )
-        except:
-            pass
-
-        # Re-raise to let FastAPI handle it
-        raise
-
-
 # ============================================
 # ROUTES
 # ============================================
