@@ -186,6 +186,19 @@ app.add_middleware(
 # GZip Compression
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+# Silence health check logs to reduce noise
+import logging
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class HealthCheckLoggingFilter(logging.Filter):
+    """Filter out health check endpoint logs"""
+    def filter(self, record):
+        return "/api/v1/health" not in record.getMessage()
+
+# Apply filter to uvicorn access logger
+uvicorn_logger = logging.getLogger("uvicorn.access")
+uvicorn_logger.addFilter(HealthCheckLoggingFilter())
+
 # Custom CORS middleware to ensure headers are always present (including on errors)
 @app.middleware("http")
 async def cors_headers_middleware(request: Request, call_next):
