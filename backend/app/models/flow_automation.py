@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import text
 
-from app.models.base import Base, SoftDeleteMixin, TimestampMixin
+from app.models.base import Base, SoftDeleteMixin, TimestampMixin, JSONBCompatible
 
 
 class FlowAutomation(Base, TimestampMixin, SoftDeleteMixin):
@@ -64,7 +64,7 @@ class FlowAutomation(Base, TimestampMixin, SoftDeleteMixin):
     trigger_type = Column(String(50), nullable=False, default="manual")
 
     # Configuração de Trigger (JSONB flexível)
-    trigger_config = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    trigger_config = Column(JSONBCompatible, nullable=False, server_default=text("'{}'::jsonb"))
     # Exemplos:
     # {"type": "cron", "expression": "0 10 * * *"}  # Diário às 10h
     # {"type": "scheduled", "datetime": "2025-11-01T10:00:00Z"}
@@ -75,7 +75,7 @@ class FlowAutomation(Base, TimestampMixin, SoftDeleteMixin):
     audience_type = Column(String(50), nullable=False, default="custom")
     # "all", "segment", "tags", "custom", "uploaded"
     
-    audience_config = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    audience_config = Column(JSONBCompatible, nullable=False, server_default=text("'{}'::jsonb"))
     # Exemplos:
     # {"type": "segment", "filters": {"last_purchase_days_ago": {"gt": 30}}}
     # {"type": "tags", "tag_ids": ["uuid1", "uuid2"]}
@@ -83,7 +83,7 @@ class FlowAutomation(Base, TimestampMixin, SoftDeleteMixin):
 
     # Variáveis Dinâmicas (template)
     # Mapeamento de campos do contato para variáveis do flow
-    variable_mapping = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    variable_mapping = Column(JSONBCompatible, nullable=False, server_default=text("'{}'::jsonb"))
     # Exemplo:
     # {
     #   "customer_name": "{{contact.name}}",
@@ -197,7 +197,7 @@ class FlowAutomationExecution(Base, TimestampMixin):
 
     # Erros
     error_message = Column(Text, nullable=True)
-    errors = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    errors = Column(JSONBCompatible, nullable=False, server_default=text("'[]'::jsonb"))
     # Lista de erros detalhados
 
     # Relationships
@@ -251,7 +251,7 @@ class FlowAutomationRecipient(Base, TimestampMixin):
     phone_number = Column(String(20), nullable=False)
 
     # Variáveis Resolvidas (específicas deste destinatário)
-    variables = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    variables = Column(JSONBCompatible, nullable=False, server_default=text("'{}'::jsonb"))
     # Exemplo:
     # {
     #   "customer_name": "João Silva",
@@ -346,7 +346,7 @@ class FlowAutomationSchedule(Base, TimestampMixin, SoftDeleteMixin):
     end_date = Column(DateTime(timezone=True), nullable=True)  # None = infinito
     
     # Configuração de Recorrência (JSONB flexível)
-    recurrence_config = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    recurrence_config = Column(JSONBCompatible, nullable=False, server_default=text("'{}'::jsonb"))
     # Exemplos:
     # {"type": "daily", "interval": 1}  # A cada 1 dia
     # {"type": "weekly", "days": ["MON", "WED", "FRI"], "interval": 1}
@@ -360,7 +360,7 @@ class FlowAutomationSchedule(Base, TimestampMixin, SoftDeleteMixin):
     execution_timezone = Column(String(50), default="America/Sao_Paulo")
 
     # Feriados e Exceções (JSONB)
-    blackout_dates = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    blackout_dates = Column(JSONBCompatible, nullable=False, server_default=text("'[]'::jsonb"))
     # [
     #   "2025-12-25",  # Natal
     #   "2025-01-01",  # Ano Novo
@@ -424,7 +424,7 @@ class FlowAutomationScheduleException(Base, TimestampMixin):
     rescheduled_to = Column(DateTime(timezone=True), nullable=True)
 
     # Se tipo = "modify"
-    modified_config = Column(JSONB, nullable=True)
+    modified_config = Column(JSONBCompatible, nullable=True)
     # {
     #   "rate_limit_per_hour": 1000,
     #   "max_concurrent_executions": 100,

@@ -9,7 +9,7 @@ from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import text
 
-from app.models.base import Base, TimestampMixin
+from app.models.base import Base, TimestampMixin, JSONBCompatible
 
 
 class SecretScope(str, Enum):
@@ -88,7 +88,7 @@ class Secret(Base, TimestampMixin):
         index=True
     )
     encryption_key_id = Column(String(255), nullable=True)  # For AWS KMS ARN, Vault path, etc.
-    encryption_metadata = Column(JSONB, nullable=True)      # Provider-specific metadata
+    encryption_metadata = Column(JSONBCompatible, nullable=True)      # Provider-specific metadata
 
     # Scope & Status
     scope = Column(

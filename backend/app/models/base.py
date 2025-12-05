@@ -5,8 +5,26 @@ Base models and mixins for SQLAlchemy
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Column, DateTime, func
+from sqlalchemy import Column, DateTime, func, JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.types import TypeDecorator
 from sqlalchemy.orm import DeclarativeBase, declared_attr
+
+
+class JSONBCompatible(TypeDecorator):
+    """
+    JSONB type that falls back to JSON for databases that don't support JSONB.
+
+    Uses JSONB for PostgreSQL (better performance) and JSON for other databases like SQLite.
+    """
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            return dialect.type_descriptor(JSONB())
+        else:
+            return dialect.type_descriptor(JSON())
 
 
 class Base(DeclarativeBase):
@@ -59,3 +77,7 @@ class SoftDeleteMixin:
     def restore(self) -> None:
         """Restore soft deleted record"""
         self.deleted_at = None
+
+
+# Export JSONBCompatible for use in models
+__all__ = ["Base", "TimestampMixin", "SoftDeleteMixin", "JSONBCompatible"]

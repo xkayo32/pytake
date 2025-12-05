@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import text
 
-from app.models.base import Base, SoftDeleteMixin, TimestampMixin
+from app.models.base import Base, SoftDeleteMixin, TimestampMixin, JSONBCompatible
 
 
 class Organization(Base, TimestampMixin, SoftDeleteMixin):
@@ -62,9 +62,9 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
     current_month_messages_sent = Column(Integer, default=0, server_default="0")
     current_month_messages_received = Column(Integer, default=0, server_default="0")
 
-    # Settings (flexible JSONB for org-specific configs)
+    # Settings (flexible JSONBCompatible for org-specific configs)
     settings = Column(
-        JSONB,
+        JSONBCompatible,
         nullable=False,
         default={},
         server_default=text("'{}'::jsonb"),

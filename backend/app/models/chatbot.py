@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import text
 
-from app.models.base import Base, SoftDeleteMixin, TimestampMixin
+from app.models.base import Base, SoftDeleteMixin, TimestampMixin, JSONBCompatible
 
 
 class Chatbot(Base, TimestampMixin, SoftDeleteMixin):
@@ -55,7 +55,7 @@ class Chatbot(Base, TimestampMixin, SoftDeleteMixin):
     # Configuration
     # Global variables available to all flows
     global_variables = Column(
-        JSONB,
+        JSONBCompatible,
         nullable=False,
         default={},
         server_default=text("'{}'::jsonb"),
@@ -63,7 +63,7 @@ class Chatbot(Base, TimestampMixin, SoftDeleteMixin):
 
     # Settings (fallback messages, timeout, etc.)
     settings = Column(
-        JSONB,
+        JSONBCompatible,
         nullable=False,
         default={},
         server_default=text("'{}'::jsonb"),
@@ -143,7 +143,7 @@ class Flow(Base, TimestampMixin, SoftDeleteMixin):
     # Canvas Data (React Flow format)
     # Stores nodes, edges, and viewport state
     canvas_data = Column(
-        JSONB,
+        JSONBCompatible,
         nullable=False,
         default={"nodes": [], "edges": []},
         server_default=text("'{\"nodes\": [], \"edges\": []}'::jsonb"),
@@ -151,7 +151,7 @@ class Flow(Base, TimestampMixin, SoftDeleteMixin):
 
     # Flow Variables (scoped to this flow)
     variables = Column(
-        JSONB,
+        JSONBCompatible,
         nullable=False,
         default={},
         server_default=text("'{}'::jsonb"),
@@ -230,7 +230,7 @@ class Node(Base, TimestampMixin):
     # For api_call node: {url: "...", method: "POST", headers: {...}, body: {...}}
     # For ai_prompt node: {provider: "openai", model: "gpt-4", prompt: "...", temperature: 0.7}
     data = Column(
-        JSONB,
+        JSONBCompatible,
         nullable=False,
         default={},
         server_default=text("'{}'::jsonb"),

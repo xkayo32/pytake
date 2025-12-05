@@ -16,7 +16,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship, synonym, column_property
 from sqlalchemy.sql import text
 
-from app.models.base import Base, SoftDeleteMixin, TimestampMixin
+from app.models.base import Base, SoftDeleteMixin, TimestampMixin, JSONBCompatible
 
 
 class Conversation(Base, TimestampMixin, SoftDeleteMixin):
@@ -167,7 +167,7 @@ class Conversation(Base, TimestampMixin, SoftDeleteMixin):
     # Context Variables (from chatbot execution)
     # Stores variables collected during bot flow
     context_variables = Column(
-        JSONB,
+        JSONBCompatible,
         nullable=False,
         default={},
         server_default=text("'{}'::jsonb"),
@@ -183,7 +183,7 @@ class Conversation(Base, TimestampMixin, SoftDeleteMixin):
 
     # Tags for categorization
     tags = Column(
-        JSONB,
+        JSONBCompatible,
         nullable=False,
         default=[],
         server_default=text("'[]'::jsonb"),
@@ -191,7 +191,7 @@ class Conversation(Base, TimestampMixin, SoftDeleteMixin):
 
     # Extra Data
     extra_data = Column(
-        JSONB,
+        JSONBCompatible,
         nullable=False,
         default={},
         server_default=text("'{}'::jsonb"),
@@ -352,7 +352,7 @@ class Message(Base, TimestampMixin, SoftDeleteMixin):
     # For interactive: {interactive: {type: "button", body: "...", buttons: [...]}}
     # For template: {template: {name: "...", language: "...", components: [...]}}
     content = Column(
-        JSONB,
+        JSONBCompatible,
         nullable=False,
         default={},
         server_default=text("'{}'::jsonb"),
@@ -404,7 +404,7 @@ class Message(Base, TimestampMixin, SoftDeleteMixin):
 
     # Extra Data
     extra_data = Column(
-        JSONB,
+        JSONBCompatible,
         nullable=False,
         default={},
         server_default=text("'{}'::jsonb"),

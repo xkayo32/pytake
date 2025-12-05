@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import text
 
-from app.models.base import Base, SoftDeleteMixin, TimestampMixin
+from app.models.base import Base, SoftDeleteMixin, TimestampMixin, JSONBCompatible
 
 
 class Queue(Base, TimestampMixin, SoftDeleteMixin):
@@ -114,7 +114,7 @@ class Queue(Base, TimestampMixin, SoftDeleteMixin):
     #     }
     #   }
     settings = Column(
-        JSONB,
+        JSONBCompatible,
         nullable=False,
         default={},
         server_default=text("'{}'::jsonb"),
