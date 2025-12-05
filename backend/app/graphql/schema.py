@@ -16,6 +16,8 @@ from app.graphql.queries.conversation import ConversationQuery
 from app.graphql.queries.whatsapp import WhatsAppQuery
 from app.graphql.queries.chatbot import ChatbotQuery
 from app.graphql.queries.campaign import CampaignQuery
+from app.graphql.queries.analytics import AnalyticsQuery
+from app.graphql.queries.flow_automation import FlowAutomationQuery
 from app.graphql.mutations.auth import AuthMutation
 from app.graphql.mutations.organization import OrganizationMutation
 from app.graphql.mutations.user import UserMutation
@@ -26,10 +28,11 @@ from app.graphql.mutations.conversation import ConversationMutation
 from app.graphql.mutations.whatsapp import WhatsAppMutation
 from app.graphql.mutations.chatbot import ChatbotMutation
 from app.graphql.mutations.campaign import CampaignMutation
+from app.graphql.mutations.flow_automation import FlowAutomationMutation
 
 
 @strawberry.type
-class Query(AuthQuery, OrganizationQuery, UserQuery, DepartmentQuery, QueueQuery, ContactQuery, ConversationQuery, WhatsAppQuery, ChatbotQuery, CampaignQuery):
+class Query(AuthQuery, OrganizationQuery, UserQuery, DepartmentQuery, QueueQuery, ContactQuery, ConversationQuery, WhatsAppQuery, ChatbotQuery, CampaignQuery, AnalyticsQuery, FlowAutomationQuery):
     """
     Root Query type
     Combines all query types from different modules
@@ -38,7 +41,7 @@ class Query(AuthQuery, OrganizationQuery, UserQuery, DepartmentQuery, QueueQuery
 
 
 @strawberry.type
-class Mutation(AuthMutation, OrganizationMutation, UserMutation, DepartmentMutation, QueueMutation, ContactMutation, ConversationMutation, WhatsAppMutation, ChatbotMutation, CampaignMutation):
+class Mutation(AuthMutation, OrganizationMutation, UserMutation, DepartmentMutation, QueueMutation, ContactMutation, ConversationMutation, WhatsAppMutation, ChatbotMutation, CampaignMutation, FlowAutomationMutation):
     """
     Root Mutation type
     Combines all mutation types from different modules
