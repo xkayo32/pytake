@@ -353,6 +353,29 @@ app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 
 # ============================================
+# GRAPHQL
+# ============================================
+
+from strawberry.fastapi import GraphQLRouter
+from app.graphql.schema import schema
+from app.graphql.context import get_graphql_context
+
+# Create GraphQL router
+graphql_app = GraphQLRouter(
+    schema,
+    context_getter=get_graphql_context,
+    graphiql=settings.DEBUG,  # Enable GraphiQL IDE in development
+)
+
+# Mount GraphQL endpoint
+app.include_router(graphql_app, prefix="/graphql")
+
+print(f"✅ GraphQL API mounted at /graphql")
+if settings.DEBUG:
+    print(f"📊 GraphiQL IDE available at /graphql")
+
+
+# ============================================
 # WEBSOCKET / SOCKET.IO
 # ============================================
 
