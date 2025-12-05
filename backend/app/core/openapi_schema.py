@@ -311,7 +311,7 @@ def custom_openapi(app: FastAPI, original_openapi=None):
             description=app.description,
             routes=app.routes,
         )
-    
+
     # Update with custom schema
     custom = get_openapi_schema()
     openapi_schema["info"] = custom["info"]
@@ -372,6 +372,98 @@ def custom_openapi(app: FastAPI, original_openapi=None):
             },
         },
     }
+
+    # Add enhanced tag descriptions
+    openapi_schema["tags"] = [
+        {
+            "name": "Authentication",
+            "description": "🔐 User authentication, registration, and session management. Includes JWT token generation and refresh.",
+        },
+        {
+            "name": "Organizations",
+            "description": "🏢 Multi-tenant organization management. Configure company settings, plans, and limits.",
+        },
+        {
+            "name": "Users",
+            "description": "👥 User management within organizations. Manage agents, admins, and user roles.",
+        },
+        {
+            "name": "Contacts",
+            "description": "📇 Contact (customer) management. Store and organize customer information, tags, and custom fields.",
+        },
+        {
+            "name": "Conversations",
+            "description": "💬 Conversation and messaging management. Handle WhatsApp conversations, messages, and chat history.",
+        },
+        {
+            "name": "Queue",
+            "description": "📋 Conversation queue management. Distribute conversations to agents and manage workload.",
+        },
+        {
+            "name": "Queues",
+            "description": "🎯 Queue configuration. Create and manage multiple queues per department with priorities and SLA.",
+        },
+        {
+            "name": "Departments",
+            "description": "🏬 Department and team management. Organize agents into departments (Sales, Support, Finance).",
+        },
+        {
+            "name": "WhatsApp",
+            "description": "📱 WhatsApp Business integration. Connect numbers, manage templates, and handle webhooks.",
+        },
+        {
+            "name": "Chatbots",
+            "description": "🤖 AI chatbot management. Create visual flows, nodes, and automated conversation logic.",
+        },
+        {
+            "name": "Campaigns",
+            "description": "📢 Bulk messaging campaigns. Schedule and send messages to contact segments.",
+        },
+        {
+            "name": "Analytics",
+            "description": "📊 Analytics and reporting. Track metrics, performance, and conversation statistics.",
+        },
+        {
+            "name": "Dashboard",
+            "description": "📈 Dashboard summaries. Get aggregated metrics for admin dashboards.",
+        },
+        {
+            "name": "Flow Automations",
+            "description": "⚙️ Automated workflow execution. Schedule and trigger automated flows.",
+        },
+        {
+            "name": "Secrets",
+            "description": "🔒 Encrypted secrets management. Store API keys, passwords, and sensitive data securely.",
+        },
+        {
+            "name": "Database",
+            "description": "🗄️ Database utilities. Execute queries and manage database connections.",
+        },
+        {
+            "name": "AI Assistant",
+            "description": "🧠 AI-powered features. Generate flows, get suggestions, and manage AI models (OpenAI, Anthropic).",
+        },
+        {
+            "name": "Agent Skills",
+            "description": "⭐ Agent capabilities. Define and manage agent skills and proficiency levels.",
+        },
+        {
+            "name": "WebSocket",
+            "description": "🔌 Real-time communication. WebSocket connections for live updates and notifications.",
+        },
+        {
+            "name": "Notifications",
+            "description": "🔔 Notification management. Configure preferences and view notification history.",
+        },
+        {
+            "name": "Health",
+            "description": "❤️ Service health checks. Monitor API and service status.",
+        },
+        {
+            "name": "Webhooks",
+            "description": "🔗 Webhook endpoints. Receive events from external services (Meta, Evolution API).",
+        },
+    ]
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema
