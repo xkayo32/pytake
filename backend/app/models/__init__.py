@@ -14,6 +14,9 @@ from app.models.department import Department
 from app.models.queue import Queue
 from app.models.campaign import Campaign
 from app.models.ai_custom_model import AICustomModel
+from app.models.notification import NotificationPreference, NotificationLog
+from app.models.agent_skill import AgentSkill
+from app.models.secret import Secret
 from app.models.flow_automation import (
     FlowAutomation,
     FlowAutomationExecution,
@@ -42,6 +45,10 @@ __all__ = [
     "Queue",
     "Campaign",
     "AICustomModel",
+    "NotificationPreference",
+    "NotificationLog",
+    "AgentSkill",
+    "Secret",
     "FlowAutomation",
     "FlowAutomationExecution",
     "FlowAutomationRecipient",

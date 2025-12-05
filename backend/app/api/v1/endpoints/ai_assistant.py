@@ -66,6 +66,7 @@ async def list_ai_models(
     recommended: bool = Query(False, description="Show only recommended models"),
     include_deprecated: bool = Query(False, description="Include deprecated models"),
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     List all available AI models (predefined + custom).
@@ -96,7 +97,36 @@ async def list_ai_models(
         )
         models.append(model)
 
-    # TODO: Add custom models from database (organization-specific)
+    # Add custom models from database (organization-specific)
+    from app.repositories.ai_custom_model import AICustomModelRepository
+
+    repo = AICustomModelRepository(db)
+    custom_models = await repo.get_by_organization(
+        organization_id=current_user.organization_id,
+        provider=provider if provider else None,
+        is_active=True
+    )
+
+    for custom in custom_models:
+        model = AIModel(
+            id=str(custom.id),
+            organization_id=str(custom.organization_id),
+            created_at=custom.created_at.isoformat(),
+            is_custom=True,
+            model_id=custom.model_id,
+            provider=AIProvider(custom.provider),
+            name=custom.name,
+            description=custom.description,
+            context_window=custom.context_window,
+            max_output_tokens=custom.max_output_tokens,
+            input_cost_per_million=custom.input_cost_per_million,
+            output_cost_per_million=custom.output_cost_per_million,
+            supports_vision=custom.supports_vision,
+            supports_tools=custom.supports_tools,
+            is_deprecated=False,
+            release_date=custom.release_date,
+        )
+        models.append(model)
 
     return AIModelListResponse(
         models=models,
@@ -166,15 +196,62 @@ async def create_custom_model(
             detail="Only admins can create custom models"
         )
 
-    # TODO: Store in database (new table: ai_custom_models)
-    # For now, return validation that it would work
+    # Import repository
+    from app.repositories.ai_custom_model import AICustomModelRepository
+    from app.models.ai_custom_model import AICustomModel
 
+    repo = AICustomModelRepository(db)
+
+    # Check if model_id already exists for this organization
+    existing = await repo.model_exists(
+        organization_id=current_user.organization_id,
+        model_id=model.model_id
+    )
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Model with ID '{model.model_id}' already exists for your organization"
+        )
+
+    # Create new custom model
+    new_model = AICustomModel(
+        organization_id=current_user.organization_id,
+        model_id=model.model_id,
+        provider=model.provider.value,
+        name=model.name,
+        description=model.description,
+        context_window=model.context_window,
+        max_output_tokens=model.max_output_tokens,
+        input_cost_per_million=model.input_cost_per_million,
+        output_cost_per_million=model.output_cost_per_million,
+        supports_vision=model.supports_vision,
+        supports_tools=model.supports_tools,
+        release_date=model.release_date,
+        is_active=True,
+    )
+
+    db.add(new_model)
+    await db.commit()
+    await db.refresh(new_model)
+
+    # Return as AIModel schema
     return AIModel(
-        id=f"custom_{model.model_id}",
-        organization_id=str(current_user.organization_id),
-        created_at="2025-10-16T00:00:00Z",
+        id=str(new_model.id),
+        organization_id=str(new_model.organization_id),
+        created_at=new_model.created_at.isoformat(),
         is_custom=True,
-        **model.model_dump()
+        model_id=new_model.model_id,
+        provider=AIProvider(new_model.provider),
+        name=new_model.name,
+        description=new_model.description,
+        context_window=new_model.context_window,
+        max_output_tokens=new_model.max_output_tokens,
+        input_cost_per_million=new_model.input_cost_per_million,
+        output_cost_per_million=new_model.output_cost_per_million,
+        supports_vision=new_model.supports_vision,
+        supports_tools=new_model.supports_tools,
+        is_deprecated=False,
+        release_date=new_model.release_date,
     )
 
 

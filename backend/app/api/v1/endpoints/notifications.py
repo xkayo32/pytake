@@ -37,12 +37,11 @@ logger = logging.getLogger(__name__)
 )
 async def get_preferences(
     current_user: User = Depends(get_current_user),
-    
     db: AsyncSession = Depends(get_db),
 ):
     """Get notification preferences for current user"""
     service = NotificationService(db)
-    return await service.get_preferences(current_user.id, organization_id)
+    return await service.get_preferences(current_user.id, current_user.organization_id)
 
 
 @router.put(
@@ -54,14 +53,13 @@ async def get_preferences(
 async def update_preferences(
     data: NotificationPreferenceUpdate,
     current_user: User = Depends(get_current_user),
-    
     db: AsyncSession = Depends(get_db),
 ):
     """Update notification preferences"""
     service = NotificationService(db)
     return await service.update_preferences(
         current_user.id,
-        organization_id,
+        current_user.organization_id,
         data,
     )
 
@@ -102,12 +100,11 @@ async def list_notifications(
 )
 async def get_unread_count(
     current_user: User = Depends(get_current_user),
-    
     db: AsyncSession = Depends(get_db),
 ):
     """Get unread notification count"""
     service = NotificationService(db)
-    count = await service.get_unread_count(current_user.id, organization_id)
+    count = await service.get_unread_count(current_user.id, current_user.organization_id)
     return {"unread_count": count}
 
 
@@ -120,7 +117,6 @@ async def get_unread_count(
 async def get_notification(
     notification_id: int,
     current_user: User = Depends(get_current_user),
-    
     db: AsyncSession = Depends(get_db),
 ):
     """Get single notification"""
@@ -128,7 +124,7 @@ async def get_notification(
     return await service.get_notification(
         notification_id,
         current_user.id,
-        organization_id,
+        current_user.organization_id,
     )
 
 
@@ -141,7 +137,6 @@ async def get_notification(
 async def mark_as_read(
     notification_id: int,
     current_user: User = Depends(get_current_user),
-    
     db: AsyncSession = Depends(get_db),
 ):
     """Mark notification as read"""
@@ -149,7 +144,7 @@ async def mark_as_read(
     return await service.mark_as_read(
         notification_id,
         current_user.id,
-        organization_id,
+        current_user.organization_id,
     )
 
 
@@ -160,12 +155,11 @@ async def mark_as_read(
 )
 async def mark_all_as_read(
     current_user: User = Depends(get_current_user),
-    
     db: AsyncSession = Depends(get_db),
 ):
     """Mark all notifications as read"""
     service = NotificationService(db)
-    count = await service.mark_all_as_read(current_user.id, organization_id)
+    count = await service.mark_all_as_read(current_user.id, current_user.organization_id)
     return {"marked_as_read": count}
 
 
@@ -177,7 +171,6 @@ async def mark_all_as_read(
 async def delete_notification(
     notification_id: int,
     current_user: User = Depends(get_current_user),
-    
     db: AsyncSession = Depends(get_db),
 ):
     """Delete notification"""
@@ -185,6 +178,6 @@ async def delete_notification(
     await service.delete_notification(
         notification_id,
         current_user.id,
-        organization_id,
+        current_user.organization_id,
     )
     return {"deleted": True}

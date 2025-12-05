@@ -242,9 +242,6 @@ api_router.include_router(agent_skills.router, tags=["Users", "Agent Skills"])
 websocket = _load_endpoint_module("websocket")
 api_router.include_router(websocket.router, tags=["WebSocket"])
 
-debug = _load_endpoint_module("debug")
-api_router.include_router(debug.router, prefix="/debug", tags=["Debug"])
-
 notifications = _load_endpoint_module("notifications")
 api_router.include_router(notifications.router, tags=["Notifications"])
 
@@ -322,115 +319,5 @@ async def dev_login():
         "message": "Login successful (development)"
     }
 
-# ============= DEVELOPMENT MOCK ENDPOINTS =============
-# These are temporary mock endpoints for frontend development
-
-@api_router.get("/dev/ai/conversations", tags=["AI Assistant"])
-async def get_ai_conversations():
-    """Mock endpoint to get AI conversations"""
-    return [
-        {
-            "id": "1",
-            "title": "Análise de Sentimento",
-            "createdAt": "2024-01-20T10:00:00Z",
-            "messages": 5,
-        },
-        {
-            "id": "2",
-            "title": "Classificação de Intenções",
-            "createdAt": "2024-01-19T14:30:00Z",
-            "messages": 3,
-        }
-    ]
-
-@api_router.post("/dev/ai/chat", tags=["AI Assistant"])
-async def chat_with_ai(message: dict):
-    """Mock endpoint for AI chat"""
-    return {
-        "response": f"Recebi sua mensagem: '{message.get('content')}'. Como assistente IA, posso ajudar com análises, sugestões e muito mais.",
-        "tokens": 45,
-        "duration": 0.5
-    }
-
-@api_router.get("/dev/contacts", tags=["Contacts"])
-async def get_contacts():
-    """Mock endpoint to get contacts"""
-    return [
-        {
-            "id": "1",
-            "name": "João Silva",
-            "email": "joao@example.com",
-            "phone": "(11) 98765-4321",
-            "whatsapp": "5511987654321",
-            "groups": ["Leads", "VIP"],
-            "tags": ["potencial", "ativo"],
-            "createdAt": "2024-01-10T00:00:00Z",
-            "lastInteraction": "2024-01-20T14:30:00Z",
-            "messageCount": 45
-        },
-        {
-            "id": "2",
-            "name": "Maria Santos",
-            "email": "maria@example.com",
-            "phone": "(21) 99876-5432",
-            "whatsapp": "5521998765432",
-            "groups": ["Clientes"],
-            "tags": ["cliente", "satisfeito"],
-            "createdAt": "2023-12-15T00:00:00Z",
-            "lastInteraction": "2024-01-19T10:15:00Z",
-            "messageCount": 120
-        }
-    ]
-
-@api_router.get("/dev/analytics/metrics", tags=["Analytics"])
-async def get_analytics_metrics():
-    """Mock endpoint to get analytics metrics"""
-    return {
-        "period": "7d",
-        "conversations": {
-            "total": 1243,
-            "change": 12.5
-        },
-        "messages_sent": {
-            "total": 12548,
-            "change": 8.3
-        },
-        "active_contacts": {
-            "total": 842,
-            "change": -2.1
-        },
-        "avg_response_time": {
-            "total": "2m 34s",
-            "change": -15.2
-        },
-        "daily_activity": [
-            {"day": "Seg", "conversations": 240},
-            {"day": "Ter", "conversations": 420},
-            {"day": "Qua", "conversations": 380},
-            {"day": "Qui", "conversations": 520},
-            {"day": "Sex", "conversations": 610},
-            {"day": "Sab", "conversations": 480},
-            {"day": "Dom", "conversations": 390}
-        ],
-        "status_overview": {
-            "resolved": 723,
-            "in_progress": 392,
-            "pending": 128
-        }
-    }
-
-@api_router.get("/flows", tags=["Flows"])
-async def get_flows():
-    """Mock endpoint to get flows"""
-    return []
-
-@api_router.get("/campaigns", tags=["Campaigns"])
-async def get_campaigns():
-    """Mock endpoint to get campaigns"""
-    return []
-
-@api_router.get("/contacts", tags=["Contacts"])
-async def get_contacts_list():
-    """Mock endpoint to get contacts"""
-    return []
+# ============= END OF API ROUTES =============
 
