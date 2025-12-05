@@ -7,11 +7,15 @@ import strawberry
 from strawberry.fastapi import GraphQLRouter
 
 from app.graphql.queries.auth import AuthQuery
+from app.graphql.queries.organization import OrganizationQuery
+from app.graphql.queries.user import UserQuery
 from app.graphql.mutations.auth import AuthMutation
+from app.graphql.mutations.organization import OrganizationMutation
+from app.graphql.mutations.user import UserMutation
 
 
 @strawberry.type
-class Query(AuthQuery):
+class Query(AuthQuery, OrganizationQuery, UserQuery):
     """
     Root Query type
     Combines all query types from different modules
@@ -20,7 +24,7 @@ class Query(AuthQuery):
 
 
 @strawberry.type
-class Mutation(AuthMutation):
+class Mutation(AuthMutation, OrganizationMutation, UserMutation):
     """
     Root Mutation type
     Combines all mutation types from different modules
