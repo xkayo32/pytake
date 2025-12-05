@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     # CORS - Use Union to handle both str and list
     CORS_ORIGINS: Union[str, List[str]] = Field(
-        default="http://localhost:3000,http://localhost:3001"
+        default="http://localhost:3000,http://localhost:3001,http://localhost:5151"
     )
     CORS_CREDENTIALS: bool = Field(default=True)
 

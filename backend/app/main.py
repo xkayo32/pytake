@@ -162,8 +162,10 @@ app.add_middleware(
         # Local development
         "http://localhost:3000",
         "http://localhost:3001",
+        "http://localhost:5151",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
+        "http://127.0.0.1:5151",
         # Development environment
         "https://app-dev.pytake.net",
         "https://api-dev.pytake.net",
