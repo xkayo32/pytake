@@ -2,7 +2,7 @@
 WhatsApp Queries
 """
 
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 import strawberry

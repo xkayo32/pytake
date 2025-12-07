@@ -3,6 +3,7 @@ Secret GraphQL Types
 """
 
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 
 import strawberry
@@ -13,7 +14,7 @@ import strawberry
 # ============================================
 
 @strawberry.enum
-class SecretScopeEnum:
+class SecretScopeEnum(Enum):
     """Scope of the secret"""
 
     ORGANIZATION = "organization"
@@ -21,7 +22,7 @@ class SecretScopeEnum:
 
 
 @strawberry.enum
-class EncryptionProviderEnum:
+class EncryptionProviderEnum(Enum):
     """Encryption provider"""
 
     FERNET = "fernet"

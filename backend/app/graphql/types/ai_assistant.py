@@ -2,6 +2,7 @@
 AI Assistant GraphQL Types
 """
 
+from enum import Enum
 from typing import List, Optional
 
 import strawberry
@@ -12,7 +13,7 @@ import strawberry
 # ============================================
 
 @strawberry.enum
-class AIProviderEnum:
+class AIProviderEnum(Enum):
     """AI Provider"""
 
     OPENAI = "openai"

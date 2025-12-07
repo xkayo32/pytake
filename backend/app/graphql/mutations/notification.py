@@ -11,7 +11,7 @@ from app.graphql.types.notification import (
     NotificationPreferenceType,
     NotificationPreferenceUpdateInput,
 )
-from app.repositories.notification import NotificationRepository
+from app.repositories.notification import NotificationPreferenceRepository
 from app.schemas.notification import NotificationPreferenceUpdate
 
 
@@ -29,7 +29,10 @@ class NotificationMutation:
         """Update notification preferences for current user"""
         context: GraphQLContext = info.context
 
-        repo = NotificationRepository(context.db)
+        repo = NotificationPreferenceRepository(context.db)
+
+        # Get or create preferences
+        prefs = await repo.get_or_create(context.user.id, context.organization_id)
 
         # Create update data
         update_data = NotificationPreferenceUpdate(
@@ -45,9 +48,8 @@ class NotificationMutation:
             max_sms_per_hour=input.max_sms_per_hour,
         )
 
-        prefs = await repo.update_preferences(
-            context.user.id, context.organization_id, update_data
-        )
+        # Update using base repository method
+        prefs = await repo.update(prefs.id, update_data)
 
         return NotificationPreferenceType(
             id=prefs.id,

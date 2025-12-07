@@ -17,8 +17,7 @@ from app.graphql.types.conversation import (
     ConversationFilterInput,
 )
 from app.graphql.permissions import require_auth
-from app.repositories.conversation import ConversationRepository
-from app.repositories.message import MessageRepository
+from app.repositories.conversation import ConversationRepository, MessageRepository
 
 
 @strawberry.type

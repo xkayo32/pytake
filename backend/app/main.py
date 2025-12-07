@@ -241,8 +241,10 @@ app.add_middleware(
         # Local development
         "http://localhost:3000",
         "http://localhost:3001",
+        "http://localhost:5151",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
+        "http://127.0.0.1:5151",
         # Development environment
         "https://app-dev.pytake.net",
         "https://api-dev.pytake.net",
@@ -269,14 +271,44 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 @app.middleware("http")
 async def cors_headers_middleware(request: Request, call_next):
     """Ensure CORS headers are present on all responses, including errors"""
+    origin = request.headers.get("origin")
+    
+    # Build allowed origins list from settings
+    allowed_origins = settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else [settings.CORS_ORIGINS]
+    
+    # Check if origin is allowed
+    origin_allowed = False
+    allow_all = "*" in allowed_origins
+    
+    if allow_all:
+        origin_allowed = True
+    elif origin:
+        # Check for exact matches
+        if origin in allowed_origins:
+            origin_allowed = True
+        # Check for wildcard matches (e.g., *.pytake.net)
+        else:
+            for allowed in allowed_origins:
+                if allowed.startswith("*."):
+                    domain = allowed[2:]  # Remove *.
+                    if origin.endswith(domain) or origin.endswith("." + domain):
+                        origin_allowed = True
+                        break
+    
     response = await call_next(request)
     
     # Add CORS headers if not already present
     if "access-control-allow-origin" not in response.headers:
-        response.headers["access-control-allow-origin"] = "https://app-dev.pytake.net"
+        if allow_all:
+            response.headers["access-control-allow-origin"] = origin or "*"
+        elif origin_allowed and origin:
+            response.headers["access-control-allow-origin"] = origin
+        elif allowed_origins and allowed_origins[0] != "*":
+            response.headers["access-control-allow-origin"] = allowed_origins[0]
+        
         response.headers["access-control-allow-credentials"] = "true"
         response.headers["access-control-allow-methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-        response.headers["access-control-allow-headers"] = "Authorization, Content-Type, X-Requested-With"
+        response.headers["access-control-allow-headers"] = "Authorization, Content-Type, X-Requested-With, Accept"
         response.headers["access-control-expose-headers"] = "X-Total-Count, X-Page, X-Per-Page"
     
     return response

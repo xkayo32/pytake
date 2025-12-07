@@ -17,9 +17,8 @@ from app.graphql.types.conversation import (
 )
 from app.graphql.types.common import SuccessResponse
 from app.graphql.permissions import require_auth
-from app.repositories.conversation import ConversationRepository
-from app.repositories.message import MessageRepository
-from app.schemas.message import MessageCreate
+from app.repositories.conversation import ConversationRepository, MessageRepository
+from app.schemas.conversation import MessageCreate
 
 
 @strawberry.type

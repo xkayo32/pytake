@@ -172,6 +172,25 @@ def decode_token(token: str) -> dict:
         raise JWTError(f"Token validation failed: {str(e)}") from e
 
 
+def decode_refresh_token(token: str) -> dict:
+    """
+    Decode and validate refresh token
+
+    Args:
+        token: Refresh token string
+
+    Returns:
+        Decoded token payload
+
+    Raises:
+        JWTError: If token is invalid or expired
+    """
+    payload = decode_token(token)
+    if payload.get("type") != "refresh":
+        raise JWTError("Invalid token type")
+    return payload
+
+
 def verify_token(token: str, token_type: str = "access") -> Optional[str]:
     """
     Verify JWT token and return subject (user_id)

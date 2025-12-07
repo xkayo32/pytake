@@ -10,7 +10,7 @@ from fastapi import Request, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import async_session
-from app.core.security import decode_access_token
+from app.core.security import decode_token
 from app.models.user import User
 from app.repositories.user import UserRepository
 
@@ -133,7 +133,7 @@ async def get_graphql_context(request: Request) -> GraphQLContext:
                 token = authorization.split(" ")[1]
 
                 # Decode JWT token
-                payload = decode_access_token(token)
+                payload = decode_token(token)
                 user_id = payload.get("sub")
 
                 if not user_id:

@@ -10,7 +10,7 @@ from strawberry.types import Info
 from app.graphql.context import GraphQLContext
 from app.graphql.permissions import require_auth
 from app.graphql.types.notification import NotificationPreferenceType, NotificationLogType
-from app.repositories.notification import NotificationRepository
+from app.repositories.notification import NotificationPreferenceRepository
 
 
 @strawberry.type
@@ -26,8 +26,8 @@ class NotificationQuery:
         """Get notification preferences for current user"""
         context: GraphQLContext = info.context
 
-        repo = NotificationRepository(context.db)
-        prefs = await repo.get_or_create_preferences(
+        repo = NotificationPreferenceRepository(context.db)
+        prefs = await repo.get_or_create(
             context.user.id, context.organization_id
         )
 
@@ -65,9 +65,10 @@ class NotificationQuery:
         """List notification logs for current user"""
         context: GraphQLContext = info.context
 
-        repo = NotificationRepository(context.db)
-        logs = await repo.get_logs(
-            organization_id=context.organization_id,
+        from app.repositories.notification import NotificationLogRepository
+        repo = NotificationLogRepository(context.db)
+        logs = await repo.get_by_org(
+            org_id=context.organization_id,
             user_id=context.user.id,
             skip=skip,
             limit=limit,
