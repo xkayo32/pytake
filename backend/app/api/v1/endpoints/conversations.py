@@ -99,7 +99,27 @@ async def create_conversation(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create new conversation"""
+    """
+    Create new conversation
+    
+    **Description:** Initiates a new conversation with a contact. Can be created from incoming WhatsApp messages or manually for outbound communication.
+    
+    **Request Body:**
+    - `contact_id` (UUID, required): Target contact identifier
+    - `initial_message` (string, optional): First message to send
+    - `department_id` (UUID, optional): Assign to specific department
+    - `queue_id` (UUID, optional): Assign to specific queue
+    
+    **Returns:** Created Conversation object with status 'open'
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `400`: Invalid conversation data
+    - `401`: User not authenticated
+    - `404`: Contact not found
+    - `500`: Database error
+    """
     service = ConversationService(db)
     return await service.create_conversation(
         data=data,
@@ -160,7 +180,23 @@ async def get_conversation(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get conversation by ID"""
+    """
+    Get conversation by ID
+    
+    **Description:** Retrieves complete conversation details including messages, history, and current status.
+    
+    **Path Parameters:**
+    - `conversation_id` (UUID, required): Unique conversation identifier
+    
+    **Returns:** Conversation object with full details
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Conversation not found
+    - `500`: Database error
+    """
     service = ConversationService(db)
     return await service.get_by_id(
         conversation_id=conversation_id,
@@ -175,7 +211,28 @@ async def update_conversation(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update conversation"""
+    """
+    Update conversation
+    
+    **Description:** Updates conversation metadata and notes without changing status or assignment.
+    
+    **Path Parameters:**
+    - `conversation_id` (UUID, required): Unique conversation identifier
+    
+    **Request Body (all optional):**
+    - `notes` (string): Internal notes about conversation
+    - `tags` (array): Tags for organizing conversations
+    
+    **Returns:** Updated Conversation object
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `400`: Invalid update data
+    - `401`: User not authenticated
+    - `404`: Conversation not found
+    - `500`: Database error
+    """
     service = ConversationService(db)
     return await service.update_conversation(
         conversation_id=conversation_id,
@@ -256,9 +313,25 @@ async def assign_conversation(
 ):
     """
     Assign conversation to a specific agent
-
-    Changes status to 'active' and assigns the specified agent.
-    If conversation was queued, removes from queue.
+    
+    **Description:** Assigns an unassigned conversation to an agent and changes status to 'active'. If conversation was queued, removes from queue.
+    
+    **Path Parameters:**
+    - `conversation_id` (UUID, required): Unique conversation identifier
+    
+    **Request Body:**
+    - `agent_id` (UUID, required): Target agent identifier
+    
+    **Returns:** Updated Conversation with new assignment
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `400`: Invalid agent ID
+    - `401`: User not authenticated
+    - `404`: Conversation or agent not found
+    - `409`: Conversation already assigned
+    - `500`: Database error
     """
     service = ConversationService(db)
     return await service.assign_to_agent(
@@ -299,9 +372,26 @@ async def close_conversation(
 ):
     """
     Close a conversation
-
-    Sets status to 'closed', records close timestamp and reason.
-    Can optionally mark as resolved.
+    
+    **Description:** Closes an active conversation, records close timestamp and reason. Can optionally mark as resolved.
+    
+    **Path Parameters:**
+    - `conversation_id` (UUID, required): Unique conversation identifier
+    
+    **Request Body:**
+    - `reason` (string, optional): Reason for closing (e.g., "Resolved", "Not interested", "Spam")
+    - `resolved` (boolean, default: true): Whether issue was resolved
+    
+    **Returns:** Closed Conversation with status='closed'
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `400`: Invalid close data
+    - `401`: User not authenticated
+    - `404`: Conversation not found
+    - `409`: Conversation already closed
+    - `500`: Database error
     """
     service = ConversationService(db)
     return await service.close_conversation(
