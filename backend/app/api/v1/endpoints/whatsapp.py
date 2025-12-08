@@ -43,7 +43,28 @@ async def list_whatsapp_numbers(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all WhatsApp numbers"""
+    """
+    List all WhatsApp numbers for the organization
+    
+    **Returns:** Array of WhatsApp numbers with connection status and configuration
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Example Response:**
+    ```json
+    [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "phone_number": "5585987654321",
+        "display_name": "Meu WhatsApp",
+        "connection_type": "official",
+        "status": "connected",
+        "verified": true,
+        "webhook_url": "https://seu-dominio.com/webhook"
+      }
+    ]
+    ```
+    """
     service = WhatsAppService(db)
     return await service.list_numbers(
         organization_id=current_user.organization_id
@@ -56,7 +77,62 @@ async def create_whatsapp_number(
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Register a new WhatsApp number"""
+    """
+    Register a new WhatsApp number
+    
+    **Required Parameters:**
+    - `phone_number` (string, 10-20 chars): Número de telefone com código país (ex: 5585987654321)
+    
+    **Optional Parameters:**
+    - `connection_type` (string, default: "official"): "official" (Meta Cloud API) ou "qrcode" (Evolution API)
+    - `display_name` (string, max 255 chars): Nome exibido para o número
+    - `webhook_url` (string): URL para receber webhooks de mensagens
+    
+    **Para Meta Cloud API (Official):**
+    - `phone_number_id` (string): ID da conta de celular no Meta
+    - `whatsapp_business_account_id` (string): ID da conta comercial WhatsApp
+    - `access_token` (string): Token de acesso do Meta (com permissões: whatsapp_business_messaging)
+    - `app_secret` (string): Secret da aplicação Meta para validar webhooks
+    
+    **Para Evolution API (QR Code):**
+    - `evolution_instance_name` (string): Nome único da instância Evolution
+    - `evolution_api_url` (string): URL base da Evolution API
+    - `evolution_api_key` (string): API Key global da Evolution
+    
+    **Example Request (Meta Cloud API):**
+    ```json
+    {
+      "phone_number": "5585987654321",
+      "display_name": "Suporte",
+      "connection_type": "official",
+      "phone_number_id": "123456789",
+      "whatsapp_business_account_id": "111222333",
+      "access_token": "EAABs...",
+      "webhook_url": "https://seu-dominio.com/webhook"
+    }
+    ```
+    
+    **Example Request (Evolution API):**
+    ```json
+    {
+      "phone_number": "5585987654321",
+      "display_name": "Atendimento",
+      "connection_type": "qrcode",
+      "evolution_instance_name": "instance-1",
+      "evolution_api_url": "https://api.evolution.com",
+      "evolution_api_key": "your-api-key"
+    }
+    ```
+    
+    **Returns:** WhatsAppNumber object com ID gerado
+    
+    **Permissions Required:** org_admin ou super_admin
+    
+    **Possible Errors:**
+    - `422`: Dados inválidos (phone_number muito curto, connection_type inválido, etc)
+    - `409`: Número de telefone já registrado
+    - `403`: Sem permissão (não é admin)
+    """
     service = WhatsAppService(db)
     return await service.create_number(
         data=data,

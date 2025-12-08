@@ -37,8 +37,26 @@ async def get_overview_metrics(
 ):
     """
     Get overview dashboard metrics
-
-    Returns high-level metrics for the organization dashboard.
+    
+    **Returns:** High-level metrics for the organization dashboard
+    
+    **Metrics Included:**
+    - Total conversations
+    - Total messages sent/received
+    - Active agents
+    - Connected WhatsApp numbers
+    - Average response time
+    
+    **Example Response:**
+    ```json
+    {
+      "total_conversations": 150,
+      "total_messages": 3500,
+      "active_agents": 5,
+      "connected_channels": 2,
+      "avg_response_time_seconds": 45.5
+    }
+    ```
     """
     service = AnalyticsService(db)
     metrics = await service.get_overview_metrics(current_user.organization_id)
@@ -52,15 +70,54 @@ async def get_overview_metrics(
 
 @router.get("/conversations", response_model=ConversationMetrics)
 async def get_conversation_metrics(
-    start_date: datetime = Query(None, description="Start date (defaults to 30 days ago)"),
-    end_date: datetime = Query(None, description="End date (defaults to now)"),
+    start_date: datetime = Query(
+        None, 
+        description="Data de início (padrão: 30 dias atrás). Formato: ISO 8601 (ex: 2025-12-08T00:00:00Z)"
+    ),
+    end_date: datetime = Query(
+        None,
+        description="Data de fim (padrão: agora). Formato: ISO 8601 (ex: 2025-12-08T23:59:59Z)"
+    ),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
-    Get conversation analytics
-
-    Returns detailed conversation metrics for the specified period.
+    Get conversation analytics with detailed metrics
+    
+    **Query Parameters:**
+    - `start_date` (datetime, optional): Data inicial (padrão: 30 dias atrás). Formato: ISO 8601
+    - `end_date` (datetime, optional): Data final (padrão: agora). Formato: ISO 8601
+    
+    **Returns:** Detailed conversation metrics for the specified period
+    
+    **Metrics Included:**
+    - Total conversations
+    - Conversations by status (open, pending, resolved, closed)
+    - Average resolution time
+    - Conversation volume trends
+    
+    **Example Request:**
+    ```
+    GET /api/v1/analytics/conversations?start_date=2025-11-08T00:00:00Z&end_date=2025-12-08T23:59:59Z
+    ```
+    
+    **Example Response:**
+    ```json
+    {
+      "period": {
+        "start_date": "2025-11-08T00:00:00Z",
+        "end_date": "2025-12-08T23:59:59Z"
+      },
+      "total": 150,
+      "by_status": {
+        "open": 25,
+        "pending": 10,
+        "resolved": 100,
+        "closed": 15
+      },
+      "avg_resolution_time_minutes": 125
+    }
+    ```
     """
     if not end_date:
         end_date = datetime.utcnow()
@@ -76,16 +133,54 @@ async def get_conversation_metrics(
 
 @router.get("/conversations/hourly", response_model=TimeSeriesData)
 async def get_conversations_hourly(
-    granularity: str = Query("hour", description="Time granularity: hour, day"),
-    start_date: datetime = Query(None, description="Start date (defaults to 24 hours ago)"),
-    end_date: datetime = Query(None, description="End date (defaults to now)"),
+    granularity: str = Query(
+        "hour", 
+        description="Granularidade temporal: 'hour' (horária) ou 'day' (diária)"
+    ),
+    start_date: datetime = Query(
+        None, 
+        description="Data de início (padrão: 24 horas atrás). Formato: ISO 8601"
+    ),
+    end_date: datetime = Query(
+        None,
+        description="Data de fim (padrão: agora). Formato: ISO 8601"
+    ),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
-    Get conversation volume time series by hour
-
-    Returns hourly conversation count over time.
+    Get conversation volume time series by hour or day
+    
+    **Query Parameters:**
+    - `granularity` (string, default: "hour"): Intervalo de tempo: "hour" (horária) ou "day" (diária)
+    - `start_date` (datetime, optional): Data inicial (padrão: 24 horas atrás)
+    - `end_date` (datetime, optional): Data final (padrão: agora)
+    
+    **Returns:** Time series data with conversation counts per period
+    
+    **Example Request:**
+    ```
+    GET /api/v1/analytics/conversations/hourly?granularity=hour&start_date=2025-12-08T00:00:00Z&end_date=2025-12-09T00:00:00Z
+    ```
+    
+    **Example Response:**
+    ```json
+    {
+      "metric_name": "conversations",
+      "data_points": [
+        {
+          "timestamp": "2025-12-08T00:00:00Z",
+          "value": 12
+        },
+        {
+          "timestamp": "2025-12-08T01:00:00Z",
+          "value": 18
+        }
+      ],
+      "total": 200,
+      "average": 15.5
+    }
+    ```
     """
     if not end_date:
         end_date = datetime.utcnow()

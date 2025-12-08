@@ -30,23 +30,53 @@ router = APIRouter()
 
 @router.get("/", response_model=List[Conversation])
 async def list_conversations(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
-    status: Optional[str] = Query(None, regex="^(open|pending|resolved|closed)$"),
-    assigned_to_me: bool = False,
-    department_id: Optional[UUID] = Query(None, description="Filter by department"),
-    queue_id: Optional[UUID] = Query(None, description="Filter by queue"),
+    skip: int = Query(0, ge=0, description="Número de registros para pular (paginação)"),
+    limit: int = Query(100, ge=1, le=100, description="Quantidade máxima de registros retornados"),
+    status: Optional[str] = Query(
+        None, 
+        regex="^(open|pending|resolved|closed)$",
+        description="Filtrar por status: 'open', 'pending', 'resolved' ou 'closed'"
+    ),
+    assigned_to_me: bool = Query(
+        False,
+        description="Se true, retorna apenas conversas atribuídas ao usuário atual"
+    ),
+    department_id: Optional[UUID] = Query(None, description="Filtrar por ID do departamento"),
+    queue_id: Optional[UUID] = Query(None, description="Filtrar por ID da fila"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    List conversations
+    List all conversations with filtering and pagination
     
-    **Filters:**
-    - status: Filter by status (open, pending, resolved, closed)
-    - assigned_to_me: Show only conversations assigned to current user
-    - department_id: Filter by department
-    - queue_id: Filter by specific queue
+    **Query Parameters:**
+    - `skip` (int, default: 0): Offset para paginação
+    - `limit` (int, default: 100, max: 100): Número de registros por página
+    - `status` (string, opcional): Filtrar por status (open|pending|resolved|closed)
+    - `assigned_to_me` (boolean, default: false): Mostrar apenas minhas conversas
+    - `department_id` (UUID, opcional): Filtrar por departamento
+    - `queue_id` (UUID, opcional): Filtrar por fila
+    
+    **Returns:** Array de conversas com paginação
+    
+    **Example Response:**
+    ```json
+    [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "contact_id": "650e8400-e29b-41d4-a716-446655440001",
+        "status": "open",
+        "assigned_agent_id": "750e8400-e29b-41d4-a716-446655440002",
+        "created_at": "2025-12-08T10:00:00Z",
+        "updated_at": "2025-12-08T21:00:00Z"
+      }
+    ]
+    ```
+    
+    **Headers:**
+    - `X-Total-Count`: Total de registros
+    - `X-Page`: Página atual
+    - `X-Per-Page`: Registros por página
     """
     service = ConversationService(db)
 
