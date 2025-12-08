@@ -58,10 +58,25 @@ async def create_campaign(
 ):
     """
     Create a new campaign
-
-    Required role: org_admin or agent
-
-    The campaign starts in 'draft' status.
+    
+    **Description:** Creates a new bulk messaging campaign. The campaign starts in 'draft' status and can be scheduled or started immediately.
+    
+    **Request Body:**
+    - `name` (string, required): Campaign name
+    - `message_template` (string, required): Message content or template ID
+    - `audience_filter` (object, optional): Target audience filters (tags, VIP status, etc.)
+    - `send_delay` (integer, optional): Delay between messages in milliseconds
+    - `retry_max_attempts` (integer, default: 3): Maximum retry attempts
+    
+    **Returns:** CampaignInDB with created campaign details
+    
+    **Permissions Required:** org_admin or agent role
+    
+    **Possible Errors:**
+    - `400`: Invalid campaign data
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `500`: Database error
     """
     service = CampaignService(db)
     campaign = await service.create_campaign(
@@ -74,14 +89,27 @@ async def create_campaign(
 async def list_campaigns(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
-    status: Optional[str] = Query(None, description="Filter by status"),
+    status: Optional[str] = Query(None, description="Filter by status (draft, scheduled, running, completed, paused, cancelled)"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
     List all campaigns for current organization
-
-    Supports pagination and status filtering.
+    
+    **Description:** Retrieves a paginated list of campaigns with optional filtering by status.
+    
+    **Query Parameters:**
+    - `skip` (int, default: 0): Offset for pagination
+    - `limit` (int, default: 100, max: 500): Records per page
+    - `status` (string, optional): Filter by status (draft, scheduled, running, completed, paused, cancelled)
+    
+    **Returns:** CampaignListResponse with paginated campaigns and total count
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `500`: Database error
     """
     service = CampaignService(db)
     campaigns, total = await service.list_campaigns(
@@ -98,6 +126,20 @@ async def get_campaign(
 ):
     """
     Get campaign by ID
+    
+    **Description:** Retrieves full campaign details including message template, audience configuration, and current statistics.
+    
+    **Path Parameters:**
+    - `campaign_id` (UUID, required): Unique campaign identifier
+    
+    **Returns:** CampaignInDB with complete campaign details
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Campaign not found
+    - `500`: Database error
     """
     service = CampaignService(db)
     campaign = await service.get_campaign(campaign_id, current_user.organization_id)
@@ -211,10 +253,29 @@ async def update_campaign(
 ):
     """
     Update campaign
-
-    Required role: org_admin or agent
-
-    Can only update draft or scheduled campaigns.
+    
+    **Description:** Updates campaign configuration. Can only update draft or scheduled campaigns.
+    
+    **Path Parameters:**
+    - `campaign_id` (UUID, required): Unique campaign identifier
+    
+    **Request Body (all optional):**
+    - `name` (string): New campaign name
+    - `message_template` (string): Updated message template
+    - `audience_filter` (object): Updated audience filters
+    - `send_delay` (integer): New send delay in milliseconds
+    
+    **Returns:** Updated CampaignInDB
+    
+    **Permissions Required:** org_admin or agent role
+    
+    **Possible Errors:**
+    - `400`: Invalid update data
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Campaign not found
+    - `409`: Cannot update running campaign
+    - `500`: Database error
     """
     service = CampaignService(db)
     campaign = await service.update_campaign(
@@ -235,10 +296,22 @@ async def delete_campaign(
 ):
     """
     Soft delete campaign
-
-    Required role: org_admin
-
-    Cannot delete running campaigns.
+    
+    **Description:** Marks campaign as deleted. Cannot delete running campaigns. Data is retained for audit.
+    
+    **Path Parameters:**
+    - `campaign_id` (UUID, required): Unique campaign identifier
+    
+    **Returns:** 204 No Content on success
+    
+    **Permissions Required:** org_admin role
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Campaign not found
+    - `409`: Cannot delete running campaign
+    - `500`: Database error
     """
     service = CampaignService(db)
     await service.delete_campaign(campaign_id, current_user.organization_id)
@@ -286,10 +359,22 @@ async def start_campaign(
 ):
     """
     Start campaign immediately
-
-    Required role: org_admin or agent
-
-    Begins sending messages to the target audience.
+    
+    **Description:** Begins sending messages to the target audience immediately. Campaign must be in draft or scheduled status.
+    
+    **Path Parameters:**
+    - `campaign_id` (UUID, required): Unique campaign identifier
+    
+    **Returns:** CampaignStartResponse with execution start details
+    
+    **Permissions Required:** org_admin or agent role
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Campaign not found
+    - `409`: Campaign already running or invalid status
+    - `500`: Database error
     """
     service = CampaignService(db)
     response = await service.start_campaign(campaign_id, current_user.organization_id)
