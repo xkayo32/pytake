@@ -44,26 +44,57 @@ async def list_whatsapp_numbers(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    List all WhatsApp numbers for the organization
-    
-    **Returns:** Array of WhatsApp numbers with connection status and configuration
-    
-    **Permissions Required:** Any authenticated user
-    
+    List all WhatsApp numbers registered for the organization.
+
+    Returns all WhatsApp Business Account numbers with connection status,
+    configuration details, and webhook URLs.
+
+    **Path Parameters:** None
+
+    **Query Parameters:** None
+
+    **Returns:** Array of WhatsApp numbers:
+    - id (str): Number UUID
+    - phone_number (str): Phone number with country code (e.g., '5585987654321')
+    - display_name (str): User-friendly name
+    - connection_type (str): 'official' (Meta Cloud API) or 'qrcode' (Evolution API)
+    - status (str): 'connected', 'disconnected', 'pending'
+    - verified (bool): Number verified with Meta
+    - webhook_url (str): Webhook URL for receiving messages
+    - created_at (datetime): Registration date
+    - last_connected (datetime, optional): Last connection timestamp
+
+    **Example Request:**
+    ```
+    GET /api/v1/whatsapp/
+    Authorization: Bearer eyJhbGc...
+    ```
+
     **Example Response:**
     ```json
     [
-      {
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "phone_number": "5585987654321",
-        "display_name": "Meu WhatsApp",
-        "connection_type": "official",
-        "status": "connected",
-        "verified": true,
-        "webhook_url": "https://seu-dominio.com/webhook"
-      }
+        {
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "phone_number": "5585987654321",
+            "display_name": "Meu WhatsApp Business",
+            "connection_type": "official",
+            "status": "connected",
+            "verified": true,
+            "webhook_url": "https://seu-dominio.com/whatsapp/webhook",
+            "created_at": "2025-01-01T10:00:00Z",
+            "last_connected": "2025-01-15T14:32:00Z"
+        }
     ]
     ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+    - Scoped to: Organization (organization_id from current user)
+    - Note: All organization members can list numbers
+
+    **Error Codes:**
+    - 401: Unauthorized (invalid or missing token)
+    - 500: Server error (number list retrieval failure)
     """
     service = WhatsAppService(db)
     return await service.list_numbers(
@@ -78,60 +109,83 @@ async def create_whatsapp_number(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Register a new WhatsApp number
-    
-    **Required Parameters:**
-    - `phone_number` (string, 10-20 chars): Número de telefone com código país (ex: 5585987654321)
-    
-    **Optional Parameters:**
-    - `connection_type` (string, default: "official"): "official" (Meta Cloud API) ou "qrcode" (Evolution API)
-    - `display_name` (string, max 255 chars): Nome exibido para o número
-    - `webhook_url` (string): URL para receber webhooks de mensagens
-    
-    **Para Meta Cloud API (Official):**
-    - `phone_number_id` (string): ID da conta de celular no Meta
-    - `whatsapp_business_account_id` (string): ID da conta comercial WhatsApp
-    - `access_token` (string): Token de acesso do Meta (com permissões: whatsapp_business_messaging)
-    - `app_secret` (string): Secret da aplicação Meta para validar webhooks
-    
-    **Para Evolution API (QR Code):**
-    - `evolution_instance_name` (string): Nome único da instância Evolution
-    - `evolution_api_url` (string): URL base da Evolution API
-    - `evolution_api_key` (string): API Key global da Evolution
-    
+    Register a new WhatsApp number for the organization.
+
+    Create a new WhatsApp Business Account connection using either Meta Cloud API
+    (Official) or Evolution API (QR Code). Each number can handle multiple
+    conversations and flows.
+
+    **Path Parameters:** None
+
+    **Request Body:**
+    - phone_number (str, required): E.164 format (e.g., '5585987654321' = Brazil +55 85 98765-4321)
+    - display_name (str, optional): User-friendly name (max 255 chars)
+    - connection_type (str, optional): 'official' (Meta Cloud API) or 'qrcode' (Evolution API, default: 'official')
+    - webhook_url (str, optional): URL to receive webhooks
+
+    **For Meta Cloud API (connection_type='official'):**
+    - phone_number_id (str, required): Meta Phone Number ID
+    - whatsapp_business_account_id (str, required): Meta WhatsApp Business Account ID
+    - access_token (str, required): Meta API Token (permissions: whatsapp_business_messaging)
+    - app_secret (str, optional): Meta App Secret for webhook validation
+
+    **For Evolution API (connection_type='qrcode'):**
+    - evolution_instance_name (str, required): Unique Evolution instance identifier
+    - evolution_api_url (str, required): Evolution API base URL
+    - evolution_api_key (str, required): Evolution Global API Key
+
+    **Returns:** WhatsAppNumber object with generated ID and status
+
     **Example Request (Meta Cloud API):**
     ```json
     {
-      "phone_number": "5585987654321",
-      "display_name": "Suporte",
-      "connection_type": "official",
-      "phone_number_id": "123456789",
-      "whatsapp_business_account_id": "111222333",
-      "access_token": "EAABs...",
-      "webhook_url": "https://seu-dominio.com/webhook"
+        "phone_number": "5585987654321",
+        "display_name": "Atendimento Suporte",
+        "connection_type": "official",
+        "phone_number_id": "123456789101112",
+        "whatsapp_business_account_id": "111222333444555",
+        "access_token": "EAABs1234567890...",
+        "app_secret": "abc123def456...",
+        "webhook_url": "https://seu-dominio.com/api/v1/whatsapp/webhook"
     }
     ```
-    
+
     **Example Request (Evolution API):**
     ```json
     {
-      "phone_number": "5585987654321",
-      "display_name": "Atendimento",
-      "connection_type": "qrcode",
-      "evolution_instance_name": "instance-1",
-      "evolution_api_url": "https://api.evolution.com",
-      "evolution_api_key": "your-api-key"
+        "phone_number": "5585987654321",
+        "display_name": "Atendimento Bot",
+        "connection_type": "qrcode",
+        "evolution_instance_name": "pytake-instance-001",
+        "evolution_api_url": "https://api.evolution.example.com",
+        "evolution_api_key": "sk-evolution-key-xxx..."
     }
     ```
-    
-    **Returns:** WhatsAppNumber object com ID gerado
-    
-    **Permissions Required:** org_admin ou super_admin
-    
-    **Possible Errors:**
-    - `422`: Dados inválidos (phone_number muito curto, connection_type inválido, etc)
-    - `409`: Número de telefone já registrado
-    - `403`: Sem permissão (não é admin)
+
+    **Example Response:**
+    ```json
+    {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "phone_number": "5585987654321",
+        "display_name": "Atendimento Suporte",
+        "connection_type": "official",
+        "status": "pending",
+        "verified": false,
+        "webhook_url": "https://seu-dominio.com/api/v1/whatsapp/webhook",
+        "created_at": "2025-01-15T14:32:00Z"
+    }
+    ```
+
+    **Permissions:**
+    - Requires: org_admin or super_admin role
+    - Scoped to: Organization (organization_id from current user)
+
+    **Error Codes:**
+    - 401: Unauthorized (invalid or missing token)
+    - 403: Forbidden (insufficient permissions - not org_admin)
+    - 409: Conflict (phone_number already registered in organization)
+    - 422: Unprocessable Entity (invalid phone format, missing required fields)
+    - 500: Server error (number creation failure)
     """
     service = WhatsAppService(db)
     return await service.create_number(
@@ -152,14 +206,42 @@ async def verify_webhook(
 ):
     """
     Webhook verification endpoint for Meta Cloud API.
-    Meta will send a GET request to verify the webhook.
 
-    Query params:
-    - hub.mode: should be "subscribe"
-    - hub.verify_token: the token we provided in Meta dashboard
-    - hub.challenge: random string to echo back
+    Meta sends a GET request to verify the webhook during setup.
+    This endpoint is PUBLIC and does NOT require authentication.
 
-    NOTE: This endpoint is PUBLIC and does not require authentication
+    **Path Parameters:** None
+
+    **Query Parameters:**
+    - hub.mode (str): Subscription mode (must be 'subscribe')
+    - hub.verify_token (str): Token to verify against configuration
+    - hub.challenge (str): Random string to echo back
+
+    **Returns:** Plain text challenge string (200 OK)
+
+    **Example Request:**
+    ```
+    GET /api/v1/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=my_token&hub.challenge=abc123
+    ```
+
+    **Example Response:**
+    ```
+    abc123
+    ```
+
+    **Permissions:**
+    - Public endpoint (no authentication required)
+    - Verification token configured in Meta Dashboard
+
+    **Error Codes:**
+    - 400: Bad Request (missing required query parameters)
+    - 403: Forbidden (invalid mode or token)
+    - 500: Server error (verification failure)
+
+    **Security Notes:**
+    - Verify token must match Meta Dashboard configuration
+    - Only mode 'subscribe' is accepted
+    - Token validation happens server-side
     """
     if not mode or not token or not challenge:
         raise HTTPException(
@@ -212,12 +294,107 @@ async def receive_webhook(
     """
     Webhook endpoint for receiving WhatsApp messages and events from Meta Cloud API.
 
-    This endpoint receives:
-    - Incoming messages
-    - Message status updates (sent, delivered, read, failed)
-    - Customer information updates
+    This endpoint receives and processes incoming messages, status updates, and
+    customer information changes. All events are validated using HMAC signature.
 
-    NOTE: This endpoint is PUBLIC and does not require authentication
+    **Path Parameters:** None
+
+    **Request Body:**
+    - object (str): Always 'whatsapp_business_account'
+    - entry (array): Webhook entries containing:
+      - changes (array): Events array with:
+        - value (object): Event data containing:
+          - messaging_product (str): 'whatsapp'
+          - messages (array): Incoming messages with body, from, id
+          - statuses (array): Message status updates (sent, delivered, read, failed)
+          - contacts (array): Customer contact info
+
+    **Returns:** HTTP 200 OK (empty response)
+
+    **Example Webhook Payload (Message):**
+    ```json
+    {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "123456789",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "5585987654321",
+                                "phone_number_id": "123456789101112"
+                            },
+                            "messages": [
+                                {
+                                    "from": "5585987654322",
+                                    "id": "wamid.123",
+                                    "timestamp": "1671234567",
+                                    "type": "text",
+                                    "text": {"body": "Olá!"}
+                                }
+                            ],
+                            "contacts": [
+                                {
+                                    "profile": {"name": "João Silva"},
+                                    "wa_id": "5585987654322"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+    ```
+
+    **Example Webhook Payload (Status Update):**
+    ```json
+    {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "phone_number_id": "123456789101112"
+                            },
+                            "statuses": [
+                                {
+                                    "id": "wamid.123",
+                                    "status": "delivered",
+                                    "timestamp": "1671234567",
+                                    "recipient_id": "5585987654322"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+    ```
+
+    **Permissions:**
+    - Public endpoint (no authentication required)
+    - HMAC signature validation required via X-Hub-Signature header
+
+    **Error Codes:**
+    - 200: OK (success, always return 200 to avoid retry)
+    - 400: Bad Request (invalid payload format)
+    - 401: Unauthorized (invalid HMAC signature)
+    - 422: Unprocessable Entity (validation error)
+    - 500: Server error (processing failure)
+
+    **Processing:**
+    - Messages are stored in conversation threads
+    - Status updates modify message delivery status
+    - Customer profiles are created/updated
+    - Async background tasks handle message processing
+    - Always return 200 OK to prevent Meta from retrying
     """
     import logging
     from app.core.security import verify_whatsapp_signature
