@@ -33,14 +33,24 @@ async def register(
 ):
     """
     Register a new user and organization
-
-    Creates a new user account with an associated organization.
-    The user will be assigned the 'org_admin' role.
-
-    - **email**: Valid email address
-    - **password**: Strong password (min 8 chars, uppercase, lowercase, digit)
-    - **full_name**: User's full name
-    - **organization_name**: Name of the organization to create
+    
+    **Description:** Creates a new user account with an associated organization. The user will be assigned the 'org_admin' role.
+    
+    **Request Body:**
+    - `email` (string, required): Valid email address (must be unique)
+    - `password` (string, required): Strong password (min 8 chars, uppercase, lowercase, digit, special)
+    - `full_name` (string, required): User's full name
+    - `organization_name` (string, required): Name of the organization to create
+    
+    **Returns:** User profile and authentication tokens
+    
+    **Rate Limit:** 3 registrations per hour per IP
+    
+    **Possible Errors:**
+    - `400`: Invalid data (weak password, invalid email format)
+    - `409`: Email already registered
+    - `429`: Rate limit exceeded (too many registration attempts)
+    - `500`: Internal server error
     """
     user, token = await auth_service.register(data)
 
@@ -60,13 +70,26 @@ async def login(
 ):
     """
     Authenticate user and get access token
-
-    - **email**: User email
-    - **password**: User password
-
-    Returns access token and refresh token for subsequent requests.
     
-    Rate limit: 5 attempts per minute per IP address
+    **Description:** Authenticates user with email and password, returns JWT access and refresh tokens.
+    
+    **Request Body:**
+    - `email` (string, required): User email address
+    - `password` (string, required): User password
+    
+    **Returns:** User profile, access token, and refresh token
+    
+    **Token Details:**
+    - Access token: Valid for 30 minutes (short-lived)
+    - Refresh token: Valid for 30 days (use to get new access tokens)
+    
+    **Rate Limit:** 5 login attempts per minute per IP
+    
+    **Possible Errors:**
+    - `400`: Missing email or password
+    - `401`: Invalid credentials
+    - `429`: Rate limit exceeded (too many login attempts)
+    - `500`: Internal server error
     """
     # Get client IP
     ip_address = request.client.host if request.client else None
@@ -89,10 +112,21 @@ async def refresh_token(
 ):
     """
     Refresh access token
-
-    Use refresh token to get a new access token when the current one expires.
-
-    - **refresh_token**: Valid refresh token from login response
+    
+    **Description:** Uses refresh token to get a new access token when the current one expires.
+    
+    **Request Body:**
+    - `refresh_token` (string, required): Valid refresh token from login response
+    
+    **Returns:** New access token and refresh token
+    
+    **Rate Limit:** 10 refresh requests per minute per IP
+    
+    **Possible Errors:**
+    - `400`: Missing refresh token
+    - `401`: Invalid or expired refresh token
+    - `429`: Rate limit exceeded
+    - `500`: Internal server error
     """
     token = await auth_service.refresh_access_token(data.refresh_token)
     return token
@@ -106,10 +140,20 @@ async def logout(
 ):
     """
     Logout user
-
-    Revokes the refresh token to prevent future token refreshes.
-
-    - **refresh_token**: Refresh token to revoke
+    
+    **Description:** Revokes the refresh token to prevent future token refreshes. User must re-login to continue.
+    
+    **Request Body:**
+    - `refresh_token` (string, required): Refresh token to revoke (from login response)
+    
+    **Returns:** Success confirmation
+    
+    **Permissions Required:** Authenticated user
+    
+    **Possible Errors:**
+    - `400`: Missing refresh token
+    - `401`: User not authenticated
+    - `500`: Internal server error
     """
     await auth_service.logout(current_user.id, data.refresh_token)
 
