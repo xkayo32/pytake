@@ -48,10 +48,26 @@ async def create_automation(
 ):
     """
     Create a new flow automation
-
-    Required role: org_admin or agent
-
-    The automation starts in 'draft' status.
+    
+    **Description:** Creates a new automation for proactive flow dispatching. The automation starts in 'draft' status.
+    
+    **Request Body:**
+    - `name` (string, required): Automation name
+    - `flow_id` (UUID, required): Target flow to dispatch
+    - `trigger_type` (string, required): Trigger type (e.g., "keyword", "user_action", "schedule")
+    - `target_contacts` (array, optional): List of contact IDs to target
+    - `is_active` (boolean, default: false): Whether automation is active on creation
+    
+    **Returns:** Created FlowAutomationResponse with automation details
+    
+    **Permissions Required:** org_admin or agent role
+    
+    **Possible Errors:**
+    - `400`: Invalid automation data
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Flow not found
+    - `500`: Database error
     """
     service = FlowAutomationService(db)
     automation = await service.create_automation(
@@ -64,15 +80,29 @@ async def create_automation(
 async def list_automations(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
-    status: Optional[str] = Query(None, description="Filter by status"),
+    status: Optional[str] = Query(None, description="Filter by status (draft, active, paused, completed)"),
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
     List all flow automations for current organization
-
-    Supports pagination and filtering by status/active.
+    
+    **Description:** Retrieves a paginated list of automations with optional filtering by status or active state.
+    
+    **Query Parameters:**
+    - `skip` (int, default: 0): Offset for pagination
+    - `limit` (int, default: 100, max: 500): Records per page
+    - `status` (string, optional): Filter by status (draft, active, paused, completed)
+    - `is_active` (boolean, optional): Filter by active status
+    
+    **Returns:** FlowAutomationList with paginated automations and metadata
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `500`: Database error
     """
     service = FlowAutomationService(db)
     automations, total = await service.list_automations(
@@ -99,8 +129,20 @@ async def get_automation(
 ):
     """
     Get flow automation by ID
-
-    Returns full automation details including relationships.
+    
+    **Description:** Retrieves full automation details including relationships, schedule, and execution history.
+    
+    **Path Parameters:**
+    - `automation_id` (UUID, required): Unique automation identifier
+    
+    **Returns:** FlowAutomationResponse with complete automation details
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Automation not found
+    - `500`: Database error
     """
     service = FlowAutomationService(db)
     automation = await service.get_automation(automation_id, current_user.organization_id)
@@ -120,8 +162,28 @@ async def update_automation(
 ):
     """
     Update flow automation
-
-    Can only update draft or paused automations.
+    
+    **Description:** Updates automation configuration. Can only update draft or paused automations.
+    
+    **Path Parameters:**
+    - `automation_id` (UUID, required): Unique automation identifier
+    
+    **Request Body (all optional):**
+    - `name` (string): New automation name
+    - `flow_id` (UUID): New target flow
+    - `trigger_type` (string): New trigger type
+    - `is_active` (boolean): Active status
+    
+    **Returns:** Updated FlowAutomationResponse
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `400`: Invalid update data
+    - `401`: User not authenticated
+    - `404`: Automation not found
+    - `409`: Cannot update running automation
+    - `500`: Database error
     """
     service = FlowAutomationService(db)
     automation = await service.update_automation(
@@ -142,10 +204,22 @@ async def delete_automation(
 ):
     """
     Delete flow automation (soft delete)
-
-    Required role: org_admin
-
-    Cannot delete running automations.
+    
+    **Description:** Marks automation as deleted. Cannot delete running automations.
+    
+    **Path Parameters:**
+    - `automation_id` (UUID, required): Unique automation identifier
+    
+    **Returns:** 204 No Content on success
+    
+    **Permissions Required:** org_admin role
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Automation not found
+    - `409`: Cannot delete running automation
+    - `500`: Database error
     """
     service = FlowAutomationService(db)
     await service.delete_automation(automation_id, current_user.organization_id)
@@ -166,10 +240,26 @@ async def start_automation(
 ):
     """
     Start flow automation execution manually
-
-    Creates an execution and begins processing recipients.
-
+    
+    **Description:** Triggers execution of the automation. Creates an execution and begins processing recipients.
     Optionally supports test mode with specific contact IDs.
+    
+    **Path Parameters:**
+    - `automation_id` (UUID, required): Unique automation identifier
+    
+    **Request Body (optional):**
+    - `contact_ids` (array, optional): Specific contacts to execute flow for (test mode)
+    - `test_mode` (boolean, optional): Run in test mode without recording metrics
+    
+    **Returns:** FlowAutomationExecutionResponse with execution details
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Automation not found
+    - `409`: Automation not active or already running
+    - `500`: Database error
     """
     service = FlowAutomationService(db)
     execution = await service.start_automation(
@@ -189,8 +279,34 @@ async def get_automation_stats(
 ):
     """
     Get statistics for flow automation
-
-    Returns aggregated metrics across all executions.
+    
+    **Description:** Returns aggregated metrics across all executions including total contacts reached,
+    messages sent, success rate, and engagement metrics.
+    
+    **Path Parameters:**
+    - `automation_id` (UUID, required): Unique automation identifier
+    
+    **Returns:** FlowAutomationStats with aggregated metrics
+    
+    **Response Example:**
+    ```json
+    {
+      "total_executions": 5,
+      "total_contacts_reached": 250,
+      "total_messages_sent": 250,
+      "successful_executions": 4,
+      "failed_executions": 0,
+      "engagement_rate": 0.42,
+      "success_rate": 0.95
+    }
+    ```
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Automation not found
+    - `500`: Database error
     """
     service = FlowAutomationService(db)
     stats = await service.get_automation_stats(
