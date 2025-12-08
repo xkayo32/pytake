@@ -29,6 +29,17 @@ async def get_my_organization(
 ):
     """
     Get current user's organization
+    
+    **Description:** Retrieves the organization details for the currently authenticated user.
+    
+    **Returns:** Organization object with all configuration
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Organization not found
+    - `500`: Database error
     """
     service = OrganizationService(db)
     org = await service.get_by_id(current_user.organization_id)
@@ -84,7 +95,25 @@ async def update_my_organization(
 ):
     """
     Update current user's organization
-    Requires: org_admin role
+    
+    **Description:** Updates organization name, settings, billing info, and other configurations.
+    
+    **Request Body (all optional):**
+    - `name` (string): New organization name
+    - `domain` (string): Custom domain
+    - `settings` (object): Organization settings
+    
+    **Returns:** Updated Organization object
+    
+    **Permissions Required:** org_admin or super_admin role
+    
+    **Possible Errors:**
+    - `400`: Invalid update data
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Organization not found
+    - `409`: Domain already in use
+    - `500`: Database error
     """
     if current_user.role not in ["org_admin", "super_admin"]:
         from app.core.exceptions import ForbiddenException
@@ -102,7 +131,25 @@ async def update_my_organization_settings(
 ):
     """
     Update current user's organization settings
-    Requires: org_admin role
+    
+    **Description:** Updates organization-wide settings like timezone, language, features, and notifications.
+    
+    **Request Body (all optional):**
+    - `timezone` (string): Timezone for organization (e.g., "America/Sao_Paulo")
+    - `language` (string): Default language (e.g., "pt-BR", "en-US")
+    - `features` (object): Feature toggles and configuration
+    - `notifications` (object): Notification settings
+    
+    **Returns:** Updated Organization object
+    
+    **Permissions Required:** org_admin or super_admin role
+    
+    **Possible Errors:**
+    - `400`: Invalid settings data
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Organization not found
+    - `500`: Database error
     """
     if current_user.role not in ["org_admin", "super_admin"]:
         from app.core.exceptions import ForbiddenException
@@ -147,7 +194,23 @@ async def activate_organization(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Activate organization (Super Admin only)
+    Activate organization
+    
+    **Description:** Enables a previously deactivated organization and restores access for all users.
+    
+    **Path Parameters:**
+    - `org_id` (UUID, required): Unique organization identifier
+    
+    **Returns:** Activated Organization object
+    
+    **Permissions Required:** super_admin role only
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions (must be super_admin)
+    - `404`: Organization not found
+    - `409`: Organization already active
+    - `500`: Database error
     """
     service = OrganizationService(db)
     return await service.activate(org_id)
@@ -160,7 +223,23 @@ async def deactivate_organization(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Deactivate organization (Super Admin only)
+    Deactivate organization
+    
+    **Description:** Disables an organization, restricting access for all users while preserving data.
+    
+    **Path Parameters:**
+    - `org_id` (UUID, required): Unique organization identifier
+    
+    **Returns:** Deactivated Organization object
+    
+    **Permissions Required:** super_admin role only
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions (must be super_admin)
+    - `404`: Organization not found
+    - `409`: Organization already inactive
+    - `500`: Database error
     """
     service = OrganizationService(db)
     return await service.deactivate(org_id)
