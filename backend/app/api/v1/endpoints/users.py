@@ -27,6 +27,22 @@ async def list_users(
 ):
     """
     List users in organization
+    
+    **Description:** Retrieves a paginated list of users with optional filtering by role or active status.
+    
+    **Query Parameters:**
+    - `skip` (int, default: 0): Offset for pagination
+    - `limit` (int, default: 100, max: 100): Records per page
+    - `role` (string, optional): Filter by role (org_admin, agent, viewer)
+    - `is_active` (boolean, optional): Filter by active status
+    
+    **Returns:** Array of User objects
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `500`: Database error
     """
     service = UserService(db)
     return await service.list_users(
@@ -46,7 +62,25 @@ async def create_user(
 ):
     """
     Create new user in organization
-    Requires: org_admin or super_admin role
+    
+    **Description:** Creates a new user account with specified role and permissions. Sends invitation email to activate account.
+    
+    **Request Body:**
+    - `email` (string, required): User email address
+    - `full_name` (string, required): User full name
+    - `role` (string, required): User role (org_admin, agent, viewer)
+    - `is_active` (boolean, default: true): Active status
+    
+    **Returns:** Created User object
+    
+    **Permissions Required:** org_admin or super_admin role
+    
+    **Possible Errors:**
+    - `400`: Invalid user data
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `409`: Email already exists
+    - `500`: Database or email error
     """
     service = UserService(db)
     return await service.create_user(
@@ -62,6 +96,15 @@ async def get_current_user_profile(
 ):
     """
     Get current user profile
+    
+    **Description:** Retrieves the authenticated user's profile information.
+    
+    **Returns:** Current User object with all profile details
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
     """
     return current_user
 
@@ -113,6 +156,20 @@ async def get_user(
 ):
     """
     Get user by ID
+    
+    **Description:** Retrieves a user's profile information and details.
+    
+    **Path Parameters:**
+    - `user_id` (UUID, required): Unique user identifier
+    
+    **Returns:** User object
+    
+    **Permissions Required:** Any authenticated user (can only view own organization users)
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: User not found
+    - `500`: Database error
     """
     service = UserService(db)
     return await service.get_by_id(
@@ -146,7 +203,29 @@ async def update_user(
 ):
     """
     Update user
-    Requires: org_admin or super_admin role
+    
+    **Description:** Updates user information including name, email, and role assignment.
+    
+    **Path Parameters:**
+    - `user_id` (UUID, required): Unique user identifier
+    
+    **Request Body (all optional):**
+    - `full_name` (string): New full name
+    - `email` (string): New email address
+    - `role` (string): New role assignment (org_admin, agent, viewer)
+    - `is_active` (boolean): Active status
+    
+    **Returns:** Updated User object
+    
+    **Permissions Required:** org_admin or super_admin role
+    
+    **Possible Errors:**
+    - `400`: Invalid update data
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: User not found
+    - `409`: Email already in use
+    - `500`: Database error
     """
     service = UserService(db)
     return await service.update_user(
@@ -201,7 +280,22 @@ async def delete_user(
 ):
     """
     Delete user (soft delete)
-    Requires: org_admin or super_admin role
+    
+    **Description:** Marks a user account as deleted. Data is retained for audit and compliance purposes.
+    
+    **Path Parameters:**
+    - `user_id` (UUID, required): Unique user identifier
+    
+    **Returns:** 204 No Content on success
+    
+    **Permissions Required:** org_admin or super_admin role
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: User not found
+    - `409`: Cannot delete own account or last admin
+    - `500`: Database error
     """
     service = UserService(db)
     await service.delete_user(
