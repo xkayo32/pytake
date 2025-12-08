@@ -184,7 +184,7 @@ Obtenha seu token via:
     redoc_url=f"{settings.API_V1_PREFIX}/redoc" if settings.DEBUG else None,
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json" if settings.DEBUG else None,
     root_path=settings.API_ROOT_PATH,  # Support for reverse proxy paths like /prod, /staging
-    redirect_slashes=False,  # Disable redirects to avoid CORS issues
+    redirect_slashes=True,  # Enable redirect for trailing slashes to match route patterns
     contact={
         "name": "PyTake Support",
         "email": "support@pytake.com",

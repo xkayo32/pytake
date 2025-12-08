@@ -338,6 +338,21 @@ class AnalyticsService:
             average=0.0,
         )
 
+    async def get_conversations_time_series(
+        self, organization_id: UUID, start_date: datetime, end_date: datetime, granularity: str = "hour"
+    ) -> TimeSeriesData:
+        """Get conversation count time series by hour or day"""
+
+        # TODO: Implement proper time series aggregation
+        # This is a placeholder implementation with mock data
+
+        return TimeSeriesData(
+            metric_name="conversations",
+            data_points=[],
+            total=0.0,
+            average=0.0,
+        )
+
     # ============================================
     # FULL REPORT
     # ============================================

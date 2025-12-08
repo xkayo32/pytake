@@ -74,6 +74,31 @@ async def get_conversation_metrics(
     return metrics
 
 
+@router.get("/conversations/hourly", response_model=TimeSeriesData)
+async def get_conversations_hourly(
+    granularity: str = Query("hour", description="Time granularity: hour, day"),
+    start_date: datetime = Query(None, description="Start date (defaults to 24 hours ago)"),
+    end_date: datetime = Query(None, description="End date (defaults to now)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get conversation volume time series by hour
+
+    Returns hourly conversation count over time.
+    """
+    if not end_date:
+        end_date = datetime.utcnow()
+    if not start_date:
+        start_date = end_date - timedelta(days=1)
+
+    service = AnalyticsService(db)
+    time_series = await service.get_conversations_time_series(
+        current_user.organization_id, start_date, end_date, granularity
+    )
+    return time_series
+
+
 @router.get("/agents", response_model=AgentMetrics)
 async def get_agent_metrics(
     start_date: datetime = Query(None, description="Start date (defaults to 30 days ago)"),
