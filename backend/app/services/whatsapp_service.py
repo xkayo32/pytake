@@ -3998,9 +3998,10 @@ __result__ = __script_func__()
                 logger = logging.getLogger(__name__)
                 logger.debug(f"Could not update status for {number.id}: {str(e)}")
         
-        # Run status updates concurrently but don't wait (fire and forget)
-        # This keeps the list operation fast
-        asyncio.create_task(asyncio.gather(*[update_status_for_number(num) for num in numbers]))
+        # Run status updates concurrently
+        # Only run if there are numbers to update
+        if numbers:
+            await asyncio.gather(*[update_status_for_number(num) for num in numbers])
         
         # Commit any pending changes
         try:
