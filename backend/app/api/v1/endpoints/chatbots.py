@@ -50,11 +50,49 @@ async def create_chatbot(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Create a new chatbot
-
-    Required role: org_admin
-
-    A default main flow is automatically created.
+    Create a new chatbot for the organization
+    
+    **Description:** Creates a new chatbot with an automatically initialized main flow.
+    Chatbots can have multiple flows and are used to build conversational experiences.
+    
+    **Request Body:**
+    - `name` (string, required): Name of the chatbot (2-100 chars)
+    - `description` (string, optional): Description of the chatbot's purpose
+    - `welcome_message` (string, optional): Initial greeting message for users
+    - `is_active` (boolean, default: false): Whether the chatbot starts active
+    
+    **Example Request:**
+    ```json
+    {
+      "name": "Support Bot",
+      "description": "Automated support and FAQ responses",
+      "welcome_message": "Hi! How can I help you today?",
+      "is_active": true
+    }
+    ```
+    
+    **Returns:** ChatbotInDB object with generated ID and default flow
+    
+    **Example Response:**
+    ```json
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "organization_id": "650e8400-e29b-41d4-a716-446655440001",
+      "name": "Support Bot",
+      "description": "Automated support and FAQ responses",
+      "welcome_message": "Hi! How can I help you today?",
+      "is_active": true,
+      "created_at": "2025-12-08T10:00:00Z",
+      "updated_at": "2025-12-08T10:00:00Z"
+    }
+    ```
+    
+    **Permissions Required:** org_admin
+    
+    **Possible Errors:**
+    - `400`: Invalid data (name too short/long, invalid format)
+    - `403`: User does not have org_admin role
+    - `500`: Internal server error during creation
     """
     service = ChatbotService(db)
     chatbot = await service.create_chatbot(data, current_user.organization_id)
@@ -69,9 +107,36 @@ async def list_chatbots(
     current_user: User = Depends(get_current_user),
 ):
     """
-    List all chatbots for current organization
-
-    Supports pagination with skip and limit.
+    List all chatbots in the organization
+    
+    **Description:** Retrieves a paginated list of all chatbots accessible to the current user.
+    
+    **Query Parameters:**
+    - `skip` (int, default: 0): Offset for pagination  
+    - `limit` (int, default: 100, max: 500): Maximum records per page
+    
+    **Returns:** ChatbotListResponse with array of chatbots and total count
+    
+    **Example Response:**
+    ```json
+    {
+      "total": 5,
+      "items": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "name": "Support Bot",
+          "description": "Automated support",
+          "is_active": true
+        }
+      ]
+    }
+    ```
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `500`: Database error
     """
     service = ChatbotService(db)
     chatbots, total = await service.list_chatbots(
@@ -88,6 +153,20 @@ async def get_chatbot(
 ):
     """
     Get chatbot by ID
+    
+    **Description:** Retrieves detailed information about a specific chatbot including configuration and metadata.
+    
+    **Path Parameters:**
+    - `chatbot_id` (UUID, required): Unique chatbot identifier
+    
+    **Returns:** ChatbotInDB object with complete chatbot details
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Chatbot not found
+    - `500`: Database error
     """
     service = ChatbotService(db)
     chatbot = await service.get_chatbot(chatbot_id, current_user.organization_id)
@@ -122,6 +201,20 @@ async def get_chatbot_stats(
 ):
     """
     Get chatbot statistics
+    
+    **Description:** Retrieves aggregated statistics for a chatbot including conversation count, message metrics, and engagement data.
+    
+    **Path Parameters:**
+    - `chatbot_id` (UUID, required): Unique chatbot identifier
+    
+    **Returns:** ChatbotStats object with aggregated metrics
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Chatbot not found
+    - `500`: Database error
     """
     service = ChatbotService(db)
     stats = await service.get_chatbot_stats(chatbot_id, current_user.organization_id)
@@ -141,8 +234,28 @@ async def update_chatbot(
 ):
     """
     Update chatbot
-
-    Required role: org_admin
+    
+    **Description:** Updates chatbot configuration including name, description, welcome message, and active status.
+    
+    **Path Parameters:**
+    - `chatbot_id` (UUID, required): Unique chatbot identifier
+    
+    **Request Body (all optional):**
+    - `name` (string): New chatbot name
+    - `description` (string): Updated description
+    - `welcome_message` (string): New welcome message
+    - `is_active` (boolean): Active status
+    
+    **Returns:** Updated ChatbotInDB
+    
+    **Permissions Required:** org_admin role
+    
+    **Possible Errors:**
+    - `400`: Invalid update data
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Chatbot not found
+    - `500`: Database error
     """
     service = ChatbotService(db)
     chatbot = await service.update_chatbot(
