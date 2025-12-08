@@ -22,6 +22,21 @@ async def list_user_skills(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    List all skills for a specific user/agent
+    
+    **Path Parameters:**
+    - `user_id` (UUID, required): Unique user identifier
+    
+    **Returns:** Array of AgentSkill objects
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: User not found
+    - `500`: Database error
+    """
     service = AgentSkillService(db)
     return await service.list_user_skills(organization_id=current_user.organization_id, user_id=user_id)
 
@@ -33,6 +48,28 @@ async def add_user_skill(
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Add a skill to a user/agent
+    
+    **Path Parameters:**
+    - `user_id` (UUID, required): Unique user identifier
+    
+    **Request Body:**
+    - `skill_name` (string, required): Skill identifier (e.g., "technical_support", "sales")
+    - `proficiency_level` (integer, optional): Proficiency level 1-5
+    
+    **Returns:** Created AgentSkill object
+    
+    **Permissions Required:** org_admin role
+    
+    **Possible Errors:**
+    - `400`: Invalid skill data
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: User not found
+    - `409`: Skill already assigned
+    - `500`: Database error
+    """
     service = AgentSkillService(db)
     return await service.add_skill(organization_id=current_user.organization_id, user_id=user_id, data=data)
 
@@ -58,6 +95,23 @@ async def delete_user_skill(
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Remove a skill from a user/agent
+    
+    **Path Parameters:**
+    - `user_id` (UUID, required): Unique user identifier
+    - `skill_id` (UUID, required): Unique skill identifier to remove
+    
+    **Returns:** 204 No Content on success
+    
+    **Permissions Required:** org_admin role
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: User or skill not found
+    - `500`: Database error
+    """
     service = AgentSkillService(db)
     await service.delete_skill(organization_id=current_user.organization_id, user_id=user_id, skill_id=skill_id)
     return {}
