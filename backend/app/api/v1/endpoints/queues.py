@@ -24,8 +24,26 @@ async def create_queue(
 ):
     """
     Create a new queue
-
-    **Permissions:** org_admin only
+    
+    **Description:** Creates a new conversation queue for organizing conversations by department or priority.
+    
+    **Request Body:**
+    - `name` (string, required): Queue name (e.g., "Support Tier 1", "High Priority")
+    - `slug` (string, required): Unique URL-friendly identifier
+    - `description` (string, optional): Queue description
+    - `department_id` (UUID, optional): Associated department
+    - `priority` (integer, optional): Queue priority for routing
+    
+    **Returns:** Created Queue object
+    
+    **Permissions Required:** org_admin role
+    
+    **Possible Errors:**
+    - `400`: Invalid queue data
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `409`: Queue slug already exists
+    - `500`: Database error
     """
     # Only org_admin can create queues
     if current_user.role not in ["org_admin", "super_admin"]:
@@ -50,11 +68,23 @@ async def list_queues(
 ):
     """
     List queues
-
-    **Filters:**
-    - department_id: Filter by department
-    - is_active: Filter by active status
-    - search: Search in name, slug, or description
+    
+    **Description:** Retrieves a paginated list of queues with optional filtering by department, active status, or search term.
+    
+    **Query Parameters:**
+    - `department_id` (UUID, optional): Filter by department
+    - `is_active` (boolean, optional): Filter by active status
+    - `search` (string, optional): Search in name, slug, or description
+    - `skip` (int, default: 0): Offset for pagination
+    - `limit` (int, default: 100, max: 100): Records per page
+    
+    **Returns:** Array of Queue objects
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `500`: Database error
     """
     service = QueueService(db)
     return await service.list_queues(
@@ -73,7 +103,23 @@ async def get_queue(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get queue by ID"""
+    """
+    Get queue by ID
+    
+    **Description:** Retrieves full queue details including department association, metrics, and configuration.
+    
+    **Path Parameters:**
+    - `queue_id` (UUID, required): Unique queue identifier
+    
+    **Returns:** Queue object
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Queue not found
+    - `500`: Database error
+    """
     service = QueueService(db)
     queue = await service.get_queue(queue_id, current_user.organization_id)
 
@@ -95,8 +141,30 @@ async def update_queue(
 ):
     """
     Update queue
-
-    **Permissions:** org_admin only
+    
+    **Description:** Updates queue configuration including name, description, department, and active status.
+    
+    **Path Parameters:**
+    - `queue_id` (UUID, required): Unique queue identifier
+    
+    **Request Body (all optional):**
+    - `name` (string): New queue name
+    - `slug` (string): Updated slug
+    - `description` (string): Updated description
+    - `department_id` (UUID): New department association
+    - `is_active` (boolean): Active status
+    
+    **Returns:** Updated Queue object
+    
+    **Permissions Required:** org_admin role
+    
+    **Possible Errors:**
+    - `400`: Invalid update data
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Queue not found
+    - `409`: Slug already in use
+    - `500`: Database error
     """
     # Only org_admin can update queues
     if current_user.role not in ["org_admin", "super_admin"]:
@@ -125,8 +193,22 @@ async def delete_queue(
 ):
     """
     Delete queue (soft delete)
-
-    **Permissions:** org_admin only
+    
+    **Description:** Marks queue as deleted. Data is retained for audit purposes.
+    
+    **Path Parameters:**
+    - `queue_id` (UUID, required): Unique queue identifier
+    
+    **Returns:** 204 No Content on success
+    
+    **Permissions Required:** org_admin role
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Queue not found
+    - `409`: Cannot delete queue with active conversations
+    - `500`: Database error
     """
     # Only org_admin can delete queues
     if current_user.role not in ["org_admin", "super_admin"]:
