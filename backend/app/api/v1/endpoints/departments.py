@@ -23,7 +23,7 @@ router = APIRouter()
 
 @router.get("/", response_model=List[Department])
 async def list_departments(
-    is_active: Optional[bool] = Query(None),
+    is_active: Optional[bool] = Query(None, description="Filter by active status"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -31,9 +31,21 @@ async def list_departments(
 ):
     """
     List all departments for the organization
-
-    Optional filters:
-    - is_active: Filter by active status
+    
+    **Description:** Retrieves a paginated list of departments with optional filtering by active status.
+    
+    **Query Parameters:**
+    - `is_active` (boolean, optional): Filter by active/inactive status
+    - `skip` (int, default: 0): Offset for pagination
+    - `limit` (int, default: 100, max: 100): Records per page
+    
+    **Returns:** Array of Department objects
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `500`: Database error
     """
     service = DepartmentService(db)
     return await service.list_departments(
@@ -76,8 +88,24 @@ async def create_department(
 ):
     """
     Create a new department
-
-    Only admins can create departments.
+    
+    **Description:** Creates a new department in the organization for organizing agents and conversations.
+    
+    **Request Body:**
+    - `name` (string, required): Department name (e.g., "Support", "Sales", "Billing")
+    - `description` (string, optional): Department description
+    - `is_active` (boolean, default: true): Whether department is active
+    
+    **Returns:** Created Department object with generated ID
+    
+    **Permissions Required:** org_admin role
+    
+    **Possible Errors:**
+    - `400`: Invalid department data
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `409`: Department name already exists
+    - `500`: Database error
     """
     service = DepartmentService(db)
     return await service.create_department(
@@ -92,7 +120,23 @@ async def get_department(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get department by ID"""
+    """
+    Get department by ID
+    
+    **Description:** Retrieves full department details including agents and statistics.
+    
+    **Path Parameters:**
+    - `department_id` (UUID, required): Unique department identifier
+    
+    **Returns:** Department object
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Department not found
+    - `500`: Database error
+    """
     service = DepartmentService(db)
     return await service.get_by_id(
         department_id=department_id,
@@ -109,8 +153,28 @@ async def update_department(
 ):
     """
     Update department
-
-    Only admins can update departments.
+    
+    **Description:** Updates department configuration like name, description, and active status.
+    
+    **Path Parameters:**
+    - `department_id` (UUID, required): Unique department identifier
+    
+    **Request Body (all optional):**
+    - `name` (string): New department name
+    - `description` (string): Updated description
+    - `is_active` (boolean): Active status
+    
+    **Returns:** Updated Department object
+    
+    **Permissions Required:** org_admin role
+    
+    **Possible Errors:**
+    - `400`: Invalid update data
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Department not found
+    - `409`: Duplicate department name
+    - `500`: Database error
     """
     service = DepartmentService(db)
     return await service.update_department(
@@ -128,8 +192,22 @@ async def delete_department(
 ):
     """
     Delete department (soft delete)
-
-    Only admins can delete departments.
+    
+    **Description:** Marks department as deleted. Data is retained for audit purposes.
+    
+    **Path Parameters:**
+    - `department_id` (UUID, required): Unique department identifier
+    
+    **Returns:** 204 No Content on success
+    
+    **Permissions Required:** org_admin role
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Department not found
+    - `409`: Cannot delete department with active agents
+    - `500`: Database error
     """
     service = DepartmentService(db)
     await service.delete_department(
@@ -148,8 +226,23 @@ async def add_agent_to_department(
 ):
     """
     Add agent to department
-
-    Only admins can manage department agents.
+    
+    **Description:** Assigns an agent to a department. Agent can be part of multiple departments.
+    
+    **Path Parameters:**
+    - `department_id` (UUID, required): Unique department identifier
+    - `agent_id` (UUID, required): Unique agent identifier
+    
+    **Returns:** Updated Department object with agents list
+    
+    **Permissions Required:** org_admin role
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Department or agent not found
+    - `409`: Agent already in department
+    - `500`: Database error
     """
     service = DepartmentService(db)
     return await service.add_agent(
