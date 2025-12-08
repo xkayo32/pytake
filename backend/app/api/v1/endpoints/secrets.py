@@ -37,8 +37,22 @@ async def list_secrets(
     """
     List all secrets in organization
     
-    Note: Returns secrets without decrypted values for security.
-    Use GET /secrets/{id}/value to retrieve decrypted value.
+    **Description:** Retrieves encrypted secrets without decrypted values for security. Use GET /secrets/{id}/value to retrieve decrypted value.
+    
+    **Query Parameters:**
+    - `skip` (int, default: 0): Offset for pagination
+    - `limit` (int, default: 100, max: 100): Records per page
+    - `scope` (SecretScope, optional): Filter by scope (global, chatbot, contact, etc.)
+    - `chatbot_id` (UUID, optional): Filter by chatbot association
+    - `is_active` (boolean, optional): Filter by active status
+    
+    **Returns:** Array of SecretInDB objects (encrypted values not included)
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `500`: Database error
     """
     service = SecretService(db)
     
@@ -67,10 +81,26 @@ async def create_secret(
     """
     Create a new encrypted secret
     
-    Requires: org_admin or super_admin role
+    **Description:** Creates an encrypted secret for storing API keys, passwords, and sensitive data. Values are encrypted using Fernet or specified provider.
     
-    The `value` field will be encrypted using the specified encryption provider
-    (defaults to Fernet) and never stored in plaintext.
+    **Request Body:**
+    - `name` (string, required): Internal identifier (no spaces)
+    - `display_name` (string, required): Human-readable name
+    - `value` (string, required): Plaintext value (will be encrypted)
+    - `scope` (SecretScope, required): Scope (global, chatbot, contact, etc.)
+    - `chatbot_id` (UUID, optional): Associated chatbot ID if scope is chatbot
+    - `description` (string, optional): Purpose/notes
+    - `encryption_provider` (string, default: "fernet"): Encryption algorithm
+    
+    **Returns:** Created SecretInDB (encrypted)
+    
+    **Permissions Required:** org_admin or super_admin role
+    
+    **Possible Errors:**
+    - `400`: Invalid secret data
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `500`: Encryption error
     """
     service = SecretService(db)
     
@@ -108,7 +138,19 @@ async def get_secret(
     """
     Get secret by ID (without decrypted value)
     
-    Use GET /secrets/{id}/value to retrieve the decrypted value.
+    **Description:** Retrieves secret metadata without exposing encrypted value. Use GET /secrets/{id}/value to retrieve the decrypted value.
+    
+    **Path Parameters:**
+    - `secret_id` (UUID, required): Unique secret identifier
+    
+    **Returns:** SecretInDB object (without decrypted value)
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Secret not found
+    - `500`: Database error
     """
     service = SecretService(db)
     
@@ -173,9 +215,27 @@ async def update_secret(
     """
     Update secret
     
-    Requires: org_admin or super_admin role
+    **Description:** Updates secret metadata and/or value. If value is provided, it will be re-encrypted.
     
-    If `value` is provided, it will be re-encrypted with the current encryption provider.
+    **Path Parameters:**
+    - `secret_id` (UUID, required): Unique secret identifier
+    
+    **Request Body (all optional):**
+    - `display_name` (string): New display name
+    - `description` (string): Updated description
+    - `value` (string): New plaintext value (will be re-encrypted)
+    - `is_active` (boolean): Active status
+    
+    **Returns:** Updated SecretInDB
+    
+    **Permissions Required:** org_admin or super_admin role
+    
+    **Possible Errors:**
+    - `400`: Invalid update data
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Secret not found
+    - `500`: Encryption error
     """
     service = SecretService(db)
     
@@ -219,9 +279,20 @@ async def delete_secret(
     """
     Delete secret permanently
     
-    Requires: org_admin or super_admin role
+    **Description:** Permanently removes an encrypted secret. ⚠️ WARNING: This is a hard delete and cannot be reversed.
     
-    ⚠️ WARNING: This is a hard delete. The encrypted value will be permanently removed.
+    **Path Parameters:**
+    - `secret_id` (UUID, required): Unique secret identifier
+    
+    **Returns:** 204 No Content on success
+    
+    **Permissions Required:** org_admin or super_admin role
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Secret not found
+    - `500`: Database error
     """
     service = SecretService(db)
     
@@ -249,9 +320,24 @@ async def rotate_secret(
     """
     Rotate secret value (update with new encrypted value)
     
-    Requires: org_admin or super_admin role
+    **Description:** Specialized endpoint for rotating credentials without changing metadata. Encrypts new value and preserves all other secret properties.
     
-    This is a specialized endpoint for rotating credentials without changing metadata.
+    **Path Parameters:**
+    - `secret_id` (UUID, required): Unique secret identifier
+    
+    **Query Parameters:**
+    - `new_value` (string, required): New plaintext value to encrypt
+    
+    **Returns:** Updated SecretInDB with new encrypted value
+    
+    **Permissions Required:** org_admin or super_admin role
+    
+    **Possible Errors:**
+    - `400`: Empty new_value
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Secret not found
+    - `500`: Encryption error
     """
     service = SecretService(db)
     
