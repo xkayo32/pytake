@@ -58,7 +58,73 @@ async def list_ai_models(
     """
     List all available AI models (predefined + custom).
 
-    Returns models from both providers with pricing and capabilities.
+    Returns available AI models from multiple providers with pricing information,
+    capabilities, and compatibility details for flow generation and analysis.
+
+    **Path Parameters:** None
+
+    **Query Parameters:**
+    - provider (str, optional): Filter by provider ('openai', 'anthropic', 'google', etc.)
+    - recommended (bool): Show only recommended models for flow generation (default: false)
+    - include_deprecated (bool): Include models no longer supported (default: false)
+
+    **Returns:**
+    - models (array): List of available AI models:
+      - id (str): Unique model identifier
+      - name (str): Human-readable model name
+      - provider (str): Provider name ('openai', 'anthropic', etc.)
+      - max_tokens (int): Maximum context window size
+      - cost_per_1k_input (float): Input token cost per 1K tokens
+      - cost_per_1k_output (float): Output token cost per 1K tokens
+      - capabilities (array): Supported capabilities ['text', 'vision', 'tool_use']
+      - is_custom (bool): Custom model created for organization
+      - is_deprecated (bool): Model no longer supported
+    - total (int): Total number of models
+
+    **Example Request (Recommended OpenAI):**
+    ```
+    GET /api/v1/ai-assistant/models?provider=openai&recommended=true
+    Authorization: Bearer eyJhbGc...
+    ```
+
+    **Example Response:**
+    ```json
+    {
+        "models": [
+            {
+                "id": "gpt-4o",
+                "name": "GPT-4 Optimized",
+                "provider": "openai",
+                "max_tokens": 128000,
+                "cost_per_1k_input": 0.005,
+                "cost_per_1k_output": 0.015,
+                "capabilities": ["text", "vision", "tool_use"],
+                "is_custom": false,
+                "is_deprecated": false
+            },
+            {
+                "id": "gpt-4o-mini",
+                "name": "GPT-4 Mini (Fast)",
+                "provider": "openai",
+                "max_tokens": 128000,
+                "cost_per_1k_input": 0.00015,
+                "cost_per_1k_output": 0.0006,
+                "capabilities": ["text"],
+                "is_custom": false,
+                "is_deprecated": false
+            }
+        ],
+        "total": 2
+    }
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+    - Note: All organization members can list available models
+
+    **Error Codes:**
+    - 401: Unauthorized (invalid or missing token)
+    - 500: Server error (model list retrieval failure)
     """
     # Get predefined models
     if recommended:
@@ -97,7 +163,63 @@ async def get_model_details(
     model_id: str,
     current_user: User = Depends(get_current_user),
 ):
-    """Get detailed information about a specific model"""
+    """
+    Get detailed information about a specific AI model.
+
+    Retrieve comprehensive details about a model including pricing, capabilities,
+    usage limits, and recommended use cases for flow generation.
+
+    **Path Parameters:**
+    - model_id (str, required): Model identifier (e.g., 'gpt-4o', 'claude-3-opus-20240229')
+
+    **Query Parameters:** None
+
+    **Returns:**
+    - id (str): Model identifier
+    - name (str): Human-readable name
+    - provider (str): Provider ('openai', 'anthropic', etc.)
+    - description (str): Detailed model description
+    - max_tokens (int): Maximum context window
+    - training_date (str): Latest training data cutoff
+    - cost_per_1k_input (float): Input token pricing
+    - cost_per_1k_output (float): Output token pricing
+    - capabilities (array): Supported features
+    - recommended_for (array): Best use cases
+    - rate_limits (object): API rate limits
+    - release_date (str): Model release date
+
+    **Example Request:**
+    ```
+    GET /api/v1/ai-assistant/models/claude-3-opus-20240229
+    Authorization: Bearer eyJhbGc...
+    ```
+
+    **Example Response:**
+    ```json
+    {
+        "id": "claude-3-opus-20240229",
+        "name": "Claude 3 Opus",
+        "provider": "anthropic",
+        "description": "Most capable Claude model for complex reasoning",
+        "max_tokens": 200000,
+        "training_date": "2024-02-29",
+        "cost_per_1k_input": 0.015,
+        "cost_per_1k_output": 0.075,
+        "capabilities": ["text", "vision", "tool_use", "reasoning"],
+        "recommended_for": ["flow_generation", "complex_analysis", "improvement_suggestions"],
+        "rate_limits": {"requests_per_minute": 100, "tokens_per_minute": 40000},
+        "release_date": "2024-02-29"
+    }
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+
+    **Error Codes:**
+    - 401: Unauthorized (invalid or missing token)
+    - 404: Not Found (model_id doesn't exist)
+    - 500: Server error (model details retrieval failure)
+    """
     model_data = get_model_by_id(model_id)
 
     if not model_data:
@@ -124,8 +246,73 @@ async def create_custom_model(
     """
     Create a custom AI model for your organization.
 
-    Useful for adding fine-tuned models or new models not in the predefined list.
-    Only org_admin can create custom models.
+    Register fine-tuned models or custom model implementations not available
+    in the predefined list. Useful for proprietary or specialized models.
+
+    **Path Parameters:** None
+
+    **Request Body:**
+    - model_id (str, required): Unique model identifier (e.g., 'custom_gpt4_finetuned')
+    - name (str, required): Human-readable model name
+    - provider (str, required): Provider ('openai', 'anthropic', 'custom')
+    - description (str, optional): Model description and use cases
+    - max_tokens (int, required): Context window size
+    - cost_per_1k_input (float, optional): Input token cost (default: 0)
+    - cost_per_1k_output (float, optional): Output token cost (default: 0)
+    - capabilities (array): Supported capabilities ['text', 'vision', 'tool_use']
+    - api_endpoint (str, optional): Custom API endpoint URL
+    - authentication_method (str, optional): 'bearer_token', 'api_key', 'custom'
+
+    **Returns:**
+    - id (str): Generated custom model ID
+    - organization_id (str): Organization that owns the model
+    - is_custom (bool): Always true
+    - created_at (datetime): Creation timestamp
+    - (all request body fields)
+
+    **Example Request:**
+    ```json
+    {
+        "model_id": "gpt4_medical_finetuned",
+        "name": "GPT-4 Medical Specialized",
+        "provider": "openai",
+        "description": "Fine-tuned for medical flow generation",
+        "max_tokens": 8192,
+        "cost_per_1k_input": 0.01,
+        "cost_per_1k_output": 0.03,
+        "capabilities": ["text"],
+        "api_endpoint": "https://api.openai.com/v1/chat/completions"
+    }
+    ```
+
+    **Example Response:**
+    ```json
+    {
+        "id": "custom_gpt4_med_20250115",
+        "organization_id": "550e8400-e29b-41d4-a716-446655440000",
+        "model_id": "gpt4_medical_finetuned",
+        "name": "GPT-4 Medical Specialized",
+        "provider": "openai",
+        "description": "Fine-tuned for medical flow generation",
+        "max_tokens": 8192,
+        "cost_per_1k_input": 0.01,
+        "cost_per_1k_output": 0.03,
+        "capabilities": ["text"],
+        "is_custom": true,
+        "created_at": "2025-01-15T10:30:00Z"
+    }
+    ```
+
+    **Permissions:**
+    - Requires: org_admin or super_admin role
+    - Scoped to: Organization (organization_id from current user)
+
+    **Error Codes:**
+    - 401: Unauthorized (invalid or missing token)
+    - 403: Forbidden (insufficient permissions - not org_admin)
+    - 422: Unprocessable Entity (invalid model configuration)
+    - 409: Conflict (model_id already exists in organization)
+    - 500: Server error (model creation failure)
     """
     # Check permission
     if current_user.role not in ["org_admin", "super_admin"]:
@@ -156,7 +343,62 @@ async def get_ai_settings(
     """
     Get AI Assistant settings for the organization.
 
-    Returns None if not configured.
+    Retrieve current configuration including enabled providers, API keys,
+    and default model selection for flow generation features.
+
+    **Path Parameters:** None
+
+    **Query Parameters:** None
+
+    **Returns:**
+    - enabled (bool): Whether AI Assistant is active
+    - default_provider (str): Primary provider ('openai', 'anthropic')
+    - default_model (str): Default model for flow generation
+    - openai_api_key (str, optional): OpenAI API key (masked in response)
+    - anthropic_api_key (str, optional): Anthropic API key (masked in response)
+    - temperature (float): Generation temperature (0-2)
+    - max_tokens (int): Maximum output tokens
+    - enable_flow_generation (bool): Allow AI flow generation
+    - enable_improvements (bool): Allow improvement suggestions
+    - created_at (datetime): Configuration creation date
+
+    Or **null** if not configured
+
+    **Example Request:**
+    ```
+    GET /api/v1/ai-assistant/settings
+    Authorization: Bearer eyJhbGc...
+    ```
+
+    **Example Response (Configured):**
+    ```json
+    {
+        "enabled": true,
+        "default_provider": "anthropic",
+        "default_model": "claude-3-opus-20240229",
+        "openai_api_key": "sk-***...",
+        "anthropic_api_key": "sk-ant-***...",
+        "temperature": 0.7,
+        "max_tokens": 2048,
+        "enable_flow_generation": true,
+        "enable_improvements": true,
+        "created_at": "2025-01-01T00:00:00Z"
+    }
+    ```
+
+    **Example Response (Not Configured):**
+    ```json
+    null
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+    - Note: Any user can view organization's AI settings (keys are masked)
+
+    **Error Codes:**
+    - 401: Unauthorized (invalid or missing token)
+    - 404: Organization not found
+    - 500: Server error (settings retrieval failure)
     """
     org_repo = OrganizationRepository(db)
     org = await org_repo.get(current_user.organization_id)
@@ -191,7 +433,64 @@ async def update_ai_settings(
     """
     Update AI Assistant settings for the organization.
 
-    Only org_admin can update settings.
+    Configure API keys, select default provider and model, and enable/disable
+    AI features like flow generation and improvement suggestions.
+
+    **Path Parameters:** None
+
+    **Request Body:**
+    - enabled (bool, optional): Enable/disable AI Assistant
+    - default_provider (str, optional): Provider choice ('openai', 'anthropic')
+    - default_model (str, optional): Model identifier for generation
+    - openai_api_key (str, optional): OpenAI API key
+    - anthropic_api_key (str, optional): Anthropic API key
+    - temperature (float, optional): Generation temperature (0-2, default: 0.7)
+    - max_tokens (int, optional): Max output tokens (default: 2048)
+    - enable_flow_generation (bool, optional): Allow AI flow generation
+    - enable_improvements (bool, optional): Allow improvement suggestions
+
+    **Returns:** Updated AIAssistantSettings object
+
+    **Example Request:**
+    ```json
+    {
+        "enabled": true,
+        "default_provider": "anthropic",
+        "default_model": "claude-3-opus-20240229",
+        "anthropic_api_key": "sk-ant-...",
+        "temperature": 0.8,
+        "max_tokens": 4096,
+        "enable_flow_generation": true,
+        "enable_improvements": true
+    }
+    ```
+
+    **Example Response:**
+    ```json
+    {
+        "enabled": true,
+        "default_provider": "anthropic",
+        "default_model": "claude-3-opus-20240229",
+        "openai_api_key": null,
+        "anthropic_api_key": "sk-ant-***...",
+        "temperature": 0.8,
+        "max_tokens": 4096,
+        "enable_flow_generation": true,
+        "enable_improvements": true,
+        "created_at": "2025-01-15T10:30:00Z"
+    }
+    ```
+
+    **Permissions:**
+    - Requires: org_admin or super_admin role
+    - Scoped to: Organization (organization_id from current user)
+
+    **Error Codes:**
+    - 401: Unauthorized (invalid or missing token)
+    - 403: Forbidden (insufficient permissions - not org_admin)
+    - 404: Organization not found
+    - 422: Unprocessable Entity (invalid settings configuration)
+    - 500: Server error (settings update failure)
     """
     # Check permission
     if current_user.role not in ["org_admin", "super_admin"]:
@@ -261,9 +560,80 @@ async def test_ai_connection(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Test AI connection with current settings.
+    Test AI connection with current organization settings.
 
-    Validates API keys and makes a simple test call to verify connectivity.
+    Validates configured API keys and makes a minimal test call to verify
+    connectivity and quota availability. Uses smallest/cheapest models to
+    minimize costs.
+
+    **Path Parameters:** None
+
+    **Request Body:** None
+
+    **Returns:**
+    - success (bool): Connection successful
+    - provider (str): Provider that was tested
+    - message (str): Status message
+    - model_tested (str): Model used for test
+    - latency_ms (int, optional): Response latency
+
+    **Example Request:**
+    ```
+    POST /api/v1/ai-assistant/test
+    Authorization: Bearer eyJhbGc...
+    ```
+
+    **Example Response (Success - Anthropic):**
+    ```json
+    {
+        "success": true,
+        "provider": "anthropic",
+        "message": "Connection successful! Anthropic API is working.",
+        "model_tested": "claude-3-5-haiku-20241022"
+    }
+    ```
+
+    **Example Response (Success - OpenAI):**
+    ```json
+    {
+        "success": true,
+        "provider": "openai",
+        "message": "Connection successful! OpenAI API is working.",
+        "model_tested": "gpt-4o-mini"
+    }
+    ```
+
+    **Example Response (Auth Error):**
+    ```json
+    {
+        "success": false,
+        "error": "401",
+        "message": "Invalid API key. Please check your credentials."
+    }
+    ```
+
+    **Example Response (Quota Error):**
+    ```json
+    {
+        "success": false,
+        "error": "402",
+        "message": "API quota exceeded. Please check your billing."
+    }
+    ```
+
+    **Permissions:**
+    - Requires: org_admin or super_admin role
+    - Scoped to: Organization (organization_id from current user)
+
+    **Error Codes:**
+    - 400: Bad Request (not configured or missing API key)
+    - 401: Unauthorized (invalid API key/credentials)
+    - 402: Payment Required (quota exceeded, billing issue)
+    - 403: Forbidden (insufficient permissions - not org_admin)
+    - 404: Organization not found
+    - 429: Too Many Requests (rate limit exceeded)
+    - 500: Server error (connection test failure)
+    - 504: Gateway Timeout (API response timeout)
     """
     # Check permission
     if current_user.role not in ["org_admin", "super_admin"]:
@@ -399,9 +769,72 @@ async def generate_flow(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Generate a flow from natural language description using AI.
+    Generate a chatbot flow from natural language description using AI.
 
+    Creates a complete conversational flow based on user description.
     Requires AI Assistant to be configured and enabled.
+
+    **Path Parameters:** None
+
+    **Request Body:**
+    - description (str, required): What the flow should do in natural language
+    - industry (str, optional): Industry context ('ecommerce', 'support', 'banking')
+    - language (str, optional): Flow language (default: 'pt-BR')
+    - chatbot_id (str, optional): Target chatbot UUID (for direct assignment)
+    - clarifications (object, optional): User answers to clarification questions
+
+    **Returns:**
+    - flow_id (str): Generated flow UUID
+    - name (str): Auto-generated flow name
+    - canvas_data (object): Flow diagram and node structure
+    - variables (object): Variables extracted from description
+    - success (bool): Generation successful
+    - message (str): Generation summary
+    - cost_estimate (float, optional): Estimated API cost
+
+    **Example Request:**
+    ```json
+    {
+        "description": "Create a flow for customer support. Start by asking what issue they have, then route to specialized agent based on category (technical, billing, or general).",
+        "industry": "support",
+        "language": "pt-BR",
+        "chatbot_id": "550e8400-e29b-41d4-a716-446655440000"
+    }
+    ```
+
+    **Example Response:**
+    ```json
+    {
+        "flow_id": "550e8400-e29b-41d4-a716-446655440001",
+        "name": "Customer Support Router - Generated",
+        "canvas_data": {
+            "nodes": [
+                {"id": "start", "type": "start", "data": {"label": "Start"}},
+                {"id": "ask_issue", "type": "text", "data": {"message": "What issue are you experiencing?"}},
+                {"id": "route", "type": "router", "data": {"routes": ["technical", "billing", "general"]}}
+            ]
+        },
+        "variables": {
+            "issue_type": {"type": "string"},
+            "priority": {"type": "string"}
+        },
+        "success": true,
+        "message": "Flow generated successfully with 12 nodes and 3 decision points",
+        "cost_estimate": 0.0456
+    }
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+    - Scoped to: Organization (organization_id from current user)
+    - Note: Requires configured AI Assistant settings
+
+    **Error Codes:**
+    - 401: Unauthorized (invalid or missing token)
+    - 400: Bad Request (AI Assistant not configured)
+    - 404: Chatbot not found (if chatbot_id provided)
+    - 422: Unprocessable Entity (invalid description or parameters)
+    - 500: Server error (flow generation failed)
     """
     service = FlowGeneratorService(db)
 
@@ -437,9 +870,82 @@ async def suggest_improvements(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Analyze a flow and suggest improvements using AI.
+    Analyze a chatbot flow and suggest AI-powered improvements.
 
-    Requires AI Assistant to be configured and enabled.
+    Examines flow structure, logic, and user experience to provide actionable
+    recommendations for enhancement. Can focus on specific areas of interest.
+
+    **Path Parameters:** None
+
+    **Request Body:**
+    - flow_id (str, required): Target flow UUID
+    - focus_areas (array, optional): Areas to focus on
+      - 'user_experience': UX and conversation flow
+      - 'routing_logic': Decision points and conditions
+      - 'error_handling': Error cases and fallbacks
+      - 'performance': Optimization opportunities
+      - 'security': Security and data validation
+    - max_suggestions (int, optional): Number of suggestions (default: 5)
+
+    **Returns:**
+    - flow_id (str): Analyzed flow UUID
+    - suggestions (array): List of improvement suggestions:
+      - category (str): Type of improvement
+      - severity (str): 'critical', 'high', 'medium', 'low'
+      - current_state (str): Current implementation
+      - recommended_change (str): Suggested change
+      - benefit (str): Expected benefit
+      - estimated_impact (str): 'high', 'medium', 'low'
+    - score (float): Current flow quality score (0-100)
+    - estimated_score_after (float): Projected score after improvements
+
+    **Example Request:**
+    ```json
+    {
+        "flow_id": "550e8400-e29b-41d4-a716-446655440000",
+        "focus_areas": ["user_experience", "routing_logic"],
+        "max_suggestions": 5
+    }
+    ```
+
+    **Example Response:**
+    ```json
+    {
+        "flow_id": "550e8400-e29b-41d4-a716-446655440000",
+        "suggestions": [
+            {
+                "category": "user_experience",
+                "severity": "high",
+                "current_state": "Single text input for complex issue categorization",
+                "recommended_change": "Use button options for issue categories (Technical, Billing, General)",
+                "benefit": "Reduces user confusion and improves routing accuracy",
+                "estimated_impact": "high"
+            },
+            {
+                "category": "error_handling",
+                "severity": "medium",
+                "current_state": "No fallback for unrecognized input",
+                "recommended_change": "Add clarification message and retry logic",
+                "benefit": "Prevents conversation drops and improves resolution rate",
+                "estimated_impact": "medium"
+            }
+        ],
+        "score": 72.5,
+        "estimated_score_after": 87.3
+    }
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+    - Scoped to: Organization (flow must belong to user's organization)
+    - Note: Requires configured AI Assistant settings
+
+    **Error Codes:**
+    - 401: Unauthorized (invalid or missing token)
+    - 400: Bad Request (invalid flow_id format)
+    - 404: Not Found (flow doesn't exist or not owned by org)
+    - 422: Unprocessable Entity (invalid focus_areas)
+    - 500: Server error (analysis failed)
     """
     service = FlowGeneratorService(db)
 
@@ -484,7 +990,60 @@ async def list_template_categories(
     current_user: User = Depends(get_current_user),
 ):
     """
-    List all template categories.
+    List all available flow template categories.
+
+    Returns categories of pre-built templates for different industries and use cases.
+
+    **Path Parameters:** None
+
+    **Query Parameters:** None
+
+    **Returns:** Array of template categories:
+    - id (str): Category identifier
+    - name (str): Category display name
+    - description (str): Category description
+    - icon (str, optional): Category icon name
+    - templates_count (int): Number of templates in category
+
+    **Example Request:**
+    ```
+    GET /api/v1/ai-assistant/templates/categories
+    Authorization: Bearer eyJhbGc...
+    ```
+
+    **Example Response:**
+    ```json
+    [
+        {
+            "id": "ecommerce",
+            "name": "E-commerce",
+            "description": "Templates for online retail and shopping",
+            "icon": "shopping-cart",
+            "templates_count": 8
+        },
+        {
+            "id": "customer_support",
+            "name": "Customer Support",
+            "description": "Templates for helpdesk and customer service",
+            "icon": "headset",
+            "templates_count": 12
+        },
+        {
+            "id": "healthcare",
+            "name": "Healthcare",
+            "description": "Templates for medical and health services",
+            "icon": "heart",
+            "templates_count": 6
+        }
+    ]
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+
+    **Error Codes:**
+    - 401: Unauthorized (invalid or missing token)
+    - 500: Server error (category list retrieval failure)
     """
     categories = FlowTemplateRepository.list_categories()
     return categories
@@ -501,7 +1060,86 @@ async def list_templates(
     current_user: User = Depends(get_current_user),
 ):
     """
-    List available flow templates with filters.
+    List available flow templates with filtering and pagination.
+
+    Browse pre-built templates for different industries, use cases, and complexity levels.
+
+    **Path Parameters:** None
+
+    **Query Parameters:**
+    - category (str, optional): Filter by category ID (e.g., 'ecommerce', 'customer_support')
+    - complexity (str, optional): Filter by complexity ('simple', 'intermediate', 'advanced')
+    - tags (str, optional): Comma-separated tag filters (e.g., 'billing,returns')
+    - language (str, optional): Template language (default: 'pt-BR')
+    - skip (int): Number of templates to skip (default: 0)
+    - limit (int): Number of templates to return (1-100, default: 50)
+
+    **Returns:**
+    - total (int): Total templates matching filters
+    - items (array): List of templates:
+      - id (str): Template unique ID
+      - name (str): Template name
+      - description (str): Template description
+      - category (str): Category ID
+      - complexity (str): Complexity level
+      - industry (str): Target industry
+      - language (str): Template language
+      - tags (array): Template tags
+      - nodes_count (int): Number of flow nodes
+      - preview_image (str, optional): Template thumbnail
+      - use_count (int): Number of times imported
+    - categories (array): All available categories (for UI dropdown)
+
+    **Example Request:**
+    ```
+    GET /api/v1/ai-assistant/templates?category=customer_support&complexity=intermediate&language=pt-BR&limit=20
+    Authorization: Bearer eyJhbGc...
+    ```
+
+    **Example Response:**
+    ```json
+    {
+        "total": 156,
+        "items": [
+            {
+                "id": "tpl_support_basic",
+                "name": "Basic Support Flow",
+                "description": "Simple customer support with issue categorization",
+                "category": "customer_support",
+                "complexity": "simple",
+                "industry": "support",
+                "language": "pt-BR",
+                "tags": ["support", "routing", "basic"],
+                "nodes_count": 8,
+                "use_count": 1247
+            },
+            {
+                "id": "tpl_support_escalation",
+                "name": "Support with Escalation",
+                "description": "Multi-level support with escalation to specialists",
+                "category": "customer_support",
+                "complexity": "intermediate",
+                "industry": "support",
+                "language": "pt-BR",
+                "tags": ["support", "routing", "escalation", "queue"],
+                "nodes_count": 15,
+                "use_count": 892
+            }
+        ],
+        "categories": [
+            {"id": "ecommerce", "name": "E-commerce"},
+            {"id": "customer_support", "name": "Customer Support"}
+        ]
+    }
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+
+    **Error Codes:**
+    - 401: Unauthorized (invalid or missing token)
+    - 400: Bad Request (invalid filter parameters)
+    - 500: Server error (template list retrieval failure)
     """
     # Parse tags
     tags_list = None
@@ -532,7 +1170,78 @@ async def get_template(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Get a specific template by ID with full flow data.
+    Get detailed information about a specific template.
+
+    Retrieve complete template details including flow canvas data, variables,
+    and instructions for customization.
+
+    **Path Parameters:**
+    - template_id (str, required): Template unique identifier
+
+    **Query Parameters:** None
+
+    **Returns:**
+    - id (str): Template ID
+    - name (str): Template name
+    - description (str): Detailed description
+    - category (str): Category ID
+    - complexity (str): Complexity level
+    - language (str): Template language
+    - tags (array): Template tags
+    - flow_data (object): Complete flow structure:
+      - canvas_data (object): Flow diagram nodes and connections
+      - variables (object): Template variables and types
+      - settings (object): Flow configuration
+    - instructions (string): User instructions for customization
+    - customization_tips (array): Tips for tailoring template
+    - preview_image (str, optional): Template thumbnail
+    - use_count (int): Import count
+    - created_date (datetime): Template creation date
+
+    **Example Request:**
+    ```
+    GET /api/v1/ai-assistant/templates/tpl_support_escalation
+    Authorization: Bearer eyJhbGc...
+    ```
+
+    **Example Response:**
+    ```json
+    {
+        "id": "tpl_support_escalation",
+        "name": "Support with Escalation",
+        "description": "Multi-level support routing with escalation to specialized agents",
+        "category": "customer_support",
+        "complexity": "intermediate",
+        "language": "pt-BR",
+        "tags": ["support", "escalation", "routing"],
+        "flow_data": {
+            "canvas_data": {
+                "nodes": [
+                    {"id": "start", "type": "start", "position": [0, 0]},
+                    {"id": "ask_issue", "type": "text", "data": {"message": "How can we help?"}}
+                ],
+                "edges": [{"source": "start", "target": "ask_issue"}]
+            },
+            "variables": {
+                "issue_type": {"type": "string", "required": true},
+                "priority": {"type": "enum", "values": ["low", "medium", "high"]}
+            },
+            "settings": {"max_duration": 3600, "allow_handoff": true}
+        },
+        "instructions": "Customize the issue categories and agent queues...",
+        "customization_tips": ["Update issue categories to match your business", "Configure agent teams"],
+        "use_count": 892,
+        "created_date": "2024-06-15T00:00:00Z"
+    }
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+
+    **Error Codes:**
+    - 401: Unauthorized (invalid or missing token)
+    - 404: Not Found (template_id doesn't exist)
+    - 500: Server error (template retrieval failure)
     """
     template = await FlowTemplateRepository.get_template(template_id)
 
@@ -553,7 +1262,64 @@ async def search_templates(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Search templates by query string.
+    Search flow templates by keyword query.
+
+    Find relevant templates using semantic search across template names,
+    descriptions, tags, and use cases.
+
+    **Path Parameters:**
+    - query (str, required): Search term (e.g., 'billing', 'returns', 'escalation')
+
+    **Query Parameters:**
+    - language (str, optional): Language filter (default: 'pt-BR')
+    - limit (int, optional): Max results (1-50, default: 10)
+
+    **Returns:** Array of matching templates:
+    - id (str): Template ID
+    - name (str): Template name
+    - description (str): Template description
+    - category (str): Category ID
+    - complexity (str): Complexity level
+    - tags (array): Template tags
+    - relevance_score (float, optional): Search relevance (0-1)
+
+    **Example Request:**
+    ```
+    GET /api/v1/ai-assistant/templates/search/billing?language=pt-BR&limit=5
+    Authorization: Bearer eyJhbGc...
+    ```
+
+    **Example Response:**
+    ```json
+    [
+        {
+            "id": "tpl_billing_inquiry",
+            "name": "Billing Inquiry Handler",
+            "description": "Handle billing questions and invoice retrieval",
+            "category": "customer_support",
+            "complexity": "simple",
+            "tags": ["billing", "invoices", "payment"],
+            "relevance_score": 0.95
+        },
+        {
+            "id": "tpl_billing_dispute",
+            "name": "Billing Dispute Resolution",
+            "description": "Manage billing disputes and refund requests",
+            "category": "customer_support",
+            "complexity": "intermediate",
+            "tags": ["billing", "disputes", "refunds"],
+            "relevance_score": 0.88
+        }
+    ]
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+
+    **Error Codes:**
+    - 401: Unauthorized (invalid or missing token)
+    - 422: Unprocessable Entity (invalid query or parameters)
+    - 500: Server error (search failure)
     """
     templates = await FlowTemplateRepository.search_templates(
         query=query,
@@ -573,6 +1339,73 @@ async def import_template(
 ):
     """
     Import a template into a chatbot as a new flow.
+
+    Create a new flow in a chatbot by importing a pre-built template.
+    Optionally customize template variables and naming before creation.
+
+    **Path Parameters:**
+    - template_id (str, required): Template unique identifier
+
+    **Request Body:**
+    - chatbot_id (str, required): Target chatbot UUID
+    - flow_name (str, optional): Custom name for imported flow (uses template name if not provided)
+    - customize_variables (bool, optional): Apply variable name customizations (default: false)
+    - variable_mappings (object, optional): Map template variables to custom names
+
+    **Returns:** Created FlowInDB object:
+    - id (str): New flow UUID
+    - organization_id (str): Organization ID
+    - chatbot_id (str): Parent chatbot UUID
+    - name (str): Flow name
+    - description (str): Flow description
+    - canvas_data (object): Flow diagram
+    - variables (object): Flow variables
+    - is_active (bool): Flow enabled status
+    - created_at (datetime): Creation timestamp
+    - use_count (int): Import count (incremented)
+
+    **Example Request:**
+    ```json
+    {
+        "chatbot_id": "550e8400-e29b-41d4-a716-446655440000",
+        "flow_name": "My Custom Support Flow",
+        "customize_variables": true,
+        "variable_mappings": {
+            "issue_type": "problem_category",
+            "priority": "severity_level"
+        }
+    }
+    ```
+
+    **Example Response:**
+    ```json
+    {
+        "id": "550e8400-e29b-41d4-a716-446655440001",
+        "organization_id": "550e8400-e29b-41d4-a716-446655440000",
+        "chatbot_id": "550e8400-e29b-41d4-a716-446655440000",
+        "name": "My Custom Support Flow",
+        "description": "Multi-level support routing with escalation",
+        "canvas_data": {...},
+        "variables": {
+            "problem_category": {"type": "string"},
+            "severity_level": {"type": "enum"}
+        },
+        "is_active": true,
+        "created_at": "2025-01-15T14:32:00Z",
+        "updated_at": "2025-01-15T14:32:00Z"
+    }
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (agent or higher)
+    - Scoped to: Organization (chatbot must belong to user's organization)
+
+    **Error Codes:**
+    - 401: Unauthorized (invalid or missing token)
+    - 404: Not Found (template_id or chatbot_id doesn't exist)
+    - 422: Unprocessable Entity (invalid variable mappings)
+    - 409: Conflict (flow name already exists in chatbot)
+    - 500: Server error (import failure)
     """
     # Get template
     template = await FlowTemplateRepository.get_template(template_id)
