@@ -21,3 +21,7 @@ requests>=2.31.0
 tenacity>=8.2.0
 celery>=5.3.0
 PyJWT>=2.8.0
+
+# GraphQL
+strawberry-graphql[fastapi]>=0.219.0
+strawberry-graphql[debug-server]>=0.219.0

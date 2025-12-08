@@ -34,6 +34,16 @@ def _load_endpoint_module(module_name: str):
 
 api_router = APIRouter()
 
+# ============= CORS PREFLIGHT HANDLER =============
+# Handle OPTIONS requests for all routes - required for CORS preflight
+@api_router.options("/{full_path:path}", tags=["CORS"])
+async def options_handler(full_path: str):
+    """
+    Preflight handler for CORS OPTIONS requests.
+    FastAPI's CORSMiddleware adds headers, but we need to return 200 OK explicitly.
+    """
+    return {"status": "ok"}
+
 # ============= PUBLIC WEBHOOKS (NO AUTH REQUIRED) =============
 # These endpoints must be public for external services to call them
 

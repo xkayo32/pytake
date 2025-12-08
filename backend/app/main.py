@@ -115,13 +115,102 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="WhatsApp Automation Platform - Official API Documentation",
+    description="""
+# PyTake - WhatsApp Automation Platform
+
+Plataforma completa de automação de WhatsApp Business com múltiplas APIs:
+
+## 🔌 APIs Disponíveis
+
+### REST API (OpenAPI 3.0)
+- **Swagger UI**: `/api/v1/docs`
+- **ReDoc**: `/api/v1/redoc`
+- **OpenAPI JSON**: `/api/v1/openapi.json`
+- **Total de Endpoints**: 217 endpoints REST
+
+### GraphQL API
+- **Endpoint**: `/graphql`
+- **GraphiQL IDE**: `/graphql` (desenvolvimento)
+- **Total de Módulos**: 15 módulos completos
+- **Documentação**: Ver [GRAPHQL_API.md](/.github/docs/GRAPHQL_API.md)
+
+### WebSocket API (Socket.IO)
+- **Endpoint**: `/socket.io`
+- **Real-time**: Conversas, mensagens, status de agentes
+
+## 📚 Recursos Principais
+
+- **Multi-tenancy**: Isolamento completo por organização
+- **Autenticação**: JWT (Bearer token)
+- **Permissões**: Role-based access control (RBAC)
+- **Rate Limiting**: Proteção contra abuso
+- **Logs**: MongoDB para auditoria completa
+- **Cache**: Redis para performance
+
+## 🏗️ Arquitetura
+
+- **Backend**: FastAPI + Python 3.11+
+- **Banco de Dados**: PostgreSQL 15 (principal), Redis 7 (cache), MongoDB 7 (logs)
+- **Real-time**: Socket.IO + WebSocket
+- **APIs**: REST (OpenAPI) + GraphQL (Strawberry)
+
+## 🔐 Autenticação
+
+Todas as APIs (exceto endpoints públicos) requerem autenticação via JWT token:
+
+```
+Authorization: Bearer <your_jwt_token>
+```
+
+Obtenha seu token via:
+- **REST**: `POST /api/v1/auth/login`
+- **GraphQL**: `mutation { login(email: "...", password: "...") { access_token } }`
+
+## 📖 Começando
+
+1. Autentique-se para obter um token JWT
+2. Use o token no header `Authorization` de todas as requisições
+3. Explore os endpoints via Swagger UI ou GraphiQL
+4. Consulte a documentação completa em `/docs`
+
+## 🆘 Suporte
+
+- **Documentação**: `/.github/docs/INDEX.md`
+- **GitHub**: https://github.com/pytake/pytake
+- **Email**: support@pytake.com
+    """,
     lifespan=lifespan,
     docs_url=f"{settings.API_V1_PREFIX}/docs" if settings.DEBUG else None,
     redoc_url=f"{settings.API_V1_PREFIX}/redoc" if settings.DEBUG else None,
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json" if settings.DEBUG else None,
     root_path=settings.API_ROOT_PATH,  # Support for reverse proxy paths like /prod, /staging
     redirect_slashes=False,  # Disable redirects to avoid CORS issues
+    contact={
+        "name": "PyTake Support",
+        "email": "support@pytake.com",
+        "url": "https://pytake.com/support"
+    },
+    license_info={
+        "name": "Proprietary",
+        "url": "https://pytake.com/license"
+    },
+    openapi_tags=[
+        {"name": "Auth", "description": "Autenticação e autorização JWT"},
+        {"name": "Organizations", "description": "Gerenciamento de organizações"},
+        {"name": "Users", "description": "Gerenciamento de usuários e equipes"},
+        {"name": "Departments", "description": "Departamentos organizacionais"},
+        {"name": "Queues", "description": "Filas de atendimento"},
+        {"name": "Contacts", "description": "Gerenciamento de contatos"},
+        {"name": "Conversations", "description": "Conversas e mensagens"},
+        {"name": "WhatsApp", "description": "Integração WhatsApp Business"},
+        {"name": "Chatbots", "description": "Chatbots e flows de automação"},
+        {"name": "Campaigns", "description": "Campanhas de mensagens em massa"},
+        {"name": "Analytics", "description": "Métricas e relatórios"},
+        {"name": "Flow Automations", "description": "Automações proativas de flows"},
+        {"name": "Secrets", "description": "Armazenamento seguro de credenciais"},
+        {"name": "AI Assistant", "description": "Assistente de AI para geração de flows"},
+        {"name": "Notifications", "description": "Notificações e preferências"},
+    ],
 )
 
 # ============================================
@@ -152,8 +241,10 @@ app.add_middleware(
         # Local development
         "http://localhost:3000",
         "http://localhost:3001",
+        "http://localhost:5151",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
+        "http://127.0.0.1:5151",
         # Development environment
         "https://app-dev.pytake.net",
         "https://api-dev.pytake.net",
@@ -180,14 +271,44 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 @app.middleware("http")
 async def cors_headers_middleware(request: Request, call_next):
     """Ensure CORS headers are present on all responses, including errors"""
+    origin = request.headers.get("origin")
+    
+    # Build allowed origins list from settings
+    allowed_origins = settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else [settings.CORS_ORIGINS]
+    
+    # Check if origin is allowed
+    origin_allowed = False
+    allow_all = "*" in allowed_origins
+    
+    if allow_all:
+        origin_allowed = True
+    elif origin:
+        # Check for exact matches
+        if origin in allowed_origins:
+            origin_allowed = True
+        # Check for wildcard matches (e.g., *.pytake.net)
+        else:
+            for allowed in allowed_origins:
+                if allowed.startswith("*."):
+                    domain = allowed[2:]  # Remove *.
+                    if origin.endswith(domain) or origin.endswith("." + domain):
+                        origin_allowed = True
+                        break
+    
     response = await call_next(request)
     
     # Add CORS headers if not already present
     if "access-control-allow-origin" not in response.headers:
-        response.headers["access-control-allow-origin"] = "https://app-dev.pytake.net"
+        if allow_all:
+            response.headers["access-control-allow-origin"] = origin or "*"
+        elif origin_allowed and origin:
+            response.headers["access-control-allow-origin"] = origin
+        elif allowed_origins and allowed_origins[0] != "*":
+            response.headers["access-control-allow-origin"] = allowed_origins[0]
+        
         response.headers["access-control-allow-credentials"] = "true"
         response.headers["access-control-allow-methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-        response.headers["access-control-allow-headers"] = "Authorization, Content-Type, X-Requested-With"
+        response.headers["access-control-allow-headers"] = "Authorization, Content-Type, X-Requested-With, Accept"
         response.headers["access-control-expose-headers"] = "X-Total-Count, X-Page, X-Per-Page"
     
     return response
@@ -350,6 +471,29 @@ async def ping():
 
 # Include API v1 router
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+
+
+# ============================================
+# GRAPHQL
+# ============================================
+
+from strawberry.fastapi import GraphQLRouter
+from app.graphql.schema import schema
+from app.graphql.context import get_graphql_context
+
+# Create GraphQL router
+graphql_app = GraphQLRouter(
+    schema,
+    context_getter=get_graphql_context,
+    graphiql=settings.DEBUG,  # Enable GraphiQL IDE in development
+)
+
+# Mount GraphQL endpoint
+app.include_router(graphql_app, prefix="/graphql")
+
+print(f"✅ GraphQL API mounted at /graphql")
+if settings.DEBUG:
+    print(f"📊 GraphiQL IDE available at /graphql")
 
 
 # ============================================
