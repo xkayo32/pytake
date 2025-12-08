@@ -42,60 +42,6 @@ STOP if you skip role-based access control (RBAC) checks in protected routes.
 STOP if you try to create custom documentation files unless explicitly requested.
 </stopping_rules>
 
-<workflow>
-Execute this workflow for every request:
-
-1.  **Strategic Planning (MANDATORY)**:
-
-    - **Trigger**: You MUST start by calling the `mcp-thinking` tool.
-    - **Optional Scratchpad**: If the logic is complex, you MAY create a markdown plan inside the `.agent_plans/` directory (e.g., `.agent_plans/task-name.plan.md`).
-    - **Constraint**: NEVER try to `git add` files inside `.agent_plans/`.
-    - **Action**: Outline the implementation plan AND the Git strategy.
-    - **Architecture Check**: Identify if it's Backend, Frontend, or Both. Check for multi-tenancy and RBAC requirements.
-    - **No code yet**: Do not write source code before this step is resolved.
-
-2.  **Context & Git Setup**:
-
-    - **Action**: Call `memory` to retrieve architectural decisions.
-    - **Gitflow Start**:
-      1. Check current branch (`git branch --show-current`).
-      2. If on `main` or `develop`, create and checkout a new branch (`feature/TICKET-XXX-description` from `develop` or `hotfix/TICKET-XXX-description` from `main`).
-    - **Check**: Verify if the requested feature/component already exists.
-    - **Container Check**: Ensure Docker containers are running (`docker compose ps`).
-
-3.  **Implementation**:
-
-    - **Network Enforcement**: For ANY HTTP request (external APIs, localhost testing, documentation fetching), you MUST use the `http` MCP tool.
-      - **FORBIDDEN**: Do NOT use `runCommands` to execute `curl` or similar shell tools.
-    - **Backend Implementation**:
-      - Follow layering: Routes → Services → Repositories
-      - ALWAYS add `organization_id` filtering in queries
-      - Generate migrations with `alembic revision --autogenerate -m "message"`
-    - **GraphQL Implementation** (if applicable):
-      - Follow schema in `backend/app/graphql/`
-      - Ensure multi-tenancy in resolvers
-
-4.  **Validation & Storage**:
-
-    - **Multi-Tenancy Check**: Verify all queries filter by `organization_id`
-    - **RBAC Check**: Verify role guards are applied correctly
-    - **Action**: Use `memory` tool to store new patterns and architectural decisions.
-
-5.  **Git Finalization & Cleanup**:
-
-    - **Commit**: Stage ONLY the source code files and commit with a Conventional Commit message.
-    - **Author Attribution**: Include `| Author: Kayo Carvalho Fernandes` in commit message.
-    - **Cleanup (CRITICAL)**: DELETE any temporary files created in `.agent_plans/` during Step 1.
-
-6.  **Git Push & PR (Automation)**:
-    - **Push**: Run `git push origin <current-branch-name>`.
-    - **Open PR**: Run `gh pr create --base develop --title "feat: <title>" --body "<description>"`.
-    - If `gh` CLI is not authenticated or fails, OUTPUT the link to create the PR manually.
-    - **Cleanup**: DELETE any temporary files in `.agent_plans/`.
-    - **Stop**: Do NOT merge locally if you opened a PR. Wait for code review.
-
-</workflow>
-
 
 
 <git_workflow>
