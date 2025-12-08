@@ -32,6 +32,17 @@ async def get_organization_stats(
 ):
     """
     Get organization-wide contact statistics
+    
+    **Description:** Returns aggregated contact metrics for the entire organization
+    including total contacts, active contacts, blocked contacts, and VIP count.
+    
+    **Returns:** Dictionary with organization contact statistics
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `500`: Database error
     """
     service = ContactService(db)
     return await service.get_organization_stats(
@@ -50,7 +61,24 @@ async def list_contacts(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    List contacts with optional filters
+    List all contacts in organization with filtering and pagination
+    
+    **Description:** Retrieves a paginated list of contacts with optional filtering by search query, assigned agent, or blocked status.
+    
+    **Query Parameters:**
+    - `skip` (int, default: 0): Offset for pagination
+    - `limit` (int, default: 100, max: 100): Records per page
+    - `query` (string, optional): Search contacts by name, email, phone, or company
+    - `assigned_agent_id` (UUID, optional): Filter by assigned agent
+    - `is_blocked` (boolean, optional): Filter by blocked status
+    
+    **Returns:** Array of Contact objects with pagination headers
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `500`: Database error
     """
     service = ContactService(db)
     return await service.list_contacts(
@@ -70,7 +98,26 @@ async def create_contact(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Create new contact
+    Create a new contact in the organization
+    
+    **Description:** Creates a new contact with basic information.
+    
+    **Request Body:**
+    - `phone_number` (string, required): Contact phone number
+    - `name` (string, optional): Contact full name
+    - `email` (string, optional): Contact email address
+    - `company` (string, optional): Contact company name
+    - `custom_fields` (object, optional): Additional custom data
+    
+    **Returns:** Created Contact object with generated ID
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `400`: Invalid contact data
+    - `401`: User not authenticated
+    - `409`: Contact already exists (duplicate phone/email)
+    - `500`: Database error
     """
     service = ContactService(db)
     return await service.create_contact(
@@ -86,7 +133,21 @@ async def get_contact(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Get contact by ID
+    Get contact details by ID
+    
+    **Description:** Retrieves a single contact with all its information including tags and custom fields.
+    
+    **Path Parameters:**
+    - `contact_id` (UUID, required): Unique contact identifier
+    
+    **Returns:** Contact object
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Contact not found
+    - `500`: Database error
     """
     service = ContactService(db)
     return await service.get_by_id(
@@ -102,7 +163,33 @@ async def get_contact_stats(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Get contact statistics
+    Get contact statistics and interaction metrics
+    
+    **Description:** Returns detailed statistics for a specific contact including total conversations, 
+    messages sent/received, last interaction, and interaction history.
+    
+    **Path Parameters:**
+    - `contact_id` (UUID, required): Unique contact identifier
+    
+    **Returns:** Dictionary with contact metrics
+    
+    **Response Example:**
+    ```json
+    {
+      "total_conversations": 5,
+      "total_messages_sent": 23,
+      "total_messages_received": 18,
+      "last_interaction": "2024-11-20T15:30:00Z",
+      "average_response_time": "2 minutes"
+    }
+    ```
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Contact not found
+    - `500`: Database error
     """
     service = ContactService(db)
     return await service.get_stats(
@@ -119,7 +206,29 @@ async def update_contact(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Update contact
+    Update contact information
+    
+    **Description:** Updates contact name, email, company, custom fields, or other properties.
+    
+    **Path Parameters:**
+    - `contact_id` (UUID, required): Unique contact identifier
+    
+    **Request Body (all optional):**
+    - `phone_number` (string): Updated phone
+    - `name` (string): Updated name
+    - `email` (string): Updated email
+    - `company` (string): Updated company
+    - `custom_fields` (object): Updated custom data
+    
+    **Returns:** Updated Contact object
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `400`: Invalid update data
+    - `401`: User not authenticated
+    - `404`: Contact not found
+    - `500`: Database error
     """
     service = ContactService(db)
     return await service.update_contact(
@@ -136,7 +245,22 @@ async def delete_contact(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Delete contact (soft delete)
+    Delete contact (soft delete - data is archived not removed)
+    
+    **Description:** Marks a contact as deleted. The data is retained in archive for compliance and audit purposes.
+    Data is not physically removed from the database.
+    
+    **Path Parameters:**
+    - `contact_id` (UUID, required): Unique contact identifier
+    
+    **Returns:** 204 No Content on success
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Contact not found
+    - `500`: Database error
     """
     service = ContactService(db)
     await service.delete_contact(
@@ -149,12 +273,41 @@ async def delete_contact(
 @router.post("/{contact_id}/block", response_model=Contact)
 async def block_contact(
     contact_id: UUID,
-    reason: Optional[str] = Query(None, description="Reason for blocking"),
+    reason: Optional[str] = Query(None, description="Optional reason for blocking this contact"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Block a contact
+    Block a contact from sending/receiving messages
+    
+    **Description:** Marks a contact as blocked. Blocked contacts cannot initiate conversations 
+    or receive messages.
+    
+    **Path Parameters:**
+    - `contact_id` (UUID, required): Unique contact identifier
+    
+    **Query Parameters:**
+    - `reason` (string, optional): Reason for blocking (e.g., "Spam", "Abusive behavior", "Account closed")
+    
+    **Returns:** Updated Contact object with is_blocked=true
+    
+    **Response Example:**
+    ```json
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "phone_number": "+5511999999999",
+      "name": "João Silva",
+      "is_blocked": true,
+      "blocked_reason": "Spam"
+    }
+    ```
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Contact not found
+    - `500`: Database error
     """
     service = ContactService(db)
     return await service.block_contact(
@@ -172,6 +325,32 @@ async def unblock_contact(
 ):
     """
     Unblock a contact
+    
+    **Description:** Removes block status from a contact. A blocked contact can now send messages and 
+    receive communications again.
+    
+    **Path Parameters:**
+    - `contact_id` (UUID, required): Unique contact identifier
+    
+    **Returns:** Updated Contact object with is_blocked=false
+    
+    **Response Example:**
+    ```json
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "phone_number": "+5511999999999",
+      "name": "João Silva",
+      "is_blocked": false,
+      "blocked_reason": null
+    }
+    ```
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Contact not found
+    - `500`: Database error
     """
     service = ContactService(db)
     return await service.unblock_contact(
@@ -187,7 +366,33 @@ async def mark_as_vip(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Mark a contact as VIP
+    Mark a contact as VIP (priority customer)
+    
+    **Description:** Sets VIP flag for a contact. VIP contacts receive priority support and are 
+    routed to senior agents for handling.
+    
+    **Path Parameters:**
+    - `contact_id` (UUID, required): Unique contact identifier
+    
+    **Returns:** Updated Contact object with is_vip=true
+    
+    **Response Example:**
+    ```json
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "phone_number": "+5511999999999",
+      "name": "João Silva",
+      "is_vip": true,
+      "vip_level": "premium"
+    }
+    ```
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Contact not found
+    - `500`: Database error
     """
     service = ContactService(db)
     return await service.mark_as_vip(
@@ -204,6 +409,32 @@ async def unmark_as_vip(
 ):
     """
     Remove VIP status from a contact
+    
+    **Description:** Removes VIP flag from a contact. Contact returns to normal priority routing 
+    and support queue.
+    
+    **Path Parameters:**
+    - `contact_id` (UUID, required): Unique contact identifier
+    
+    **Returns:** Updated Contact object with is_vip=false
+    
+    **Response Example:**
+    ```json
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "phone_number": "+5511999999999",
+      "name": "João Silva",
+      "is_vip": false,
+      "vip_level": null
+    }
+    ```
+    
+    **Permissions Required:** Any authenticated user
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Contact not found
+    - `500`: Database error
     """
     service = ContactService(db)
     return await service.unmark_as_vip(
