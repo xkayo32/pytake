@@ -100,8 +100,6 @@ services:
       JWT_ALGORITHM: HS256
 
       # WhatsApp
-      WHATSAPP_API_TOKEN: ${WHATSAPP_API_TOKEN}
-      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN}
       WHATSAPP_WEBHOOK_URL: ${WHATSAPP_WEBHOOK_URL:-https://api-dev.pytake.net/webhook/whatsapp}
       META_WEBHOOK_VERIFY_TOKEN: ${META_WEBHOOK_VERIFY_TOKEN:-pytake_webhook_verify_token_12345}
 
