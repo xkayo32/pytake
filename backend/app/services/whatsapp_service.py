@@ -3990,8 +3990,8 @@ __result__ = __script_func__()
                         )
                     )
                     await self.db.execute(update_stmt)
-                    # Update the in-memory object
-                    number.status = new_status
+                    # Update the in-memory object - use refresh to avoid greenlet issues
+                    await self.db.refresh(number)
             except Exception as e:
                 # Log but don't fail
                 import logging
@@ -4008,6 +4008,14 @@ __result__ = __script_func__()
             await self.db.commit()
         except:
             pass  # Ignore commit errors
+        
+        # Refresh all objects before returning to ensure all attributes are loaded
+        # This prevents greenlet errors when Pydantic accesses lazy-loaded attributes
+        for num in numbers:
+            try:
+                await self.db.refresh(num)
+            except:
+                pass  # Ignore refresh errors
         
         return [self._enrich_number_with_node_info(num) for num in numbers]
 

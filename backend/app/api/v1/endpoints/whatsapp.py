@@ -486,7 +486,27 @@ async def get_whatsapp_number(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get WhatsApp number by ID"""
+    """
+    Get WhatsApp number details by ID.
+
+    Retrieve full configuration, status, and connection details for a registered number.
+
+    **Path Parameters:**
+    - number_id (str, UUID): WhatsApp number UUID
+
+    **Query Parameters:** None
+
+    **Returns:** WhatsAppNumber object with all configuration
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+    - Scoped to: Organization (number must belong to user's organization)
+
+    **Error Codes:**
+    - 401: Unauthorized
+    - 404: Not Found (number doesn't exist or not in organization)
+    - 500: Server error
+    """
     service = WhatsAppService(db)
     return await service.get_by_id(
         number_id=number_id,
@@ -501,7 +521,32 @@ async def update_whatsapp_number(
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update WhatsApp number"""
+    """
+    Update WhatsApp number configuration.
+
+    Modify display name, webhook URL, and other settings for existing number.
+
+    **Path Parameters:**
+    - number_id (str, UUID): WhatsApp number UUID
+
+    **Request Body:**
+    - display_name (str, optional): Updated display name
+    - webhook_url (str, optional): Updated webhook URL
+    - is_active (bool, optional): Enable/disable number
+
+    **Returns:** Updated WhatsAppNumber object
+
+    **Permissions:**
+    - Requires: org_admin or super_admin role
+    - Scoped to: Organization
+
+    **Error Codes:**
+    - 401: Unauthorized
+    - 403: Forbidden (not org_admin)
+    - 404: Not Found
+    - 422: Unprocessable Entity
+    - 500: Server error
+    """
     service = WhatsAppService(db)
     return await service.update_number(
         number_id=number_id,
@@ -517,11 +562,30 @@ async def test_whatsapp_connection(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Test WhatsApp connection status.
-    
-    Returns:
-    - For Official API: Tests Meta API connection
-    - For Evolution API: Tests Evolution connection and retrieves connection status
+    Test WhatsApp number connection.
+
+    Validates credentials and connectivity to Meta API or Evolution API.
+
+    **Path Parameters:**
+    - number_id (str, UUID): WhatsApp number UUID
+
+    **Request Body:** None
+
+    **Returns:**
+    - success (bool): Connection successful
+    - status (str): Connection status
+    - message (str): Status message
+    - api_response (object): Raw API response
+
+    **Permissions:**
+    - Requires: Authenticated user
+    - Scoped to: Organization
+
+    **Error Codes:**
+    - 401: Unauthorized
+    - 404: Not Found
+    - 503: Service Unavailable (API unreachable)
+    - 500: Server error
     """
     from datetime import datetime
     from sqlalchemy import update
@@ -632,7 +696,28 @@ async def delete_whatsapp_number(
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete WhatsApp number"""
+    """
+    Delete WhatsApp number (soft delete).
+
+    Remove a number from the system. Conversations are preserved for historical records.
+
+    **Path Parameters:**
+    - number_id (str, UUID): WhatsApp number UUID
+
+    **Request Body:** None
+
+    **Returns:** HTTP 204 No Content
+
+    **Permissions:**
+    - Requires: org_admin or super_admin role
+    - Scoped to: Organization
+
+    **Error Codes:**
+    - 401: Unauthorized
+    - 403: Forbidden (not org_admin)
+    - 404: Not Found
+    - 500: Server error
+    """
     service = WhatsAppService(db)
     await service.delete_number(
         number_id=number_id,
@@ -651,8 +736,29 @@ async def generate_qrcode(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Generate QR Code for WhatsApp connection via Evolution API.
-    Only works for numbers with connection_type='qrcode'.
+    Generate new QR Code for Evolution API connection.
+
+    Initiate QR code generation for number registration with Evolution API.
+    Scan with WhatsApp mobile app to authenticate.
+
+    **Path Parameters:**
+    - number_id (str, UUID): WhatsApp number UUID
+
+    **Request Body:** None
+
+    **Returns:**
+    - qr_code (str, optional): QR Code image data (base64 or URL)
+    - status (str): 'pending', 'connected', 'disconnected'
+    - message (str): Status message
+
+    **Permissions:**
+    - Requires: org_admin or super_admin role
+
+    **Error Codes:**
+    - 401: Unauthorized
+    - 403: Forbidden (not org_admin)
+    - 404: Not Found
+    - 500: Server error (QR code generation failed)
     """
     service = WhatsAppService(db)
 
@@ -682,8 +788,27 @@ async def get_qrcode_status(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Check QR Code status and get updated QR Code if still pending.
-    Used for polling during connection process.
+    Get QR Code status for Evolution API connection.
+
+    Check current QR code generation and connection status.
+
+    **Path Parameters:**
+    - number_id (str, UUID): WhatsApp number UUID
+
+    **Query Parameters:** None
+
+    **Returns:**
+    - qr_code (str, optional): Current QR Code image
+    - status (str): 'pending', 'connected', 'disconnected', 'expired'
+    - message (str): Status description
+
+    **Permissions:**
+    - Requires: Authenticated user
+
+    **Error Codes:**
+    - 401: Unauthorized
+    - 404: Not Found
+    - 500: Server error
     """
     service = WhatsAppService(db)
 
