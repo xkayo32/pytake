@@ -8,6 +8,7 @@ from uuid import UUID
 import strawberry
 from fastapi import Request, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from strawberry.fastapi import BaseContext
 
 from app.core.database import async_session
 from app.core.security import decode_token
@@ -21,7 +22,7 @@ class Info:
     pass
 
 
-class GraphQLContext:
+class GraphQLContext(BaseContext):
     """
     GraphQL execution context
 
@@ -116,10 +117,10 @@ async def get_graphql_context(request: Request) -> GraphQLContext:
     user = None
     db = None
 
-    # Create database session
-    async with async_session() as session:
-        db = session
+    # Create database session (NOT closed until query completes)
+    db = async_session()
 
+    try:
         # Try to authenticate if token provided
         if authorization:
             try:
@@ -144,7 +145,7 @@ async def get_graphql_context(request: Request) -> GraphQLContext:
 
                 # Get user from database
                 user_repo = UserRepository(db)
-                user = await user_repo.get_by_id(UUID(user_id))
+                user = await user_repo.get(UUID(user_id))
 
                 if not user or user.deleted_at is not None:
                     raise HTTPException(
@@ -166,9 +167,14 @@ async def get_graphql_context(request: Request) -> GraphQLContext:
                     detail=f"Authentication failed: {str(e)}"
                 )
 
-        # Create and return context
+        # Return context
         return GraphQLContext(
             request=request,
             db=db,
             user=user
         )
+    except HTTPException:
+        raise
+    except Exception:
+        await db.close()
+        raise

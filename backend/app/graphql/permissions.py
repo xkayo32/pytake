@@ -28,12 +28,12 @@ def require_auth(func: Callable) -> Callable:
         info = kwargs.get('info') or (args[1] if len(args) > 1 else None)
 
         if not info or not isinstance(info.context, GraphQLContext):
-            raise PermissionError("Invalid GraphQL context")
+            raise ValueError("Invalid GraphQL context")
 
         context: GraphQLContext = info.context
 
         if not context.user:
-            raise PermissionError("Authentication required")
+            raise ValueError("Authentication required")
 
         return await func(*args, **kwargs)
 
@@ -60,15 +60,15 @@ def require_role(*allowed_roles: str):
             info = kwargs.get('info') or (args[1] if len(args) > 1 else None)
 
             if not info or not isinstance(info.context, GraphQLContext):
-                raise PermissionError("Invalid GraphQL context")
+                raise ValueError("Invalid GraphQL context")
 
             context: GraphQLContext = info.context
 
             if not context.user:
-                raise PermissionError("Authentication required")
+                raise ValueError("Authentication required")
 
             if context.user.role not in allowed_roles:
-                raise PermissionError(
+                raise ValueError(
                     f"Required role: {', '.join(allowed_roles)}. "
                     f"Your role: {context.user.role}"
                 )
