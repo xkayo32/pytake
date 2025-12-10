@@ -248,31 +248,6 @@ api_router.include_router(debug.router, prefix="/debug", tags=["Debug"])
 flows = _load_endpoint_module("flows")
 api_router.include_router(flows.router, prefix="/flows", tags=["Flow Builder"])
 
-# ============================================
-# FLOWS ENDPOINTS (Mock for now)
-# ============================================
-
-@api_router.get("/flows", tags=["Flows"])
-async def list_flows(organization_id: str = Query(...)):
-    """List flows for organization (mock data)"""
-    return [
-        {
-            "id": "1",
-            "name": "Welcome Flow",
-            "description": "Automated welcome message flow",
-            "status": "active",
-            "version": 1,
-            "trigger_type": "manual",
-            "organization_id": organization_id,
-            "nodes": [],
-            "edges": [],
-            "created_by": "user1",
-            "created_at": "2024-01-01T00:00:00Z",
-            "updated_at": "2024-01-01T00:00:00Z",
-            "execution_count": 10,
-        }
-    ]
-
 @api_router.get("/campaigns", tags=["Campaigns"])
 async def list_campaigns(organization_id: str = Query(...)):
     """List campaigns for organization (mock data)"""
@@ -419,18 +394,5 @@ async def get_analytics_metrics():
         }
     }
 
-@api_router.get("/flows", tags=["Flows"])
-async def get_flows():
-    """Mock endpoint to get flows"""
-    return []
 
-@api_router.get("/campaigns", tags=["Campaigns"])
-async def get_campaigns():
-    """Mock endpoint to get campaigns"""
-    return []
-
-@api_router.get("/contacts", tags=["Contacts"])
-async def get_contacts_list():
-    """Mock endpoint to get contacts"""
-    return []
 
