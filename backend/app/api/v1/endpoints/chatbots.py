@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_db, require_role
+from app.api.deps import get_current_user, get_db, require_role, get_current_admin
 from app.core.exceptions import NotFoundException
 from app.models.user import User
 from app.schemas.chatbot import (
@@ -42,12 +42,11 @@ router = APIRouter()
     "/",
     response_model=ChatbotInDB,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(["org_admin"]))],
 )
 async def create_chatbot(
     data: ChatbotCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin),
 ):
     """
     Create a new chatbot for the organization
