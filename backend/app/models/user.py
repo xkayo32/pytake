@@ -158,17 +158,20 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
 
     @property
     def can_manage_users(self) -> bool:
-        """Check if user can manage other users"""
+        """Check if user can manage other users (requires super_admin or org_admin role)"""
+        # Supports both legacy string roles and new database-driven RBAC
         return self.role in ["super_admin", "org_admin"]
 
     @property
     def can_manage_chatbots(self) -> bool:
-        """Check if user can manage chatbots"""
+        """Check if user can manage chatbots (requires super_admin or org_admin role)"""
+        # Supports both legacy string roles and new database-driven RBAC
         return self.role in ["super_admin", "org_admin"]
 
     @property
     def can_access_conversations(self) -> bool:
-        """Check if user can access conversations"""
+        """Check if user can access conversations (requires super_admin, org_admin, or agent role)"""
+        # Supports both legacy string roles and new database-driven RBAC
         return self.role in ["super_admin", "org_admin", "agent"]
 
     def has_permission(self, permission: str) -> bool:

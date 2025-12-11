@@ -21,6 +21,32 @@ from app.core.exceptions import (
 )
 
 
+async def _is_user_admin(user: User, db: Optional[AsyncSession] = None) -> bool:
+    """
+    Check if user is admin (super_admin or org_admin)
+    Supports both legacy string role and new RBAC system
+    
+    Args:
+        user: User to check
+        db: Database session (required for role_id lookup)
+    Returns:
+        True if user is admin, False otherwise
+    """
+    # Check legacy string role first
+    if user.role in ["super_admin", "org_admin"]:
+        return True
+
+    # Check new RBAC system
+    if user.role_id and db:
+        from app.repositories.role import RoleRepository
+
+        role_repo = RoleRepository(db)
+        role = await role_repo.get(user.role_id)
+        return role and role.name in ["super_admin", "org_admin"]
+
+    return False
+
+
 class UserService:
     """Service for user management"""
 
@@ -77,7 +103,7 @@ class UserService:
         if data.role == "super_admin":
             raise ForbiddenException("Cannot create super_admin users")
 
-        if data.role == "org_admin" and created_by.role not in ["super_admin", "org_admin"]:
+        if data.role == "org_admin" and not await _is_user_admin(created_by, self.db):
             raise ForbiddenException("Only admins can create org_admin users")
 
         # Hash password
@@ -119,7 +145,7 @@ class UserService:
                 raise ForbiddenException("Cannot assign super_admin role")
 
             # Only admins can change roles
-            if updated_by.role not in ["super_admin", "org_admin"]:
+            if not await _is_user_admin(updated_by, self.db):
                 raise ForbiddenException("Only admins can change user roles")
 
             # Prevent changing own role
@@ -145,7 +171,7 @@ class UserService:
             raise ForbiddenException("Cannot deactivate yourself")
 
         # Only admins can deactivate users
-        if deactivated_by.role not in ["super_admin", "org_admin"]:
+        if not await _is_user_admin(deactivated_by, self.db):
             raise ForbiddenException("Only admins can deactivate users")
 
         return await self.repo.update(user_id, {"is_active": False})
@@ -157,7 +183,7 @@ class UserService:
         user = await self.get_by_id(user_id, organization_id)
 
         # Only admins can activate users
-        if activated_by.role not in ["super_admin", "org_admin"]:
+        if not await _is_user_admin(activated_by, self.db):
             raise ForbiddenException("Only admins can activate users")
 
         return await self.repo.update(user_id, {"is_active": True})
@@ -173,7 +199,7 @@ class UserService:
             raise ForbiddenException("Cannot delete yourself")
 
         # Only admins can delete users
-        if deleted_by.role not in ["super_admin", "org_admin"]:
+        if not await _is_user_admin(deleted_by, self.db):
             raise ForbiddenException("Only admins can delete users")
 
         return await self.repo.delete(user_id)
@@ -211,9 +237,17 @@ class UserService:
             )
         ) or 0
 
-        # Count messages sent by user
+        # Count messages sent by user (agents and admins send messages)
         messages_sent = 0
-        if user.role in ["agent", "org_admin"]:
+        is_agent_or_admin = user.role in ["agent", "org_admin", "super_admin"]
+        # Also check if user has agent role via new RBAC
+        if not is_agent_or_admin and user.role_id:
+            from app.repositories.role import RoleRepository
+            role_repo = RoleRepository(self.db)
+            role = await role_repo.get(user.role_id)
+            is_agent_or_admin = role and role.name in ["agent", "org_admin", "super_admin"]
+        
+        if is_agent_or_admin:
             messages_sent = await self.db.scalar(
                 select(func.count(Message.id)).where(
                     Message.sender_user_id == user_id,

@@ -87,62 +87,120 @@ async def get_current_active_user(
 
 def require_role(allowed_roles: list[str]):
     """
-    Dependency to check if user has required role
+    Dependency to check if user has required role (supports both string role and role_id)
+    
+    This dependency works with:
+    1. Legacy string role (user.role = "org_admin", "agent", etc)
+    2. New dynamic RBAC (user.role_id = UUID pointing to Role table)
+    
     Args:
-        allowed_roles: List of allowed roles
+        allowed_roles: List of allowed role names (e.g., ["org_admin", "super_admin"])
     Returns:
         Dependency function
     """
 
-    async def role_checker(current_user: User = Depends(get_current_active_user)):
-        if current_user.role not in allowed_roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Insufficient permissions. Required roles: {', '.join(allowed_roles)}",
-            )
-        return current_user
+    async def role_checker(
+        current_user: User = Depends(get_current_active_user),
+        db: AsyncSession = Depends(get_db),
+    ):
+        # Check legacy string role first (backwards compatibility)
+        if current_user.role in allowed_roles:
+            return current_user
+
+        # Check new RBAC system (role_id with database lookup)
+        if current_user.role_id:
+            from app.repositories.role import RoleRepository
+            from sqlalchemy import select
+
+            # Load role object if not already loaded
+            if not hasattr(current_user, "role_obj") or current_user.role_obj is None:
+                role_repo = RoleRepository(db)
+                role = await role_repo.get(current_user.role_id)
+                if role and role.name in allowed_roles:
+                    return current_user
+
+            # Check if loaded role is in allowed list
+            elif current_user.role_obj and current_user.role_obj.name in allowed_roles:
+                return current_user
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Insufficient permissions. Required roles: {', '.join(allowed_roles)}",
+        )
 
     return role_checker
 
 
 async def get_current_admin(
     current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ) -> User:
     """
     Get current admin user (super_admin or org_admin)
+    Supports both legacy string role and new RBAC system
+    
     Args:
         current_user: Current user
+        db: Database session
     Returns:
         Admin user
     Raises:
         HTTPException: If user is not an admin
     """
-    if current_user.role not in ["super_admin", "org_admin"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required",
-        )
-    return current_user
+    admin_roles = ["super_admin", "org_admin"]
+    
+    # Check legacy string role first
+    if current_user.role in admin_roles:
+        return current_user
+
+    # Check new RBAC system
+    if current_user.role_id:
+        from app.repositories.role import RoleRepository
+
+        role_repo = RoleRepository(db)
+        role = await role_repo.get(current_user.role_id)
+        if role and role.name in admin_roles:
+            return current_user
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Admin access required",
+    )
 
 
 async def get_current_super_admin(
     current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ) -> User:
     """
     Get current super admin user
+    Supports both legacy string role and new RBAC system
+    
     Args:
         current_user: Current user
+        db: Database session
     Returns:
         Super admin user
     Raises:
         HTTPException: If user is not a super admin
     """
-    if current_user.role != "super_admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Super admin access required",
-        )
-    return current_user
+    # Check legacy string role first
+    if current_user.role == "super_admin":
+        return current_user
+
+    # Check new RBAC system
+    if current_user.role_id:
+        from app.repositories.role import RoleRepository
+
+        role_repo = RoleRepository(db)
+        role = await role_repo.get(current_user.role_id)
+        if role and role.name == "super_admin":
+            return current_user
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Super admin access required",
+    )
 
 
 def get_organization_id(current_user: User = Depends(get_current_active_user)) -> UUID:
