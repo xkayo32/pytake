@@ -157,6 +157,11 @@ class ChatbotInDB(ChatbotBase):
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None
+    
+    # WhatsApp connection info (populated by endpoint logic)
+    whatsapp_connection_type: Optional[str] = Field(None, description="Connection type: official, qrcode, etc")
+    whatsapp_phone_number: Optional[str] = Field(None, description="Phone number of linked WhatsApp")
+    available_node_types: Optional[List[str]] = Field(None, description="Available node types for this chatbot")
 
     class Config:
         from_attributes = True

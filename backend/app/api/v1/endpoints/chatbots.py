@@ -106,26 +106,39 @@ async def list_chatbots(
     current_user: User = Depends(get_current_user),
 ):
     """
-    List all chatbots in the organization
+    List all chatbots in the organization with WhatsApp connection details
     
-    **Description:** Retrieves a paginated list of all chatbots accessible to the current user.
+    **Description:** Retrieves a paginated list of all chatbots accessible to the current user,
+    including WhatsApp connection information for each chatbot if linked.
     
     **Query Parameters:**
     - `skip` (int, default: 0): Offset for pagination  
     - `limit` (int, default: 100, max: 500): Maximum records per page
     
-    **Returns:** ChatbotListResponse with array of chatbots and total count
+    **Returns:** ChatbotListResponse with array of chatbots (including WhatsApp details) and total count
     
     **Example Response:**
     ```json
     {
-      "total": 5,
+      "total": 2,
       "items": [
         {
           "id": "550e8400-e29b-41d4-a716-446655440000",
           "name": "Support Bot",
-          "description": "Automated support",
+          "whatsapp_number_id": "2f8ab23a-5d7f-4507-8767-90b2e438e394",
+          "whatsapp_connection_type": "official",
+          "whatsapp_phone_number": "+556181287787",
+          "available_node_types": ["start", "message", "question", "condition", "end"],
           "is_active": true
+        },
+        {
+          "id": "660e8400-e29b-41d4-a716-446655440001",
+          "name": "Sales Bot",
+          "whatsapp_number_id": null,
+          "whatsapp_connection_type": null,
+          "whatsapp_phone_number": null,
+          "available_node_types": null,
+          "is_active": false
         }
       ]
     }
@@ -137,11 +150,35 @@ async def list_chatbots(
     - `401`: User not authenticated
     - `500`: Database error
     """
+    from app.models.whatsapp import WhatsAppNumber
+    from sqlalchemy import select
+    
     service = ChatbotService(db)
     chatbots, total = await service.list_chatbots(
         current_user.organization_id, skip, limit
     )
-    return ChatbotListResponse(total=total, items=chatbots)
+    
+    # Enrich chatbots with WhatsApp info
+    enriched_chatbots = []
+    for chatbot in chatbots:
+        chatbot_dict = chatbot.__dict__.copy()
+        
+        # If chatbot is linked to a WhatsApp number, fetch and add its details
+        if chatbot.whatsapp_number_id:
+            stmt = select(WhatsAppNumber).where(
+                WhatsAppNumber.id == chatbot.whatsapp_number_id
+            )
+            result = await db.execute(stmt)
+            whatsapp_number = result.scalar_one_or_none()
+            
+            if whatsapp_number:
+                chatbot_dict["whatsapp_connection_type"] = whatsapp_number.connection_type
+                chatbot_dict["whatsapp_phone_number"] = whatsapp_number.phone_number
+                chatbot_dict["available_node_types"] = whatsapp_number.available_node_types
+        
+        enriched_chatbots.append(ChatbotInDB(**chatbot_dict))
+    
+    return ChatbotListResponse(total=total, items=enriched_chatbots)
 
 
 @router.get("/{chatbot_id}", response_model=ChatbotInDB)
@@ -151,14 +188,18 @@ async def get_chatbot(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Get chatbot by ID
+    Get chatbot by ID with WhatsApp connection details
     
-    **Description:** Retrieves detailed information about a specific chatbot including configuration and metadata.
+    **Description:** Retrieves detailed information about a specific chatbot including configuration,
+    metadata, and WhatsApp connection details if linked.
     
     **Path Parameters:**
     - `chatbot_id` (UUID, required): Unique chatbot identifier
     
-    **Returns:** ChatbotInDB object with complete chatbot details
+    **Returns:** ChatbotInDB object with complete chatbot details including:
+    - whatsapp_connection_type: "official", "qrcode", etc (if linked)
+    - whatsapp_phone_number: Phone number of linked WhatsApp
+    - available_node_types: Types of nodes available for this chatbot
     
     **Permissions Required:** Any authenticated user
     
@@ -167,11 +208,32 @@ async def get_chatbot(
     - `404`: Chatbot not found
     - `500`: Database error
     """
+    from app.models.whatsapp import WhatsAppNumber
+    from sqlalchemy import select
+    
     service = ChatbotService(db)
     chatbot = await service.get_chatbot(chatbot_id, current_user.organization_id)
     if not chatbot:
         raise NotFoundException("Chatbot not found")
-    return chatbot
+    
+    # Convert to dict to add WhatsApp info
+    chatbot_dict = chatbot.__dict__.copy()
+    
+    # If chatbot is linked to a WhatsApp number, fetch and add its details
+    if chatbot.whatsapp_number_id:
+        stmt = select(WhatsAppNumber).where(
+            WhatsAppNumber.id == chatbot.whatsapp_number_id
+        )
+        result = await db.execute(stmt)
+        whatsapp_number = result.scalar_one_or_none()
+        
+        if whatsapp_number:
+            chatbot_dict["whatsapp_connection_type"] = whatsapp_number.connection_type
+            chatbot_dict["whatsapp_phone_number"] = whatsapp_number.phone_number
+            chatbot_dict["available_node_types"] = whatsapp_number.available_node_types
+    
+    # Create response with the enriched data
+    return ChatbotInDB(**chatbot_dict)
 
 
 @router.get("/{chatbot_id}/full", response_model=ChatbotWithFlows)

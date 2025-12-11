@@ -514,6 +514,102 @@ async def get_whatsapp_number(
     )
 
 
+@router.get("/{number_id}/compatible-chatbots")
+async def get_compatible_chatbots(
+    number_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get list of chatbots compatible with this WhatsApp number.
+
+    Returns all chatbots in the organization that can be linked to this WhatsApp number,
+    along with their current node type compatibility information.
+
+    **Path Parameters:**
+    - number_id (str, UUID): WhatsApp number UUID
+
+    **Query Parameters:** None
+
+    **Returns:** Object with list of compatible chatbots:
+    ```json
+    {
+      "total": 2,
+      "items": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "name": "Support Bot",
+          "description": "Customer support chatbot",
+          "is_active": true,
+          "whatsapp_number_id": "2f8ab23a-5d7f-4507-8767-90b2e438e394",
+          "available_node_types": ["start", "message", "question", "condition"],
+          "compatible": true
+        },
+        {
+          "id": "660e8400-e29b-41d4-a716-446655440001",
+          "name": "Sales Bot",
+          "description": "Sales and lead generation",
+          "is_active": false,
+          "whatsapp_number_id": null,
+          "available_node_types": null,
+          "compatible": true
+        }
+      ]
+    }
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+    - Scoped to: Organization
+
+    **Error Codes:**
+    - 401: Unauthorized
+    - 404: WhatsApp number not found
+    - 500: Server error
+    """
+    from app.models.chatbot import Chatbot
+    from sqlalchemy import select
+    
+    # Verify WhatsApp number exists and belongs to organization
+    service = WhatsAppService(db)
+    whatsapp_number = await service.get_by_id(
+        number_id=number_id,
+        organization_id=current_user.organization_id,
+    )
+    
+    if not whatsapp_number:
+        raise HTTPException(status_code=404, detail="WhatsApp number not found")
+    
+    # Get all chatbots in the organization
+    stmt = select(Chatbot).where(
+        Chatbot.organization_id == current_user.organization_id
+    ).order_by(Chatbot.name)
+    
+    result = await db.execute(stmt)
+    chatbots = result.scalars().all()
+    
+    # Format response with compatibility info
+    from app.schemas.chatbot import ChatbotInDB
+    
+    items = []
+    for chatbot in chatbots:
+        chatbot_dict = chatbot.__dict__.copy()
+        chatbot_dict["compatible"] = True  # All chatbots can be linked
+        
+        # Add WhatsApp connection info if this chatbot is already linked
+        if chatbot.whatsapp_number_id == number_id:
+            chatbot_dict["whatsapp_connection_type"] = whatsapp_number.connection_type
+            chatbot_dict["whatsapp_phone_number"] = whatsapp_number.phone_number
+            chatbot_dict["available_node_types"] = whatsapp_number.available_node_types
+        
+        items.append(chatbot_dict)
+    
+    return {
+        "total": len(items),
+        "items": items,
+    }
+
+
 @router.put("/{number_id}", response_model=WhatsAppNumber)
 async def update_whatsapp_number(
     number_id: UUID,
