@@ -150,7 +150,7 @@ async def list_chatbots(
     - `401`: User not authenticated
     - `500`: Database error
     """
-    from app.models.whatsapp import WhatsAppNumber
+    from app.models.whatsapp_number import WhatsAppNumber
     from sqlalchemy import select
     
     service = ChatbotService(db)
@@ -208,7 +208,7 @@ async def get_chatbot(
     - `404`: Chatbot not found
     - `500`: Database error
     """
-    from app.models.whatsapp import WhatsAppNumber
+    from app.models.whatsapp_number import WhatsAppNumber
     from sqlalchemy import select
     
     service = ChatbotService(db)
