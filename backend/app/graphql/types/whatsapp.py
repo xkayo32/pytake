@@ -16,8 +16,6 @@ class WhatsAppNumberType:
     phone_number: str
     display_name: Optional[str] = None
     is_active: bool
-    is_connected: bool
-    qr_code: Optional[str] = None
     status: str  # connecting, connected, disconnected
     created_at: datetime
     updated_at: datetime

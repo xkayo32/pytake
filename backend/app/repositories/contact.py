@@ -28,6 +28,17 @@ class ContactRepository(BaseRepository[Contact]):
         )
         return result.scalar_one_or_none()
 
+    async def get_by_id(self, id: UUID, organization_id: UUID) -> Optional[Contact]:
+        """Get contact by ID within organization"""
+        result = await self.db.execute(
+            select(Contact)
+            .where(Contact.id == id)
+            .where(Contact.organization_id == organization_id)
+            .where(Contact.deleted_at.is_(None))
+            .options(selectinload(Contact.tags))
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_whatsapp_id(
         self, whatsapp_id: str, organization_id: UUID
     ) -> Optional[Contact]:

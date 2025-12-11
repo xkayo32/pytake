@@ -19,6 +19,16 @@ class ChatbotRepository(BaseRepository[Chatbot]):
     def __init__(self, db: AsyncSession):
         super().__init__(Chatbot, db)
 
+    async def get_by_id(self, id: UUID, organization_id: UUID) -> Optional[Chatbot]:
+        """Get chatbot by ID within organization"""
+        result = await self.db.execute(
+            select(Chatbot)
+            .where(Chatbot.id == id)
+            .where(Chatbot.organization_id == organization_id)
+            .where(Chatbot.deleted_at.is_(None))
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_organization(
         self,
         organization_id: UUID,

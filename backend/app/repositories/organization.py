@@ -17,6 +17,13 @@ class OrganizationRepository(BaseRepository[Organization]):
     def __init__(self, db: AsyncSession):
         super().__init__(Organization, db)
 
+    async def get_by_id(self, id) -> Optional[Organization]:
+        """Get organization by ID"""
+        result = await self.db.execute(
+            select(Organization).where(Organization.id == id, Organization.deleted_at.is_(None))
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_slug(self, slug: str) -> Optional[Organization]:
         """
         Get organization by slug

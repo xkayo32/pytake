@@ -18,6 +18,16 @@ class WhatsAppNumberRepository(BaseRepository[WhatsAppNumber]):
     def __init__(self, db: AsyncSession):
         super().__init__(WhatsAppNumber, db)
 
+    async def get_by_id(self, id: UUID, organization_id: UUID) -> Optional[WhatsAppNumber]:
+        """Get WhatsApp number by ID within organization"""
+        result = await self.db.execute(
+            select(WhatsAppNumber)
+            .where(WhatsAppNumber.id == id)
+            .where(WhatsAppNumber.organization_id == organization_id)
+            .where(WhatsAppNumber.deleted_at.is_(None))
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_phone(
         self, phone_number: str, organization_id: UUID
     ) -> Optional[WhatsAppNumber]:

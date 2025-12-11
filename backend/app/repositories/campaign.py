@@ -19,6 +19,16 @@ class CampaignRepository(BaseRepository[Campaign]):
     def __init__(self, db: AsyncSession):
         super().__init__(Campaign, db)
 
+    async def get_by_id(self, id: UUID, organization_id: UUID) -> Optional[Campaign]:
+        """Get campaign by ID within organization"""
+        result = await self.db.execute(
+            select(Campaign)
+            .where(Campaign.id == id)
+            .where(Campaign.organization_id == organization_id)
+            .where(Campaign.deleted_at.is_(None))
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_organization(
         self,
         organization_id: UUID,

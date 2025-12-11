@@ -22,6 +22,16 @@ class ConversationRepository(BaseRepository[Conversation]):
     def __init__(self, db: AsyncSession):
         super().__init__(Conversation, db)
 
+    async def get_by_id(self, id: UUID, organization_id: UUID) -> Optional[Conversation]:
+        """Get conversation by ID within organization"""
+        result = await self.db.execute(
+            select(Conversation)
+            .where(Conversation.id == id)
+            .where(Conversation.organization_id == organization_id)
+            .where(Conversation.deleted_at.is_(None))
+        )
+        return result.scalar_one_or_none()
+
     async def get_with_contact(
         self, conversation_id: UUID, organization_id: UUID
     ) -> Optional[Conversation]:

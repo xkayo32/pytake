@@ -28,6 +28,17 @@ class DepartmentRepository(BaseRepository[Department]):
         )
         return result.scalar_one_or_none()
 
+    async def get_by_id(self, id: UUID, organization_id: UUID) -> Optional[Department]:
+        """Get department by ID within organization"""
+        result = await self.db.execute(
+            select(Department).where(
+                Department.id == id,
+                Department.organization_id == organization_id,
+                Department.deleted_at.is_(None)
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_slug(
         self, slug: str, organization_id: UUID
     ) -> Optional[Department]:

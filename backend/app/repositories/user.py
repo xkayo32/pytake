@@ -18,6 +18,13 @@ class UserRepository(BaseRepository[User]):
     def __init__(self, db: AsyncSession):
         super().__init__(User, db)
 
+    async def get_by_id(self, id: UUID) -> Optional[User]:
+        """Get user by ID"""
+        result = await self.db.execute(
+            select(User).where(User.id == id, User.deleted_at.is_(None))
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_email(self, email: str) -> Optional[User]:
         """
         Get user by email
