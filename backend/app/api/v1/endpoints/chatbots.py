@@ -158,25 +158,18 @@ async def list_chatbots(
         current_user.organization_id, skip, limit
     )
     
-    # Enrich chatbots with WhatsApp info
+    # Enrich chatbots with number links and history
     enriched_chatbots = []
     for chatbot in chatbots:
-        chatbot_dict = chatbot.__dict__.copy()
+        chatbot_dict = ChatbotInDB.from_orm(chatbot).model_dump()
         
-        # If chatbot is linked to a WhatsApp number, fetch and add its details
-        if chatbot.whatsapp_number_id:
-            stmt = select(WhatsAppNumber).where(
-                WhatsAppNumber.id == chatbot.whatsapp_number_id
-            )
-            result = await db.execute(stmt)
-            whatsapp_number = result.scalar_one_or_none()
-            
-            if whatsapp_number:
-                chatbot_dict["whatsapp_connection_type"] = whatsapp_number.connection_type
-                chatbot_dict["whatsapp_phone_number"] = whatsapp_number.phone_number
-                chatbot_dict["available_node_types"] = whatsapp_number.available_node_types
+        # Populate whatsapp_number_ids from links
+        number_links = await service.number_link_repo.get_by_chatbot(
+            chatbot.id, current_user.organization_id
+        )
+        chatbot_dict["whatsapp_number_ids"] = [link.whatsapp_number_id for link in number_links]
         
-        enriched_chatbots.append(ChatbotInDB(**chatbot_dict))
+        enriched_chatbots.append(chatbot_dict)
     
     return ChatbotListResponse(total=total, items=enriched_chatbots)
 
@@ -208,32 +201,26 @@ async def get_chatbot(
     - `404`: Chatbot not found
     - `500`: Database error
     """
-    from app.models.whatsapp_number import WhatsAppNumber
-    from sqlalchemy import select
-    
     service = ChatbotService(db)
     chatbot = await service.get_chatbot(chatbot_id, current_user.organization_id)
     if not chatbot:
         raise NotFoundException("Chatbot not found")
     
-    # Convert to dict to add WhatsApp info
-    chatbot_dict = chatbot.__dict__.copy()
+    # Convert to dict to add number links and history
+    chatbot_dict = ChatbotInDB.from_orm(chatbot).model_dump()
     
-    # If chatbot is linked to a WhatsApp number, fetch and add its details
-    if chatbot.whatsapp_number_id:
-        stmt = select(WhatsAppNumber).where(
-            WhatsAppNumber.id == chatbot.whatsapp_number_id
-        )
-        result = await db.execute(stmt)
-        whatsapp_number = result.scalar_one_or_none()
-        
-        if whatsapp_number:
-            chatbot_dict["whatsapp_connection_type"] = whatsapp_number.connection_type
-            chatbot_dict["whatsapp_phone_number"] = whatsapp_number.phone_number
-            chatbot_dict["available_node_types"] = whatsapp_number.available_node_types
+    # Populate whatsapp_number_ids from links
+    number_links = await service.number_link_repo.get_by_chatbot(
+        chatbot_id, current_user.organization_id
+    )
+    chatbot_dict["whatsapp_number_ids"] = [link.whatsapp_number_id for link in number_links]
+    
+    # Populate linking history
+    history = await service.get_linking_history(chatbot_id, current_user.organization_id)
+    chatbot_dict["linked_history"] = history
     
     # Create response with the enriched data
-    return ChatbotInDB(**chatbot_dict)
+    return chatbot_dict
 
 
 @router.get("/{chatbot_id}/full", response_model=ChatbotWithFlows)
