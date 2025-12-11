@@ -5,11 +5,11 @@ Chatbot, Flow, and Node repositories
 from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import and_, delete, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.chatbot import Chatbot, Flow, Node
+from app.models.chatbot import Chatbot, ChatbotLinkingHistory, ChatbotNumberLink, Flow, Node
 from app.repositories.base import BaseRepository
 
 
@@ -97,6 +97,46 @@ class ChatbotRepository(BaseRepository[Chatbot]):
             .where(Chatbot.deleted_at.is_(None))
         )
         return list(result.scalars().all())
+
+    async def get_fallback_chatbot(self, organization_id: UUID) -> Optional[Chatbot]:
+        """
+        Get fallback chatbot for organization
+
+        Args:
+            organization_id: Organization UUID
+
+        Returns:
+            Fallback chatbot or None
+        """
+        result = await self.db.execute(
+            select(Chatbot)
+            .where(Chatbot.organization_id == organization_id)
+            .where(Chatbot.is_fallback == True)
+            .where(Chatbot.deleted_at.is_(None))
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_whatsapp_number(
+        self, organization_id: UUID, whatsapp_number_id: str
+    ) -> Optional[Chatbot]:
+        """
+        Get chatbot linked to a specific WhatsApp number
+
+        Args:
+            organization_id: Organization UUID
+            whatsapp_number_id: WhatsApp number ID
+
+        Returns:
+            Chatbot linked to this number or None
+        """
+        result = await self.db.execute(
+            select(Chatbot)
+            .join(ChatbotNumberLink)
+            .where(Chatbot.organization_id == organization_id)
+            .where(ChatbotNumberLink.whatsapp_number_id == whatsapp_number_id)
+            .where(Chatbot.deleted_at.is_(None))
+        )
+        return result.scalar_one_or_none()
 
     async def count_by_organization(
         self, organization_id: UUID, include_deleted: bool = False
@@ -330,3 +370,118 @@ class NodeRepository(BaseRepository[Node]):
         for node in nodes:
             await self.db.refresh(node)
         return nodes
+
+
+class ChatbotNumberLinkRepository(BaseRepository[ChatbotNumberLink]):
+    """Repository for ChatbotNumberLink model"""
+
+    def __init__(self, db: AsyncSession):
+        super().__init__(ChatbotNumberLink, db)
+
+    async def get_by_chatbot(
+        self, chatbot_id: UUID, organization_id: UUID
+    ) -> List[ChatbotNumberLink]:
+        """
+        Get all number links for a chatbot
+
+        Args:
+            chatbot_id: Chatbot UUID
+            organization_id: Organization UUID
+
+        Returns:
+            List of number links
+        """
+        result = await self.db.execute(
+            select(ChatbotNumberLink)
+            .where(ChatbotNumberLink.chatbot_id == chatbot_id)
+            .where(ChatbotNumberLink.organization_id == organization_id)
+            .order_by(ChatbotNumberLink.linked_at)
+        )
+        return list(result.scalars().all())
+
+    async def get_by_number(
+        self, organization_id: UUID, whatsapp_number_id: str
+    ) -> Optional[ChatbotNumberLink]:
+        """
+        Get number link by WhatsApp number
+
+        Args:
+            organization_id: Organization UUID
+            whatsapp_number_id: WhatsApp number ID
+
+        Returns:
+            Number link or None
+        """
+        result = await self.db.execute(
+            select(ChatbotNumberLink)
+            .where(ChatbotNumberLink.organization_id == organization_id)
+            .where(ChatbotNumberLink.whatsapp_number_id == whatsapp_number_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def delete_by_chatbot(
+        self, chatbot_id: UUID, organization_id: UUID
+    ):
+        """
+        Delete all number links for a chatbot
+
+        Args:
+            chatbot_id: Chatbot UUID
+            organization_id: Organization UUID
+        """
+        await self.db.execute(
+            delete(ChatbotNumberLink)
+            .where(ChatbotNumberLink.chatbot_id == chatbot_id)
+            .where(ChatbotNumberLink.organization_id == organization_id)
+        )
+        await self.db.commit()
+
+    async def get_numbers_list(
+        self, chatbot_id: UUID, organization_id: UUID
+    ) -> List[str]:
+        """
+        Get list of WhatsApp numbers for a chatbot
+
+        Args:
+            chatbot_id: Chatbot UUID
+            organization_id: Organization UUID
+
+        Returns:
+            List of WhatsApp number IDs
+        """
+        links = await self.get_by_chatbot(chatbot_id, organization_id)
+        return [link.whatsapp_number_id for link in links]
+
+
+class ChatbotLinkingHistoryRepository(BaseRepository[ChatbotLinkingHistory]):
+    """Repository for ChatbotLinkingHistory model"""
+
+    def __init__(self, db: AsyncSession):
+        super().__init__(ChatbotLinkingHistory, db)
+
+    async def get_by_chatbot(
+        self,
+        chatbot_id: UUID,
+        organization_id: UUID,
+        limit: int = 100,
+    ) -> List[ChatbotLinkingHistory]:
+        """
+        Get linking history for a chatbot (most recent first)
+
+        Args:
+            chatbot_id: Chatbot UUID
+            organization_id: Organization UUID
+            limit: Maximum number of records
+
+        Returns:
+            List of history entries
+        """
+        result = await self.db.execute(
+            select(ChatbotLinkingHistory)
+            .where(ChatbotLinkingHistory.chatbot_id == chatbot_id)
+            .where(ChatbotLinkingHistory.organization_id == organization_id)
+            .order_by(desc(ChatbotLinkingHistory.timestamp))
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+

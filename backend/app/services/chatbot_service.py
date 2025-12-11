@@ -2,6 +2,7 @@
 Chatbot service - Business logic for chatbots, flows, and nodes
 """
 
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
@@ -9,8 +10,14 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import BadRequestException, ConflictException, NotFoundException
-from app.models.chatbot import Chatbot, Flow, Node
-from app.repositories.chatbot import ChatbotRepository, FlowRepository, NodeRepository
+from app.models.chatbot import Chatbot, ChatbotLinkingHistory, ChatbotNumberLink, Flow, Node
+from app.repositories.chatbot import (
+    ChatbotLinkingHistoryRepository,
+    ChatbotNumberLinkRepository,
+    ChatbotRepository,
+    FlowRepository,
+    NodeRepository,
+)
 from app.schemas.chatbot import (
     ChatbotCreate,
     ChatbotInDB,
@@ -31,6 +38,8 @@ class ChatbotService:
         self.chatbot_repo = ChatbotRepository(db)
         self.flow_repo = FlowRepository(db)
         self.node_repo = NodeRepository(db)
+        self.number_link_repo = ChatbotNumberLinkRepository(db)
+        self.linking_history_repo = ChatbotLinkingHistoryRepository(db)
 
     # ============================================
     # CHATBOT OPERATIONS
@@ -120,7 +129,7 @@ class ChatbotService:
         self, chatbot_id: UUID, organization_id: UUID, data: ChatbotUpdate
     ) -> Chatbot:
         """
-        Update chatbot
+        Update chatbot with validation for multi-binding, fallback, and A/B testing
 
         Args:
             chatbot_id: Chatbot UUID
@@ -132,13 +141,128 @@ class ChatbotService:
 
         Raises:
             NotFoundException: If chatbot not found
+            BadRequestException: If validation fails
+            ConflictException: If fallback conflict
         """
         chatbot = await self.get_chatbot(chatbot_id, organization_id)
         if not chatbot:
             raise NotFoundException("Chatbot not found")
 
-        update_data = data.model_dump(exclude_unset=True)
+        # =====================================================
+        # VALIDATIONS
+        # =====================================================
+
+        # Validar: não permitir is_fallback=true AND whatsapp_number_ids preenchido
+        has_fallback = data.is_fallback if data.is_fallback is not None else chatbot.is_fallback
+        has_numbers = data.whatsapp_number_ids if data.whatsapp_number_ids is not None else None
+
+        if has_fallback and has_numbers:
+            raise BadRequestException(
+                "Cannot set both whatsapp_number_ids and is_fallback. Choose one of: "
+                "1) Link to specific numbers (whatsapp_number_ids), or "
+                "2) Set as fallback flow (is_fallback=true)"
+            )
+
+        # Validar: se is_fallback=true, verificar que não existe outro fallback
+        if has_fallback and not chatbot.is_fallback:
+            # Está tentando ativar como fallback
+            existing_fallback = await self._get_fallback_chatbot(organization_id)
+            if existing_fallback and existing_fallback.id != chatbot_id:
+                raise ConflictException(
+                    f"Organization already has a fallback flow: {existing_fallback.name}"
+                )
+
+        # Validar A/B testing
+        if data.ab_test_enabled:
+            if not data.ab_test_flows or len(data.ab_test_flows) < 2:
+                raise BadRequestException(
+                    "A/B testing requires at least 2 flows. "
+                    f"Provided: {len(data.ab_test_flows) if data.ab_test_flows else 0}"
+                )
+            
+            # Validar que todos os flows existem
+            for ab_flow in data.ab_test_flows:
+                flow = await self.flow_repo.get(ab_flow.get("flow_id"))
+                if not flow or flow.chatbot_id != chatbot_id or flow.organization_id != organization_id:
+                    raise BadRequestException(f"Invalid flow in A/B test: {ab_flow.get('flow_id')}")
+                
+                # Validar weight
+                weight = ab_flow.get("weight", 0)
+                if not isinstance(weight, (int, float)) or weight <= 0:
+                    raise BadRequestException(f"Invalid weight for flow {ab_flow.get('flow_id')}: {weight}")
+
+        # =====================================================
+        # PROCESS MULTI-BINDING
+        # =====================================================
+
+        old_numbers = await self.number_link_repo.get_numbers_list(chatbot_id, organization_id)
+        new_numbers = data.whatsapp_number_ids or []
+
+        # Se está tentando vincular a números
+        if new_numbers:
+            # Detectar números removidos (unlinked)
+            removed_numbers = set(old_numbers) - set(new_numbers)
+            
+            # Detectar números adicionados (linked)
+            added_numbers = set(new_numbers) - set(old_numbers)
+
+            # Remover números antigos
+            if removed_numbers:
+                await self.number_link_repo.delete_by_chatbot(chatbot_id, organization_id)
+
+            # Adicionar novos números
+            for number_id in new_numbers:
+                await self.number_link_repo.create(
+                    {
+                        "chatbot_id": chatbot_id,
+                        "whatsapp_number_id": number_id,
+                        "organization_id": organization_id,
+                        "linked_at": datetime.now(timezone.utc),
+                    }
+                )
+
+            # Registrar no histórico
+            now = datetime.now(timezone.utc)
+            for number_id in removed_numbers:
+                await self.linking_history_repo.create(
+                    {
+                        "chatbot_id": chatbot_id,
+                        "organization_id": organization_id,
+                        "timestamp": now,
+                        "action": "unlinked",
+                        "whatsapp_number_id": number_id,
+                        "changed_by": getattr(data, "_user_email", "system@pytake.io"),
+                    }
+                )
+
+            for number_id in added_numbers:
+                await self.linking_history_repo.create(
+                    {
+                        "chatbot_id": chatbot_id,
+                        "organization_id": organization_id,
+                        "timestamp": now,
+                        "action": "linked",
+                        "whatsapp_number_id": number_id,
+                        "changed_by": getattr(data, "_user_email", "system@pytake.io"),
+                    }
+                )
+
+        # Se está definindo como fallback, desativar outros fallbacks
+        if has_fallback and not chatbot.is_fallback:
+            await self._unset_fallback_chatbots(organization_id, exclude_chatbot_id=chatbot_id)
+
+        # =====================================================
+        # UPDATE CHATBOT
+        # =====================================================
+
+        update_data = data.model_dump(exclude_unset=True, exclude={"whatsapp_number_ids"})
+        
+        # Adicionar linked_at se está vinculando
+        if new_numbers:
+            update_data["linked_at"] = datetime.now(timezone.utc)
+
         updated_chatbot = await self.chatbot_repo.update(chatbot_id, update_data)
+        await self.db.commit()
 
         return updated_chatbot
 
@@ -712,3 +836,115 @@ class ChatbotService:
         )
 
         return new_flow
+
+    # ============================================
+    # HELPER METHODS - MULTI-BINDING & FALLBACK
+    # ============================================
+
+    async def _get_fallback_chatbot(self, organization_id: UUID) -> Optional[Chatbot]:
+        """
+        Get the current fallback chatbot for organization
+
+        Args:
+            organization_id: Organization UUID
+
+        Returns:
+            Fallback chatbot or None
+        """
+        from sqlalchemy import select
+        
+        result = await self.db.execute(
+            select(Chatbot)
+            .where(Chatbot.organization_id == organization_id)
+            .where(Chatbot.is_fallback == True)
+            .where(Chatbot.deleted_at.is_(None))
+        )
+        return result.scalar_one_or_none()
+
+    async def _unset_fallback_chatbots(
+        self, organization_id: UUID, exclude_chatbot_id: Optional[UUID] = None
+    ):
+        """
+        Unset is_fallback on all chatbots except one
+
+        Args:
+            organization_id: Organization UUID
+            exclude_chatbot_id: Chatbot to exclude from unsetting
+        """
+        from sqlalchemy import update
+        
+        query = (
+            update(Chatbot)
+            .where(Chatbot.organization_id == organization_id)
+            .where(Chatbot.is_fallback == True)
+            .values(is_fallback=False)
+        )
+
+        if exclude_chatbot_id:
+            query = query.where(Chatbot.id != exclude_chatbot_id)
+
+        await self.db.execute(query)
+        await self.db.commit()
+
+    async def get_linking_history(
+        self, chatbot_id: UUID, organization_id: UUID, limit: int = 100
+    ) -> List[dict]:
+        """
+        Get linking history for a chatbot
+
+        Args:
+            chatbot_id: Chatbot UUID
+            organization_id: Organization UUID
+            limit: Max entries
+
+        Returns:
+            List of history entries
+        """
+        history = await self.linking_history_repo.get_by_chatbot(
+            chatbot_id, organization_id, limit
+        )
+        
+        return [
+            {
+                "timestamp": entry.timestamp.isoformat(),
+                "action": entry.action,
+                "number_id": entry.whatsapp_number_id,
+                "changed_by": entry.changed_by,
+            }
+            for entry in history
+        ]
+
+    def get_ab_test_variant(self, user_id: str, ab_test_flows: List[dict]) -> str:
+        """
+        Get A/B test variant for a user using hash-based sticky assignment
+
+        Args:
+            user_id: User ID (will be hashed)
+            ab_test_flows: List of A/B test flows with weights
+
+        Returns:
+            Selected flow_id
+
+        Algorithm:
+        - Hash user_id to deterministic integer
+        - Use modulo 100 to get percentage (0-99)
+        - Iterate through flows, accumulating weights until percentage falls in range
+        - Same user_id always gets same variant (sticky assignment)
+        """
+        import hashlib
+
+        # Hash do user_id (determinístico)
+        hash_value = int(
+            hashlib.md5(f"{user_id}".encode()).hexdigest(), 16
+        ) % 100
+
+        # Iterar pelos flows acumulando pesos
+        cumulative = 0
+        for flow in ab_test_flows:
+            cumulative += flow.get("weight", 50)
+            if hash_value < cumulative:
+                return flow["flow_id"]
+
+        # Fallback para último flow (nunca deve acontecer se weights somam 100)
+        return ab_test_flows[-1]["flow_id"]
+

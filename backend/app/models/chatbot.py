@@ -2,7 +2,8 @@
 Chatbot, Flow, and Node models for the bot builder
 """
 
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
+from datetime import datetime
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import text
@@ -32,15 +33,6 @@ class Chatbot(Base, TimestampMixin, SoftDeleteMixin):
         index=True,
     )
 
-    # WhatsApp Number Association (optional)
-    # Each chatbot can be linked to a specific WhatsApp number
-    whatsapp_number_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("whatsapp_numbers.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-
     # Basic Info
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -50,6 +42,24 @@ class Chatbot(Base, TimestampMixin, SoftDeleteMixin):
     is_active = Column(Boolean, default=False, server_default="false", nullable=False)
     is_published = Column(
         Boolean, default=False, server_default="false", nullable=False
+    )
+
+    # Multi-binding Configuration
+    # Fallback flow: usado como rota padrão para números não mapeados
+    is_fallback = Column(Boolean, default=False, server_default="false", nullable=False)
+    
+    # Quando foi vinculado pela última vez
+    linked_at = Column(DateTime(timezone=True), nullable=True)
+
+    # A/B Testing Configuration
+    ab_test_enabled = Column(Boolean, default=False, server_default="false", nullable=False)
+    
+    # Array de {flow_id, weight, variant_name}
+    ab_test_flows = Column(
+        JSONB,
+        nullable=False,
+        default=[],
+        server_default=text("'[]'::jsonb"),
     )
 
     # Configuration
@@ -83,10 +93,30 @@ class Chatbot(Base, TimestampMixin, SoftDeleteMixin):
     flows = relationship(
         "Flow", back_populates="chatbot", cascade="all, delete-orphan"
     )
-    whatsapp_number = relationship(
-        "WhatsAppNumber",
-        foreign_keys=[whatsapp_number_id],
-        back_populates="chatbots"
+    
+    # Multi-binding relationships
+    number_links = relationship(
+        "ChatbotNumberLink",
+        back_populates="chatbot",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    
+    linking_history = relationship(
+        "ChatbotLinkingHistory",
+        back_populates="chatbot",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    # Constraints: apenas um fallback por organização
+    __table_args__ = (
+        Index(
+            "ix_chatbots_org_fallback_unique",
+            "organization_id",
+            postgresql_where=text("is_fallback = true AND deleted_at IS NULL"),
+            unique=True,
+        ),
     )
 
     def __repr__(self):
@@ -263,3 +293,127 @@ class Node(Base, TimestampMixin):
     def is_decision_node(self) -> bool:
         """Check if this node makes decisions (condition, question)"""
         return self.node_type in ["condition", "question"]
+
+
+class ChatbotNumberLink(Base, TimestampMixin):
+    """
+    ChatbotNumberLink model - N:N relationship between Chatbot and WhatsApp Numbers
+    Permite que um chatbot seja vinculado a múltiplos números
+    """
+
+    __tablename__ = "chatbot_number_links"
+
+    # Primary Key
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+
+    # Foreign Keys
+    chatbot_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("chatbots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # WhatsApp Number ID (string, não UUID)
+    whatsapp_number_id = Column(String(50), nullable=False, index=True)
+
+    # When it was linked
+    linked_at = Column(DateTime(timezone=True), nullable=False)
+
+    # Relationships
+    chatbot = relationship(
+        "Chatbot",
+        back_populates="number_links",
+        foreign_keys=[chatbot_id],
+    )
+
+    # Constraints: unique pair
+    __table_args__ = (
+        UniqueConstraint(
+            "chatbot_id",
+            "whatsapp_number_id",
+            name="uq_chatbot_number_link",
+        ),
+        Index(
+            "ix_chatbot_number_links_org_number",
+            "organization_id",
+            "whatsapp_number_id",
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return f"<ChatbotNumberLink(chatbot_id={self.chatbot_id}, number_id={self.whatsapp_number_id})>"
+
+
+class ChatbotLinkingHistory(Base, TimestampMixin):
+    """
+    ChatbotLinkingHistory model - Auditoria de vinculações
+    Registra todas as ações de linked/unlinked com timestamp e usuário
+    """
+
+    __tablename__ = "chatbot_linking_history"
+
+    # Primary Key
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+
+    # Foreign Keys
+    chatbot_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("chatbots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Action timestamp (ISO 8601)
+    timestamp = Column(DateTime(timezone=True), nullable=False)
+
+    # Action: 'linked' ou 'unlinked'
+    action = Column(String(20), nullable=False)
+
+    # WhatsApp Number ID affected
+    whatsapp_number_id = Column(String(50), nullable=False)
+
+    # User email who made the change
+    changed_by = Column(String(255), nullable=False)
+
+    # Relationships
+    chatbot = relationship(
+        "Chatbot",
+        back_populates="linking_history",
+        foreign_keys=[chatbot_id],
+    )
+
+    # Constraints and indexes
+    __table_args__ = (
+        Index(
+            "ix_chatbot_linking_history_chatbot_timestamp",
+            "chatbot_id",
+            timestamp.desc(),
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return f"<ChatbotLinkingHistory(chatbot_id={self.chatbot_id}, action={self.action}, number_id={self.whatsapp_number_id})>"
+

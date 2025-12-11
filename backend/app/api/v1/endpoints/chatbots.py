@@ -282,6 +282,75 @@ async def get_chatbot_stats(
     return stats
 
 
+@router.get(
+    "/{chatbot_id}/linking-history",
+    response_model=dict,
+    dependencies=[Depends(require_role(["super_admin", "org_admin", "agent"]))],
+)
+async def get_chatbot_linking_history(
+    chatbot_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    limit: int = Query(100, ge=1, le=500),
+):
+    """
+    Get chatbot linking/unlinking history
+    
+    **Description:** Retrieves audit trail of all linking and unlinking actions for a chatbot
+    (i.e., when numbers were connected or disconnected from the flow).
+    
+    **Path Parameters:**
+    - `chatbot_id` (UUID, required): Unique chatbot identifier
+    
+    **Query Parameters:**
+    - `limit` (integer, default: 100, max: 500): Maximum number of history entries to return
+    
+    **Returns:** List of history entries with timestamp, action, number_id, and changed_by
+    
+    **Example Response:**
+    ```json
+    {
+      "chatbot_id": "550e8400-e29b-41d4-a716-446655440000",
+      "history": [
+        {
+          "timestamp": "2025-12-11T15:45:30Z",
+          "action": "linked",
+          "number_id": "num_001",
+          "changed_by": "admin@company.com"
+        },
+        {
+          "timestamp": "2025-12-11T15:44:00Z",
+          "action": "unlinked",
+          "number_id": "num_002",
+          "changed_by": "admin@company.com"
+        }
+      ]
+    }
+    ```
+    
+    **Permissions Required:** org_admin or agent role
+    
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `403`: Insufficient permissions
+    - `404`: Chatbot not found
+    - `500`: Database error
+    """
+    service = ChatbotService(db)
+    
+    # Verify chatbot exists and belongs to organization
+    chatbot = await service.get_chatbot(chatbot_id, current_user.organization_id)
+    if not chatbot:
+        raise NotFoundException("Chatbot not found")
+    
+    history = await service.get_linking_history(chatbot_id, current_user.organization_id, limit)
+    
+    return {
+        "chatbot_id": str(chatbot_id),
+        "history": history,
+    }
+
+
 @router.patch(
     "/{chatbot_id}",
     response_model=ChatbotInDB,
@@ -294,9 +363,11 @@ async def update_chatbot(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Update chatbot
+    Update chatbot with multi-binding, fallback, and A/B testing support
     
-    **Description:** Updates chatbot configuration including name, description, welcome message, and active status.
+    **Description:** Updates chatbot configuration including name, description, active status,
+    and new features: multi-binding (link to multiple WhatsApp numbers), fallback flow,
+    and A/B testing configuration.
     
     **Path Parameters:**
     - `chatbot_id` (UUID, required): Unique chatbot identifier
@@ -304,25 +375,74 @@ async def update_chatbot(
     **Request Body (all optional):**
     - `name` (string): New chatbot name
     - `description` (string): Updated description
-    - `welcome_message` (string): New welcome message
     - `is_active` (boolean): Active status
+    - `is_fallback` (boolean): Set as fallback flow for unmapped numbers (unique per org)
+    - `whatsapp_number_ids` (array of strings): Link to multiple WhatsApp numbers
+    - `ab_test_enabled` (boolean): Enable A/B testing
+    - `ab_test_flows` (array): A/B test configuration [{flow_id, weight, variant_name}]
+    - `global_variables` (object): Global variables
+    - `settings` (object): Bot settings
     
-    **Returns:** Updated ChatbotInDB
+    **Example - Multi-binding:**
+    ```json
+    {
+      "name": "Customer Service",
+      "whatsapp_number_ids": ["num_001", "num_002", "num_003"],
+      "is_fallback": false
+    }
+    ```
+    
+    **Example - Fallback Flow:**
+    ```json
+    {
+      "name": "Default Flow",
+      "is_fallback": true,
+      "whatsapp_number_ids": null
+    }
+    ```
+    
+    **Example - A/B Testing:**
+    ```json
+    {
+      "ab_test_enabled": true,
+      "ab_test_flows": [
+        {"flow_id": "flow_a", "weight": 60, "variant_name": "Red Button"},
+        {"flow_id": "flow_b", "weight": 40, "variant_name": "Blue Button"}
+      ]
+    }
+    ```
+    
+    **Returns:** Updated ChatbotInDB with linked_history
     
     **Permissions Required:** org_admin role
     
     **Possible Errors:**
-    - `400`: Invalid update data
+    - `400`: Invalid data (e.g., both whatsapp_number_ids and is_fallback set)
     - `401`: User not authenticated
     - `403`: Insufficient permissions
     - `404`: Chatbot not found
+    - `409`: Fallback conflict (org already has a fallback)
     - `500`: Database error
     """
     service = ChatbotService(db)
+    
+    # Attach user email to data for audit trail
+    data._user_email = current_user.email  # type: ignore
+    
     chatbot = await service.update_chatbot(
         chatbot_id, current_user.organization_id, data
     )
-    return chatbot
+    
+    # Populate linked_history
+    history = await service.get_linking_history(chatbot_id, current_user.organization_id)
+    chatbot_dict = ChatbotInDB.from_orm(chatbot).model_dump()  # type: ignore
+    chatbot_dict["linked_history"] = history
+    
+    # Populate whatsapp_number_ids from links
+    number_links = await service.number_link_repo.get_by_chatbot(chatbot_id, current_user.organization_id)
+    chatbot_dict["whatsapp_number_ids"] = [link.whatsapp_number_id for link in number_links]
+    
+    return chatbot_dict
 
 
 @router.post(
