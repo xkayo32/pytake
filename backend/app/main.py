@@ -3,6 +3,9 @@ PyTake - WhatsApp Automation Platform
 FastAPI Application Entry Point
 """
 
+import logging
+import logging.config
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -18,6 +21,9 @@ from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 
 # Import routers
 from app.api.v1.router import api_router
+
+# Configure logging to disable uvicorn access logs
+logging.getLogger("uvicorn.access").setLevel(logging.CRITICAL)
 
 
 def run_migrations():
@@ -606,4 +612,5 @@ if __name__ == "__main__":
         reload=settings.RELOAD,
         workers=1 if settings.RELOAD else settings.WORKERS,
         log_level=settings.LOG_LEVEL.lower(),
+        access_log=False,
     )
