@@ -110,17 +110,10 @@ def require_role(allowed_roles: list[str]):
         # Check new RBAC system (role_id with database lookup)
         if current_user.role_id:
             from app.repositories.role_repository import RoleRepository
-            from sqlalchemy import select
 
-            # Load role object if not already loaded
-            if not hasattr(current_user, "role_obj") or current_user.role_obj is None:
-                role_repo = RoleRepository(db)
-                role = await role_repo.get(current_user.role_id)
-                if role and role.name in allowed_roles:
-                    return current_user
-
-            # Check if loaded role is in allowed list
-            elif current_user.role_obj and current_user.role_obj.name in allowed_roles:
+            role_repo = RoleRepository(db)
+            role = await role_repo.get(current_user.role_id)
+            if role and role.name in allowed_roles:
                 return current_user
 
         raise HTTPException(
