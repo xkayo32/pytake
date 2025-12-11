@@ -191,7 +191,7 @@ query GetMe {
 | 4 | **Departments** | `department`, `departments`, `department_stats` | `createDepartment`, `updateDepartment`, `deleteDepartment` | Departamentos |
 | 5 | **Queues** | `queue`, `queues`, `queue_stats` | `createQueue`, `updateQueue`, `deleteQueue` | Filas de atendimento |
 | 6 | **Contacts** | `contact`, `contacts`, `contact_stats` | `createContact`, `updateContact`, `deleteContact`, `blockContact`, `mergeContacts` | Gerenciamento de contatos |
-| 7 | **Conversations** | `conversation`, `conversations` | `createConversation`, `sendMessage`, `assignConversation`, `closeConversation`, `reopenConversation` | Conversas e mensagens |
+| 7 | **Conversations** | `conversation`, `conversations` | `sendMessage`, `assignConversation`, `closeConversation`, `reopenConversation`, `activateFlowInConversation`, `deactivateFlowInConversation`, `executeJumpToFlow` | Conversas, mensagens e controle de flows |
 | 8 | **WhatsApp** | `whatsapp_connection`, `whatsapp_connections`, `whatsapp_qr_code`, `whatsapp_templates` | `createWhatsAppConnection`, `updateWhatsAppConnection`, `deleteWhatsAppConnection`, `disconnectWhatsApp` | Integração WhatsApp |
 | 9 | **Chatbots** | `chatbot`, `chatbots` | `createChatbot`, `updateChatbot`, `deleteChatbot`, `activateChatbot`, `deactivateChatbot` | Chatbots e Flows |
 | 10 | **Campaigns** | `campaign`, `campaigns` | `createCampaign`, `updateCampaign`, `deleteCampaign`, `startCampaign`, `cancelCampaign` | Campanhas de mensagens |
@@ -277,7 +277,68 @@ query OpenConversations {
 }
 ```
 
-### 4. Analytics Module
+### 3.1 Flow Management Module (NEW)
+
+```graphql
+# Mutations para controle de flows em conversas
+mutation ManageFlows {
+  # Ativar um flow manualmente
+  activateFlow: activateFlowInConversation(
+    conversation_id: "conv-id-123"
+    flow_id: "flow-id-456"
+  ) {
+    id
+    active_flow_id
+    current_node_id
+    context_variables
+  }
+
+  # Executar transição jump_to_flow
+  jumpFlow: executeJumpToFlow(
+    conversation_id: "conv-id-123"
+    node_id: "jump-node-789"
+  ) {
+    id
+    active_flow_id
+    current_node_id
+  }
+
+  # Desativar flow (entregar para agente)
+  deactivateFlow: deactivateFlowInConversation(
+    conversation_id: "conv-id-123"
+  ) {
+    id
+    is_bot_active
+    active_flow_id
+  }
+}
+
+# Query para verificar status do flow
+query FlowStatus {
+  conversation(id: "conv-id-123") {
+    id
+    active_flow_id
+    current_node_id
+    context_variables
+    is_bot_active
+    whatsapp_number {
+      id
+      default_flow_id
+    }
+  }
+}
+```
+
+**Recursos**:
+- ✅ Auto-inicialização de flows ao receber mensagem (via `default_flow_id`)
+- ✅ Transições manuais entre flows
+- ✅ Transições automáticas via `jump_to_flow` nodes
+- ✅ Passagem de variáveis entre flows
+- ✅ Contexto de execução (`context_variables`)
+
+---
+
+### 5. Analytics Module
 
 ```graphql
 # Dashboard de métricas completo
@@ -322,24 +383,49 @@ query AnalyticsDashboard {
 }
 ```
 
-### 5. WhatsApp Module
+### 6. WhatsApp Module
 
 ```graphql
-# Listar conexões WhatsApp com status
-query WhatsAppConnections {
-  whatsapp_connections {
+# Listar números WhatsApp com flows configurados
+query WhatsAppWithFlows {
+  whatsappNumbers {
     id
-    phone_number
-    display_name
+    phoneNumber
+    displayName
     status
-    qr_code_status
-    is_connected
-    battery_level
-    last_seen_at
-    created_at
+    defaultFlowId
+    defaultChatbotId
+    isActive
   }
 }
 ```
+
+**Mutations - WhatsApp Flow Linking** (NEW):
+
+```graphql
+mutation ManageWhatsAppFlows {
+  # Vincular um flow a um número WhatsApp
+  linkFlow: linkFlowToWhatsapp(
+    whatsappNumberId: "wa-number-id"
+    flowId: "flow-id-123"
+  ) {
+    id
+    phoneNumber
+    defaultFlowId
+  }
+
+  # Desvinculer flow de um número
+  unlinkFlow: unlinkFlowFromWhatsapp(
+    whatsappNumberId: "wa-number-id"
+  ) {
+    id
+    phoneNumber
+    defaultFlowId
+  }
+}
+```
+
+**Use Case**: Quando um cliente envia mensagem para este número WhatsApp, o `defaultFlowId` será automaticamente iniciado em uma nova conversa.
 
 ---
 
@@ -576,6 +662,49 @@ query AdvancedSearch($search: String!) {
   "search": "João"
 }
 ```
+
+### Exemplo 4: Flow Routing e Transições (NEW)
+
+```graphql
+mutation FlowTransition {
+  # 1. Ativar um flow em uma conversa (manual transition)
+  activateFlow: activateFlowInConversation(
+    conversation_id: "CONVERSATION_ID"
+    flow_id: "FLOW_ID"
+  ) {
+    id
+    active_flow_id
+    current_node_id
+    status
+  }
+
+  # 2. Executar uma transição jump_to_flow
+  jumpFlow: executeJumpToFlow(
+    conversation_id: "CONVERSATION_ID"
+    node_id: "JUMP_NODE_ID"
+  ) {
+    id
+    active_flow_id
+    current_node_id
+    context_variables
+  }
+
+  # 3. Desativar flow (entregar para humano)
+  deactivateFlow: deactivateFlowInConversation(
+    conversation_id: "CONVERSATION_ID"
+  ) {
+    id
+    active_flow_id
+    is_bot_active
+    status
+  }
+}
+```
+
+**Casos de Uso**:
+- `activateFlowInConversation`: Iniciar um flow específico manualmente
+- `executeJumpToFlow`: Transição automática entre flows (dentro do flow engine)
+- `deactivateFlowInConversation`: Pausar bot e passar para atendente humano
 
 ---
 
