@@ -171,25 +171,35 @@ em Conversation
 
 ## 🚀 Implementação Necessária
 
-### **Phase 1: Core (JÁ FEITO)**
+### **Phase 1: Core (✅ COMPLETO)**
 - ✅ WhatsAppNumber.default_flow_id
-- ✅ Mutation: linkFlowToWhatsapp
+- ✅ Mutation: linkFlowToWhatsapp + unlinkFlowFromWhatsapp
 - ✅ GraphQL: WhatsAppNumberType com defaultFlowId
+- ✅ Migration: adicionado campo default_flow_id à tabela whatsapp_numbers
+- **Commit:** 3a701a8
 
-### **Phase 2: Webhook Handler (PRÓXIMO)**
-- ⏳ Endpoint: `POST /api/v1/whatsapp/webhook` recebe mensagem
-- ⏳ Lógica: Identifica número → carrega default_flow → cria Conversation
-- ⏳ Inicia execução de Flow A
+### **Phase 2: Webhook Handler (✅ COMPLETO)**
+- ✅ Endpoint: `POST /api/v1/whatsapp/webhook` recebe mensagem
+- ✅ Lógica: Identifica número → carrega default_flow → cria Conversation
+- ✅ Inicia execução de Flow A (set current_node_id ao start node)
+- ✅ Erro handling: non-blocking (flow init failure não quebra conversation)
+- **Mudanças:**
+  - `whatsapp_service.py`: `_process_incoming_message()` inicializa flow
+  - Adiciona `active_flow_id` na criação de Conversation
+  - Busca start node e seta `current_node_id`
+- **Commit:** 6c22fac (mutations) + anteriores (webhook logic)
 
-### **Phase 3: Flow Engine**
+### **Phase 3: Flow Engine (⏳ PRÓXIMO)**
 - ⏳ Node executor: Processa node_type "jump_to_flow"
 - ⏳ Transição: Atualiza active_flow_id em Conversation
 - ⏳ Context: Passa variáveis entre flows
+- ⏳ Implementação: Novo serviço `flow_engine.py` com método `execute_jump_to_flow()`
 
-### **Phase 4: GraphQL Mutations**
-- ⏳ `updateConversationFlow(conversationId, flowId)` - transição manual
-- ⏳ `skipNode(conversationId)` - pular node
-- ⏳ `pauseFlow(conversationId)` - pausar execução
+### **Phase 4: GraphQL Mutations (✅ COMPLETO)**
+- ✅ `activateFlowInConversation(conversationId, flowId)` - transição manual com auto-start node
+- ✅ `deactivateFlowInConversation(conversationId)` - pausar/desativar flow (handoff para humano)
+- ✅ `reopenConversation(conversationId)` - reabrir conversa fechada
+- **Commit:** 6c22fac
 
 ---
 
@@ -216,5 +226,5 @@ em Conversation
 
 ---
 
-**Status:** Em Planejamento  
-**Próximo Passo:** Implementar Webhook Handler (Phase 2)
+**Status:** Phase 2 ✅ Completo | Phase 3 ⏳ Em Andamento  
+**Próximo Passo:** Implementar Flow Engine com suporte a jump_to_flow (Phase 3)
