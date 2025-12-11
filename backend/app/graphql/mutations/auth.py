@@ -59,7 +59,7 @@ class AuthMutation:
         user_repo = UserRepository(context.db)
         user = await user_repo.get_by_email(input.email)
 
-        if not user or not verify_password(input.password, user.hashed_password):
+        if not user or not verify_password(input.password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password"
@@ -79,18 +79,15 @@ class AuthMutation:
 
         # Create tokens
         access_token = create_access_token(
-            data={
-                "sub": str(user.id),
+            subject=str(user.id),
+            additional_claims={
                 "organization_id": str(user.organization_id),
                 "role": user.role,
             }
         )
 
         refresh_token = create_refresh_token(
-            data={
-                "sub": str(user.id),
-                "type": "refresh",
-            }
+            subject=str(user.id)
         )
 
         # Convert SQLAlchemy model to Strawberry type
@@ -98,10 +95,10 @@ class AuthMutation:
             id=strawberry.ID(str(user.id)),
             organization_id=strawberry.ID(str(user.organization_id)),
             email=user.email,
-            name=user.name,
+            name=user.full_name,
             role=user.role,
             is_active=user.is_active,
-            phone=user.phone,
+            phone=user.phone_number,
             avatar_url=user.avatar_url,
             created_at=user.created_at,
             updated_at=user.updated_at,
@@ -162,28 +159,25 @@ class AuthMutation:
 
         # Create tokens
         access_token = create_access_token(
-            data={
-                "sub": str(user.id),
+            subject=str(user.id),
+            additional_claims={
                 "organization_id": str(user.organization_id),
                 "role": user.role,
             }
         )
 
         refresh_token = create_refresh_token(
-            data={
-                "sub": str(user.id),
-                "type": "refresh",
-            }
+            subject=str(user.id)
         )
 
         user_type = UserType(
             id=strawberry.ID(str(user.id)),
             organization_id=strawberry.ID(str(user.organization_id)),
             email=user.email,
-            name=user.name,
+            name=user.full_name,
             role=user.role,
             is_active=user.is_active,
-            phone=user.phone,
+            phone=user.phone_number,
             avatar_url=user.avatar_url,
             created_at=user.created_at,
             updated_at=user.updated_at,
@@ -222,7 +216,7 @@ class AuthMutation:
 
             # Get user
             user_repo = UserRepository(context.db)
-            user = await user_repo.get_by_id(UUID(user_id))
+            user = await user_repo.get(UUID(user_id))
 
             if not user or user.deleted_at or not user.is_active:
                 raise HTTPException(
@@ -232,8 +226,8 @@ class AuthMutation:
 
             # Create new access token
             access_token = create_access_token(
-                data={
-                    "sub": str(user.id),
+                subject=str(user.id),
+                additional_claims={
                     "organization_id": str(user.organization_id),
                     "role": user.role,
                 }
@@ -241,20 +235,17 @@ class AuthMutation:
 
             # Create new refresh token
             new_refresh_token = create_refresh_token(
-                data={
-                    "sub": str(user.id),
-                    "type": "refresh",
-                }
+                subject=str(user.id)
             )
 
             user_type = UserType(
                 id=strawberry.ID(str(user.id)),
                 organization_id=strawberry.ID(str(user.organization_id)),
                 email=user.email,
-                name=user.name,
+                name=user.full_name,
                 role=user.role,
                 is_active=user.is_active,
-                phone=user.phone,
+                phone=user.phone_number,
                 avatar_url=user.avatar_url,
                 created_at=user.created_at,
                 updated_at=user.updated_at,
