@@ -59,6 +59,7 @@ async def initialize_system_roles(
     """
     service = RoleService(db)
     await service.initialize_system_roles(current_user.organization_id)
+    await db.commit()  # Commit changes to database
     
     roles = await service.list_roles(current_user.organization_id)
     return {
@@ -103,6 +104,7 @@ async def create_role(
         description=data.description,
         organization_id=current_user.organization_id,
     )
+    await db.commit()  # Persist changes
     return role
 
 
@@ -180,6 +182,7 @@ async def update_role(
         raise NotFoundException("Role not found")
     
     updated_role = await service.update_role(role_id, data.model_dump(exclude_unset=True))
+    await db.commit()  # Persist role updates
     return updated_role
 
 
@@ -210,6 +213,7 @@ async def delete_role(
         raise NotFoundException("Role not found")
     
     await service.delete_role(role_id)
+    await db.commit()  # Persist role deletion
 
 
 # ============================================
@@ -248,6 +252,7 @@ async def assign_permissions(
         raise NotFoundException("Role not found")
     
     updated_role = await service.assign_permissions(role_id, data.permission_ids)
+    await db.commit()  # Persist permission assignments
     return updated_role
 
 
@@ -318,6 +323,7 @@ async def create_permission(
         "organization_id": current_user.organization_id,
     }
     permission = await service.permission_repo.create(permission_data)
+    await db.commit()  # Persist new permission
     return permission
 
 

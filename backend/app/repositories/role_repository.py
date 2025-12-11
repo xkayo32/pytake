@@ -5,7 +5,7 @@ Repositories for RBAC - Database access layer
 from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -118,9 +118,12 @@ class RoleRepository:
         return result.scalars().first()
 
     async def list_by_organization(self, organization_id: Optional[UUID] = None) -> List[Role]:
-        """List roles for organization"""
+        """List roles for organization (includes system roles + custom org roles)"""
         stmt = select(Role).where(
-            Role.organization_id == organization_id
+            or_(
+                Role.organization_id == organization_id,  # Custom org roles
+                Role.organization_id.is_(None)  # System roles (NULL organization_id)
+            )
         ).order_by(Role.is_system.desc(), Role.name).options(
             selectinload(Role.permissions)
         )
