@@ -285,3 +285,41 @@ class ConversationMutation:
             created_at=conv.created_at,
             updated_at=conv.updated_at,
         )
+
+    @strawberry.mutation
+    @require_auth
+    async def execute_jump_to_flow(
+        self,
+        info: Info[GraphQLContext, None],
+        conversation_id: strawberry.ID,
+        node_id: strawberry.ID,
+    ) -> ConversationType:
+        """Execute a jump_to_flow node and transition conversation to target flow"""
+        context: GraphQLContext = info.context
+
+        from app.services.flow_engine import FlowEngineService
+
+        # Execute jump transition
+        flow_engine = FlowEngineService(context.db)
+        updated_conv = await flow_engine.execute_jump_to_flow(
+            UUID(conversation_id), UUID(node_id), context.organization_id
+        )
+
+        if not updated_conv:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to execute flow transition"
+            )
+
+        return ConversationType(
+            id=strawberry.ID(str(updated_conv.id)),
+            organization_id=strawberry.ID(str(updated_conv.organization_id)),
+            contact_id=strawberry.ID(str(updated_conv.contact_id)),
+            queue_id=strawberry.ID(str(updated_conv.queue_id)) if updated_conv.queue_id else None,
+            assigned_agent_id=strawberry.ID(str(updated_conv.assigned_agent_id)) if updated_conv.assigned_agent_id else None,
+            whatsapp_number_id=strawberry.ID(str(updated_conv.whatsapp_number_id)),
+            status=updated_conv.status,
+            last_message_at=updated_conv.last_message_at,
+            created_at=updated_conv.created_at,
+            updated_at=updated_conv.updated_at,
+        )
