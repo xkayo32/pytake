@@ -189,11 +189,16 @@ em Conversation
   - Busca start node e seta `current_node_id`
 - **Commit:** 6c22fac (mutations) + anteriores (webhook logic)
 
-### **Phase 3: Flow Engine (⏳ PRÓXIMO)**
-- ⏳ Node executor: Processa node_type "jump_to_flow"
-- ⏳ Transição: Atualiza active_flow_id em Conversation
-- ⏳ Context: Passa variáveis entre flows
-- ⏳ Implementação: Novo serviço `flow_engine.py` com método `execute_jump_to_flow()`
+### **Phase 3: Flow Engine (✅ COMPLETO)**
+- ✅ Node executor: Processa node_type "jump_to_flow"
+- ✅ Transição: Atualiza active_flow_id em Conversation
+- ✅ Context: Passa variáveis entre flows (com variable_mapping support)
+- ✅ Implementação:
+  - `flow_engine.py`: FlowEngineService com `execute_jump_to_flow()`
+  - `node.py`: NodeRepository para acesso a nós
+  - GraphQL mutation: `executeJumpToFlow(conversationId, nodeId)`
+- ✅ Suporte a variable mapping com template expressions `{{var_name}}`
+- **Commit:** d9c7026
 
 ### **Phase 4: GraphQL Mutations (✅ COMPLETO)**
 - ✅ `activateFlowInConversation(conversationId, flowId)` - transição manual com auto-start node
@@ -226,5 +231,5 @@ em Conversation
 
 ---
 
-**Status:** Phase 2 ✅ Completo | Phase 3 ⏳ Em Andamento  
-**Próximo Passo:** Implementar Flow Engine com suporte a jump_to_flow (Phase 3)
+**Status:** Phase 3 ✅ Completo | Todas as Phases Implementadas 🎉  
+**Próximo Passo:** REST Endpoints (opcional) ou testing & validação integrada
