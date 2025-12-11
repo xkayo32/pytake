@@ -109,7 +109,7 @@ def require_role(allowed_roles: list[str]):
 
         # Check new RBAC system (role_id with database lookup)
         if current_user.role_id:
-            from app.repositories.role import RoleRepository
+            from app.repositories.role_repository import RoleRepository
             from sqlalchemy import select
 
             # Load role object if not already loaded
@@ -155,7 +155,7 @@ async def get_current_admin(
 
     # Check new RBAC system
     if current_user.role_id:
-        from app.repositories.role import RoleRepository
+        from app.repositories.role_repository import RoleRepository
 
         role_repo = RoleRepository(db)
         role = await role_repo.get(current_user.role_id)
@@ -190,7 +190,7 @@ async def get_current_super_admin(
 
     # Check new RBAC system
     if current_user.role_id:
-        from app.repositories.role import RoleRepository
+        from app.repositories.role_repository import RoleRepository
 
         role_repo = RoleRepository(db)
         role = await role_repo.get(current_user.role_id)
