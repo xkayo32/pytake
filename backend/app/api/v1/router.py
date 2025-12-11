@@ -248,6 +248,10 @@ api_router.include_router(debug.router, prefix="/debug", tags=["Debug"])
 flows = _load_endpoint_module("flows")
 api_router.include_router(flows.router, prefix="/flows", tags=["Flow Builder"])
 
+rbac = _load_endpoint_module("rbac")
+api_router.include_router(rbac.router, tags=["RBAC"])
+api_router.include_router(rbac.permissions_router, tags=["RBAC"])
+
 @api_router.get("/campaigns", tags=["Campaigns"])
 async def list_campaigns(organization_id: str = Query(...)):
     """List campaigns for organization (mock data)"""

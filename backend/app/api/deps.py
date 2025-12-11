@@ -158,7 +158,7 @@ def get_organization_id(current_user: User = Depends(get_current_active_user)) -
 
 def require_permission(permission: str):
     """
-    Dependency to check if user has specific permission
+    Dependency to check if user has specific permission (LEGACY - uses User.permissions array)
     Args:
         permission: Required permission
     Returns:
@@ -172,6 +172,55 @@ def require_permission(permission: str):
                 detail=f"Insufficient permissions. Required: {permission}",
             )
         return current_user
+
+    return permission_checker
+
+
+def require_permission_dynamic(required_permission: str):
+    """
+    Dependency to check if user has permission via dynamic RBAC system.
+    Reads from database (Role + RolePermission) instead of hardcoded roles.
+    
+    Args:
+        required_permission: Permission string (e.g., "create_chatbot", "manage_users")
+        
+    Returns:
+        Dependency function
+        
+    Usage:
+        @router.post("/", dependencies=[Depends(require_permission_dynamic("create_chatbot"))])
+        async def create_chatbot(...):
+            ...
+    """
+    async def permission_checker(
+        current_user: User = Depends(get_current_active_user),
+        db: AsyncSession = Depends(get_db),
+    ):
+        from app.services.role_service import RoleService
+        from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
+        
+        # Load user with role and permissions
+        stmt = select(User).where(User.id == current_user.id).options(
+            selectinload(User.role_obj).selectinload(type(User.role_obj).permissions)
+        )
+        result = await db.execute(stmt)
+        user_with_role = result.scalars().first()
+
+        if not user_with_role or not user_with_role.role_obj:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No role assigned to user",
+            )
+
+        # Check permission using RoleService
+        if not RoleService.has_permission(user_with_role.role_obj, required_permission):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Insufficient permissions. Required: {required_permission}",
+            )
+
+        return user_with_role
 
     return permission_checker
 

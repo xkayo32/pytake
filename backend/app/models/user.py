@@ -48,14 +48,23 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     bio = Column(Text, nullable=True)
 
     # Role & Permissions
-    # Roles: super_admin, org_admin, agent, viewer
-    role = Column(
-        String(50),
-        nullable=False,
-        default="agent",
-        server_default="agent",
+    # FK to dynamic role system
+    role_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("roles.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
+    
+    # Legacy: Keep for backwards compatibility during migration
+    role = Column(
+        String(50),
+        nullable=True,
+        default=None,
+        index=True,
+    )
+    
+    # Direct permissions (for edge cases, normally managed via role)
     permissions = Column(
         ARRAY(String),
         nullable=False,
@@ -115,6 +124,7 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
 
     # Relationships
     organization = relationship("Organization", back_populates="users")
+    role_obj = relationship("Role", back_populates="users", foreign_keys=[role_id])
     refresh_tokens = relationship(
         "RefreshToken", back_populates="user", cascade="all, delete-orphan"
     )
