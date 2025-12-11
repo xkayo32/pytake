@@ -138,7 +138,6 @@ class WhatsAppNumber(Base, TimestampMixin, SoftDeleteMixin):
     templates = relationship("WhatsAppTemplate", back_populates="whatsapp_number", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="whatsapp_number")
     messages = relationship("Message", back_populates="whatsapp_number")
-    chatbots = relationship("Chatbot", back_populates="whatsapp_number", foreign_keys="Chatbot.whatsapp_number_id")
 
     def __repr__(self):
         return f"<WhatsAppNumber(id={self.id}, phone='{self.phone_number}', org_id={self.organization_id})>"
