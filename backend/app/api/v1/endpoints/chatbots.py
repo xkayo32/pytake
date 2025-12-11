@@ -285,7 +285,7 @@ async def get_chatbot_stats(
 @router.patch(
     "/{chatbot_id}",
     response_model=ChatbotInDB,
-    dependencies=[Depends(require_role(["org_admin"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin"]))],
 )
 async def update_chatbot(
     chatbot_id: UUID,
@@ -328,7 +328,7 @@ async def update_chatbot(
 @router.post(
     "/{chatbot_id}/activate",
     response_model=ChatbotInDB,
-    dependencies=[Depends(require_role(["org_admin"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin"]))],
 )
 async def activate_chatbot(
     chatbot_id: UUID,
@@ -350,7 +350,7 @@ async def activate_chatbot(
 @router.post(
     "/{chatbot_id}/deactivate",
     response_model=ChatbotInDB,
-    dependencies=[Depends(require_role(["org_admin"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin"]))],
 )
 async def deactivate_chatbot(
     chatbot_id: UUID,
@@ -370,7 +370,7 @@ async def deactivate_chatbot(
 @router.delete(
     "/{chatbot_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_role(["org_admin"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin"]))],
 )
 async def delete_chatbot(
     chatbot_id: UUID,
@@ -395,7 +395,7 @@ async def delete_chatbot(
     "/{chatbot_id}/flows",
     response_model=FlowInDB,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin", "agent"]))],
 )
 async def create_flow(
     chatbot_id: UUID,
@@ -468,7 +468,7 @@ async def get_flow_with_nodes(
 @router.patch(
     "/flows/{flow_id}",
     response_model=FlowInDB,
-    dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin", "agent"]))],
 )
 async def update_flow(
     flow_id: UUID,
@@ -489,7 +489,7 @@ async def update_flow(
 @router.delete(
     "/flows/{flow_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_role(["org_admin"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin"]))],
 )
 async def delete_flow(
     flow_id: UUID,
@@ -516,7 +516,7 @@ async def delete_flow(
     "/flows/{flow_id}/nodes",
     response_model=NodeInDB,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin", "agent"]))],
 )
 async def create_node(
     flow_id: UUID,
@@ -551,7 +551,7 @@ async def list_nodes(
 @router.patch(
     "/nodes/{node_id}",
     response_model=NodeInDB,
-    dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin", "agent"]))],
 )
 async def update_node(
     node_id: UUID,
@@ -572,7 +572,7 @@ async def update_node(
 @router.delete(
     "/nodes/{node_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin", "agent"]))],
 )
 async def delete_node(
     node_id: UUID,
@@ -596,7 +596,7 @@ async def delete_node(
 @router.get(
     "/flows/{flow_id}/export",
     response_model=dict,
-    dependencies=[Depends(require_role(["org_admin"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin"]))],
 )
 async def export_flow(
     flow_id: UUID,
@@ -620,7 +620,7 @@ async def export_flow(
     "/{chatbot_id}/import",
     response_model=FlowInDB,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(["org_admin"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin"]))],
 )
 async def import_flow(
     chatbot_id: UUID,

@@ -39,7 +39,7 @@ router = APIRouter()
     "/",
     response_model=FlowAutomationResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin", "agent"]))],
 )
 async def create_automation(
     data: FlowAutomationCreate,
@@ -195,7 +195,7 @@ async def update_automation(
 @router.delete(
     "/{automation_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_role(["org_admin"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin"]))],
 )
 async def delete_automation(
     automation_id: UUID,

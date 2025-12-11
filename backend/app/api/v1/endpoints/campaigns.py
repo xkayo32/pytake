@@ -49,7 +49,7 @@ class ScheduleCampaignRequest(BaseModel):
     "/",
     response_model=CampaignInDB,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin", "agent"]))],
 )
 async def create_campaign(
     data: CampaignCreate,
@@ -243,7 +243,7 @@ async def preview_campaign_audience(
 @router.patch(
     "/{campaign_id}",
     response_model=CampaignInDB,
-    dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin", "agent"]))],
 )
 async def update_campaign(
     campaign_id: UUID,
@@ -287,7 +287,7 @@ async def update_campaign(
 @router.delete(
     "/{campaign_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_role(["org_admin"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin"]))],
 )
 async def delete_campaign(
     campaign_id: UUID,
@@ -325,7 +325,7 @@ async def delete_campaign(
 @router.post(
     "/{campaign_id}/schedule",
     response_model=CampaignScheduleResponse,
-    dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin", "agent"]))],
 )
 async def schedule_campaign(
     campaign_id: UUID,
@@ -350,7 +350,7 @@ async def schedule_campaign(
 @router.post(
     "/{campaign_id}/start",
     response_model=CampaignStartResponse,
-    dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin", "agent"]))],
 )
 async def start_campaign(
     campaign_id: UUID,
@@ -384,7 +384,7 @@ async def start_campaign(
 @router.post(
     "/{campaign_id}/pause",
     response_model=CampaignInDB,
-    dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin", "agent"]))],
 )
 async def pause_campaign(
     campaign_id: UUID,
@@ -406,7 +406,7 @@ async def pause_campaign(
 @router.post(
     "/{campaign_id}/resume",
     response_model=CampaignInDB,
-    dependencies=[Depends(require_role(["org_admin", "agent"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin", "agent"]))],
 )
 async def resume_campaign(
     campaign_id: UUID,
@@ -428,7 +428,7 @@ async def resume_campaign(
 @router.post(
     "/{campaign_id}/cancel",
     response_model=CampaignInDB,
-    dependencies=[Depends(require_role(["org_admin"]))],
+    dependencies=[Depends(require_role(["super_admin", "org_admin"]))],
 )
 async def cancel_campaign(
     campaign_id: UUID,
