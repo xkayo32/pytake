@@ -96,6 +96,13 @@ class WhatsAppNumber(Base, TimestampMixin, SoftDeleteMixin):
         nullable=True,
     )
 
+    # Default flow to activate for new conversations
+    default_flow_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("flows.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     # Department to route conversations
     default_department_id = Column(
         UUID(as_uuid=True),

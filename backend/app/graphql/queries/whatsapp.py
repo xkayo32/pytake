@@ -45,6 +45,8 @@ class WhatsAppQuery:
             display_name=number.display_name,
             is_active=number.is_active,
             status=number.status,
+            default_chatbot_id=strawberry.ID(str(number.default_chatbot_id)) if number.default_chatbot_id else None,
+            default_flow_id=strawberry.ID(str(number.default_flow_id)) if number.default_flow_id else None,
             created_at=number.created_at,
             updated_at=number.updated_at,
         )
@@ -73,6 +75,8 @@ class WhatsAppQuery:
                 display_name=n.display_name,
                 is_active=n.is_active,
                 status=n.status,
+                default_chatbot_id=strawberry.ID(str(n.default_chatbot_id)) if n.default_chatbot_id else None,
+                default_flow_id=strawberry.ID(str(n.default_flow_id)) if n.default_flow_id else None,
                 created_at=n.created_at,
                 updated_at=n.updated_at,
             )

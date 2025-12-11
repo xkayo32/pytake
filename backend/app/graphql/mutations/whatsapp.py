@@ -46,9 +46,9 @@ class WhatsAppMutation:
             phone_number=number.phone_number,
             display_name=number.display_name,
             is_active=number.is_active,
-            is_connected=number.is_connected,
-            qr_code=number.qr_code,
             status=number.status,
+            default_chatbot_id=strawberry.ID(str(number.default_chatbot_id)) if number.default_chatbot_id else None,
+            default_flow_id=strawberry.ID(str(number.default_flow_id)) if number.default_flow_id else None,
             created_at=number.created_at,
             updated_at=number.updated_at,
         )
@@ -85,9 +85,9 @@ class WhatsAppMutation:
             phone_number=number.phone_number,
             display_name=number.display_name,
             is_active=number.is_active,
-            is_connected=number.is_connected,
-            qr_code=number.qr_code,
             status=number.status,
+            default_chatbot_id=strawberry.ID(str(number.default_chatbot_id)) if number.default_chatbot_id else None,
+            default_flow_id=strawberry.ID(str(number.default_flow_id)) if number.default_flow_id else None,
             created_at=number.created_at,
             updated_at=number.updated_at,
         )
@@ -114,4 +114,79 @@ class WhatsAppMutation:
         return SuccessResponse(
             success=True,
             message="WhatsApp number deleted successfully"
+        )
+
+    @strawberry.mutation
+    @require_role("org_admin")
+    async def link_flow_to_whatsapp(
+        self,
+        info: Info[GraphQLContext, None],
+        whatsapp_number_id: strawberry.ID,
+        flow_id: strawberry.ID,
+    ) -> WhatsAppNumberType:
+        """Link a flow to a WhatsApp number (default flow for new conversations)"""
+        context: GraphQLContext = info.context
+
+        whatsapp_repo = WhatsAppNumberRepository(context.db)
+        
+        # Get the WhatsApp number
+        number = await whatsapp_repo.get_by_id(UUID(whatsapp_number_id), context.organization_id)
+        if not number:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="WhatsApp number not found"
+            )
+
+        # Update the default_flow_id
+        number.default_flow_id = UUID(flow_id)
+        await whatsapp_repo.save(number)
+
+        return WhatsAppNumberType(
+            id=strawberry.ID(str(number.id)),
+            organization_id=strawberry.ID(str(number.organization_id)),
+            phone_number=number.phone_number,
+            display_name=number.display_name,
+            is_active=number.is_active,
+            status=number.status,
+            default_chatbot_id=strawberry.ID(str(number.default_chatbot_id)) if number.default_chatbot_id else None,
+            default_flow_id=strawberry.ID(str(number.default_flow_id)) if number.default_flow_id else None,
+            created_at=number.created_at,
+            updated_at=number.updated_at,
+        )
+
+    @strawberry.mutation
+    @require_role("org_admin")
+    async def unlink_flow_from_whatsapp(
+        self,
+        info: Info[GraphQLContext, None],
+        whatsapp_number_id: strawberry.ID,
+    ) -> WhatsAppNumberType:
+        """Unlink flow from WhatsApp number"""
+        context: GraphQLContext = info.context
+
+        whatsapp_repo = WhatsAppNumberRepository(context.db)
+        
+        # Get the WhatsApp number
+        number = await whatsapp_repo.get_by_id(UUID(whatsapp_number_id), context.organization_id)
+        if not number:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="WhatsApp number not found"
+            )
+
+        # Clear the default_flow_id
+        number.default_flow_id = None
+        await whatsapp_repo.save(number)
+
+        return WhatsAppNumberType(
+            id=strawberry.ID(str(number.id)),
+            organization_id=strawberry.ID(str(number.organization_id)),
+            phone_number=number.phone_number,
+            display_name=number.display_name,
+            is_active=number.is_active,
+            status=number.status,
+            default_chatbot_id=strawberry.ID(str(number.default_chatbot_id)) if number.default_chatbot_id else None,
+            default_flow_id=strawberry.ID(str(number.default_flow_id)) if number.default_flow_id else None,
+            created_at=number.created_at,
+            updated_at=number.updated_at,
         )
