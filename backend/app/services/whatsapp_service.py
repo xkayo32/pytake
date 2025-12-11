@@ -4228,12 +4228,43 @@ __result__ = __script_func__()
                 "last_message_at": now,
                 "last_inbound_message_at": now,
                 "window_expires_at": window_expires,
-                "is_bot_active": True if whatsapp_number.default_chatbot_id else False,
+                "is_bot_active": True if whatsapp_number.default_chatbot_id or whatsapp_number.default_flow_id else False,
                 "active_chatbot_id": whatsapp_number.default_chatbot_id,
+                "active_flow_id": whatsapp_number.default_flow_id,  # Iniciar flow padrão
             }
 
             conversation = await conversation_repo.create(conversation_data)
             logger.info(f"Created new conversation: {conversation.id}")
+            
+            # 🔄 Iniciar Flow Padrão se configurado
+            if whatsapp_number.default_flow_id:
+                try:
+                    from app.repositories.chatbot import FlowRepository
+                    
+                    flow_repo = FlowRepository(self.db)
+                    flow = await flow_repo.get_by_id(whatsapp_number.default_flow_id, whatsapp_number.organization_id)
+                    
+                    if flow:
+                        # Obter o start node do flow
+                        start_node = None
+                        for node in flow.nodes:
+                            if node.node_type == "start":
+                                start_node = node
+                                break
+                        
+                        if start_node:
+                            # Atualizar conversation com current_node_id
+                            await conversation_repo.update(conversation.id, {
+                                "current_node_id": start_node.id
+                            })
+                            logger.info(f"✅ Default flow initiated: {flow.name} (ID: {flow.id}) for conversation {conversation.id}")
+                        else:
+                            logger.warning(f"No start node found in flow {flow.id}")
+                    else:
+                        logger.warning(f"Default flow not found: {whatsapp_number.default_flow_id}")
+                except Exception as e:
+                    logger.error(f"Error initiating default flow: {e}", exc_info=True)
+                    # Não falha a conversa se o flow não iniciar
 
             # VIP Routing: If contact is VIP, assign to VIP queue automatically with overflow check
             if contact.is_vip:

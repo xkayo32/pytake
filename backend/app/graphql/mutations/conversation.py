@@ -181,3 +181,107 @@ class ConversationMutation:
             created_at=conv.created_at,
             updated_at=conv.updated_at,
         )
+
+    @strawberry.mutation
+    @require_auth
+    async def activate_flow_in_conversation(
+        self,
+        info: Info[GraphQLContext, None],
+        conversation_id: strawberry.ID,
+        flow_id: strawberry.ID,
+    ) -> ConversationType:
+        """Activate a flow in a conversation (switch to another flow)"""
+        context: GraphQLContext = info.context
+
+        conv_repo = ConversationRepository(context.db)
+        conv = await conv_repo.get_by_id(UUID(conversation_id), context.organization_id)
+
+        if not conv:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found"
+            )
+
+        # Update conversation with new flow
+        from datetime import datetime
+        
+        conv.active_flow_id = UUID(flow_id)
+        conv.updated_at = datetime.utcnow()
+        
+        # Get start node of the flow to set current_node_id
+        try:
+            from app.repositories.chatbot import FlowRepository
+            
+            flow_repo = FlowRepository(context.db)
+            flow = await flow_repo.get_by_id(UUID(flow_id), context.organization_id)
+            
+            if flow and flow.nodes:
+                # Find start node
+                for node in flow.nodes:
+                    if node.node_type == "start":
+                        conv.current_node_id = node.id
+                        break
+        except Exception as e:
+            # Log but don't fail - flow will still be activated even without start node
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Could not set start node for flow: {e}")
+        
+        await context.db.commit()
+        await context.db.refresh(conv)
+
+        return ConversationType(
+            id=strawberry.ID(str(conv.id)),
+            organization_id=strawberry.ID(str(conv.organization_id)),
+            contact_id=strawberry.ID(str(conv.contact_id)),
+            queue_id=strawberry.ID(str(conv.queue_id)) if conv.queue_id else None,
+            assigned_agent_id=strawberry.ID(str(conv.assigned_agent_id)) if conv.assigned_agent_id else None,
+            whatsapp_number_id=strawberry.ID(str(conv.whatsapp_number_id)),
+            status=conv.status,
+            last_message_at=conv.last_message_at,
+            created_at=conv.created_at,
+            updated_at=conv.updated_at,
+        )
+
+    @strawberry.mutation
+    @require_auth
+    async def deactivate_flow_in_conversation(
+        self,
+        info: Info[GraphQLContext, None],
+        conversation_id: strawberry.ID,
+    ) -> ConversationType:
+        """Deactivate/pause flow in a conversation (hand off to human)"""
+        context: GraphQLContext = info.context
+
+        conv_repo = ConversationRepository(context.db)
+        conv = await conv_repo.get_by_id(UUID(conversation_id), context.organization_id)
+
+        if not conv:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found"
+            )
+
+        # Clear flow and set is_bot_active to False
+        from datetime import datetime
+        
+        conv.active_flow_id = None
+        conv.current_node_id = None
+        conv.is_bot_active = False
+        conv.updated_at = datetime.utcnow()
+        
+        await context.db.commit()
+        await context.db.refresh(conv)
+
+        return ConversationType(
+            id=strawberry.ID(str(conv.id)),
+            organization_id=strawberry.ID(str(conv.organization_id)),
+            contact_id=strawberry.ID(str(conv.contact_id)),
+            queue_id=strawberry.ID(str(conv.queue_id)) if conv.queue_id else None,
+            assigned_agent_id=strawberry.ID(str(conv.assigned_agent_id)) if conv.assigned_agent_id else None,
+            whatsapp_number_id=strawberry.ID(str(conv.whatsapp_number_id)),
+            status=conv.status,
+            last_message_at=conv.last_message_at,
+            created_at=conv.created_at,
+            updated_at=conv.updated_at,
+        )
