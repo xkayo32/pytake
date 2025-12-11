@@ -105,3 +105,10 @@ class RolePermissionAssign(BaseModel):
     """Schema for assigning permissions to role"""
 
     permission_ids: List[UUID] = Field(..., min_items=0, description="List of permission IDs to assign")
+
+
+class UserRoleAssign(BaseModel):
+    """Schema for assigning role to user"""
+
+    user_id: UUID = Field(..., description="User ID to assign role to")
+    role_id: UUID = Field(..., description="Role ID to assign to user")

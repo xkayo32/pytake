@@ -22,6 +22,7 @@ from app.schemas.role import (
     RoleListResponse,
     RolePermissionAssign,
     RoleUpdate,
+    UserRoleAssign,
 )
 from app.services.role_service import RoleService
 
@@ -36,7 +37,7 @@ router = APIRouter(prefix="/roles", tags=["RBAC"])
 @router.post(
     "/initialize",
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(require_role(["org_admin"]))],
+    dependencies=[Depends(require_role(["org_admin", "super_admin"]))],
     summary="Initialize system roles",
     description="Initialize default system roles for organization",
 )
@@ -78,7 +79,7 @@ async def initialize_system_roles(
     "/",
     response_model=RoleInDB,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(["org_admin"]))],
+    dependencies=[Depends(require_role(["org_admin", "super_admin"]))],
     summary="Create custom role",
     description="Create a new custom role for the organization",
 )
@@ -157,7 +158,7 @@ async def get_role(
 @router.patch(
     "/{role_id}",
     response_model=RoleInDB,
-    dependencies=[Depends(require_role(["org_admin"]))],
+    dependencies=[Depends(require_role(["org_admin", "super_admin"]))],
     summary="Update role",
     description="Update role metadata (name, description)",
 )
@@ -189,7 +190,7 @@ async def update_role(
 @router.delete(
     "/{role_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_role(["org_admin"]))],
+    dependencies=[Depends(require_role(["org_admin", "super_admin"]))],
     summary="Delete custom role",
     description="Delete a custom role (cannot delete system roles)",
 )
@@ -224,7 +225,7 @@ async def delete_role(
 @router.post(
     "/{role_id}/permissions",
     response_model=RoleInDB,
-    dependencies=[Depends(require_role(["org_admin"]))],
+    dependencies=[Depends(require_role(["org_admin", "super_admin"]))],
     summary="Assign permissions to role",
     description="Replace all permissions for a role",
 )
@@ -294,7 +295,7 @@ permissions_router = APIRouter(prefix="/permissions", tags=["RBAC"])
     "/",
     response_model=PermissionInDB,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(["org_admin"]))],
+    dependencies=[Depends(require_role(["org_admin", "super_admin"]))],
     summary="Create permission",
     description="Create a new permission",
 )
@@ -390,3 +391,61 @@ async def get_permission(
         raise NotFoundException("Permission not found")
     
     return permission
+
+
+# ============================================
+# USER ROLE ASSIGNMENT
+# ============================================
+
+
+@permissions_router.post(
+    "/assign-to-user",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_role(["org_admin", "super_admin"]))],
+    summary="Assign role to user",
+    description="Assign a role to a user in the organization",
+)
+async def assign_role_to_user(
+    data: UserRoleAssign,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Assign a role to a user.
+    
+    **Required Role:** org_admin
+    
+    **Request Body:**
+    - `user_id` (UUID): User to assign role to
+    - `role_id` (UUID): Role to assign
+    
+    **Returns:** Success message with user details
+    """
+    from app.repositories.user import UserRepository
+    
+    # Verify role exists and belongs to org
+    service = RoleService(db)
+    role = await service.get_role(data.role_id)
+    if not role:
+        raise NotFoundException(f"Role {data.role_id} not found")
+    
+    if role.organization_id and role.organization_id != current_user.organization_id:
+        raise NotFoundException("Role not found in this organization")
+    
+    # Verify user exists and belongs to org
+    user_repo = UserRepository(db)
+    user = await user_repo.get_by_id(data.user_id)
+    if not user or user.organization_id != current_user.organization_id:
+        raise NotFoundException(f"User {data.user_id} not found")
+    
+    # Update user with new role_id
+    updated_user = await user_repo.update(data.user_id, {"role_id": data.role_id})
+    await db.commit()
+    
+    return {
+        "message": f"Role {role.name} assigned to user {updated_user.email}",
+        "user_id": str(updated_user.id),
+        "role_id": str(role.id),
+        "role_name": role.name,
+    }
