@@ -119,9 +119,18 @@ class ChatbotBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     avatar_url: Optional[str] = None
-    whatsapp_number_id: Optional[UUID] = Field(None, description="WhatsApp number linked to this chatbot")
     is_active: bool = False
     is_published: bool = False
+    is_fallback: bool = Field(default=False, description="Is this a fallback flow?")
+    whatsapp_number_ids: Optional[List[str]] = Field(
+        None,
+        description="List of WhatsApp numbers linked to this chatbot"
+    )
+    ab_test_enabled: bool = Field(default=False, description="Enable A/B testing?")
+    ab_test_flows: Optional[List[dict]] = Field(
+        None,
+        description="A/B test configurations [{'flow_id': '...', 'weight': 60, 'variant_name': '...'}]"
+    )
     global_variables: dict = Field(default_factory=dict)
     settings: dict = Field(default_factory=dict)
 
@@ -137,9 +146,18 @@ class ChatbotUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     avatar_url: Optional[str] = None
-    whatsapp_number_id: Optional[UUID] = None
     is_active: Optional[bool] = None
     is_published: Optional[bool] = None
+    is_fallback: Optional[bool] = Field(None, description="Is this a fallback flow?")
+    whatsapp_number_ids: Optional[List[str]] = Field(
+        None,
+        description="List of WhatsApp numbers linked to this chatbot"
+    )
+    ab_test_enabled: Optional[bool] = Field(None, description="Enable A/B testing?")
+    ab_test_flows: Optional[List[dict]] = Field(
+        None,
+        description="A/B test configurations"
+    )
     global_variables: Optional[dict] = None
     settings: Optional[dict] = None
 
@@ -154,14 +172,13 @@ class ChatbotInDB(ChatbotBase):
     total_messages_received: int = 0
     version: int = 1
     published_version: Optional[int] = None
+    linked_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None
     
-    # WhatsApp connection info (populated by endpoint logic)
-    whatsapp_connection_type: Optional[str] = Field(None, description="Connection type: official, qrcode, etc")
-    whatsapp_phone_number: Optional[str] = Field(None, description="Phone number of linked WhatsApp")
-    available_node_types: Optional[List[str]] = Field(None, description="Available node types for this chatbot")
+    # Linked history (populated on demand)
+    linked_history: Optional[List[dict]] = Field(None, description="History of linking/unlinking actions")
 
     class Config:
         from_attributes = True
@@ -208,3 +225,66 @@ class NodeListResponse(BaseModel):
 
     total: int
     items: List[NodeInDB]
+
+
+# ============================================
+# CHATBOT NUMBER LINK SCHEMAS
+# ============================================
+
+class ChatbotNumberLinkBase(BaseModel):
+    """Base schema for ChatbotNumberLink"""
+
+    whatsapp_number_id: str = Field(..., min_length=1, max_length=50)
+
+
+class ChatbotNumberLinkCreate(ChatbotNumberLinkBase):
+    """Schema for creating a number link"""
+
+    chatbot_id: UUID
+
+
+class ChatbotNumberLinkInDB(ChatbotNumberLinkBase):
+    """Schema for number link in database"""
+
+    id: UUID
+    chatbot_id: UUID
+    organization_id: UUID
+    linked_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ============================================
+# CHATBOT LINKING HISTORY SCHEMAS
+# ============================================
+
+class ChatbotLinkingHistoryBase(BaseModel):
+    """Base schema for ChatbotLinkingHistory"""
+
+    action: str = Field(..., description="'linked' or 'unlinked'")
+    whatsapp_number_id: str = Field(..., min_length=1, max_length=50)
+    changed_by: str = Field(..., description="Email of user who made the change")
+    timestamp: datetime = Field(..., description="ISO 8601 timestamp")
+
+
+class ChatbotLinkingHistoryCreate(ChatbotLinkingHistoryBase):
+    """Schema for creating a linking history entry"""
+
+    chatbot_id: UUID
+
+
+class ChatbotLinkingHistoryInDB(ChatbotLinkingHistoryBase):
+    """Schema for linking history in database"""
+
+    id: UUID
+    chatbot_id: UUID
+    organization_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
