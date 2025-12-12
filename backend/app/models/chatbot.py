@@ -3,6 +3,8 @@ Chatbot, Flow, and Node models for the bot builder
 """
 
 from datetime import datetime
+from uuid import uuid4
+
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
@@ -307,6 +309,7 @@ class ChatbotNumberLink(Base, TimestampMixin):
     id = Column(
         UUID(as_uuid=True),
         primary_key=True,
+        default=uuid4,
         server_default=text("gen_random_uuid()"),
     )
 
@@ -368,6 +371,7 @@ class ChatbotLinkingHistory(Base, TimestampMixin):
     id = Column(
         UUID(as_uuid=True),
         primary_key=True,
+        default=uuid4,
         server_default=text("gen_random_uuid()"),
     )
 
