@@ -456,6 +456,53 @@ class ChatbotNumberLinkRepository(BaseRepository[ChatbotNumberLink]):
         )
         await self.db.commit()
 
+    async def delete_by_number(
+        self, chatbot_id: UUID, whatsapp_number_id: str, organization_id: UUID
+    ):
+        """
+        Delete a specific number link for a chatbot
+
+        Args:
+            chatbot_id: Chatbot UUID
+            whatsapp_number_id: WhatsApp number ID
+            organization_id: Organization UUID
+        """
+        await self.db.execute(
+            delete(ChatbotNumberLink)
+            .where(ChatbotNumberLink.chatbot_id == chatbot_id)
+            .where(ChatbotNumberLink.whatsapp_number_id == whatsapp_number_id)
+            .where(ChatbotNumberLink.organization_id == organization_id)
+        )
+        await self.db.commit()
+
+    async def create_or_get(
+        self, obj_in: Dict[str, Any]
+    ) -> ChatbotNumberLink:
+        """
+        Create a new chatbot number link or return existing one
+        Idempotent: if link already exists, returns the existing link
+        
+        Args:
+            obj_in: Dictionary with field values (chatbot_id, whatsapp_number_id, organization_id, linked_at)
+        
+        Returns:
+            Created or existing ChatbotNumberLink instance
+        """
+        # Check if link already exists
+        result = await self.db.execute(
+            select(ChatbotNumberLink)
+            .where(ChatbotNumberLink.chatbot_id == obj_in["chatbot_id"])
+            .where(ChatbotNumberLink.whatsapp_number_id == obj_in["whatsapp_number_id"])
+            .where(ChatbotNumberLink.organization_id == obj_in["organization_id"])
+        )
+        existing_link = result.scalar_one_or_none()
+        
+        if existing_link:
+            return existing_link
+        
+        # Create new link
+        return await self.create(obj_in)
+
     async def get_numbers_list(
         self, chatbot_id: UUID, organization_id: UUID
     ) -> List[str]:
