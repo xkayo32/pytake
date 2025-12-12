@@ -167,7 +167,7 @@ class BaseRepository(Generic[ModelType]):
         logger.debug(f"✅ Committed update for {self.model.__name__} id={id}")
         
         # Expire all objects from session cache to ensure fresh reads from DB
-        await self.db.expire_all()
+        self.db.expire_all()
         logger.debug(f"✅ Expired session cache")
 
         result = await self.get(id)
