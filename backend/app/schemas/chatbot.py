@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ============================================
@@ -153,6 +153,10 @@ class ChatbotUpdate(BaseModel):
         None,
         description="List of WhatsApp numbers linked to this chatbot"
     )
+    whatsapp_number_id: Optional[str] = Field(
+        None,
+        description="(Deprecated) Single WhatsApp number - will be converted to whatsapp_number_ids"
+    )
     ab_test_enabled: Optional[bool] = Field(None, description="Enable A/B testing?")
     ab_test_flows: Optional[List[dict]] = Field(
         None,
@@ -160,6 +164,24 @@ class ChatbotUpdate(BaseModel):
     )
     global_variables: Optional[dict] = None
     settings: Optional[dict] = None
+
+    @field_validator('whatsapp_number_ids', mode='before')
+    @classmethod
+    def normalize_whatsapp_numbers(cls, v, info):
+        """
+        Normalize whatsapp_number_ids:
+        - If whatsapp_number_id (singular) is provided, convert to array
+        - If whatsapp_number_ids (plural) is provided, use as-is
+        """
+        # Get the singular value if available
+        singular = info.data.get('whatsapp_number_id')
+        
+        # If singular is provided, prioritize it
+        if singular:
+            return [singular]
+        
+        # Otherwise use the plural value as-is
+        return v
 
 
 class ChatbotInDB(ChatbotBase):
