@@ -101,6 +101,10 @@ class FlowService:
 
         logger.info(f"✅ Updating flow in DB with: {update_data}")
         updated_flow = await self.repo.update(flow_id, update_data)
+        
+        if not updated_flow:
+            raise NotFoundException(f"Flow {flow_id} not found or could not be updated")
+        
         logger.info(f"✅ Flow updated: {updated_flow.id} - canvas_data keys: {updated_flow.canvas_data.keys() if updated_flow.canvas_data else 'empty'}")
         
         return updated_flow
