@@ -2,7 +2,7 @@
 Chatbot, Flow, and Node repositories
 """
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from sqlalchemy import and_, delete, desc, func, select
@@ -377,6 +377,26 @@ class ChatbotNumberLinkRepository(BaseRepository[ChatbotNumberLink]):
 
     def __init__(self, db: AsyncSession):
         super().__init__(ChatbotNumberLink, db)
+
+    async def create(self, obj_in: Dict[str, Any]) -> ChatbotNumberLink:
+        """
+        Create a new chatbot number link
+        Ensures ID is not passed (let database generate via server_default)
+        
+        Args:
+            obj_in: Dictionary with field values (id will be removed if present)
+        
+        Returns:
+            Created ChatbotNumberLink instance
+        """
+        # Remove id if present to let server_default generate it
+        data = {k: v for k, v in obj_in.items() if k != 'id'}
+        
+        db_obj = ChatbotNumberLink(**data)
+        self.db.add(db_obj)
+        await self.db.commit()
+        await self.db.refresh(db_obj)
+        return db_obj
 
     async def get_by_chatbot(
         self, chatbot_id: UUID, organization_id: UUID
