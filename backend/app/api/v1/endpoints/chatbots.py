@@ -572,27 +572,6 @@ async def get_flow_with_nodes(
     return flow
 
 
-@router.patch(
-    "/flows/{flow_id}",
-    response_model=FlowInDB,
-    dependencies=[Depends(require_role(["super_admin", "org_admin", "agent"]))],
-)
-async def update_flow(
-    flow_id: UUID,
-    data: FlowUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    Update flow
-
-    Required role: org_admin or agent
-    """
-    service = ChatbotService(db)
-    flow = await service.update_flow(flow_id, current_user.organization_id, data)
-    return flow
-
-
 @router.delete(
     "/flows/{flow_id}",
     status_code=status.HTTP_204_NO_CONTENT,

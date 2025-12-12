@@ -164,6 +164,10 @@ class ChatbotUpdate(BaseModel):
     )
     global_variables: Optional[dict] = None
     settings: Optional[dict] = None
+    canvas_data: Optional[dict] = Field(
+        None,
+        description="React Flow canvas data (nodes and edges) - updates main flow if provided"
+    )
 
     @model_validator(mode='before')
     @classmethod
