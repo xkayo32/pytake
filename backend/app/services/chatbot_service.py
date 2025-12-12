@@ -264,7 +264,6 @@ class ChatbotService:
             update_data["linked_at"] = datetime.now(timezone.utc)
 
         updated_chatbot = await self.chatbot_repo.update(chatbot_id, update_data)
-        await self.db.commit()
 
         return updated_chatbot
 

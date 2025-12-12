@@ -159,6 +159,9 @@ class BaseRepository(Generic[ModelType]):
             update(self.model).where(self.model.id == id).values(**obj_in)
         )
         await self.db.commit()
+        
+        # Expire all objects from session cache to ensure fresh reads from DB
+        await self.db.expire_all()
 
         return await self.get(id)
 
