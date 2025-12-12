@@ -206,13 +206,15 @@ class ChatbotService:
             # Detectar números adicionados (linked)
             added_numbers = set(new_numbers) - set(old_numbers)
 
-            # Remover números antigos
-            if removed_numbers:
-                await self.number_link_repo.delete_by_chatbot(chatbot_id, organization_id)
+            # Remover números desvinculados (unlinked) - APENAS os que foram removidos
+            for number_id in removed_numbers:
+                await self.number_link_repo.delete_by_number(
+                    chatbot_id, number_id, organization_id
+                )
 
-            # Adicionar novos números
-            for number_id in new_numbers:
-                await self.number_link_repo.create(
+            # Adicionar APENAS números novos (linked) - NÃO recriar os que já existem
+            for number_id in added_numbers:
+                await self.number_link_repo.create_or_get(
                     {
                         "chatbot_id": chatbot_id,
                         "whatsapp_number_id": number_id,
