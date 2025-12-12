@@ -2,6 +2,7 @@
 Flow Service - Business logic for Flow operations
 """
 
+import logging
 from typing import List
 from uuid import UUID
 
@@ -11,6 +12,8 @@ from app.core.exceptions import ConflictException, NotFoundException
 from app.models.chatbot import Flow, Chatbot
 from app.repositories.flow import FlowRepository
 from app.schemas.flow import FlowCreate, FlowUpdate, CanvasData
+
+logger = logging.getLogger(__name__)
 
 
 class FlowService:
@@ -72,6 +75,8 @@ class FlowService:
         self, flow_id: UUID, data: FlowUpdate, organization_id: UUID
     ) -> Flow:
         """Update a flow"""
+        logger.info(f"📝 Updating flow {flow_id} with data: {data.model_dump(exclude_unset=True)}")
+        
         flow = await self.get_flow(flow_id, organization_id)
 
         # If marking as main, unset other main flows
@@ -94,7 +99,10 @@ class FlowService:
         if isinstance(update_data.get("canvas_data"), CanvasData):
             update_data["canvas_data"] = update_data["canvas_data"].model_dump()
 
+        logger.info(f"✅ Updating flow in DB with: {update_data}")
         updated_flow = await self.repo.update(flow_id, update_data)
+        logger.info(f"✅ Flow updated: {updated_flow.id} - canvas_data keys: {updated_flow.canvas_data.keys() if updated_flow.canvas_data else 'empty'}")
+        
         return updated_flow
 
     async def delete_flow(

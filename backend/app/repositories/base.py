@@ -2,6 +2,7 @@
 Base repository with common CRUD operations
 """
 
+import logging
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
 from uuid import UUID
 
@@ -9,6 +10,8 @@ from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.base import Base
+
+logger = logging.getLogger(__name__)
 
 ModelType = TypeVar("ModelType", bound=Base)
 
@@ -155,15 +158,21 @@ class BaseRepository(Generic[ModelType]):
         if not obj_in:
             return await self.get(id)
 
+        logger.debug(f"📝 Executing update on {self.model.__name__} id={id} with {list(obj_in.keys())}")
+        
         await self.db.execute(
             update(self.model).where(self.model.id == id).values(**obj_in)
         )
         await self.db.commit()
+        logger.debug(f"✅ Committed update for {self.model.__name__} id={id}")
         
         # Expire all objects from session cache to ensure fresh reads from DB
         await self.db.expire_all()
+        logger.debug(f"✅ Expired session cache")
 
-        return await self.get(id)
+        result = await self.get(id)
+        logger.debug(f"✅ Fetched updated {self.model.__name__} from DB")
+        return result
 
     async def delete(self, id: UUID) -> bool:
         """
