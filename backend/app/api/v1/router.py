@@ -212,6 +212,9 @@ api_router.include_router(departments.router, prefix="/departments", tags=["Depa
 whatsapp = _load_endpoint_module("whatsapp")
 api_router.include_router(whatsapp.router, prefix="/whatsapp", tags=["WhatsApp"])
 
+whatsapp_analytics = _load_endpoint_module("whatsapp_analytics")
+api_router.include_router(whatsapp_analytics.router, prefix="/whatsapp-analytics", tags=["WhatsApp Analytics"])
+
 chatbots = _load_endpoint_module("chatbots")
 api_router.include_router(chatbots.router, prefix="/chatbots", tags=["Chatbots"])
 
