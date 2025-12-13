@@ -257,3 +257,66 @@ async def get_fallback_flow(
     """
     service = FlowService(db)
     return await service.get_fallback_flow(chatbot_id, current_user.organization_id)
+
+
+@router.post("/{flow_id}/activate", response_model=Flow)
+async def activate_flow(
+    flow_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Activate a flow.
+
+    Enables a specific flow so it can be used in conversations.
+    A flow can be independently activated/deactivated from its parent chatbot.
+
+    **Path Parameters:**
+    - flow_id (UUID): Flow ID
+
+    **Returns:**
+    - Updated Flow object with is_active=true
+
+    **Permissions:**
+    - Requires: Authenticated user
+    - Scoped to: Organization
+
+    **Error Codes:**
+    - 401: Unauthorized
+    - 404: Flow not found
+    - 500: Server error
+    """
+    service = FlowService(db)
+    return await service.activate_flow(flow_id, current_user.organization_id)
+
+
+@router.post("/{flow_id}/deactivate", response_model=Flow)
+async def deactivate_flow(
+    flow_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Deactivate a flow.
+
+    Disables a specific flow. The flow cannot be used in conversations
+    while inactive, but all its data is preserved.
+
+    **Path Parameters:**
+    - flow_id (UUID): Flow ID
+
+    **Returns:**
+    - Updated Flow object with is_active=false
+
+    **Permissions:**
+    - Requires: Authenticated user
+    - Scoped to: Organization
+
+    **Error Codes:**
+    - 401: Unauthorized
+    - 404: Flow not found
+    - 409: Cannot deactivate (e.g., only active flow in chatbot)
+    - 500: Server error
+    """
+    service = FlowService(db)
+    return await service.deactivate_flow(flow_id, current_user.organization_id)

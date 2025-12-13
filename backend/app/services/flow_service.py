@@ -133,3 +133,82 @@ class FlowService:
         if not flow:
             raise NotFoundException("Fallback flow not found")
         return flow
+
+    async def activate_flow(
+        self, flow_id: UUID, organization_id: UUID
+    ) -> Flow:
+        """
+        Activate a flow
+        
+        Args:
+            flow_id: Flow UUID
+            organization_id: Organization UUID
+            
+        Returns:
+            Updated flow
+            
+        Raises:
+            NotFoundException: If flow not found
+        """
+        flow = await self.get_flow(flow_id, organization_id)
+        
+        if flow.is_active:
+            logger.info(f"ℹ️ Flow {flow_id} is already active")
+            return flow
+        
+        logger.info(f"✅ Activating flow {flow_id}")
+        updated_flow = await self.repo.update(flow_id, {"is_active": True})
+        
+        if not updated_flow:
+            raise NotFoundException(f"Flow {flow_id} not found")
+        
+        return updated_flow
+
+    async def deactivate_flow(
+        self, flow_id: UUID, organization_id: UUID
+    ) -> Flow:
+        """
+        Deactivate a flow
+        
+        Args:
+            flow_id: Flow UUID
+            organization_id: Organization UUID
+            
+        Returns:
+            Updated flow
+            
+        Raises:
+            NotFoundException: If flow not found
+            ConflictException: If flow is main flow and cannot be deactivated
+        """
+        flow = await self.get_flow(flow_id, organization_id)
+        
+        if not flow.is_active:
+            logger.info(f"ℹ️ Flow {flow_id} is already inactive")
+            return flow
+        
+        # Check if it's the main flow (can still deactivate, but warn)
+        if flow.is_main:
+            logger.warning(
+                f"⚠️ Flow {flow_id} is the main entry flow. "
+                f"Deactivating it may affect conversation routing."
+            )
+        
+        # Check if it's the only active flow for the chatbot
+        active_flows = await self.repo.count_active_flows(
+            flow.chatbot_id, organization_id
+        )
+        
+        if active_flows <= 1:
+            raise ConflictException(
+                "Cannot deactivate the only active flow in this chatbot. "
+                "Activate another flow first."
+            )
+        
+        logger.info(f"🔴 Deactivating flow {flow_id}")
+        updated_flow = await self.repo.update(flow_id, {"is_active": False})
+        
+        if not updated_flow:
+            raise NotFoundException(f"Flow {flow_id} not found")
+        
+        return updated_flow

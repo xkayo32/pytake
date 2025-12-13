@@ -55,6 +55,7 @@ class FlowUpdate(BaseModel):
     description: Optional[str] = Field(None, description="Flow description")
     is_main: Optional[bool] = Field(None, description="Is main entry flow")
     is_fallback: Optional[bool] = Field(None, description="Is fallback flow for errors")
+    is_active: Optional[bool] = Field(None, description="Is flow active")
     canvas_data: Optional[CanvasData] = Field(None, description="Canvas data (React Flow format)")
 
 
@@ -63,6 +64,7 @@ class FlowInDB(FlowBase):
     id: UUID
     organization_id: UUID
     chatbot_id: UUID
+    is_active: bool = Field(default=True, description="Is flow active")
     canvas_data: CanvasData = Field(default_factory=CanvasData, description="Canvas data")
     created_at: datetime
     updated_at: datetime
