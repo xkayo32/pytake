@@ -192,6 +192,31 @@ class Flow(Base, TimestampMixin, SoftDeleteMixin):
     # Status
     is_active = Column(Boolean, default=True, server_default="true", nullable=False)
 
+    # Inactivity Settings (can override global defaults)
+    # Structure: {
+    #   "enabled": true,
+    #   "timeout_minutes": 60,
+    #   "send_warning_at_minutes": null,
+    #   "warning_message": null,
+    #   "action": "transfer|close|send_reminder|fallback_flow",
+    #   "fallback_flow_id": null
+    # }
+    inactivity_settings = Column(
+        JSONB,
+        nullable=False,
+        default={
+            "enabled": True,
+            "timeout_minutes": 60,
+            "send_warning_at_minutes": None,
+            "warning_message": None,
+            "action": "transfer",
+            "fallback_flow_id": None,
+        },
+        server_default=text(
+            "'{\"enabled\": true, \"timeout_minutes\": 60, \"action\": \"transfer\", \"send_warning_at_minutes\": null, \"warning_message\": null, \"fallback_flow_id\": null}'::jsonb"
+        ),
+    )
+
     # Versioning
     version = Column(Integer, default=1, server_default="1", nullable=False)
 

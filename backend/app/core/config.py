@@ -246,6 +246,20 @@ class Settings(BaseSettings):
     QUEUE_MAX_SIZE: int = Field(default=100)
     QUEUE_TIMEOUT_MINUTES: int = Field(default=30)
 
+    # Conversation Inactivity Settings
+    CONVERSATION_INACTIVITY_TIMEOUT_MINUTES: int = Field(
+        default=60,
+        description="Default timeout for conversation inactivity in minutes (can be overridden per flow)"
+    )
+    CONVERSATION_INACTIVITY_CHECK_INTERVAL_MINUTES: int = Field(
+        default=5,
+        description="How often to check for inactive conversations (in minutes)"
+    )
+    CONVERSATION_INACTIVITY_DEFAULT_ACTION: str = Field(
+        default="transfer",
+        description="Default action on inactivity: transfer, close, send_reminder, fallback_flow"
+    )
+
     # Template Sync
     TEMPLATE_SYNC_INTERVAL_HOURS: int = Field(default=24)
 

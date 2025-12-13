@@ -71,6 +71,16 @@ celery_app.conf.beat_schedule = {
         },
     },
 
+    # Conversation Inactivity Check - Configurable interval (default: every 5 minutes)
+    "check-conversation-inactivity": {
+        "task": "check_conversation_inactivity",
+        "schedule": crontab(minute=f"*/{settings.CONVERSATION_INACTIVITY_CHECK_INTERVAL_MINUTES}"),
+        "options": {
+            "queue": "default",
+            "expires": settings.CONVERSATION_INACTIVITY_CHECK_INTERVAL_MINUTES * 60,
+        },
+    },
+
     # Example: Cleanup old data - Every day at 3 AM
     # "cleanup-old-data": {
     #     "task": "cleanup_old_messages",
@@ -85,6 +95,7 @@ celery_app.autodiscover_tasks(
         "app.tasks.template_sync",
         "app.tasks.campaign_tasks",
         "app.tasks.flow_automation_tasks",
+        "app.tasks.conversation_timeout_tasks",
         # Add other task modules here as needed
         # "app.tasks.webhook_tasks",
     ]
