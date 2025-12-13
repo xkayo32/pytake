@@ -4041,6 +4041,31 @@ __result__ = __script_func__()
         """Update WhatsApp number"""
         number = await self.get_by_id(number_id, organization_id)
         update_data = data.model_dump(exclude_unset=True)
+        
+        # ✅ VALIDAÇÃO: Se tentando vincular a um chatbot, validar que ele existe e pertence à org
+        if "default_chatbot_id" in update_data and update_data["default_chatbot_id"] is not None:
+            from app.services.chatbot_service import ChatbotService
+            chatbot_service = ChatbotService(self.db)
+            
+            chatbot_id = update_data["default_chatbot_id"]
+            logger.info(f"🔍 Validando chatbot {chatbot_id} para número {number_id}")
+            
+            try:
+                chatbot = await chatbot_service.get_chatbot(
+                    chatbot_id=chatbot_id,
+                    organization_id=organization_id
+                )
+                if not chatbot:
+                    raise NotFoundException(f"Chatbot {chatbot_id} não encontrado ou não pertence à sua organização")
+                
+                logger.info(f"✅ Chatbot validado: {chatbot.name}")
+            except NotFoundException as e:
+                logger.error(f"❌ Erro de validação: {str(e)}")
+                raise
+            except Exception as e:
+                logger.error(f"❌ Erro ao validar chatbot: {str(e)}")
+                raise NotFoundException(f"Erro ao validar chatbot: {str(e)}")
+        
         updated_number = await self.repo.update(number_id, update_data)
         return self._enrich_number_with_node_info(updated_number)
 
