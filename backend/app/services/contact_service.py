@@ -24,8 +24,8 @@ class ContactService:
 
     async def get_by_id(self, contact_id: UUID, organization_id: UUID) -> Contact:
         """Get contact by ID"""
-        contact = await self.repo.get(contact_id)
-        if not contact or contact.organization_id != organization_id:
+        contact = await self.repo.get_by_id(contact_id, organization_id)
+        if not contact:
             raise NotFoundException("Contact not found")
         return contact
 
@@ -193,8 +193,8 @@ class TagService:
 
     async def get_by_id(self, tag_id: UUID, organization_id: UUID) -> Tag:
         """Get tag by ID"""
-        tag = await self.repo.get(tag_id)
-        if not tag or tag.organization_id != organization_id:
+        tag = await self.repo.get_by_id(tag_id, organization_id)
+        if not tag:
             raise NotFoundException("Tag not found")
         return tag
 

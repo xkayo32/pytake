@@ -275,6 +275,15 @@ class TagRepository(BaseRepository[Tag]):
     def __init__(self, db: AsyncSession):
         super().__init__(Tag, db)
 
+    async def get_by_id(self, tag_id: UUID, organization_id: UUID) -> Optional[Tag]:
+        """Get tag by ID within organization"""
+        result = await self.db.execute(
+            select(Tag)
+            .where(Tag.id == tag_id)
+            .where(Tag.organization_id == organization_id)
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_name(
         self, name: str, organization_id: UUID
     ) -> Optional[Tag]:
