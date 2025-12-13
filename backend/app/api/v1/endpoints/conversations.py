@@ -8,7 +8,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, require_permission_dynamic
 from app.models.user import User
 from app.schemas.conversation import (
     Conversation,
@@ -311,7 +311,7 @@ async def mark_conversation_as_read(
 async def assign_conversation(
     conversation_id: UUID,
     data: ConversationAssign,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission_dynamic("assign_conversation")),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -348,7 +348,7 @@ async def assign_conversation(
 async def transfer_conversation(
     conversation_id: UUID,
     data: ConversationTransfer,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission_dynamic("assign_conversation")),
     db: AsyncSession = Depends(get_db),
 ):
     """
