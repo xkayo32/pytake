@@ -4125,17 +4125,27 @@ __result__ = __script_func__()
                     if not whatsapp_number:
                         logger.warning(f"WhatsApp number not found for phone_number_id: {phone_number_id}")
                         continue
+                    
+                    # ⚠️ CRITICAL: Access all attributes NOW while session is active
+                    # Extract all scalar attributes to avoid lazy-load errors later
+                    org_id = whatsapp_number.organization_id
+                    phone_number_obj_id = whatsapp_number.id
+                    default_chatbot_id = whatsapp_number.default_chatbot_id
+                    default_flow_id = whatsapp_number.default_flow_id
 
                     # Process messages
                     if field == "messages":
                         messages = value.get("messages", [])
                         for message in messages:
-                            await self._process_incoming_message(message, whatsapp_number)
+                            await self._process_incoming_message(
+                                message, org_id, phone_number_obj_id, 
+                                default_chatbot_id, default_flow_id
+                            )
 
                         # Process statuses
                         statuses = value.get("statuses", [])
                         for status in statuses:
-                            await self._process_message_status(status, whatsapp_number)
+                            await self._process_message_status(status, org_id)
 
             await self.db.commit()
 
@@ -4145,7 +4155,12 @@ __result__ = __script_func__()
             raise
 
     async def _process_incoming_message(
-        self, message: Dict[str, Any], whatsapp_number: WhatsAppNumber
+        self, 
+        message: Dict[str, Any], 
+        org_id: "UUID",
+        phone_number_obj_id: "UUID",
+        default_chatbot_id: Optional["UUID"],
+        default_flow_id: Optional["UUID"]
     ) -> None:
         """
         Process an incoming message from WhatsApp
@@ -4164,7 +4179,7 @@ __result__ = __script_func__()
         from app.models.conversation import Conversation, Message
         from datetime import datetime, timedelta
 
-        logger.info(f"Processing incoming message: {message.get('id')} for number {whatsapp_number.phone_number}")
+        logger.info(f"Processing incoming message: {message.get('id')}")
 
         # Extract message data
         whatsapp_contact_id = message.get("from")
@@ -4180,13 +4195,13 @@ __result__ = __script_func__()
         contact_repo = ContactRepository(self.db)
         contact = await contact_repo.get_by_whatsapp_id(
             whatsapp_id=whatsapp_contact_id,
-            organization_id=whatsapp_number.organization_id
+            organization_id=org_id
         )
 
         if not contact:
             # Create new contact
             contact_data = {
-                "organization_id": whatsapp_number.organization_id,
+                "organization_id": org_id,
                 "whatsapp_id": whatsapp_contact_id,
                 "whatsapp_name": message.get("profile", {}).get("name"),
                 "source": "whatsapp",
@@ -4207,7 +4222,7 @@ __result__ = __script_func__()
         conversation_repo = ConversationRepository(self.db)
         conversations = await conversation_repo.get_by_contact(
             contact_id=contact.id,
-            organization_id=whatsapp_number.organization_id,
+            organization_id=org_id,
             status="open"
         )
 
@@ -4219,30 +4234,30 @@ __result__ = __script_func__()
             window_expires = now + timedelta(hours=24)
 
             conversation_data = {
-                "organization_id": whatsapp_number.organization_id,
+                "organization_id": org_id,
                 "contact_id": contact.id,
-                "whatsapp_number_id": whatsapp_number.id,
+                "whatsapp_number_id": phone_number_obj_id,
                 "status": "open",
                 "channel": "whatsapp",
                 "first_message_at": now,
                 "last_message_at": now,
                 "last_inbound_message_at": now,
                 "window_expires_at": window_expires,
-                "is_bot_active": True if whatsapp_number.default_chatbot_id or whatsapp_number.default_flow_id else False,
-                "active_chatbot_id": whatsapp_number.default_chatbot_id,
-                "active_flow_id": whatsapp_number.default_flow_id,  # Iniciar flow padrão
+                "is_bot_active": True if default_chatbot_id or default_flow_id else False,
+                "active_chatbot_id": default_chatbot_id,
+                "active_flow_id": default_flow_id,  # Iniciar flow padrão
             }
 
             conversation = await conversation_repo.create(conversation_data)
             logger.info(f"Created new conversation: {conversation.id}")
             
             # 🔄 Iniciar Flow Padrão se configurado
-            if whatsapp_number.default_flow_id:
+            if default_flow_id:
                 try:
                     from app.repositories.chatbot import FlowRepository
                     
                     flow_repo = FlowRepository(self.db)
-                    flow = await flow_repo.get_by_id(whatsapp_number.default_flow_id, whatsapp_number.organization_id)
+                    flow = await flow_repo.get_by_id(default_flow_id, org_id)
                     
                     if flow:
                         # Obter o start node do flow
@@ -4261,7 +4276,7 @@ __result__ = __script_func__()
                         else:
                             logger.warning(f"No start node found in flow {flow.id}")
                     else:
-                        logger.warning(f"Default flow not found: {whatsapp_number.default_flow_id}")
+                        logger.warning(f"Default flow not found: {default_flow_id}")
                 except Exception as e:
                     logger.error(f"Error initiating default flow: {e}", exc_info=True)
                     # Não falha a conversa se o flow não iniciar
@@ -4275,12 +4290,12 @@ __result__ = __script_func__()
                     queue_repo = QueueRepository(self.db)
                     conv_service = ConversationService(self.db)
 
-                    vip_queue = await queue_repo.get_vip_queue(whatsapp_number.organization_id)
+                    vip_queue = await queue_repo.get_vip_queue(org_id)
                     if vip_queue:
                         await conv_service.assign_to_queue_with_overflow(
                             conversation_id=conversation.id,
                             queue_id=vip_queue.id,
-                            organization_id=whatsapp_number.organization_id,
+                            organization_id=org_id,
                         )
                         # Elevate priority for VIP
                         await conversation_repo.update(conversation.id, {"queue_priority": 100})
@@ -4308,7 +4323,7 @@ __result__ = __script_func__()
         # Check if message already exists (WhatsApp may send duplicate webhooks)
         stmt = select(Message).where(
             Message.whatsapp_message_id == whatsapp_message_id,
-            Message.organization_id == whatsapp_number.organization_id,
+            Message.organization_id == org_id,
         )
         result = await self.db.execute(stmt)
         existing_message = result.scalar_one_or_none()
@@ -4335,9 +4350,9 @@ __result__ = __script_func__()
             content = message.get(message_type, {})
 
         message_data = {
-            "organization_id": whatsapp_number.organization_id,
+            "organization_id": org_id,
             "conversation_id": conversation.id,
-            "whatsapp_number_id": whatsapp_number.id,
+            "whatsapp_number_id": phone_number_obj_id,
             "direction": "inbound",
             "sender_type": "contact",
             "whatsapp_message_id": whatsapp_message_id,
@@ -4385,7 +4400,9 @@ __result__ = __script_func__()
         logger.info(f"✅ Message processed successfully")
 
     async def _process_message_status(
-        self, status: Dict[str, Any], whatsapp_number: WhatsAppNumber
+        self, 
+        status: Dict[str, Any], 
+        org_id: "UUID"
     ) -> None:
         """
         Process message status update from WhatsApp
@@ -4418,7 +4435,7 @@ __result__ = __script_func__()
         message_repo = MessageRepository(self.db)
         stmt = select(Message).where(
             Message.whatsapp_message_id == whatsapp_message_id,
-            Message.organization_id == whatsapp_number.organization_id,
+            Message.organization_id == org_id,
         )
         result = await self.db.execute(stmt)
         message = result.scalar_one_or_none()
