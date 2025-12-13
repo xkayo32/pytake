@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator, field_serializer
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # Base Contact Schema
@@ -101,21 +101,22 @@ class ContactInDB(ContactBase):
 class Contact(ContactInDB):
     tags: List[str] = Field(default_factory=list, description="List of tag names")
 
-    @field_serializer('tags', when_used='json-unless-none')
-    def serialize_tags(self, value, _info):
-        """Serialize tags - extract names from Tag objects or use strings directly"""
-        if not value:
+    @field_validator('tags', mode='before')
+    @classmethod
+    def transform_tags(cls, v):
+        """Transform Tag ORM objects to strings"""
+        if not v:
             return []
         
-        result = []
-        for tag in value:
+        transformed_tags = []
+        for tag in v:
             # If it's a Tag object with a name attribute
             if hasattr(tag, 'name'):
-                result.append(tag.name)
+                transformed_tags.append(tag.name)
             # If it's already a string
             elif isinstance(tag, str):
-                result.append(tag)
-        return result
+                transformed_tags.append(tag)
+        return transformed_tags
 
     model_config = {"from_attributes": True}
 
