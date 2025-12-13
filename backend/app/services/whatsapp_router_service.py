@@ -68,51 +68,35 @@ class WhatsAppRouterService:
                 flow_id=flow_id,
             )
 
-            # 2. Determine next node to execute
-            next_node_id = state.current_node_id
+            # 2. Execute flow using FlowExecutor
+            from app.services.flow_executor import FlowExecutor
+            flow_executor = FlowExecutor(self.db)
             
-            if is_new:
-                # For new conversations, start from flow's start node
-                next_node_id = await self._get_start_node(organization_id, flow_id)
-                if not next_node_id:
-                    raise ValueError(f"Flow {flow_id} has no start node")
-
-            # 3. Execute flow node and get response
-            from app.services.flow_engine import FlowEngineService
-            flow_engine = FlowEngineService(self.db)
-            
-            # TODO: Implement node execution logic
-            # For now, return placeholder response
-            bot_response = "Fluxo em desenvolvimento"
-
-            # 4. Update conversation state
-            if state.variables is None:
-                state.variables = {}
-            
-            state.variables["last_user_message"] = user_message
-            if state.execution_path is None:
-                state.execution_path = []
-            
-            if next_node_id and next_node_id not in state.execution_path:
-                state.execution_path.append(next_node_id)
-
-            state = await self.state_repo.update(
-                conversation_state_id=state.id,
+            bot_response, updated_state = await flow_executor.execute_flow(
                 organization_id=organization_id,
-                current_node_id=next_node_id,
-                variables=state.variables,
-                execution_path=state.execution_path,
+                flow_id=flow_id,
+                current_state=state,
+                user_message=user_message,
             )
 
-            # 5. Log the interaction
+            # 3. Log the interaction
             await self.log_repo.create(
                 organization_id=organization_id,
                 phone_number=phone_number,
                 flow_id=flow_id,
                 user_message=user_message,
                 bot_response=bot_response,
-                node_id=next_node_id,
+                node_id=updated_state.current_node_id,
                 extra_data=metadata or {},
+            )
+
+            # 4. Update state in database
+            state = await self.state_repo.update(
+                conversation_state_id=updated_state.id,
+                organization_id=organization_id,
+                current_node_id=updated_state.current_node_id,
+                variables=updated_state.variables,
+                execution_path=updated_state.execution_path,
             )
 
             await self.state_repo.commit()
