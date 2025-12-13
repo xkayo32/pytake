@@ -89,7 +89,7 @@ class ConversationRepository(BaseRepository[Conversation]):
         )
 
         if chatbot_id:
-            stmt = stmt.where(Conversation.chatbot_id == chatbot_id)
+            stmt = stmt.where(Conversation.active_chatbot_id == chatbot_id)
 
         if status:
             stmt = stmt.where(Conversation.status == status)
