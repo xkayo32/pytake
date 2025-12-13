@@ -23,6 +23,8 @@ from app.models.flow_automation import (
     FlowAutomationSchedule,
     FlowAutomationScheduleException,
 )
+from app.models.conversation_state import ConversationState
+from app.models.conversation_log import ConversationLog
 
 __all__ = [
     "Base",
@@ -53,4 +55,6 @@ __all__ = [
     "FlowAutomationRecipient",
     "FlowAutomationSchedule",
     "FlowAutomationScheduleException",
+    "ConversationState",
+    "ConversationLog",
 ]
