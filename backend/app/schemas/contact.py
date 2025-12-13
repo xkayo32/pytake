@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, field_serializer
 
 
 # Base Contact Schema
@@ -101,18 +101,23 @@ class ContactInDB(ContactBase):
 class Contact(ContactInDB):
     tags: List[str] = Field(default_factory=list, description="List of tag names")
 
-    @classmethod
-    def model_validate(cls, obj, **kwargs):
-        """Custom validation to extract tag names from SQLAlchemy relationship"""
-        if hasattr(obj, '__dict__'):
-            # SQLAlchemy object
-            data = {key: value for key, value in obj.__dict__.items() if not key.startswith('_')}
-            if hasattr(obj, 'tags') and obj.tags:
-                data['tags'] = [tag.name for tag in obj.tags]
-            else:
-                data['tags'] = []
-            return super().model_validate(data, **kwargs)
-        return super().model_validate(obj, **kwargs)
+    @field_serializer('tags', when_used='json-unless-none')
+    def serialize_tags(self, value, _info):
+        """Serialize tags - extract names from Tag objects or use strings directly"""
+        if not value:
+            return []
+        
+        result = []
+        for tag in value:
+            # If it's a Tag object with a name attribute
+            if hasattr(tag, 'name'):
+                result.append(tag.name)
+            # If it's already a string
+            elif isinstance(tag, str):
+                result.append(tag)
+        return result
+
+    model_config = {"from_attributes": True}
 
 
 # Contact with Tags
