@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import relationship
@@ -138,6 +139,11 @@ class Contact(Base, TimestampMixin, SoftDeleteMixin):
         ForeignKey("departments.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
+    )
+
+    # Table constraints
+    __table_args__ = (
+        UniqueConstraint('organization_id', 'whatsapp_id', name='uq_contacts_organization_whatsapp_id'),
     )
 
     # Relationships
