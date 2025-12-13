@@ -3,6 +3,7 @@ Contact Service
 Business logic for contact management
 """
 
+import re
 from typing import List, Optional
 from uuid import UUID
 
@@ -210,6 +211,13 @@ class TagService:
 
         tag_data = data.model_dump()
         tag_data["organization_id"] = organization_id
+        
+        # Generate slug from name
+        slug = data.name.lower()
+        slug = re.sub(r'[^a-z0-9\s-]', '', slug)
+        slug = re.sub(r'[\s]+', '-', slug)
+        slug = slug.strip('-')
+        tag_data["slug"] = slug
 
         tag = await self.repo.create(tag_data)
         return tag
@@ -227,6 +235,15 @@ class TagService:
                 raise ConflictException(f"Tag '{data.name}' already exists")
 
         update_data = data.model_dump(exclude_unset=True)
+        
+        # If name is being updated, regenerate slug
+        if data.name:
+            slug = data.name.lower()
+            slug = re.sub(r'[^a-z0-9\s-]', '', slug)
+            slug = re.sub(r'[\s]+', '-', slug)
+            slug = slug.strip('-')
+            update_data["slug"] = slug
+        
         updated_tag = await self.repo.update(tag_id, update_data)
 
         return updated_tag
