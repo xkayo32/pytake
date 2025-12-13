@@ -4,6 +4,21 @@
 
 ---
 
+## 🚨 REGRA CRÍTICA: NUNCA RESETAR BANCO DE DADOS
+
+❌ **JAMAIS execute `docker compose down -v`**  
+❌ **JAMAIS execute `docker compose down` SEM AVISO EXPLÍCITO DO USUÁRIO**  
+❌ **NUNCA apague volumes com `-v` sem confirmação**  
+
+**Isso apaga TODOS os dados permanentemente!** Se o usuário não pediu explicitamente para limpar/resetar, NÃO FAÇA.
+
+**O que fazer em vez disso:**
+- Se banco está corrompido → avisar usuário e pedir confirmação
+- Se precisa de backup → fazer dump SQL antes
+- Se migration falhou → revisar e corrigir a migration, não resetar
+
+---
+
 ## 🏗️ Arquitetura & Data Flow
 
 ### Layering Estrito (NÃO pule camadas)

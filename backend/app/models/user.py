@@ -138,7 +138,8 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     def is_locked(self) -> bool:
         """Check if user account is locked"""
         if self.locked_until:
-            return datetime.utcnow() < self.locked_until
+            from datetime import datetime, timezone
+            return datetime.now(timezone.utc) < self.locked_until
         return False
 
     @property

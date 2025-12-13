@@ -63,6 +63,91 @@ def run_migrations():
         print(f"⚠️ Could not run migrations: {type(e).__name__}: {e}", flush=True)
 
 
+async def _ensure_admin_user_exists():
+    """
+    Ensure default admin user exists for development
+    IMPORTANT: This runs at startup to guarantee login always works
+    """
+    try:
+        from sqlalchemy import select
+        from app.models import User, Organization, Role
+        from app.core.security import hash_password
+        from app.core.database import get_db
+        from uuid import uuid4
+        
+        # Use existing async session from app dependency
+        async for session in get_db():
+            # Check if admin user already exists
+            result = await session.execute(
+                select(User).where(User.email == "admin@pytake.net")
+            )
+            admin = result.scalars().first()
+            
+            if admin:
+                # User exists, ensure password and role are correct
+                admin.password_hash = hash_password("nYVUJy9w5hYQGh52CSpM0g")
+                admin.is_active = True
+                admin.locked_until = None
+                admin.failed_login_attempts = 0
+                # Also set legacy role field for backwards compatibility
+                admin.role = "super_admin"
+                await session.commit()
+                print("✅ Admin user verified (password updated)")
+            else:
+                # Create default organization if not exists
+                result = await session.execute(
+                    select(Organization).where(Organization.slug == "pytake-dev")
+                )
+                org = result.scalars().first()
+                
+                if not org:
+                    org = Organization(
+                        id=uuid4(),
+                        name="PyTake Dev",
+                        slug="pytake-dev"
+                    )
+                    session.add(org)
+                    await session.flush()
+                
+                # Create default role if not exists
+                result = await session.execute(
+                    select(Role).where(
+                        (Role.name == "super_admin") & 
+                        (Role.organization_id == org.id)
+                    )
+                )
+                role = result.scalars().first()
+                
+                if not role:
+                    role = Role(
+                        id=uuid4(),
+                        name="super_admin",
+                        organization_id=org.id
+                    )
+                    session.add(role)
+                    await session.flush()
+                
+                # Create admin user with both role_id and legacy role field
+                admin_user = User(
+                    id=uuid4(),
+                    email="admin@pytake.net",
+                    password_hash=hash_password("nYVUJy9w5hYQGh52CSpM0g"),
+                    full_name="Administrador Sistema",
+                    organization_id=org.id,
+                    role_id=role.id,
+                    role="super_admin",  # Legacy field for backwards compatibility
+                    is_active=True,
+                    email_verified=True
+                )
+                session.add(admin_user)
+                await session.commit()
+                print("✅ Default admin user created (admin@pytake.net / nYVUJy9w5hYQGh52CSpM0g)")
+            break
+        
+    except Exception as e:
+        print(f"⚠️ Could not ensure admin user: {type(e).__name__}: {e}", flush=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -79,6 +164,9 @@ async def lifespan(app: FastAPI):
         # PostgreSQL
         await init_db()
         print("✅ PostgreSQL connected")
+        
+        # Initialize default admin user if not exists
+        await _ensure_admin_user_exists()
 
         # Redis
         await redis_client.connect()
