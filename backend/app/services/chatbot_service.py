@@ -58,11 +58,13 @@ class ChatbotService:
         Returns:
             Created chatbot
         """
-        chatbot_data = {
-            **data.model_dump(),
-            "organization_id": organization_id,
-        }
-
+        # Extract whatsapp_number_ids before passing to model (it's not a direct column)
+        whatsapp_number_ids = None
+        chatbot_data = data.model_dump()
+        if "whatsapp_number_ids" in chatbot_data:
+            whatsapp_number_ids = chatbot_data.pop("whatsapp_number_ids")
+        
+        chatbot_data["organization_id"] = organization_id
         chatbot = await self.chatbot_repo.create(chatbot_data)
 
         # Create default main flow
