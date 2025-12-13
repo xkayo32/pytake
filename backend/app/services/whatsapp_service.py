@@ -48,14 +48,16 @@ class WhatsAppService:
     async def _trigger_chatbot(self, conversation, new_message):
         """
         Executa o fluxo do chatbot, processando node atual e avançando automaticamente.
+        Suporta tanto chatbot_id (legacy) quanto active_flow_id direto (novo).
         """
         from app.services.chatbot_service import ChatbotService
         from app.repositories.conversation import ConversationRepository
         from app.models.chatbot import Node
         from sqlalchemy import select
 
-        if not conversation.active_chatbot_id:
-            logger.warning("Nenhum chatbot ativo para a conversa.")
+        # Se não há chatbot_id E não há flow_id, não executa
+        if not conversation.active_chatbot_id and not conversation.active_flow_id:
+            logger.warning("Nenhum chatbot ou flow ativo para a conversa.")
             return
 
         chatbot_service = ChatbotService(self.db)
@@ -63,8 +65,12 @@ class WhatsAppService:
         chatbot_id = conversation.active_chatbot_id
         conv_repo = ConversationRepository(self.db)
 
-        # Se não tem flow ativo, iniciar com main flow
+        # Se não tem flow ativo, iniciar com main flow (se houver chatbot)
         if not conversation.active_flow_id:
+            if not chatbot_id:
+                logger.warning("Flow não inicializado e nenhum chatbot configurado")
+                return
+                
             main_flow = await chatbot_service.flow_repo.get_main_flow(chatbot_id, organization_id)
             if not main_flow:
                 logger.warning(f"Nenhum fluxo principal encontrado para chatbot {chatbot_id}")
@@ -4390,8 +4396,9 @@ __result__ = __script_func__()
         new_message = await message_repo.create(message_data)
         logger.info(f"Saved message: {new_message.id} (WhatsApp ID: {whatsapp_message_id})")
 
-        # 4. Trigger chatbot se configurado
-        if conversation.is_bot_active and conversation.active_chatbot_id:
+        # 4. Trigger chatbot/flow se configurado
+        # Dispara se há chatbot OU se há flow ativo (para suportar default_flow_id)
+        if conversation.is_bot_active and (conversation.active_chatbot_id or conversation.active_flow_id):
             await self._trigger_chatbot(conversation, new_message)
 
         # 5. TODO: Send to queue if needed

@@ -194,16 +194,8 @@ class FlowService:
                 f"Deactivating it may affect conversation routing."
             )
         
-        # Check if it's the only active flow for the chatbot
-        active_flows = await self.repo.count_active_flows(
-            flow.chatbot_id, organization_id
-        )
-        
-        if active_flows <= 1:
-            raise ConflictException(
-                "Cannot deactivate the only active flow in this chatbot. "
-                "Activate another flow first."
-            )
+        # Note: A chatbot can have zero active flows - it's a valid state
+        # (chatbot is just a container/binding to WhatsApp, flows are the logic)
         
         logger.info(f"🔴 Deactivating flow {flow_id}")
         updated_flow = await self.repo.update(flow_id, {"is_active": False})

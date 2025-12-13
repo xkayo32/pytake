@@ -315,7 +315,6 @@ async def deactivate_flow(
     **Error Codes:**
     - 401: Unauthorized
     - 404: Flow not found
-    - 409: Cannot deactivate (e.g., only active flow in chatbot)
     - 500: Server error
     """
     service = FlowService(db)

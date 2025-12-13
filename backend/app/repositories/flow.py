@@ -66,16 +66,3 @@ class FlowRepository(BaseRepository[Flow]):
         )
         return result.scalar_one_or_none()
 
-    async def count_active_flows(
-        self, chatbot_id: UUID, organization_id: UUID
-    ) -> int:
-        """Count active flows for a chatbot"""
-        result = await self.db.execute(
-            select(func.count(Flow.id)).where(
-                Flow.chatbot_id == chatbot_id,
-                Flow.organization_id == organization_id,
-                Flow.is_active == True,
-                Flow.deleted_at.is_(None),
-            )
-        )
-        return result.scalar() or 0
