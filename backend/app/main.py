@@ -347,7 +347,7 @@ import traceback
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    """Log all API requests to MongoDB"""
+    """Log all API requests to MongoDB and stdout"""
     start_time = time()
 
     # Process request
@@ -359,6 +359,10 @@ async def log_requests(request: Request, call_next):
     # Extract user info (will be set by auth middleware)
     organization_id = getattr(request.state, "organization_id", None)
     user_id = getattr(request.state, "user_id", None)
+
+    # Log to stdout for immediate visibility
+    log_msg = f"[{response.status_code}] {request.method} {request.url.path} | User: {user_id} | Org: {organization_id} | {response_time_ms:.2f}ms | IP: {request.client.host if request.client else 'unknown'}"
+    print(log_msg, flush=True)
 
     # Log to MongoDB (fire and forget)
     try:
@@ -374,7 +378,7 @@ async def log_requests(request: Request, call_next):
         )
     except Exception as e:
         # Don't fail request if logging fails
-        print(f"Error logging request: {e}")
+        print(f"Error logging request to MongoDB: {e}", flush=True)
 
     return response
 

@@ -70,7 +70,7 @@ class Permission(Base, TimestampMixin):
         "Role",
         secondary="role_permissions",
         back_populates="permissions",
-        overlaps="role_permissions",
+        viewonly=True,
     )
 
     # Constraint: name must be unique per organization
@@ -124,7 +124,7 @@ class Role(Base, TimestampMixin):
         "Permission",
         secondary="role_permissions",
         back_populates="roles",
-        overlaps="role_permissions",
+        viewonly=True,
     )
 
     role_permissions = relationship(
@@ -132,7 +132,6 @@ class Role(Base, TimestampMixin):
         back_populates="role",
         cascade="all, delete-orphan",
         passive_deletes=True,
-        overlaps="permissions",
     )
 
     users = relationship(
@@ -175,9 +174,9 @@ class RolePermission(Base, TimestampMixin):
         index=True,
     )
 
-    # Relationships
-    role = relationship("Role", back_populates="role_permissions", overlaps="role_permissions")
-    permission = relationship("Permission", back_populates="role_permissions", overlaps="role_permissions")
+    # Relationships (primary associations via explicit FK)
+    role = relationship("Role", back_populates="role_permissions")
+    permission = relationship("Permission", back_populates="role_permissions")
 
     def __repr__(self) -> str:
         return f"<RolePermission(role_id={self.role_id}, permission_id={self.permission_id})>"
