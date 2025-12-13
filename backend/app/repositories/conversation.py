@@ -68,6 +68,7 @@ class ConversationRepository(BaseRepository[Conversation]):
     async def list_conversations(
         self,
         organization_id: UUID,
+        chatbot_id: Optional[UUID] = None,
         status: Optional[str] = None,
         assigned_agent_id: Optional[UUID] = None,
         assigned_department_id: Optional[UUID] = None,
@@ -86,6 +87,9 @@ class ConversationRepository(BaseRepository[Conversation]):
             )
             .options(joinedload(Conversation.contact))
         )
+
+        if chatbot_id:
+            stmt = stmt.where(Conversation.chatbot_id == chatbot_id)
 
         if status:
             stmt = stmt.where(Conversation.status == status)

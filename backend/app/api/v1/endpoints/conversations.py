@@ -30,6 +30,7 @@ router = APIRouter()
 
 @router.get("/", response_model=List[Conversation])
 async def list_conversations(
+    chatbot_id: Optional[UUID] = Query(None, description="Filtrar por ID do chatbot"),
     skip: int = Query(0, ge=0, description="Número de registros para pular (paginação)"),
     limit: int = Query(100, ge=1, le=100, description="Quantidade máxima de registros retornados"),
     status: Optional[str] = Query(
@@ -50,6 +51,7 @@ async def list_conversations(
     List all conversations with filtering and pagination
     
     **Query Parameters:**
+    - `chatbot_id` (UUID, opcional): Filtrar por chatbot
     - `skip` (int, default: 0): Offset para paginação
     - `limit` (int, default: 100, max: 100): Número de registros por página
     - `status` (string, opcional): Filtrar por status (open|pending|resolved|closed)
@@ -84,6 +86,7 @@ async def list_conversations(
 
     return await service.list_conversations(
         organization_id=current_user.organization_id,
+        chatbot_id=chatbot_id,
         status=status,
         assigned_agent_id=assigned_agent_id,
         assigned_department_id=department_id,

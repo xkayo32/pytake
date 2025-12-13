@@ -45,6 +45,7 @@ class ConversationService:
     async def list_conversations(
         self,
         organization_id: UUID,
+        chatbot_id: Optional[UUID] = None,
         status: Optional[str] = None,
         assigned_agent_id: Optional[UUID] = None,
         assigned_department_id: Optional[UUID] = None,
@@ -55,6 +56,7 @@ class ConversationService:
         """List conversations with optional filters"""
         return await self.repo.list_conversations(
             organization_id=organization_id,
+            chatbot_id=chatbot_id,
             status=status,
             assigned_agent_id=assigned_agent_id,
             assigned_department_id=assigned_department_id,
