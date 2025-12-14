@@ -245,6 +245,9 @@ api_router.include_router(agent_skills.router, tags=["Users", "Agent Skills"])
 alerts = _load_endpoint_module("alerts")
 api_router.include_router(alerts.router, tags=["Alerts"])
 
+conversation_windows = _load_endpoint_module("conversation_windows")
+api_router.include_router(conversation_windows.router, tags=["Conversation Windows"])
+
 websocket = _load_endpoint_module("websocket")
 api_router.include_router(websocket.router, tags=["WebSocket"])
 
