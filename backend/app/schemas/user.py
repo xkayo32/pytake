@@ -77,6 +77,7 @@ class User(IDTimestampSchema, UserBase):
     agent_status: Optional[str] = None
     agent_greeting_message: Optional[str] = None
     department_ids: List[UUID] = []
+    permissions: List[str] = []
 
     model_config = {
         "json_schema_extra": {
