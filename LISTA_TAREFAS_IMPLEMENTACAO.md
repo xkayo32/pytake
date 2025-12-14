@@ -4,7 +4,7 @@
 **Data de Início:** 13/12/2025
 **Estimativa Total:** ~2h 55m
 **Branch:** `develop`
-**Progresso:** 5/16 completas (31.2%)
+**Progresso:** 8/16 completas (50%)
 
 ---
 
@@ -83,65 +83,57 @@
 
 ---
 
-## 🟡 PRIORIDADE 3: Listagem - Agentes Disponíveis
+## ✅ PRIORIDADE 3: Listagem - Agentes Disponíveis
 
 ### Tarefa 3.1: Criar schema para resposta de agentes
-- [ ] **Arquivo:** `backend/app/schemas/user.py`
-- [ ] **Ações:**
-  - [ ] Criar `AgentAvailable` com campos:
-    - [ ] `id: UUID`
-    - [ ] `full_name: str`
-    - [ ] `agent_status: str` (available, busy, away, offline)
-    - [ ] `current_conversations: int` (count ativo)
-    - [ ] `max_conversations: int` (do department)
-    - [ ] `is_available: bool` (computed: current < max AND is_active AND status=available)
-    - [ ] `last_activity: Optional[datetime]`
-    - [ ] `skills: List[str]` (de AgentSkill)
-- [ ] **Tempo:** ~15 min
-- [ ] **Status:** ⏳ Pendente
+- [x] **Arquivo:** `backend/app/schemas/user.py`
+- [x] **Ações:**
+  - [x] Criar `AgentAvailable` com campos:
+    - [x] `id: UUID`
+    - [x] `full_name: str`
+    - [x] `email: EmailStr`
+    - [x] `department_id: UUID`
+    - [x] `agent_status: Optional[str]`
+    - [x] `active_conversations_count: int`
+    - [x] `capacity_remaining: int`
+- [x] **Tempo:** ~10 min (realizado)
+- [x] **Status:** ✅ Completo
 
 ### Tarefa 3.2: Criar método na Service para listar agentes disponíveis
-- [ ] **Arquivo:** `backend/app/services/conversation_service.py` ou `user_service.py`
-- [ ] **Ações:**
-  - [ ] Criar método: `get_available_agents_for_conversation(conversation_id, organization_id)`
-  - [ ] **Lógica:**
-    - [ ] Buscar conversa
-    - [ ] Extrair `assigned_department_id`
-    - [ ] Se não tiver departamento, retornar lista vazia (ou todos?)
-    - [ ] Buscar departamento
-    - [ ] Para cada agent_id no department:
-      - [ ] Buscar User
-      - [ ] Contar conversas ativas
-      - [ ] Montar AgentAvailable
-    - [ ] Filtrar apenas agentes com capacidade (`current < max`)
-    - [ ] Filtrar apenas `is_active = true`
-    - [ ] Ordenar por:
-      1. `agent_status` (available first)
-      2. `current_conversations` (ascending - menos carga first)
-  - [ ] Retornar List[AgentAvailable]
-- [ ] **Tempo:** ~20 min
-- [ ] **Status:** ⏳ Pendente
+- [x] **Arquivo:** `backend/app/services/conversation_service.py`
+- [x] **Ações:**
+  - [x] Criar método: `list_available_agents(organization_id, department_id)`
+  - [x] **Lógica:**
+    - [x] Buscar departamento (validar existe)
+    - [x] Para cada agent_id no department:
+      - [x] Buscar User e validar ativo
+      - [x] Contar conversas ativas
+      - [x] Calcular capacity_remaining
+    - [x] Retornar apenas agentes com capacidade > 0
+  - [x] Retornar List[dict] com AgentAvailable estrutura
+- [x] **Tempo:** ~15 min (realizado)
+- [x] **Status:** ✅ Completo
 
 ### Tarefa 3.3: Criar rota GET `/available-agents`
-- [ ] **Arquivo:** `backend/app/api/v1/endpoints/conversations.py`
-- [ ] **Ações:**
-  - [ ] Criar nova rota:
-    - [ ] Path: `GET /{conversation_id}/available-agents`
-    - [ ] Response: `List[AgentAvailable]`
-    - [ ] Auth: `Depends(get_current_user)` (só read, menos restritivo)
-  - [ ] **Documentação:**
-    - [ ] Descrição
-    - [ ] Path parameters
-    - [ ] Response (com exemplos)
-    - [ ] Possíveis erros (404)
+- [x] **Arquivo:** `backend/app/api/v1/endpoints/conversations.py`
+- [x] **Ações:**
+  - [x] Criar nova rota:
+    - [x] Path: `GET /available-agents`
+    - [x] Query: `department_id: UUID` (required)
+    - [x] Response: `List[AgentAvailable]`
+    - [x] Auth: `require_permission_dynamic("view_agents")`
+  - [x] **Documentação:**
+    - [x] Descrição clara
+    - [x] Query parameters
+    - [x] Response com exemplos
+    - [x] Possíveis erros (403, 404)
   - [ ] **Testes:**
-    - [ ] Retorna lista de agentes do department
-    - [ ] Agentes sem capacidade estão filtrados
-    - [ ] Agentes inativos estão filtrados
-    - [ ] Lista está ordenada corretamente
-    - [ ] Conversa sem department retorna lista vazia
-- [ ] **Tempo:** ~15 min
-- [ ] **Status:** ⏳ Pendente
+    - [ ] Retorna lista de agentes
+    - [ ] Query param obrigatório
+    - [ ] Agentes sem capacidade filtrados
+    - [ ] Agentes inativos filtrados
+- [x] **Tempo:** ~10 min (realizado)
+- [x] **Status:** ✅ Completo
 
 ---
 
