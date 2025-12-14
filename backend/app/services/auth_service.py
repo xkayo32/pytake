@@ -175,8 +175,9 @@ class AuthService:
         # Generate tokens
         token = await self._generate_tokens(user)
 
-        # Convert to schema
+        # Convert to schema and populate permissions
         user_schema = UserSchema.model_validate(user)
+        user_schema.permissions = await self._get_user_permissions(user.id)
 
         return user_schema, token
 
@@ -275,6 +276,56 @@ class AuthService:
             token_type="bearer",
             expires_in=expires_in,
         )
+
+    async def _get_user_permissions(self, user_id: UUID) -> list[str]:
+        """
+        Get list of permission names for a user based on their role
+        
+        Args:
+            user_id: User ID
+            
+        Returns:
+            List of permission names
+        """
+        from sqlalchemy import select
+        from app.models.role import Permission, Role, RolePermission
+        from app.models.user import User
+        
+        try:
+            # Get user with role
+            stmt = select(User).where(User.id == user_id)
+            result = await self.db.execute(stmt)
+            user = result.scalar_one_or_none()
+            
+            if not user or not user.role_id:
+                return []
+            
+            # Get role with permissions eager-loaded
+            stmt = (
+                select(Role)
+                .where(Role.id == user.role_id)
+            )
+            result = await self.db.execute(stmt)
+            role = result.scalar_one_or_none()
+            
+            if not role:
+                return []
+            
+            # Get permissions for role
+            stmt = (
+                select(Permission.name)
+                .join(RolePermission, Permission.id == RolePermission.permission_id)
+                .where(RolePermission.role_id == role.id)
+                .where(Permission.is_active == True)
+            )
+            result = await self.db.execute(stmt)
+            permissions = result.scalars().all()
+            
+            return list(permissions)
+        except Exception as e:
+            import logging
+            logging.error(f"Error getting user permissions: {e}")
+            return []
 
     async def get_current_user(self, token: str) -> User:
         """

@@ -332,7 +332,7 @@ async def create_permission(
     "/",
     response_model=PermissionListResponse,
     summary="List permissions",
-    description="List all permissions for organization",
+    description="List all permissions available (system + organization)",
 )
 async def list_permissions(
     category: str = Query(None, description="Filter by category"),
@@ -341,23 +341,31 @@ async def list_permissions(
 ):
     """
     List all permissions for organization.
+    Includes both system-wide permissions and organization-specific permissions.
     
     **Required Role:** Any authenticated user
     
     **Query Parameters:**
     - `category` (string, optional): Filter by category (e.g., "chatbots", "users")
     """
-    from app.services.role_service import RoleService
+    from sqlalchemy import select, or_
+    from app.models.role import Permission
     
-    service = RoleService(db)
+    # Query both system and org permissions
+    stmt = select(Permission).where(
+        or_(
+            Permission.organization_id.is_(None),  # System permissions
+            Permission.organization_id == current_user.organization_id  # Org permissions
+        ),
+        Permission.is_active == True
+    )
+    
+    # Apply category filter if provided
     if category:
-        permissions = await service.permission_repo.list_by_category(
-            category, current_user.organization_id
-        )
-    else:
-        permissions = await service.permission_repo.list_by_organization(
-            current_user.organization_id
-        )
+        stmt = stmt.where(Permission.category == category)
+    
+    result = await db.execute(stmt)
+    permissions = result.scalars().all()
     
     return PermissionListResponse(total=len(permissions), items=permissions)
 

@@ -19,6 +19,15 @@ class ContactRepository(BaseRepository[Contact]):
     def __init__(self, db: AsyncSession):
         super().__init__(Contact, db)
 
+    async def create(self, obj_in: dict) -> Contact:
+        """Create a new contact with eager-loaded tags"""
+        db_obj = Contact(**obj_in)
+        self.db.add(db_obj)
+        await self.db.commit()
+        # Re-fetch with tags eager-loaded to avoid lazy-loading issues
+        await self.db.refresh(db_obj, ["tags"])
+        return db_obj
+
     async def get(self, id: UUID) -> Optional[Contact]:
         """Get contact by ID with tags loaded"""
         result = await self.db.execute(

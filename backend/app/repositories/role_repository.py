@@ -96,6 +96,8 @@ class RoleRepository:
         role = Role(**data)
         self.db.add(role)
         await self.db.flush()
+        # Eager-load permissions to avoid lazy-loading issues
+        await self.db.refresh(role, ["permissions"])
         return role
 
     async def get(self, role_id: UUID) -> Optional[Role]:

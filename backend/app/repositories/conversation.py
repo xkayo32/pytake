@@ -98,13 +98,13 @@ class ConversationRepository(BaseRepository[Conversation]):
             stmt = stmt.where(Conversation.current_agent_id == assigned_agent_id)
 
         if assigned_department_id:
-            stmt = stmt.where(Conversation.assigned_department_id == assigned_department_id)
+            stmt = stmt.where(Conversation.department_id == assigned_department_id)
 
         if queue_id:
             stmt = stmt.where(Conversation.queue_id == queue_id)
 
         if priority:
-            stmt = stmt.where(Conversation.priority == priority)
+            stmt = stmt.where(Conversation.queue_priority == priority)
 
         if unread_only:
             stmt = stmt.where(Conversation.unread_count > 0)

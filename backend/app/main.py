@@ -18,6 +18,7 @@ from app.core.database import close_db, init_db
 from app.core.mongodb import mongodb_client
 from app.core.redis import redis_client
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
+from app.core.rbac_init import initialize_rbac
 
 # Import routers
 from app.api.v1.router import api_router
@@ -164,6 +165,14 @@ async def lifespan(app: FastAPI):
         # PostgreSQL
         await init_db()
         print("✅ PostgreSQL connected")
+        
+        # Initialize RBAC (permissions and system roles)
+        try:
+            from app.core.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
+                await initialize_rbac(db)
+        except Exception as e:
+            print(f"⚠️  Warning: RBAC initialization skipped: {e}")
         
         # Initialize default admin user if not exists
         await _ensure_admin_user_exists()
