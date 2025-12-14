@@ -16,6 +16,7 @@ from app.schemas.conversation import (
     ConversationClose,
     ConversationCreate,
     ConversationTransfer,
+    ConversationTransferToAgent,
     ConversationUpdate,
     Message,
     MessageCreate,
@@ -362,6 +363,36 @@ async def transfer_conversation(
         conversation_id=conversation_id,
         organization_id=current_user.organization_id,
         department_id=data.department_id,
+        note=data.note,
+    )
+
+
+@router.post("/{conversation_id}/transfer-to-agent", response_model=Conversation)
+async def transfer_to_agent(
+    conversation_id: UUID,
+    data: ConversationTransferToAgent,
+    current_user: User = Depends(require_permission_dynamic("assign_conversation")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Transfer conversation directly to a specific agent
+
+    Validates agent is active, belongs to conversation's department,
+    and hasn't reached maximum capacity. Stores transfer history.
+    
+    **Validations:**
+    - Agent must be active
+    - Agent must be in 'available' status or None
+    - Agent must belong to conversation's department
+    - Agent capacity must not be exceeded
+
+    **Returns:** Updated conversation with new agent assignment
+    """
+    service = ConversationService(db)
+    return await service.transfer_to_agent(
+        conversation_id=conversation_id,
+        organization_id=current_user.organization_id,
+        agent_id=data.agent_id,
         note=data.note,
     )
 
