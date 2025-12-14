@@ -138,6 +138,19 @@ class ConversationRepository(BaseRepository[Conversation]):
         result = await self.db.execute(stmt)
         return int(result.scalar() or 0)
 
+    async def count_active_conversations_by_agent(
+        self, organization_id: UUID, agent_id: UUID
+    ) -> int:
+        """Count active conversations assigned to a specific agent"""
+        stmt = select(func.count(Conversation.id)).where(
+            Conversation.organization_id == organization_id,
+            Conversation.assigned_agent_id == agent_id,
+            Conversation.status == "active",
+            Conversation.deleted_at.is_(None),
+        )
+        result = await self.db.execute(stmt)
+        return int(result.scalar() or 0)
+
     async def increment_message_count(self, conversation_id: UUID) -> None:
         """Increment total message count"""
         conversation = await self.get(conversation_id)

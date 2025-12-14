@@ -14,6 +14,8 @@ from app.models.conversation import Conversation, Message
 from app.repositories.conversation import ConversationRepository, MessageRepository
 from app.repositories.contact import ContactRepository
 from app.repositories.queue import QueueRepository
+from app.repositories.user import UserRepository
+from app.repositories.department import DepartmentRepository
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationUpdate,
@@ -32,6 +34,8 @@ class ConversationService:
         self.message_repo = MessageRepository(db)
         self.contact_repo = ContactRepository(db)
         self.queue_repo = QueueRepository(db)
+        self.user_repo = UserRepository(db)
+        self.department_repo = DepartmentRepository(db)
 
     async def get_by_id(
         self, conversation_id: UUID, organization_id: UUID
@@ -460,6 +464,103 @@ class ConversationService:
 
             update_data["extra_data"] = extra_data
 
+        updated = await self.repo.update(conversation_id, update_data)
+        return updated
+
+    async def transfer_to_agent(
+        self,
+        conversation_id: UUID,
+        organization_id: UUID,
+        agent_id: UUID,
+        note: Optional[str] = None,
+    ) -> Conversation:
+        """
+        Transfer conversation directly to a specific agent
+
+        Args:
+            conversation_id: Conversation ID
+            organization_id: Organization ID
+            agent_id: Agent ID to transfer to
+            note: Optional transfer note
+
+        Returns:
+            Updated conversation
+
+        Raises:
+            NotFoundException: If conversation or agent not found
+            ValueError: If agent validation fails (not active, not in dept, capacity exceeded)
+        """
+        # Get conversation
+        conversation = await self.get_by_id(conversation_id, organization_id)
+
+        # Verify agent exists and belongs to organization
+        agent = await self.user_repo.get_by_id(agent_id, organization_id)
+        if not agent:
+            raise NotFoundException("Agent not found")
+
+        # Validate agent is active
+        if not agent.is_active:
+            raise ValueError("Agent is not active")
+
+        # Validate agent status
+        if agent.agent_status not in ["available", None]:
+            raise ValueError(f"Agent is not available (status: {agent.agent_status})")
+
+        # Get current conversation department
+        if not conversation.assigned_department_id:
+            raise ValueError("Conversation has no assigned department")
+
+        # Verify agent belongs to conversation's department
+        department = await self.department_repo.get_by_id(
+            conversation.assigned_department_id, organization_id
+        )
+        if not department:
+            raise NotFoundException("Department not found")
+
+        if agent_id not in (department.agent_ids or []):
+            raise ValueError("Agent does not belong to conversation's department")
+
+        # Check agent capacity
+        active_count = await self.repo.count_active_conversations_by_agent(
+            organization_id, agent_id
+        )
+        if active_count >= department.max_conversations_per_agent:
+            raise ValueError(
+                f"Agent has reached maximum capacity ({department.max_conversations_per_agent} conversations)"
+            )
+
+        # Prepare update data
+        update_data = {
+            "assigned_agent_id": agent_id,
+            "status": "active",
+            "assigned_at": datetime.utcnow(),
+        }
+
+        # If conversation was queued, clear queue timestamp
+        if conversation.status == "queued":
+            update_data["queued_at"] = None
+
+        # Store transfer history in extra_data
+        extra_data = conversation.extra_data or {}
+        if "transfers" not in extra_data:
+            extra_data["transfers"] = []
+
+        previous_agent_id = (
+            str(conversation.assigned_agent_id)
+            if conversation.assigned_agent_id
+            else None
+        )
+        extra_data["transfers"].append(
+            {
+                "from_agent_id": previous_agent_id,
+                "to_agent_id": str(agent_id),
+                "note": note,
+                "transferred_at": datetime.utcnow().isoformat(),
+            }
+        )
+        update_data["extra_data"] = extra_data
+
+        # Update conversation
         updated = await self.repo.update(conversation_id, update_data)
         return updated
 
