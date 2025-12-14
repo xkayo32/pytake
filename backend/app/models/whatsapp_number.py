@@ -242,6 +242,33 @@ class WhatsAppTemplate(Base, TimestampMixin, SoftDeleteMixin):
         server_default=text("'[]'::jsonb"),
     )
 
+    # Parameter Format Support (Named vs Positional)
+    # POSITIONAL: {{1}}, {{2}} (legacy)
+    # NAMED: {{name}}, {{email}} (new, recommended)
+    parameter_format = Column(
+        String(20),
+        nullable=False,
+        default="POSITIONAL",
+        server_default="POSITIONAL"
+    )
+    named_variables = Column(
+        JSONB,
+        nullable=False,
+        default=[],
+        server_default=text("'[]'::jsonb"),
+    )
+
+    # Quality Score & Status Tracking
+    # GREEN: High quality, low blocking rate
+    # YELLOW: Acceptable quality
+    # RED: Low quality, high blocking rate
+    # UNKNOWN: Not yet rated (first 24h after approval)
+    quality_score = Column(String(20), nullable=True)
+    paused_at = Column(DateTime(timezone=True), nullable=True)  # When Meta paused this template
+    disabled_at = Column(DateTime(timezone=True), nullable=True)  # When Meta disabled this template
+    disabled_reason = Column(Text, nullable=True)  # Why Meta disabled
+    last_status_update = Column(DateTime(timezone=True), nullable=True)  # Last webhook status update
+
     # Usage tracking
     sent_count = Column(Integer, default=0, server_default="0")
     delivered_count = Column(Integer, default=0, server_default="0")

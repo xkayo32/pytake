@@ -146,9 +146,14 @@ class Conversation(Base, TimestampMixin, SoftDeleteMixin):
     archived_at = Column(DateTime(timezone=True), nullable=True)
 
     # 24-hour window tracking (WhatsApp policy)
+    # last_user_message_at: When customer last sent a message (triggers 24h window)
+    # window_expires_at: When 24h window expires (last_user_message_at + 24h)
     last_inbound_message_at = Column(
         DateTime(timezone=True), nullable=True, index=True
     )
+    last_user_message_at = Column(
+        DateTime(timezone=True), nullable=True, index=True
+    )  # Track last message FROM customer (for 24h window calculation)
     window_expires_at = Column(DateTime(timezone=True), nullable=True, index=True)
 
     # Metrics
@@ -252,6 +257,25 @@ class Conversation(Base, TimestampMixin, SoftDeleteMixin):
         from datetime import datetime
 
         return datetime.utcnow() < self.window_expires_at
+    
+    @property
+    def can_send_free_message(self) -> bool:
+        """Check if free-form message can be sent (no template required)"""
+        return self.is_within_24h_window
+    
+    @property
+    def template_required(self) -> bool:
+        """Check if template is required (outside 24h window)"""
+        return not self.can_send_free_message
+
+    def update_user_message_window(self):
+        """Update 24h window when user sends a message"""
+        from datetime import datetime, timedelta
+        
+        now = datetime.utcnow()
+        self.last_user_message_at = now
+        self.window_expires_at = now + timedelta(hours=24)
+        self.last_inbound_message_at = now
 
     def assign_to_agent(self, agent_id: UUID, department_id: UUID = None):
         """Assign conversation to an agent"""
