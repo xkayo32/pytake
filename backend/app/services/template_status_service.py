@@ -488,3 +488,20 @@ class TemplateStatusService:
             logger.error(f"❌ Error getting quality summary: {e}")
 
         return summary
+
+    def _calculate_failure_rate(self, sent_count: int, failed_count: int) -> float:
+        """
+        Calculate failure rate percentage.
+
+        Args:
+            sent_count: Total messages sent
+            failed_count: Failed messages
+
+        Returns:
+            Failure rate as percentage (0-100)
+        """
+        if sent_count == 0:
+            return 0.0
+
+        return (failed_count / sent_count) * 100.0
+
