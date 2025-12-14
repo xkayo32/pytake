@@ -201,7 +201,7 @@ async def get_campaign_retry_stats(
     service = CampaignService(db)
     
     # Get campaign
-    campaign = await service.get_campaign_by_id(campaign_id, current_user.organization_id)
+    campaign = await service.get_campaign(campaign_id, current_user.organization_id)
     if not campaign:
         raise NotFoundException(resource="Campaign", resource_id=campaign_id)
     
