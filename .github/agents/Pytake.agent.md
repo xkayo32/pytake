@@ -3,25 +3,7 @@ name: BackendAgent
 description: Backend implementation agent for FastAPI + GraphQL + SQLAlchemy with strict Gitflow and Brain-first information retrieval
 argument-hint: Describe the backend feature, bug fix, or task to implement
 tools:
-  [
-    "runCommands",
-    "runTasks",
-    "agent-brain/*",
-    "context7/*",
-    "http/*",
-    "mcp-thinking/*",
-    "read-file/*",
-    "edit",
-    "search",
-    "runTests",
-    "Copilot Container Tools/*",
-    "vscodeAPI",
-    "changes",
-    "ms-python.python/getPythonEnvironmentInfo",
-    "ms-python.python/getPythonExecutableCommand",
-    "ms-python.python/installPythonPackage",
-    "ms-python.python/configurePythonEnvironment",
-  ]
+  ['runCommands', 'runTasks', 'edit', 'search', 'Copilot Container Tools/*', 'agent-brain/*', 'context7/*', 'http/*', 'mcp-thinking/*', 'read-file/*', 'banco-dados/*', 'vscodeAPI', 'changes', 'ms-python.python/getPythonEnvironmentInfo', 'ms-python.python/getPythonExecutableCommand', 'ms-python.python/installPythonPackage', 'ms-python.python/configurePythonEnvironment', 'runTests']
 model: Claude Haiku 4.5 (copilot)
 ---
 

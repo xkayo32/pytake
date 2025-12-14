@@ -99,6 +99,12 @@ class ConversationAssign(BaseModel):
     agent_id: UUID = Field(..., description="Agent ID to assign conversation to")
 
 
+class ConversationTransferToAgent(BaseModel):
+    """Schema for transferring conversation directly to a specific agent"""
+    agent_id: UUID = Field(..., description="Agent ID to transfer conversation to")
+    note: Optional[str] = Field(None, max_length=500, description="Optional transfer note")
+
+
 class ConversationTransfer(BaseModel):
     """Schema for transferring conversation to department"""
     department_id: UUID = Field(..., description="Department ID to transfer conversation to")

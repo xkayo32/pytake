@@ -4337,6 +4337,10 @@ __result__ = __script_func__()
                 except Exception as e:
                     logger.error(f"Error assigning VIP conversation with overflow: {e}")
 
+        # Save conversation metric values before any potential detachment
+        current_messages_from_contact = conversation.messages_from_contact or 0
+        current_total_messages = conversation.total_messages or 0
+
         # Update conversation
         now = datetime.utcnow()
         await conversation_repo.update(conversation.id, {
@@ -4344,8 +4348,8 @@ __result__ = __script_func__()
             "last_message_from_contact_at": now,
             "last_inbound_message_at": now,
             "window_expires_at": now + timedelta(hours=24),
-            "messages_from_contact": conversation.messages_from_contact + 1,
-            "total_messages": conversation.total_messages + 1,
+            "messages_from_contact": current_messages_from_contact + 1,
+            "total_messages": current_total_messages + 1,
         })
 
         # 3. Store Message
@@ -4834,6 +4838,11 @@ __result__ = __script_func__()
         else:
             sender_type = "bot" if conversation.is_bot_active else "system"
 
+        # Save conversation metric values before detaching session
+        current_messages_from_agent = conversation.messages_from_agent or 0
+        current_messages_from_bot = conversation.messages_from_bot or 0
+        current_total_messages = conversation.total_messages or 0
+
         message_data = {
             "organization_id": organization_id,
             "conversation_id": conversation_id,
@@ -4914,9 +4923,9 @@ __result__ = __script_func__()
             await conversation_repo.update(conversation_id, {
                 "last_message_at": datetime.utcnow(),
                 "last_message_from_agent_at": datetime.utcnow() if sender_type == "agent" else None,
-                "messages_from_agent": conversation.messages_from_agent + (1 if sender_type == "agent" else 0),
-                "messages_from_bot": conversation.messages_from_bot + (1 if sender_type == "bot" else 0),
-                "total_messages": conversation.total_messages + 1,
+                "messages_from_agent": current_messages_from_agent + (1 if sender_type == "agent" else 0),
+                "messages_from_bot": current_messages_from_bot + (1 if sender_type == "bot" else 0),
+                "total_messages": current_total_messages + 1,
             })
 
             await self.db.commit()
