@@ -273,3 +273,84 @@ class WebhookService:
             )
         except Exception as e:
             logger.error(f"❌ Error broadcasting progress: {e}")
+
+    async def process_template_status_update(
+        self,
+        waba_id: str,
+        webhook_data: Dict[str, Any]
+    ) -> None:
+        """
+        Process template status update from Meta webhook.
+        
+        This is called when Meta sends message_template_status_update events
+        for quality score changes, approval/rejection, pause/disable notifications.
+        
+        Webhook format:
+        {
+            "waba_id": "123456789",
+            "message_template_name": "template_name",
+            "language": "pt_BR",
+            "event": "APPROVED|REJECTED|PENDING|DISABLED|PAUSED|QUALITY_CHANGE",
+            "quality_score": "GREEN|YELLOW|RED|UNKNOWN",
+            "reason": "reason_code",
+            "timestamp": "1234567890"
+        }
+        
+        Args:
+            waba_id: WhatsApp Business Account ID
+            webhook_data: Template status update data
+        """
+        from app.services.template_status_service import TemplateStatusService
+        
+        try:
+            template_name = webhook_data.get("message_template_name")
+            event = webhook_data.get("event")
+            language = webhook_data.get("language", "pt_BR")
+            
+            logger.info(
+                f"📋 Processing template status update: "
+                f"waba={waba_id}, template={template_name}, event={event}"
+            )
+            
+            # For now, we need to find the organization by WABA ID
+            # This is a limitation - Meta doesn't send org_id in webhook
+            # We'll need to find it from WhatsAppNumber table
+            
+            from app.models.whatsapp_number import WhatsAppNumber
+            from sqlalchemy import select
+            
+            # Find organization by WABA ID
+            query = select(WhatsAppNumber).where(
+                WhatsAppNumber.whatsapp_business_account_id == waba_id
+            )
+            result = await self.db.execute(query)
+            whatsapp_number = result.scalar_one_or_none()
+            
+            if not whatsapp_number:
+                logger.warning(
+                    f"⚠️ WhatsApp number not found for WABA: {waba_id}. "
+                    f"Cannot process template status update."
+                )
+                return
+            
+            # Now process with organization context
+            template_status_service = TemplateStatusService(self.db)
+            template = await template_status_service.process_template_status_update(
+                waba_id=waba_id,
+                template_name=template_name,
+                organization_id=whatsapp_number.organization_id,
+                webhook_data=webhook_data
+            )
+            
+            if template:
+                logger.info(
+                    f"✅ Template status processed: {template_name} "
+                    f"(status={template.status}, quality={template.quality_score})"
+                )
+            
+        except Exception as e:
+            logger.error(
+                f"❌ Error processing template status update: {e}",
+                exc_info=True
+            )
+

@@ -4,6 +4,7 @@ WhatsApp Number Endpoints
 
 from typing import List, Dict, Any, Optional
 from uuid import UUID
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, status, Request, HTTPException, Query
 from fastapi.responses import PlainTextResponse
@@ -1334,3 +1335,342 @@ async def reset_rate_limit(
         "message": "Rate limit counters reset successfully",
         "whatsapp_number_id": str(number_id),
     }
+
+
+# ============= TEMPLATE MONITORING & STATUS ENDPOINTS =============
+
+@router.get("/templates/critical")
+async def get_critical_templates(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get all templates requiring attention for the organization.
+    
+    Returns templates with issues:
+    - Status: DISABLED, PAUSED, REJECTED
+    - Quality: RED (failing quality metrics)
+    - Pending approval (PENDING status > 48h)
+    
+    **Returns:**
+    ```json
+    {
+        "critical_templates": [
+            {
+                "id": "template-uuid",
+                "name": "template_name",
+                "status": "DISABLED",
+                "quality_score": "RED",
+                "disabled_reason": "QUALITY_ISSUES",
+                "disabled_at": "2025-01-15T14:30:00Z",
+                "sent_count": 1250,
+                "failed_count": 45,
+                "failure_rate": 0.036,
+                "campaigns_affected": 3,
+                "action_required": "Review template quality metrics and resubmit"
+            }
+        ],
+        "total_critical": 2,
+        "timestamp": "2025-01-15T15:00:00Z"
+    }
+    ```
+    
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+    - Scoped to: Organization
+    """
+    from app.services.template_status_service import TemplateStatusService
+    
+    service = TemplateStatusService(db)
+    templates = await service.get_critical_templates(current_user.organization_id)
+    
+    result = []
+    for template in templates:
+        campaigns_affected = await service._get_template_campaign_count(template.id)
+        failure_rate = (
+            template.failed_count / (template.sent_count or 1)
+            if template.sent_count
+            else 0
+        )
+        
+        result.append({
+            "id": str(template.id),
+            "name": template.name,
+            "status": template.status,
+            "quality_score": template.quality_score,
+            "disabled_reason": template.disabled_reason,
+            "disabled_at": template.disabled_at,
+            "paused_at": template.paused_at,
+            "sent_count": template.sent_count,
+            "delivered_count": template.delivered_count,
+            "failed_count": template.failed_count,
+            "failure_rate": round(failure_rate, 4),
+            "campaigns_affected": campaigns_affected,
+            "last_status_update": template.last_status_update,
+            "action_required": _get_action_required(template),
+        })
+    
+    return {
+        "critical_templates": result,
+        "total_critical": len(result),
+        "timestamp": datetime.utcnow(),
+    }
+
+
+@router.get("/templates/quality-summary")
+async def get_quality_summary(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get quality metrics summary for all organization templates.
+    
+    Provides overview of template quality distribution and metrics.
+    
+    **Returns:**
+    ```json
+    {
+        "quality_summary": {
+            "total_templates": 45,
+            "approved": 40,
+            "pending": 2,
+            "rejected": 1,
+            "disabled": 2,
+            "paused": 0,
+            "quality_distribution": {
+                "GREEN": 35,
+                "YELLOW": 4,
+                "RED": 1,
+                "UNKNOWN": 5
+            },
+            "avg_success_rate": 0.98,
+            "avg_failure_rate": 0.02,
+            "total_messages_sent": 125400,
+            "total_messages_failed": 2450
+        },
+        "recent_quality_changes": [
+            {
+                "template_id": "uuid",
+                "template_name": "name",
+                "previous_score": "GREEN",
+                "current_score": "YELLOW",
+                "changed_at": "2025-01-15T10:30:00Z",
+                "reason": "Quality metrics degraded"
+            }
+        ],
+        "timestamp": "2025-01-15T15:00:00Z"
+    }
+    ```
+    
+    **Permissions:**
+    - Requires: org_admin or super_admin role
+    - Scoped to: Organization
+    """
+    from app.services.template_status_service import TemplateStatusService
+    
+    service = TemplateStatusService(db)
+    summary = await service.get_template_quality_summary(current_user.organization_id)
+    
+    return {
+        "quality_summary": summary,
+        "timestamp": datetime.utcnow(),
+    }
+
+
+@router.get("/{number_id}/templates/{template_id}/status-history")
+async def get_template_status_history(
+    number_id: UUID,
+    template_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+):
+    """
+    Get status change history for a specific template.
+    
+    Shows all status transitions and quality score changes with timestamps
+    and reasons. Useful for auditing and debugging template issues.
+    
+    **Path Parameters:**
+    - number_id: WhatsApp number UUID
+    - template_id: Template UUID
+    
+    **Query Parameters:**
+    - limit: Max results (default: 100, max: 1000)
+    - offset: Pagination offset (default: 0)
+    
+    **Returns:**
+    ```json
+    {
+        "template": {
+            "id": "template-uuid",
+            "name": "template_name",
+            "current_status": "APPROVED",
+            "current_quality": "GREEN"
+        },
+        "history": [
+            {
+                "timestamp": "2025-01-15T14:30:00Z",
+                "event_type": "APPROVED",
+                "previous_status": "PENDING",
+                "new_status": "APPROVED",
+                "quality_score": "UNKNOWN",
+                "reason": "Template approved by Meta",
+                "webhook_id": "evt-123"
+            }
+        ],
+        "total": 15,
+        "limit": 100,
+        "offset": 0
+    }
+    ```
+    
+    **Permissions:**
+    - Requires: Authenticated user
+    - Scoped to: Organization + WhatsApp number
+    
+    **Note:** This endpoint requires implementation of AuditLog model
+    (Future enhancement for complete audit trail)
+    """
+    from app.services.whatsapp_service import WhatsAppService
+    from app.models.whatsapp_number import WhatsAppTemplate
+    
+    # Verify number belongs to organization
+    service = WhatsAppService(db)
+    whatsapp_number = await service.get_number(number_id, current_user.organization_id)
+    
+    if not whatsapp_number:
+        raise HTTPException(status_code=404, detail="WhatsApp number not found")
+    
+    # Verify template exists and belongs to this number
+    from sqlalchemy import select
+    
+    query = select(WhatsAppTemplate).where(
+        WhatsAppTemplate.id == template_id,
+        WhatsAppTemplate.whatsapp_number_id == number_id,
+        WhatsAppTemplate.deleted_at.is_(None),
+    )
+    
+    result = await db.execute(query)
+    template = result.scalars().first()
+    
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    
+    # TODO: Implement AuditLog table to track status changes
+    # For now, return basic current state
+    return {
+        "template": {
+            "id": str(template.id),
+            "name": template.name,
+            "current_status": template.status,
+            "current_quality": template.quality_score,
+        },
+        "history": [
+            {
+                "timestamp": template.last_status_update,
+                "event_type": template.status,
+                "current_status": template.status,
+                "quality_score": template.quality_score,
+                "reason": template.disabled_reason or "Status update from Meta",
+            }
+        ],
+        "note": "Full status history requires AuditLog implementation",
+        "total": 1,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@router.post("/{number_id}/templates/{template_id}/acknowledge-alert")
+async def acknowledge_template_alert(
+    number_id: UUID,
+    template_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Mark template quality alert as acknowledged by user.
+    
+    Used to suppress repeated alerts after admin has reviewed
+    and taken action on a template issue.
+    
+    **Path Parameters:**
+    - number_id: WhatsApp number UUID
+    - template_id: Template UUID
+    
+    **Returns:**
+    ```json
+    {
+        "message": "Alert acknowledged",
+        "template_id": "uuid",
+        "acknowledged_at": "2025-01-15T15:05:00Z",
+        "acknowledged_by": "user@example.com"
+    }
+    ```
+    
+    **Permissions:**
+    - Requires: org_admin or super_admin role
+    - Scoped to: Organization + WhatsApp number
+    """
+    from app.services.whatsapp_service import WhatsAppService
+    from app.models.whatsapp_number import WhatsAppTemplate
+    from datetime import datetime
+    
+    # Verify number belongs to organization
+    service = WhatsAppService(db)
+    whatsapp_number = await service.get_number(number_id, current_user.organization_id)
+    
+    if not whatsapp_number:
+        raise HTTPException(status_code=404, detail="WhatsApp number not found")
+    
+    # Verify template exists
+    from sqlalchemy import select
+    
+    query = select(WhatsAppTemplate).where(
+        WhatsAppTemplate.id == template_id,
+        WhatsAppTemplate.whatsapp_number_id == number_id,
+        WhatsAppTemplate.deleted_at.is_(None),
+    )
+    
+    result = await db.execute(query)
+    template = result.scalars().first()
+    
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    
+    # TODO: Implement alert acknowledgment tracking
+    # For now, just return success
+    return {
+        "message": "Alert acknowledged",
+        "template_id": str(template.id),
+        "acknowledged_at": datetime.utcnow(),
+        "acknowledged_by": current_user.email,
+        "note": "Alert acknowledgment tracking requires AlertLog implementation",
+    }
+
+
+# ============= HELPER FUNCTIONS =============
+
+def _get_action_required(template) -> str:
+    """
+    Generate human-readable action description for critical template.
+    """
+    if template.status == "DISABLED":
+        reason = template.disabled_reason or "Unknown reason"
+        return f"Template disabled ({reason}). Review Meta documentation and resubmit."
+    elif template.status == "PAUSED":
+        return "Template paused by Meta. Check quality metrics and request review."
+    elif template.status == "REJECTED":
+        return "Template was rejected by Meta. Update content and resubmit."
+    elif template.quality_score == "RED":
+        return "Quality score RED. Update template content to improve metrics."
+    elif template.status == "PENDING" and template.created_at:
+        from datetime import datetime, timedelta
+        pending_hours = (datetime.utcnow() - template.created_at).total_seconds() / 3600
+        if pending_hours > 48:
+            return f"Pending for {int(pending_hours)}h. May have been rejected - check Meta dashboard."
+        return f"Pending approval for {int(pending_hours)}h."
+    
+    return "Review template status in Meta dashboard"

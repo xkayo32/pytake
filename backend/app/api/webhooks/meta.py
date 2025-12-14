@@ -169,8 +169,30 @@ async def receive_webhook(
                         # TODO: Implement incoming message handler
                 
                 elif field == "message_template_status_update":
-                    # Template status update (future)
-                    logger.info(f"📋 Template status update: {value}")
+                    # Process template status updates (APPROVED, REJECTED, QUALITY_CHANGE, PAUSED, DISABLED)
+                    templates = value.get("message_templates", [])
+                    
+                    for template_update in templates:
+                        try:
+                            # Extract WABA ID from entry if available, otherwise try to derive it
+                            waba_id = entry.get("id") or value.get("waba_id")
+                            
+                            if not waba_id:
+                                logger.warning(
+                                    f"⚠️ Missing WABA ID in template status update: {template_update}"
+                                )
+                                continue
+                            
+                            await webhook_service.process_template_status_update(
+                                waba_id=waba_id,
+                                webhook_data=template_update
+                            )
+                        except Exception as e:
+                            logger.error(
+                                f"❌ Error processing template status: {e}",
+                                exc_info=True
+                            )
+                            # Continue processing other templates
                 
                 else:
                     logger.warning(f"⚠️ Unknown field: {field}")
