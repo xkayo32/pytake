@@ -138,6 +138,7 @@ class Alert(Base, TimestampMixin, SoftDeleteMixin):
     organization = relationship("Organization", back_populates="alerts")
     whatsapp_template = relationship("WhatsAppTemplate")
     acknowledged_by_user = relationship("User", foreign_keys=[acknowledged_by_user_id])
+    alert_notifications = relationship("AlertNotification", back_populates="alert", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("ix_alert_org_status", "organization_id", "status"),

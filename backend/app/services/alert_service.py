@@ -13,6 +13,7 @@ from app.models.alert import Alert, AlertType, AlertSeverity, AlertStatus
 from app.models.notification import NotificationType, NotificationChannel
 from app.repositories.alert import AlertRepository
 from app.repositories.user import UserRepository
+from app.services.alert_notification_service import AlertNotificationService
 
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ class AlertService:
         self.db = db
         self.repo = AlertRepository(db)
         self.user_repo = UserRepository(db)
+        self.notification_service = AlertNotificationService(db)
 
     async def create_template_status_alert(
         self,
@@ -75,6 +77,27 @@ class AlertService:
         )
         
         await self.db.commit()
+        
+        # Send notifications to organization admins (async in background)
+        try:
+            # Get org admins
+            admin_users = await self.user_repo.get_by_role(
+                organization_id=organization_id,
+                role="org_admin"
+            )
+            
+            for admin_user in admin_users:
+                if admin_user.email:
+                    await self.notification_service.notify_alert_created(
+                        organization_id=organization_id,
+                        alert=alert,
+                        user_id=admin_user.id,
+                        recipient_email=admin_user.email,
+                    )
+        except Exception as e:
+            # Log notification error but don't fail alert creation
+            logger.warning(f"Failed to send alert notifications: {str(e)}")
+        
         return alert
 
     async def get_critical_alerts(
@@ -168,11 +191,33 @@ class AlertService:
         )
         
         if alert:
+            from_level = alert.escalation_level - 1 if alert.escalation_level > 1 else 1
+            
             await self.db.commit()
             logger.info(
                 f"Alert {alert_id} escalated to level {alert.escalation_level} "
                 f"(admin={to_admin})"
             )
+            
+            # Send notification to admins
+            try:
+                admin_users = await self.user_repo.get_by_role(
+                    organization_id=organization_id,
+                    role="org_admin"
+                )
+                
+                for admin_user in admin_users:
+                    if admin_user.email:
+                        await self.notification_service.notify_alert_escalated(
+                            organization_id=organization_id,
+                            alert=alert,
+                            user_id=admin_user.id,
+                            recipient_email=admin_user.email,
+                            from_level=from_level,
+                            to_level=alert.escalation_level,
+                        )
+            except Exception as e:
+                logger.warning(f"Failed to send escalation notifications: {str(e)}")
         
         return alert
 
