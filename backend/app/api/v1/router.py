@@ -242,6 +242,9 @@ api_router.include_router(ai_assistant.router, prefix="/ai-assistant", tags=["AI
 agent_skills = _load_endpoint_module("agent_skills")
 api_router.include_router(agent_skills.router, tags=["Users", "Agent Skills"])
 
+alerts = _load_endpoint_module("alerts")
+api_router.include_router(alerts.router, tags=["Alerts"])
+
 websocket = _load_endpoint_module("websocket")
 api_router.include_router(websocket.router, tags=["WebSocket"])
 
