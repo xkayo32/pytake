@@ -122,3 +122,19 @@ class UserListItem(BaseSchema):
     is_active: bool
     is_online: bool
     last_seen_at: Optional[datetime] = None
+
+
+class AgentAvailable(BaseSchema):
+    """Schema for available agents in a department"""
+
+    id: UUID
+    full_name: str
+    email: EmailStr
+    department_id: UUID
+    agent_status: Optional[str] = Field(None, description="available, busy, away, offline")
+    active_conversations_count: int = Field(
+        ..., ge=0, description="Number of active conversations assigned to agent"
+    )
+    capacity_remaining: int = Field(
+        ..., ge=0, description="Remaining capacity (max - active)"
+    )

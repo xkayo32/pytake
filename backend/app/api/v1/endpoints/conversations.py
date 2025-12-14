@@ -23,6 +23,7 @@ from app.schemas.conversation import (
 )
 from app.schemas.message import MessageSendRequest, MessageResponse
 from app.schemas.sla import SlaAlert
+from app.schemas.user import AgentAvailable
 from app.services.conversation_service import ConversationService
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -95,6 +96,48 @@ async def list_conversations(
         skip=skip,
         limit=limit,
     )
+
+
+@router.get("/available-agents", response_model=List[AgentAvailable])
+async def list_available_agents(
+    department_id: UUID = Query(..., description="Department ID to list agents from"),
+    current_user: User = Depends(require_permission_dynamic("view_agents")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List available agents in a department with remaining capacity
+
+    **Query Parameters:**
+    - `department_id` (UUID, required): ID do departamento
+
+    **Returns:** Array of available agents with capacity information
+
+    **Example Response:**
+    ```json
+    [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "full_name": "João Agent",
+        "email": "joao@example.com",
+        "department_id": "650e8400-e29b-41d4-a716-446655440001",
+        "agent_status": "available",
+        "active_conversations_count": 5,
+        "capacity_remaining": 5
+      }
+    ]
+    ```
+
+    **Responses:**
+    - `200`: Lista de agentes disponíveis
+    - `403`: Sem permissão para visualizar agentes
+    - `404`: Departamento não encontrado
+    """
+    service = ConversationService(db)
+    agents = await service.list_available_agents(
+        organization_id=current_user.organization_id,
+        department_id=department_id,
+    )
+    return agents
 
 
 @router.post("/", response_model=Conversation, status_code=status.HTTP_201_CREATED)

@@ -786,3 +786,56 @@ class ConversationService:
         updated = await self.repo.update(conversation_id, update_data)
         return updated
 
+    async def list_available_agents(
+        self,
+        organization_id: UUID,
+        department_id: UUID,
+    ) -> List[dict]:
+        """
+        List available agents in a department with capacity info
+
+        Args:
+            organization_id: Organization ID
+            department_id: Department ID to list agents from
+
+        Returns:
+            List of available agents with capacity remaining
+        """
+        # Get department to validate it exists and get max capacity
+        department = await self.department_repo.get_by_id(department_id, organization_id)
+        if not department:
+            raise NotFoundException("Department not found")
+
+        # Get all agents in department
+        agents = []
+        for agent_id in (department.agent_ids or []):
+            agent = await self.user_repo.get_by_id(agent_id, organization_id)
+            if not agent or not agent.is_active:
+                continue
+
+            # Count active conversations for this agent
+            active_count = await self.repo.count_active_conversations_by_agent(
+                organization_id, agent_id
+            )
+
+            # Calculate remaining capacity
+            capacity_remaining = (
+                department.max_conversations_per_agent - active_count
+            )
+
+            # Only include if has capacity remaining
+            if capacity_remaining > 0:
+                agents.append(
+                    {
+                        "id": agent.id,
+                        "full_name": agent.full_name,
+                        "email": agent.email,
+                        "department_id": department_id,
+                        "agent_status": agent.agent_status,
+                        "active_conversations_count": active_count,
+                        "capacity_remaining": capacity_remaining,
+                    }
+                )
+
+        return agents
+
