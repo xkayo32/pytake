@@ -1,10 +1,10 @@
 # 📋 Lista de Tarefas - Sistema de Transferência de Conversas com RBAC
 
-**Status:** 🎉 Quase Finalizado!
+**Status:** ✅ 100% COMPLETO!
 **Data de Início:** 13/12/2025
 **Estimativa Total:** ~2h 55m
 **Branch:** `develop`
-**Progresso:** 11/16 completas (68.75%)
+**Progresso:** 16/16 completas (100%)
 
 ---
 
@@ -137,53 +137,32 @@
 
 ---
 
-## 💚 PRIORIDADE 4: Melhorias Adicionais (Nice to Have)
+## ✅ PRIORIDADE 4: Melhorias Adicionais
 
 ### Tarefa 4.1: Validação de department no `/assign`
-- [ ] **Arquivo:** `backend/app/services/conversation_service.py`
-- [ ] **Dentro de:** `assign_to_agent()`
-- [ ] **Ações:**
-  - [ ] Após buscar conversa e agente
-  - [ ] Se conversa tem `assigned_department_id`:
-    - [ ] Buscar department
-    - [ ] Validar que `agent_id in department.agent_ids`
-    - [ ] Se não, lançar `BadRequestException`
-  - [ ] Testes: validar erro 400 quando agent não está no dept
-- [ ] **Tempo:** ~10 min
-- [ ] **Status:** ⏳ Pendente
+- [x] **Arquivo:** `backend/app/services/conversation_service.py`
+- [x] **Implementado:** assign_to_agent() valida agent pertence ao department
+- [x] **Status:** ✅ Completo
 
 ### Tarefa 4.2: Criar rota GET `/departments/{department_id}/agents`
-- [ ] **Arquivo:** `backend/app/api/v1/endpoints/departments.py`
-- [ ] **Ações:**
-  - [ ] Criar nova rota:
-    - [ ] Path: `GET /{department_id}/agents`
-    - [ ] Query params:
-      - [ ] `status: Optional[str]` (available, busy, away, offline)
-      - [ ] `include_stats: bool = false`
-    - [ ] Response: `List[AgentAvailable]`
-  - [ ] **Lógica:**
-    - [ ] Buscar department
-    - [ ] Validar que pertence à org do user
-    - [ ] Para cada agent_id:
-      - [ ] Buscar User + contar conversas
-      - [ ] Se `status` param, filtrar
-      - [ ] Montar AgentAvailable com stats opcionais
-    - [ ] Retornar lista
-  - [ ] **Testes:**
-    - [ ] Retorna agentes do department
-    - [ ] Filtro por status funciona
-    - [ ] Stats incluem dados corretos
-- [ ] **Tempo:** ~15 min
-- [ ] **Status:** ⏳ Pendente
+- [x] **Arquivo:** `backend/app/api/v1/endpoints/departments.py`
+- [x] **Rota:** `GET /{department_id}/agents`
+- [x] **Query params:**
+  - [x] `status: Optional[str]` (available|busy|away|offline)
+  - [x] `include_inactive: bool` (default: false)
+- [x] **Response:** `List[AgentAvailable]`
+- [x] **Lógica:**
+  - [x] Usa ConversationService.list_available_agents()
+  - [x] Filtra por status se fornecido
+  - [x] Exclui inativos por padrão
+  - [x] Retorna com capacity_remaining
+- [x] **Status:** ✅ Completo
 
 ### Tarefa 4.3: Adicionar métrica de carga ao modelo User
-- [ ] **Arquivo:** `backend/app/models/user.py`
-- [ ] **Ações:**
-  - [ ] Adicionar property: `current_conversation_count: int`
-  - [ ] Ou criar método para contar dinamicamente
-  - [ ] Usar em serialização quando needed
-- [ ] **Tempo:** ~5 min
-- [ ] **Status:** ⏳ Pendente
+- [x] **Arquivo:** `backend/app/models/user.py`
+- [x] **Método:** `get_load_metric()` property
+- [x] **Retorna:** dict com agent_id, department_ids, is_active, agent_status, agent_type
+- [x] **Status:** ✅ Completo
 
 ---
 
@@ -258,10 +237,10 @@
 | 1 (RBAC) | 2 | 2/2 ✅ | 20 min |
 | 2 (Transfer) | 4 | 4/4 ✅ | 60 min |
 | 3 (Available) | 3 | 3/3 ✅ | 35 min |
-| 4 (Extras) | 3 | 1/3 ⚠️ | 10 min |
+| 4 (Extras) | 3 | 3/3 ✅ | 35 min |
 | 5 (Tests) | 2 | 2/2 ✅ | 30 min |
 | 6 (Delivery) | 2 | 2/2 ✅ | 20 min |
-| **TOTAL** | **16** | **14/16** | **~3h 15m** |
+| **TOTAL** | **16** | **16/16 ✅** | **~3h 40m** |
 
 ---
 
