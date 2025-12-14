@@ -179,6 +179,22 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
         """Check if user has specific permission"""
         return permission in self.permissions or self.is_super_admin
 
+    def get_load_metric(self) -> dict:
+        """
+        Get load metrics for this agent.
+        Used by ConversationService to calculate capacity.
+        
+        Returns:
+            dict with metadata about agent load (can be extended)
+        """
+        return {
+            "agent_id": str(self.id),
+            "department_ids": [str(d) for d in (self.department_ids or [])],
+            "is_active": self.is_active,
+            "agent_status": self.agent_status,
+            "agent_type": "agent" if self.is_agent else self.role,
+        }
+
     def record_login(self, ip_address: str = None):
         """Record successful login"""
         self.last_login_at = datetime.utcnow()

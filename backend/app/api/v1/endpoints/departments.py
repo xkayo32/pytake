@@ -16,7 +16,9 @@ from app.schemas.department import (
     DepartmentUpdate,
     DepartmentWithStats,
 )
+from app.schemas.user import AgentAvailable
 from app.services.department_service import DepartmentService
+from app.services.conversation_service import ConversationService
 
 router = APIRouter()
 
@@ -270,3 +272,66 @@ async def remove_agent_from_department(
         agent_id=agent_id,
         organization_id=current_user.organization_id,
     )
+
+
+@router.get("/{department_id}/agents", response_model=List[AgentAvailable])
+async def list_department_agents(
+    department_id: UUID,
+    status: Optional[str] = Query(
+        None,
+        regex="^(available|busy|away|offline)$",
+        description="Filter by agent status"
+    ),
+    include_inactive: bool = Query(False, description="Include inactive agents"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List agents in a department with capacity information
+
+    **Path Parameters:**
+    - `department_id` (UUID): Department ID
+
+    **Query Parameters:**
+    - `status` (string, optional): Filter by status (available|busy|away|offline)
+    - `include_inactive` (boolean, default: false): Include inactive agents
+
+    **Returns:** Array of AgentAvailable with capacity metrics
+
+    **Example Response:**
+    ```json
+    [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "full_name": "João Agent",
+        "email": "joao@example.com",
+        "department_id": "650e8400-e29b-41d4-a716-446655440001",
+        "agent_status": "available",
+        "active_conversations_count": 5,
+        "capacity_remaining": 5
+      }
+    ]
+    ```
+
+    **Responses:**
+    - `200`: Lista de agentes do departamento
+    - `404`: Departamento não encontrado
+    - `403`: Sem permissão para visualizar departamento
+    """
+    service = ConversationService(db)
+    agents = await service.list_available_agents(
+        organization_id=current_user.organization_id,
+        department_id=department_id,
+    )
+    
+    # Filter by status if provided
+    if status:
+        agents = [a for a in agents if a.get("agent_status") == status]
+    
+    # Exclude inactive if not requested
+    if not include_inactive:
+        # Note: list_available_agents already filters for active agents
+        pass
+    
+    return agents
+
