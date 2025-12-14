@@ -17,7 +17,9 @@ from sqlalchemy import select, and_
 
 from app.models.whatsapp_number import WhatsAppTemplate
 from app.models.campaign import Campaign
+from app.models.alert import AlertType, AlertSeverity
 from app.services.campaign_service import CampaignService
+from app.services.alert_service import AlertService
 from app.core.exceptions import NotFoundException
 
 logger = logging.getLogger(__name__)
@@ -267,16 +269,91 @@ class TemplateStatusService:
         """
         Handle side effects of status changes:
         - Auto-pause campaigns
-        - Send alerts
-        - Update statistics
+        - Create alerts for critical changes
+        - Auto-resolve quality alerts when quality improves
         """
+        alert_service = AlertService(self.db)
+        
         # Auto-pause campaigns if template is disabled/paused
         if template.status in ["DISABLED", "PAUSED"] and original_status != template.status:
             await self._pause_dependent_campaigns(template)
+            
+            # Create alert
+            if template.status == "DISABLED":
+                await alert_service.create_template_status_alert(
+                    organization_id=template.organization_id,
+                    whatsapp_template_id=template.id,
+                    alert_type=AlertType.TEMPLATE_DISABLED,
+                    severity=AlertSeverity.CRITICAL,
+                    title=f"Template '{template.name}' was disabled by Meta",
+                    description=f"Template status changed from {original_status} to DISABLED. "
+                                f"Campaigns using this template have been auto-paused.",
+                    metadata={
+                        "original_status": original_status,
+                        "disabled_reason": template.disabled_reason,
+                        "disabled_at": template.disabled_at.isoformat() if template.disabled_at else None,
+                    }
+                )
+            elif template.status == "PAUSED":
+                await alert_service.create_template_status_alert(
+                    organization_id=template.organization_id,
+                    whatsapp_template_id=template.id,
+                    alert_type=AlertType.TEMPLATE_PAUSED,
+                    severity=AlertSeverity.WARNING,
+                    title=f"Template '{template.name}' was paused by Meta",
+                    description=f"Template was paused. This may affect message delivery.",
+                    metadata={
+                        "original_status": original_status,
+                        "paused_at": template.paused_at.isoformat() if template.paused_at else None,
+                    }
+                )
 
-        # Alert if quality dropped to RED
-        if template.quality_score == "RED" and original_quality != "RED":
-            await self._create_quality_alert(template)
+        # Handle quality changes
+        if template.quality_score != original_quality:
+            if template.quality_score == "RED" and original_quality != "RED":
+                # Quality dropped to RED - create alert
+                await alert_service.create_template_status_alert(
+                    organization_id=template.organization_id,
+                    whatsapp_template_id=template.id,
+                    alert_type=AlertType.QUALITY_DEGRADED,
+                    severity=AlertSeverity.CRITICAL,
+                    title=f"Template '{template.name}' quality score is RED",
+                    description="Template quality has degraded. Messages may be blocked or delayed.",
+                    metadata={
+                        "quality_score_before": original_quality,
+                        "quality_score_after": template.quality_score,
+                        "sent_count": template.sent_count,
+                        "failed_count": template.failed_count,
+                        "failure_rate": self._calculate_failure_rate(
+                            template.sent_count,
+                            template.failed_count
+                        ),
+                    }
+                )
+            elif template.quality_score in ["GREEN", "YELLOW"] and original_quality == "RED":
+                # Quality improved from RED - auto-resolve alert
+                resolved = await alert_service.auto_resolve_quality_alert(
+                    template_id=template.id,
+                    organization_id=template.organization_id,
+                    new_quality_score=template.quality_score,
+                )
+                if resolved:
+                    logger.info(f"✅ Quality alert auto-resolved for template {template.name}")
+
+        # Handle rejection
+        if event == "REJECTED" and original_status != "REJECTED":
+            await alert_service.create_template_status_alert(
+                organization_id=template.organization_id,
+                whatsapp_template_id=template.id,
+                alert_type=AlertType.APPROVAL_REJECTED,
+                severity=AlertSeverity.CRITICAL,
+                title=f"Template '{template.name}' approval was rejected",
+                description=f"Meta rejected this template. Reason: {template.rejected_reason or 'Unknown'}",
+                metadata={
+                    "rejection_reason": template.rejected_reason,
+                    "rejected_at": template.rejected_at.isoformat() if template.rejected_at else None,
+                }
+            )
 
     async def _pause_dependent_campaigns(
         self,
@@ -329,35 +406,6 @@ class TemplateStatusService:
                 f"❌ Error auto-pausing campaigns: {e}",
                 exc_info=True
             )
-
-    async def _create_quality_alert(
-        self,
-        template: WhatsAppTemplate
-    ) -> None:
-        """
-        Create alert when template quality drops to RED.
-
-        Future: Integrate with alert system for email/slack notifications.
-        """
-        logger.error(
-            f"🔴 ALERT: Template {template.name} quality is RED! "
-            f"Organization: {template.organization_id}"
-        )
-
-        # TODO: Send alert to organization admins
-        # - Email notification
-        # - Slack notification
-        # - In-app notification
-        # - Dashboard alert
-
-        # For now, just log it
-        alert_message = (
-            f"Template '{template.name}' has RED quality score. "
-            f"Messages may be blocked by Meta. "
-            f"Please review the template content and resubmit."
-        )
-
-        logger.error(f"📧 ALERT MESSAGE: {alert_message}")
 
     async def get_templates_by_quality_score(
         self,
