@@ -4352,6 +4352,18 @@ __result__ = __script_func__()
             "total_messages": current_total_messages + 1,
         })
 
+        # 2.5: Reset 24h window on customer message (WhatsApp policy)
+        try:
+            from app.services.window_validation_service import WindowValidationService
+            window_service = WindowValidationService(self.db)
+            await window_service.reset_window_on_customer_message(
+                conversation_id=conversation.id,
+                organization_id=org_id
+            )
+            logger.debug(f"✅ 24h window reset for conversation {conversation.id}")
+        except Exception as e:
+            logger.warning(f"Failed to reset 24h window for conversation {conversation.id}: {str(e)}")
+
         # 3. Store Message
         message_repo = MessageRepository(self.db)
 
