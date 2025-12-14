@@ -400,8 +400,22 @@ class ConversationService:
 
         Raises:
             NotFoundException: If conversation not found
+            ValueError: If agent not in conversation's department
         """
         conversation = await self.get_by_id(conversation_id, organization_id)
+
+        # Validate agent belongs to conversation's department (if assigned)
+        if conversation.assigned_department_id:
+            department = await self.department_repo.get_by_id(
+                conversation.assigned_department_id, organization_id
+            )
+            if not department:
+                raise NotFoundException("Department not found")
+            
+            if agent_id not in (department.agent_ids or []):
+                raise ValueError(
+                    "Agent does not belong to conversation's department"
+                )
 
         # Update status to active and assign agent
         update_data = {
