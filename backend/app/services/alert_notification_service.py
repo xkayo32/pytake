@@ -2,6 +2,7 @@
 AlertNotificationService - Sends notifications for alerts
 """
 
+import logging
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
@@ -11,6 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.alert import Alert, AlertType, AlertSeverity
 from app.models.alert_notification import AlertNotification
 from app.repositories.alert_notification import AlertNotificationRepository
+from app.integrations.email import EmailService, EmailTemplate
+
+logger = logging.getLogger(__name__)
 
 
 class AlertNotificationService:
@@ -19,6 +23,7 @@ class AlertNotificationService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.repository = AlertNotificationRepository(db)
+        self.email_service = EmailService()
 
     async def notify_alert_created(
         self,
@@ -184,24 +189,87 @@ class AlertNotificationService:
 
     async def _send_email(self, notification: AlertNotification) -> bool:
         """
-        Send email notification (placeholder for actual SMTP implementation)
-        In production, this would integrate with: EmailService
+        Send email notification using EmailService
+        Supports HTML templates for different alert types
         """
-        # This would call EmailService.send_alert_email() in production
-        # For now, just mark as pending to be sent later
-
         if not notification.recipient_email:
+            logger.warning(f"Alert notification {notification.id} has no recipient email")
             return False
 
-        # TODO: Integrate with EmailService
-        # await EmailService(self.db).send_alert_email(
-        #     to=notification.recipient_email,
-        #     subject=notification.subject,
-        #     message=notification.message,
-        #     html_message=notification.message_html,
-        # )
+        try:
+            # Map alert types to email templates
+            template_map = {
+                "alert_created": EmailTemplate.ALERT_CREATED,
+                "alert_escalated": EmailTemplate.ALERT_ESCALATED,
+                "alert_resolved": EmailTemplate.ALERT_RESOLVED,
+                "stale_alert": EmailTemplate.STALE_ALERT,
+            }
 
-        return True  # Assume success for now
+            email_template = template_map.get(notification.event_type, EmailTemplate.ALERT_CREATED)
+
+            # Build context for template rendering
+            context = {
+                "recipient_name": notification.recipient_email.split("@")[0],
+                "alert_title": notification.metadata.get("title", "N/A"),
+                "alert_description": notification.message,
+                "severity": notification.metadata.get("alert_severity", "N/A"),
+                "category": notification.metadata.get("alert_type", "N/A"),
+                "organization_name": notification.metadata.get("organization_name", ""),
+                "created_at": notification.created_at.strftime("%d/%m/%Y %H:%M") if notification.created_at else "",
+                "updated_at": notification.updated_at.strftime("%d/%m/%Y %H:%M") if notification.updated_at else "",
+                "dashboard_url": f"{notification.metadata.get('base_url', 'http://localhost:3000')}/alerts/{notification.alert_id}",
+            }
+
+            # Add template-specific context
+            if notification.event_type == "alert_escalated":
+                context.update({
+                    "escalation_level": notification.metadata.get("escalation_level", "Medium"),
+                    "escalation_reason": notification.metadata.get("escalation_reason", ""),
+                    "assigned_to": notification.metadata.get("assigned_to", ""),
+                })
+            elif notification.event_type == "alert_resolved":
+                context.update({
+                    "resolved_at": notification.metadata.get("resolved_at", ""),
+                    "resolved_by": notification.metadata.get("resolved_by", ""),
+                    "resolution_notes": notification.metadata.get("resolution_notes", ""),
+                    "duration": notification.metadata.get("duration", ""),
+                })
+            elif notification.event_type == "stale_alert":
+                context.update({
+                    "days_inactive": notification.metadata.get("days_inactive", "7"),
+                    "last_activity_date": notification.metadata.get("last_activity_date", ""),
+                    "current_owner": notification.metadata.get("current_owner", ""),
+                })
+
+            # Send templated email
+            success = await self.email_service.send_templated_email(
+                to_email=notification.recipient_email,
+                template=email_template,
+                subject=notification.subject,
+                context=context,
+                to_name=context.get("recipient_name"),
+            )
+
+            if success:
+                logger.info(
+                    f"Email sent for alert notification {notification.id} | "
+                    f"To: {notification.recipient_email} | "
+                    f"Type: {notification.event_type}"
+                )
+            else:
+                logger.warning(
+                    f"Failed to send email for alert notification {notification.id} | "
+                    f"To: {notification.recipient_email}"
+                )
+
+            return success
+
+        except Exception as e:
+            logger.error(
+                f"Error sending email notification {notification.id}: {str(e)}",
+                exc_info=True
+            )
+            return False
 
     def _format_alert_message(self, alert: Alert) -> str:
         """Format alert details into readable message"""

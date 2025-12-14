@@ -200,9 +200,17 @@ class Settings(BaseSettings):
         description="Redis backend for Celery results"
     )
     
-    # Legacy SMTP fields (kept for backwards compatibility)
-    SMTP_USER: Optional[str] = None
-    SMTP_FROM: EmailStr = Field(default="noreply@pytake.com")
+    # Email Configuration (SMTP)
+    SMTP_HOST: Optional[str] = Field(default=None, description="SMTP server hostname")
+    SMTP_PORT: int = Field(default=587, description="SMTP server port (default 587 for TLS)")
+    SMTP_USER: Optional[str] = Field(default=None, description="SMTP username")
+    SMTP_PASSWORD: Optional[str] = Field(default=None, description="SMTP password")
+    SMTP_FROM_EMAIL: EmailStr = Field(default="noreply@pytake.com", description="From email address")
+    SMTP_FROM_NAME: str = Field(default="PyTake", description="From display name")
+    SMTP_USE_TLS: bool = Field(default=True, description="Use TLS for SMTP connection")
+    SMTP_USE_SSL: bool = Field(default=False, description="Use SSL for SMTP connection")
+    SMTP_TIMEOUT_SECONDS: int = Field(default=10, description="SMTP connection timeout")
+    EMAIL_ENABLED: bool = Field(default=True, description="Enable email notifications")
 
     # AWS S3
     AWS_ACCESS_KEY_ID: Optional[str] = None
