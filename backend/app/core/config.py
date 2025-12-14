@@ -212,6 +212,15 @@ class Settings(BaseSettings):
     SMTP_TIMEOUT_SECONDS: int = Field(default=10, description="SMTP connection timeout")
     EMAIL_ENABLED: bool = Field(default=True, description="Enable email notifications")
 
+    # Slack Configuration (Webhooks)
+    SLACK_WEBHOOK_URL: Optional[str] = Field(default=None, description="Slack webhook URL (global or default)")
+    SLACK_ENABLED: bool = Field(default=True, description="Enable Slack notifications")
+    SLACK_TIMEOUT_SECONDS: int = Field(default=10, description="Slack webhook timeout")
+    SLACK_RETRY_COUNT: int = Field(default=3, description="Number of retry attempts for Slack")
+    SLACK_MENTION_ON_ESCALATION: bool = Field(default=True, description="@mention on alert escalation")
+    SLACK_THREAD_REPLIES: bool = Field(default=False, description="Send follow-ups as thread replies")
+    SLACK_INCLUDE_THREAD_TS: bool = Field(default=False, description="Include thread timestamp in metadata")
+
     # AWS S3
     AWS_ACCESS_KEY_ID: Optional[str] = None
     AWS_SECRET_ACCESS_KEY: Optional[str] = None

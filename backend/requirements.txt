@@ -28,4 +28,7 @@ strawberry-graphql[fastapi]>=0.219.0
 # Email
 aiosmtplib>=3.0.0
 Jinja2>=3.1.0
+
+# Slack & HTTP
+aiohttp>=3.9.0
 strawberry-graphql[debug-server]>=0.219.0

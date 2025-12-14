@@ -13,6 +13,7 @@ from app.models.alert import Alert, AlertType, AlertSeverity
 from app.models.alert_notification import AlertNotification
 from app.repositories.alert_notification import AlertNotificationRepository
 from app.integrations.email import EmailService, EmailTemplate
+from app.integrations.slack import SlackService, SlackAlert, AlertEventType, AlertSeverity as SlackAlertSeverity
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ class AlertNotificationService:
         self.db = db
         self.repository = AlertNotificationRepository(db)
         self.email_service = EmailService()
+        self.slack_service = SlackService()
 
     async def notify_alert_created(
         self,
@@ -271,7 +273,83 @@ class AlertNotificationService:
             )
             return False
 
-    def _format_alert_message(self, alert: Alert) -> str:
+    async def _send_slack(self, notification: AlertNotification) -> bool:
+        """
+        Send Slack notification using SlackService
+        Supports Block Kit formatting for different alert types
+        """
+        if not notification.recipient_email:
+            # Try to get from metadata
+            webhook_url = notification.metadata.get("slack_webhook_url") if notification.metadata else None
+            if not webhook_url:
+                logger.warning(f"Slack notification {notification.id} has no webhook URL")
+                return False
+        else:
+            webhook_url = None  # Use default configured webhook
+
+        try:
+            # Map event types to Slack alert event types
+            event_type_map = {
+                "alert_created": AlertEventType.ALERT_CREATED,
+                "alert_escalated": AlertEventType.ALERT_ESCALATED,
+                "alert_resolved": AlertEventType.ALERT_RESOLVED,
+                "stale_alert": AlertEventType.STALE_ALERT,
+            }
+
+            slack_event_type = event_type_map.get(
+                notification.event_type,
+                AlertEventType.ALERT_CREATED
+            )
+
+            # Map severity to Slack alert severity
+            severity_value = notification.metadata.get("alert_severity", "MEDIUM") if notification.metadata else "MEDIUM"
+            try:
+                slack_severity = SlackAlertSeverity(severity_value)
+            except ValueError:
+                slack_severity = SlackAlertSeverity.MEDIUM
+
+            # Build dashboard URL
+            base_url = notification.metadata.get("base_url", "http://localhost:3000") if notification.metadata else "http://localhost:3000"
+            dashboard_url = f"{base_url}/alerts/{notification.alert_id}"
+
+            # Create SlackAlert
+            slack_alert = SlackAlert(
+                alert_id=str(notification.alert_id),
+                alert_title=notification.metadata.get("title", "N/A") if notification.metadata else "N/A",
+                alert_description=notification.message,
+                severity=slack_severity,
+                event_type=slack_event_type,
+                organization_name=notification.metadata.get("organization_name", "") if notification.metadata else "",
+                created_at=notification.created_at.strftime("%d/%m/%Y %H:%M") if notification.created_at else "",
+                updated_at=notification.updated_at.strftime("%d/%m/%Y %H:%M") if notification.updated_at else "",
+                dashboard_url=dashboard_url,
+                metadata=notification.metadata or {}
+            )
+
+            # Send to Slack
+            success = await self.slack_service.send_alert(
+                slack_alert,
+                webhook_url=webhook_url
+            )
+
+            if success:
+                logger.info(
+                    f"Slack sent for alert notification {notification.id} | "
+                    f"Event: {notification.event_type}"
+                )
+            else:
+                logger.warning(
+                    f"Failed to send Slack for alert notification {notification.id}"
+                )
+
+            return success
+
+        except Exception as e:
+            logger.error(
+                f"Error sending Slack notification {notification.id}: {str(e)}",
+                exc_info=True
+            )
+            return False
         """Format alert details into readable message"""
         lines = [
             f"Alert ID: {alert.id}",
