@@ -7,7 +7,7 @@ WhatsApp Business API. Free messages can only be sent within 24 hours of:
 2. Successful template message send (conversation initiated by business)
 
 Revision ID: 004_window_24h
-Revises: 003_add_conversation_window_tracking
+Revises: c5a7f2f4cdae
 Create Date: 2025-12-15 00:00:00.000000
 
 """
@@ -17,7 +17,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '004_window_24h'
-down_revision = '003_add_conversation_window_tracking'
+down_revision = 'c5a7f2f4cdae'
 branch_labels = None
 depends_on = None
 
