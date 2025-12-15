@@ -15,7 +15,7 @@ import logging
 import asyncio
 from typing import Optional, Dict, Any, List
 from uuid import UUID
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -69,12 +69,38 @@ class MessageSenderService:
             - error: str (if failed)
             - timestamp: datetime
         """
+        # 0. Validate 24-hour window (NEW)
+        from app.repositories.conversation import ConversationRepository
+        from app.services.window_validation_service import WindowValidationService
+        
+        try:
+            conv_repo = ConversationRepository(self.db)
+            conversation = await conv_repo.get_by_phone_number(recipient_phone)
+            
+            if conversation and conversation.organization_id == organization_id:
+                window_service = WindowValidationService(self.db)
+                can_send = await window_service.can_send_free_message(
+                    conversation.id,
+                    organization_id
+                )
+                
+                if not can_send:
+                    return {
+                        "success": False,
+                        "error": "Message blocked: outside 24-hour conversation window. Use template message.",
+                        "code": "WINDOW_EXPIRED",
+                        "timestamp": datetime.now(timezone.utc),
+                    }
+        except Exception as e:
+            logger.warning(f"⚠️ Could not validate window: {e}")
+            # Continue anyway - window validation is advisory
+        
         # 1. Check rate limit
         if not await self._check_rate_limit(organization_id):
             return {
                 "success": False,
                 "error": "Rate limit exceeded (5 msgs/min)",
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc),
             }
 
         # 2. Format message payload
@@ -102,7 +128,7 @@ class MessageSenderService:
                     return {
                         "success": True,
                         "message_id": result["message_id"],
-                        "timestamp": datetime.utcnow(),
+                        "timestamp": datetime.now(timezone.utc),
                     }
                 else:
                     logger.warning(
@@ -124,7 +150,7 @@ class MessageSenderService:
         return {
             "success": False,
             "error": "Failed to send after 3 retries",
-            "timestamp": datetime.utcnow(),
+            "timestamp": datetime.now(timezone.utc),
         }
 
     async def send_message_with_buttons(

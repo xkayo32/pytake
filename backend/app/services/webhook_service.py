@@ -353,4 +353,72 @@ class WebhookService:
                 f"❌ Error processing template status update: {e}",
                 exc_info=True
             )
+    
+    async def process_customer_message_for_window(
+        self, message: Dict[str, Any]
+    ) -> None:
+        """
+        Process incoming customer message to reset/extend 24-hour conversation window
+        
+        When a customer sends a message, the 24-hour window resets.
+        This updates the window_expires_at and last_user_message_at timestamps.
+        
+        Message format from Meta webhook:
+        {
+          "from": "5511999999999",
+          "id": "wamid.xxx",
+          "timestamp": "1234567890",
+          "type": "text|interactive|media|etc",
+          "text": {...} or "interactive": {...}
+        }
+        
+        Args:
+            message: Incoming message object from webhook
+        """
+        try:
+            from app.repositories.conversation import ConversationRepository
+            from app.services.window_validation_service import WindowValidationService
+            
+            message_id = message.get("id")
+            from_number = message.get("from")
+            timestamp = message.get("timestamp")
+            
+            if not from_number:
+                logger.warning(f"⚠️ Missing 'from' number in message: {message_id}")
+                return
+            
+            logger.info(
+                f"📞 Customer message received: {message_id} from {from_number}"
+            )
+            
+            # Find conversation by phone number
+            conv_repo = ConversationRepository(self.db)
+            conversation = await conv_repo.get_by_phone_number(from_number)
+            
+            if not conversation:
+                logger.warning(
+                    f"⚠️ Conversation not found for phone: {from_number}. "
+                    f"Cannot update window."
+                )
+                return
+            
+            # Update window using WindowValidationService
+            window_service = WindowValidationService(self.db)
+            updated_window = await window_service.reset_window_on_customer_message(
+                conversation_id=conversation.id,
+                organization_id=conversation.organization_id
+            )
+            
+            if updated_window:
+                logger.info(
+                    f"✅ Window reset for conversation {conversation.id}: "
+                    f"expires_at={updated_window.ends_at}"
+                )
+            
+        except Exception as e:
+            logger.error(
+                f"❌ Error processing customer message for window: {e}",
+                exc_info=True
+            )
+
 

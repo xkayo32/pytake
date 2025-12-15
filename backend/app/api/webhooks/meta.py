@@ -162,11 +162,14 @@ async def receive_webhook(
                             logger.error(f"❌ Error processing status: {e}")
                             # Continue processing other statuses
                     
-                    # Process incoming messages (future)
+                    # Process incoming messages (reset 24h window)
                     messages = value.get("messages", [])
                     for message in messages:
-                        logger.info(f"📨 Incoming message: {message.get('id')}")
-                        # TODO: Implement incoming message handler
+                        try:
+                            await webhook_service.process_customer_message_for_window(message)
+                        except Exception as e:
+                            logger.error(f"❌ Error processing customer message window: {e}")
+                            # Continue processing other messages
                 
                 elif field == "message_template_status_update":
                     # Process template status updates (APPROVED, REJECTED, QUALITY_CHANGE, PAUSED, DISABLED)
