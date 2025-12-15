@@ -509,4 +509,44 @@ async def get_sla_alerts(
     )
 
 
+# ============================================
+# WINDOW VALIDATION (24-HOUR META POLICY)
+# ============================================
+
+@router.get("/{conversation_id}/window-status")
+async def get_window_status(
+    conversation_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get 24-hour conversation window status for Meta WhatsApp API.
+
+    Returns detailed information about the conversation's message window:
+    - Whether the 24-hour window is currently open
+    - When the window expires
+    - Time remaining in the window
+    - Last message timestamps
+
+    **Meta WhatsApp Policy:**
+    - Free messages can only be sent within 24 hours of last customer message
+    - Outside the 24-hour window, must use template messages
+    - Template messages reset the window
+
+    **Permissions Required:** User must have access to the organization
+
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Conversation not found
+    - `500`: Database error
+    """
+    service = ConversationService(db)
+    window_service = service.window_validation_service
+    
+    return await window_service.get_window_status(
+        conversation_id=conversation_id,
+        organization_id=current_user.organization_id,
+    )
+
+
 
