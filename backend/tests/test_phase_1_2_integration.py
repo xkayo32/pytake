@@ -40,7 +40,7 @@ async def test_db():
     # Use test database URL from environment
     db_url = os.getenv(
         "TEST_DATABASE_URL",
-        "postgresql+asyncpg://pytake:pytake123@localhost:5432/pytake_test"
+        "postgresql+asyncpg://pytake:pytake123@localhost:5435/pytake_test"
     )
     
     engine = create_async_engine(db_url, echo=False, future=True)

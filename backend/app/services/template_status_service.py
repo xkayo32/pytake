@@ -9,7 +9,7 @@ Processes message_template_status_update webhooks from Meta Cloud API:
 
 from typing import Dict, Any, Optional, List
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -114,11 +114,11 @@ class TemplateStatusService:
         # Update last status update timestamp
         if timestamp:
             try:
-                template.last_status_update = datetime.fromtimestamp(int(timestamp))
+                template.last_status_update = datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
             except (ValueError, TypeError):
-                template.last_status_update = datetime.utcnow()
+                template.last_status_update = datetime.now(timezone.utc)
         else:
-            template.last_status_update = datetime.utcnow()
+            template.last_status_update = datetime.now(timezone.utc)
 
         # Commit changes
         await self.db.commit()
@@ -163,7 +163,7 @@ class TemplateStatusService:
         
         if template.status != "APPROVED":
             template.status = "APPROVED"
-            template.approved_at = datetime.utcnow()
+            template.approved_at = datetime.now(timezone.utc)
             template.quality_score = "UNKNOWN"  # Initial quality is unknown
             
             logger.info(
@@ -181,7 +181,7 @@ class TemplateStatusService:
         
         template.status = "REJECTED"
         template.rejected_reason = reason or "Rejected by Meta"
-        template.rejected_at = datetime.utcnow()
+        template.rejected_at = datetime.now(timezone.utc)
 
         logger.warning(
             f"Template {template.name} was rejected. Reason: {reason}"
@@ -204,7 +204,7 @@ class TemplateStatusService:
         logger.error(f"🚫 Template DISABLED: {template.name}")
         
         template.status = "DISABLED"
-        template.disabled_at = datetime.utcnow()
+        template.disabled_at = datetime.now(timezone.utc)
         template.disabled_reason = reason or "Disabled by Meta"
         template.is_enabled = False
 
@@ -222,7 +222,7 @@ class TemplateStatusService:
         logger.warning(f"⏸️ Template PAUSED: {template.name}")
         
         template.status = "PAUSED"
-        template.paused_at = datetime.utcnow()
+        template.paused_at = datetime.now(timezone.utc)
 
         logger.warning(
             f"⚠️ Template {template.name} has been PAUSED by Meta. "
@@ -392,7 +392,7 @@ class TemplateStatusService:
                 )
 
                 campaign.is_active = False
-                campaign.updated_at = datetime.utcnow()
+                campaign.updated_at = datetime.now(timezone.utc)
 
             await self.db.commit()
 
