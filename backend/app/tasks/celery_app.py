@@ -81,6 +81,16 @@ celery_app.conf.beat_schedule = {
         },
     },
 
+    # Window Cleanup - Every 15 minutes (Phase 1.3: 24h conversation window validation)
+    "close-expired-windows": {
+        "task": "close_all_expired_windows",
+        "schedule": crontab(minute="*/15"),  # Every 15 minutes
+        "options": {
+            "queue": "default",
+            "expires": 900,  # 15 minutes
+        },
+    },
+
     # Example: Cleanup old data - Every day at 3 AM
     # "cleanup-old-data": {
     #     "task": "cleanup_old_messages",
@@ -96,6 +106,7 @@ celery_app.autodiscover_tasks(
         "app.tasks.campaign_tasks",
         "app.tasks.flow_automation_tasks",
         "app.tasks.conversation_timeout_tasks",
+        "app.tasks.window_cleanup_tasks",  # Phase 1.3: Window validation cleanup
         # Add other task modules here as needed
         # "app.tasks.webhook_tasks",
     ]
