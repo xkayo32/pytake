@@ -135,11 +135,11 @@ Adequar PyTake às especificações atualizadas da Meta Cloud API para WhatsApp 
 
 | Sub-fase | Descrição | Horas | Status | Entregas |
 |----------|-----------|-------|--------|----------|
-| **2.1** | `allow_category_change` Flag | 10h | 📅 PLANEJADO | Flag na criação, Detecção de mudança, Alertas |
-| **2.2** | Quality Score Monitoring | 12h | 📅 PLANEJADO | TemplateHealthService, Scheduler, Dashboard |
+| **2.1** | `allow_category_change` Flag | 10h | ✅ 100% | Migration, Detection Service, Alerts, 11 tests |
+| **2.2** | Quality Score Monitoring | 12h | 🔄 INICIADA | TemplateHealthService, Scheduler, Dashboard |
 | **2.3** | Template Versioning | 15h | 📅 PLANEJADO | Versioning logic, API endpoints, UI |
 
-**Total Fase 2:** 0h / 37h = **0% completo**
+**Total Fase 2:** 10h / 37h = **27% completo** ✅
 
 ---
 
