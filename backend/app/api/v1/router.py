@@ -248,6 +248,9 @@ api_router.include_router(alerts.router, tags=["Alerts"])
 alerts_dashboard = _load_endpoint_module("alerts_dashboard")
 api_router.include_router(alerts_dashboard.router, tags=["Alerts Dashboard"])
 
+alerts_search = _load_endpoint_module("alerts_search")
+api_router.include_router(alerts_search.router, tags=["Alerts Search"])
+
 conversation_windows = _load_endpoint_module("conversation_windows")
 api_router.include_router(conversation_windows.router, tags=["Conversation Windows"])
 
