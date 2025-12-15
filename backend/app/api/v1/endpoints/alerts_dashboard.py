@@ -14,6 +14,8 @@ from sqlalchemy.sql import text
 
 from app.api.deps import get_db, get_current_user
 from app.models.user import User
+from app.core.cache import get_cache_manager
+from app.core.rate_limiter import get_rate_limiter
 from app.models.alert import Alert, AlertStatus, AlertSeverity, AlertType
 from app.services.alert_service import AlertService
 from app.schemas.alert import AlertResponse
