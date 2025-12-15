@@ -245,6 +245,9 @@ api_router.include_router(agent_skills.router, tags=["Users", "Agent Skills"])
 alerts = _load_endpoint_module("alerts")
 api_router.include_router(alerts.router, tags=["Alerts"])
 
+alerts_dashboard = _load_endpoint_module("alerts_dashboard")
+api_router.include_router(alerts_dashboard.router, tags=["Alerts Dashboard"])
+
 conversation_windows = _load_endpoint_module("conversation_windows")
 api_router.include_router(conversation_windows.router, tags=["Conversation Windows"])
 
