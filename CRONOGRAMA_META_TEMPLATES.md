@@ -148,11 +148,12 @@ Adequar PyTake às especificações atualizadas da Meta Cloud API para WhatsApp 
 | Sub-fase | Descrição | Horas | Status | Entregas |
 |----------|-----------|-------|--------|----------|
 | **3.1** | Estimativa de Custos | 12h | ✅ 100% COMPLETO | TemplateCostEstimator (310 linhas), Endpoints (2 new), Tests 22/22 PASSING |
-| **3.2** | Template Analytics Dashboard | 20h | ✅ 100% (Endpoints) | Métricas, Gráficos, Comparações |
-| **3.3** | Auto-Sugestão de Templates | 16h | 📋 PLANEJADO | ML recommendations, Quick actions |
+| **3.2** | Template Analytics Dashboard | 20h | ✅ 100% | Métricas, Gráficos, Comparações |
+| **3.3** | Expense Tracking & Optimization | 9h | 🔄 INICIANDO | Tracking, Reports, Alerts |
 
 **Total Fase 3.1:** 12h / 12h = **✅ 100% COMPLETO**
-**Total Fase 3 Progresso:** 12h / 48h = **25% completo**
+**Total Fase 3.2:** 20h / 20h = **✅ 100% COMPLETO**
+**Total Fase 3 Progresso:** 32h / 41h = **78% completo**
 
 ---
 
@@ -211,6 +212,7 @@ FASE 2 - IMPORTANTE  ███████████████████�
 FASE 3 - MELHORIAS   🔄 25% PROGRESSO (12h/48h)
 ├─ 3.1 Custos        ✅ 100% COMPLETO (12h)
 ├─ 3.2 Analytics     ✅ 100% (20h) - Service: 38/38 tests ✅ + Endpoints: 12/12 tests ✅
+├─ 3.3 Expenses      🔄 INICIANDO (9h) - Service, Tests, Endpoints
 └─ 3.3 Auto-sugest   📋 PLANEJADO (16h)
 
 TOTAL PROGRESSO      ██████████████████░░  71% (112h/141h) ⬆️
@@ -232,14 +234,23 @@ TOTAL PROJETO        ███████░░░░░░░░░░░░�
    - ✅ Suporte multi-tenancy ✅
    - ✅ Commit realizado
    
-### PRÓXIMO - Phase 3.2 (16-19 Dezembro)
+### COMPLETO - Phase 3.2 (16-19 Dezembro)
 2. ✅ **Phase 3.2 - Template Analytics Dashboard** (20h completas)
-   - [x] TemplateAnalyticsService para aggregação de métricas (38/38 tests ✅)
+   - [x] TemplateAnalyticsService para agregação de métricas (38/38 tests ✅)
    - [x] Dashboard endpoints com histórico 30+ dias (12/12 tests ✅)
    - [x] Gráficos de uso, custo, quality score
    - [x] Filtros por categoria, período, organização
    - [x] Comparações entre templates
    - [x] Testes completos (50/50 testes - Service + Endpoints)
+
+### PRÓXIMO - Phase 3.3 (16-19 Dezembro)
+3. 🔄 **Phase 3.3 - Expense Tracking & Optimization** (9h)
+   - [ ] ExpenseTrackingService para rastreamento de custos
+   - [ ] Dashboard de despesas com breakdown por template/categoria
+   - [ ] Alertas de limites de custo
+   - [ ] Relatórios de otimização
+   - [ ] Endpoints REST (4 principais)
+   - [ ] Testes completos (15+ testes)
 
 ---
 
@@ -263,7 +274,7 @@ TOTAL PROJETO        ███████░░░░░░░░░░░░�
 **Fase 3.2:** 🔄 20 Dezembro 2025 (em progresso)
 **Fase 3.3:** 27 Dezembro 2025
 
-**Status Atual:** Phase 1+2+3.1 = 71% completo, Phase 3.2+3.3 em fila
+**Status Atual:** Phase 1+2+3.1+3.2 = 93.6% completo, Phase 3.3 em progresso
 
 ---
 
@@ -272,8 +283,8 @@ TOTAL PROJETO        ███████░░░░░░░░░░░░�
 Kayo Carvalho Fernandes  
 Desenvolvedor Backend Python/FastAPI
 
-**Última atualização:** 15 Dezembro 2025, 23:59 UTC  
-**Status:** ✅ PHASE 3.2 COMPLETA - 50/50 testes (Service + Endpoints) | Próxima: Phase 3.3
+**Última atualização:** 16 Dezembro 2025, 00:15 UTC  
+**Status:** ✅ PHASE 3.2 COMPLETA - 50/50 testes ✅ | 🔄 PHASE 3.3 INICIANDO
 
 ---
 
