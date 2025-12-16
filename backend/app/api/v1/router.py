@@ -230,6 +230,9 @@ api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboar
 flow_automations = _load_endpoint_module("flow_automations")
 api_router.include_router(flow_automations.router, prefix="/flow-automations", tags=["Flow Automations"])
 
+template_analytics = _load_endpoint_module("template_analytics")
+api_router.include_router(template_analytics.router, prefix="/templates", tags=["Template Analytics"])
+
 secrets = _load_endpoint_module("secrets")
 api_router.include_router(secrets.router, prefix="/secrets", tags=["Secrets"])
 
