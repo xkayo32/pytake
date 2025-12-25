@@ -1,8 +1,8 @@
 """Create expenses tracking tables - Phase 3.3
 
-Revision ID: 015
-Revises: 014
-Create Date: 2025-12-16 00:20:00.000000
+Revision ID: 20251224_001_create_expenses
+Revises: 20251214_conversation_windows
+Create Date: 2025-12-24 00:20:00.000000
 
 """
 from alembic import op
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '015'
-down_revision = '014'
+revision = '20251224_001_create_expenses'
+down_revision = '20251214_conversation_windows'
 branch_labels = None
 depends_on = None
 

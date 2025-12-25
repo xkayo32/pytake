@@ -101,10 +101,17 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 
 
 async def init_db():
-    """Initialize database (create tables)"""
+    """Initialize database (create tables)
+    
+    NOTE: With Alembic migrations enabled, this should NOT be called
+    as migrations handle table creation. This is kept for backwards compatibility
+    with non-migrated databases only.
+    """
     async with async_engine.begin() as conn:
         # await conn.run_sync(Base.metadata.drop_all)  # Use with caution!
-        await conn.run_sync(Base.metadata.create_all)
+        # Migrations now handle table creation, so skip create_all
+        # await conn.run_sync(Base.metadata.create_all)
+        pass
 
 
 async def close_db():
