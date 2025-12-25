@@ -80,7 +80,7 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
     stripe_subscription_id = Column(String(255), nullable=True)
 
     # Relationships
-    users = relationship("User", back_populates="organization", cascade="all, delete-orphan")
+    users = relationship("User", back_populates="organization", cascade="all, delete-orphan", foreign_keys="[User.organization_id]")
     whatsapp_numbers = relationship("WhatsAppNumber", back_populates="organization", cascade="all, delete-orphan")
     chatbots = relationship("Chatbot", back_populates="organization", cascade="all, delete-orphan")
     contacts = relationship("Contact", back_populates="organization", cascade="all, delete-orphan")

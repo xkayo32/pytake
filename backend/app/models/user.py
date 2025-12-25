@@ -94,6 +94,7 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
+        foreign_keys="[AgentSkill.user_id]",
     )
 
     # Agent-specific fields
