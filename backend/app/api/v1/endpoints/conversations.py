@@ -6,7 +6,7 @@ from typing import List, Optional
 import uuid
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import get_current_user, get_db, require_permission_dynamic
 from app.models.user import User
@@ -320,16 +320,28 @@ async def send_message(
     """
     from app.services.whatsapp_service import WhatsAppService
 
-    service = WhatsAppService(db)
-    message = await service.send_message(
-        conversation_id=conversation_id,
-        organization_id=current_user.organization_id,
-        message_type=data.message_type,
-        content=data.content,
-        sender_user_id=current_user.id,
-    )
-
-    return message
+    try:
+        service = WhatsAppService(db)
+        message = await service.send_message(
+            conversation_id=conversation_id,
+            organization_id=current_user.organization_id,
+            message_type=data.message_type,
+            content=data.content,
+            sender_user_id=current_user.id,
+        )
+        return message
+    except ValueError as e:
+        # Handle validation errors like 24-hour window expiration
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        # Handle other unexpected errors
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send message",
+        )
 
 
 @router.post("/{conversation_id}/read", response_model=Conversation)
