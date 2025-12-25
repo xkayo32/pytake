@@ -113,7 +113,7 @@ class AlertNotification(Base, TimestampMixin, SoftDeleteMixin):
     # Relationships
     organization = relationship("Organization")
     alert = relationship("Alert", back_populates="alert_notifications")
-    user = relationship("User")
+    user = relationship("User", foreign_keys=[user_id])
 
     def __repr__(self):
         return f"<AlertNotification(id={self.id}, event='{self.event_type}', status='{self.status}')>"
