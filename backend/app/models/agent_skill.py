@@ -43,7 +43,7 @@ class AgentSkill(Base, TimestampMixin, SoftDeleteMixin):
     proficiency_level = Column(Integer, nullable=False, default=3, server_default="3")
 
     # Relationships
-    user = relationship("User", back_populates="skills")
+    user = relationship("User", back_populates="skills", foreign_keys=[user_id])
 
     def __repr__(self):
         return f"<AgentSkill(user={self.user_id}, skill='{self.skill_name}', level={self.proficiency_level})>"
