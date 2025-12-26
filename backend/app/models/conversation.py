@@ -146,28 +146,10 @@ class Conversation(Base, TimestampMixin, SoftDeleteMixin):
     archived_at = Column(DateTime(timezone=True), nullable=True)
 
     # 24-hour window tracking (WhatsApp policy)
-    # last_user_message_at: When customer last sent a message (triggers 24h window)
-    # window_expires_at: When 24h window expires (last_user_message_at + 24h)
     last_inbound_message_at = Column(
         DateTime(timezone=True), nullable=True, index=True
     )
-    last_user_message_at = Column(
-        DateTime(timezone=True), nullable=True, index=True
-    )  # Track last message FROM customer (for 24h window calculation)
-    last_template_message_at = Column(
-        DateTime(timezone=True), nullable=True
-    )  # Track last template message sent (secondary window trigger)
     window_expires_at = Column(DateTime(timezone=True), nullable=True, index=True)
-    is_window_open = Column(
-        Boolean,
-        nullable=False,
-        default=False,
-        server_default="false",
-        index=True,
-    )  # Cached flag: true = can send free messages, false = must use template
-    window_status_last_checked_at = Column(
-        DateTime(timezone=True), nullable=True
-    )  # Track when window status was last validated
 
     # Metrics
     total_messages = Column(Integer, default=0, server_default="0")
