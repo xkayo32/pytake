@@ -32,3 +32,8 @@ Jinja2>=3.1.0
 # Slack & HTTP
 aiohttp>=3.9.0
 strawberry-graphql[debug-server]>=0.219.0
+
+# AI Providers
+openai>=1.0.0
+anthropic>=0.18.0
+google-genai>=1.33.0

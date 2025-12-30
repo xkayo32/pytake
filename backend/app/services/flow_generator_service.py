@@ -140,7 +140,7 @@ class FlowGeneratorService:
                 ai_response = await self._call_anthropic(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
-                    api_key=ai_settings.api_key,
+                    api_key=ai_settings.anthropic_api_key,
                     model=ai_settings.model,
                     max_tokens=ai_settings.max_tokens,
                     temperature=ai_settings.temperature
@@ -149,7 +149,16 @@ class FlowGeneratorService:
                 ai_response = await self._call_openai(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
-                    api_key=ai_settings.api_key,
+                    api_key=ai_settings.openai_api_key,
+                    model=ai_settings.model,
+                    max_tokens=ai_settings.max_tokens,
+                    temperature=ai_settings.temperature
+                )
+            elif ai_settings.provider == AIProvider.GEMINI:
+                ai_response = await self._call_gemini(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    api_key=ai_settings.gemini_api_key,
                     model=ai_settings.model,
                     max_tokens=ai_settings.max_tokens,
                     temperature=ai_settings.temperature
@@ -239,20 +248,31 @@ class FlowGeneratorService:
                 ai_response = await self._call_anthropic(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
-                    api_key=ai_settings.api_key,
+                    api_key=ai_settings.anthropic_api_key,
                     model=ai_settings.model,
                     max_tokens=ai_settings.max_tokens,
                     temperature=0.5  # Lower temperature for more consistent analysis
                 )
-            else:
+            elif ai_settings.provider == AIProvider.OPENAI:
                 ai_response = await self._call_openai(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
-                    api_key=ai_settings.api_key,
+                    api_key=ai_settings.openai_api_key,
                     model=ai_settings.model,
                     max_tokens=ai_settings.max_tokens,
                     temperature=0.5
                 )
+            elif ai_settings.provider == AIProvider.GEMINI:
+                ai_response = await self._call_gemini(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    api_key=ai_settings.gemini_api_key,
+                    model=ai_settings.model,
+                    max_tokens=ai_settings.max_tokens,
+                    temperature=0.5
+                )
+            else:
+                raise ValueError(f"Provedor de IA não suportado: {ai_settings.provider}")
 
         except Exception as e:
             logger.error(f"Error calling AI API for improvements: {e}")
@@ -331,6 +351,67 @@ class FlowGeneratorService:
         )
 
         return completion.choices[0].message.content
+
+    async def _call_gemini(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        api_key: str,
+        model: str,
+        max_tokens: int,
+        temperature: float
+    ) -> str:
+        """
+        Call Google Gemini API using the new unified SDK.
+
+        Args:
+            system_prompt: System prompt
+            user_prompt: User prompt
+            api_key: Google Gemini API key
+            model: Model name (e.g., gemini-2.5-flash, gemini-2.5-pro)
+            max_tokens: Maximum output tokens
+            temperature: Temperature (0-1)
+
+        Returns:
+            AI response as string
+
+        Raises:
+            Exception: If API call fails
+        """
+        try:
+            # Lazy import
+            from google import genai
+            from google.genai import types
+        except ImportError:
+            raise Exception("google-genai package not installed. Run: pip install google-genai")
+
+        if not api_key:
+            raise Exception("Google Gemini API key not configured")
+
+        # Create client
+        client = genai.Client(api_key=api_key)
+
+        try:
+            # Generate content with system instruction
+            response = await client.aio.models.generate_content(
+                model=model,
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    temperature=temperature,
+                    max_output_tokens=max_tokens,
+                )
+            )
+
+            # Extract text from response
+            if response.text:
+                return response.text
+            else:
+                raise Exception("Empty response from Google Gemini API")
+
+        except Exception as e:
+            logger.error(f"Google Gemini API call failed: {e}")
+            raise
 
     # ==================== Prompt Building ====================
 

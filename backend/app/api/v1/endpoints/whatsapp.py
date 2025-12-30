@@ -961,11 +961,52 @@ async def list_templates(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    List message templates from Meta for a WhatsApp number.
-    Only works for Official API (connection_type='official').
+    List message templates from Meta Cloud API for a WhatsApp number.
 
-    Query params:
-    - status: Filter by status (APPROVED, PENDING, REJECTED). Default: APPROVED
+    Fetches templates directly from Meta's servers (not local database).
+    Only works for Official API connections (connection_type='official').
+
+    **Path Parameters:**
+    - number_id (UUID): WhatsApp number ID
+
+    **Query Parameters:**
+    - status (str, optional): Filter by status (default: APPROVED)
+      - APPROVED: Templates ready to use
+      - PENDING: Awaiting Meta review
+      - REJECTED: Rejected by Meta
+      - DISABLED: Disabled by Meta
+      - PAUSED: Paused due to quality issues
+
+    **Returns:** List of templates with complete metadata from Meta API
+
+    **Example Response:**
+    ```json
+    [
+      {
+        "id": "1234567890",
+        "name": "welcome_message",
+        "language": "pt_BR",
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Olá {{1}}, bem-vindo!"
+          }
+        ]
+      }
+    ]
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+    - Scoped to: Organization
+
+    **Error Codes:**
+    - 400: Templates not available for QR Code connections
+    - 400: WhatsApp Business Account ID not configured
+    - 404: WhatsApp number not found
+    - 500: Meta API error
     """
     service = WhatsAppService(db)
 
@@ -1016,20 +1057,151 @@ async def create_template(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Create a new WhatsApp template
+    Create a new WhatsApp template.
 
-    Args:
-        number_id: WhatsApp number ID
-        data: Template data (name, language, category, components)
-        submit: Whether to submit to Meta immediately (default: True)
+    Creates a message template for sending notifications outside the 24-hour
+    customer service window. Templates must be approved by Meta before use.
 
-    Returns:
-        Created template with status DRAFT or PENDING
+    **Path Parameters:**
+    - number_id (UUID): WhatsApp number ID
 
-    Notes:
-        - Template names must be lowercase with underscores
-        - If submit=True, template is sent to Meta for approval
-        - Meta takes 24-48h to review templates
+    **Query Parameters:**
+    - submit (bool): Submit to Meta immediately (default: true)
+      - true: Template created and submitted (status: PENDING)
+      - false: Template created as draft (status: DRAFT)
+
+    **Request Body:**
+    - name (str): Template name (lowercase with underscores, e.g., "order_confirmation")
+    - language (str): Language code (e.g., "pt_BR", "en_US")
+    - category (str): Template category (MARKETING, UTILITY, AUTHENTICATION)
+    - components (list): Template components (header, body, footer, buttons)
+
+    **Returns:**
+    - Created template with status DRAFT or PENDING
+    - Fields include: parameter_format, named_variables
+
+    ---
+
+    ## Variable Formats (IMPORTANT)
+
+    Meta WhatsApp API supports **TWO formats** for template variables:
+
+    ### 1. POSITIONAL Format (Traditional)
+    Variables use numbers: {{1}}, {{2}}, {{3}}, etc.
+
+    **Characteristics:**
+    - Order matters: {{1}} = first parameter, {{2}} = second, etc.
+    - Less readable in code
+    - Legacy format
+
+    **Example:**
+    ```json
+    {
+      "type": "BODY",
+      "text": "Olá {{1}}, seu código é {{2}}. Válido por {{3}} minutos."
+    }
+    ```
+
+    ### 2. NAMED Format (Recommended - More Readable)
+    Variables use descriptive names: {{nome}}, {{codigo}}, {{email}}, etc.
+
+    **Characteristics:**
+    - Self-documenting: Clear what each variable represents
+    - Easier to maintain
+    - Recommended by Meta for new templates
+
+    **Rules:**
+    - Must start with letter or underscore: `{{nome}}` ✅ `{{1nome}}` ❌
+    - Can contain letters, numbers, underscores: `{{numero_pedido}}` ✅
+    - Cannot contain spaces or special chars: `{{número-pedido}}` ❌
+    - Case-sensitive: `{{Nome}}` ≠ `{{nome}}`
+
+    **Example:**
+    ```json
+    {
+      "type": "BODY",
+      "text": "Olá {{nome}}, seu código é {{codigo}}. Válido por {{validade}} minutos."
+    }
+    ```
+
+    ### Important Constraints:
+    - **Cannot mix formats** in same template (all positional OR all named)
+    - Variable names must match **EXACTLY** when sending messages
+    - System auto-detects format and stores in `parameter_format` field
+    - Named variables stored in `named_variables` array field
+
+    ---
+
+    ## Example Request (Named Variables - Recommended):
+    ```json
+    {
+      "name": "order_confirmation",
+      "language": "pt_BR",
+      "category": "UTILITY",
+      "components": [
+        {
+          "type": "HEADER",
+          "format": "TEXT",
+          "text": "Pedido {{numero_pedido}}"
+        },
+        {
+          "type": "BODY",
+          "text": "Olá {{cliente}}, seu pedido no valor de {{total}} foi confirmado com sucesso!"
+        },
+        {
+          "type": "FOOTER",
+          "text": "Obrigado pela preferência"
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "Ver detalhes"
+            }
+          ]
+        }
+      ]
+    }
+    ```
+
+    ## Example Request (Positional Variables):
+    ```json
+    {
+      "name": "order_update",
+      "language": "en_US",
+      "category": "UTILITY",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Hello {{1}}, your order {{2}} totaling {{3}} has been confirmed!"
+        }
+      ]
+    }
+    ```
+
+    **Response Fields (NEW):**
+    - `parameter_format`: "NAMED" or "POSITIONAL"
+    - `named_variables`: Array of variable names (for NAMED format)
+      Example: ["cliente", "numero_pedido", "total"]
+
+    **Permissions:**
+    - Requires: org_admin or super_admin role
+    - Scoped to: Organization
+
+    **Error Codes:**
+    - 400: Templates not available for QR Code connections
+    - 400: WhatsApp Business Account ID not configured
+    - 400: Invalid parameter (check Meta API error message)
+    - 404: WhatsApp number not found
+    - 409: Template with same name already exists
+    - 500: Meta API error
+
+    **Notes:**
+    - Template names must be lowercase with underscores only
+    - If submit=True, template sent to Meta for approval (24-48h review)
+    - If submit=False, template saved as DRAFT (can edit/submit later)
+    - Meta validates template content and may reject non-compliant templates
     """
     from app.services.template_service import TemplateService
 
@@ -1082,12 +1254,63 @@ async def list_local_templates(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    List templates from local database
+    List templates from local database (not Meta API).
 
-    Query params:
-        - status: Filter by status (DRAFT, PENDING, APPROVED, REJECTED)
-        - skip: Number of records to skip
-        - limit: Number of records to return
+    Returns templates stored in PyTake's database, including drafts and
+    templates synced from Meta. Much faster than fetching from Meta API.
+
+    **Differences from GET /templates:**
+    - Source: Local database (not Meta API)
+    - Includes: DRAFT templates (not submitted to Meta yet)
+    - Performance: Much faster (no external API call)
+    - Offline: Works even if Meta API is down
+    - Extra fields: parameter_format, named_variables
+
+    **Path Parameters:**
+    - number_id (UUID): WhatsApp number ID
+
+    **Query Parameters:**
+    - status (str, optional): Filter by status
+      - DRAFT: Created locally, not submitted to Meta
+      - PENDING: Submitted to Meta, awaiting review
+      - APPROVED: Approved by Meta, ready to use
+      - REJECTED: Rejected by Meta
+      - DISABLED: Disabled by Meta due to quality issues
+    - skip (int): Number of records to skip (default: 0)
+    - limit (int): Max records to return (default: 100, max: 100)
+
+    **Returns:** List of templates with parameter format info
+
+    **Example Response:**
+    ```json
+    [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "name": "welcome_message",
+        "language": "pt_BR",
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "parameter_format": "NAMED",
+        "named_variables": ["nome", "codigo"],
+        "body_text": "Olá {{nome}}, seu código é {{codigo}}",
+        "header_text": null,
+        "footer_text": "PyTake - Automação WhatsApp",
+        "buttons": [],
+        "quality_score": "GREEN",
+        "sent_count": 150,
+        "delivered_count": 148,
+        "created_at": "2025-01-15T14:32:00Z",
+        "approved_at": "2025-01-16T10:00:00Z"
+      }
+    ]
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+    - Scoped to: Organization
+
+    **Error Codes:**
+    - 404: WhatsApp number not found
     """
     from app.services.template_service import TemplateService
 
@@ -1115,7 +1338,59 @@ async def get_template(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get template by ID"""
+    """
+    Get a single template by ID from local database.
+
+    Returns complete template details including components, variables,
+    usage statistics, and quality metrics.
+
+    **Path Parameters:**
+    - number_id (UUID): WhatsApp number ID
+    - template_id (UUID): Template ID
+
+    **Returns:** Complete template object with all fields
+
+    **Example Response:**
+    ```json
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "order_confirmation",
+      "language": "pt_BR",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "parameter_format": "NAMED",
+      "named_variables": ["cliente", "numero_pedido", "total"],
+      "header_type": "TEXT",
+      "header_text": "Pedido Confirmado",
+      "header_variables_count": 0,
+      "body_text": "Olá {{cliente}}! Seu pedido {{numero_pedido}} no valor de {{total}} foi confirmado.",
+      "body_variables_count": 3,
+      "footer_text": "Obrigado pela preferência",
+      "buttons": [],
+      "quality_score": "GREEN",
+      "paused_at": null,
+      "disabled_at": null,
+      "disabled_reason": null,
+      "sent_count": 1250,
+      "delivered_count": 1230,
+      "read_count": 1100,
+      "failed_count": 5,
+      "is_system_template": false,
+      "is_enabled": true,
+      "approved_at": "2025-01-10T10:00:00Z",
+      "rejected_at": null,
+      "created_at": "2025-01-09T15:30:00Z",
+      "updated_at": "2025-01-10T10:00:00Z"
+    }
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+    - Scoped to: Organization + WhatsApp number
+
+    **Error Codes:**
+    - 404: Template not found or doesn't belong to organization
+    """
     from app.services.template_service import TemplateService
 
     whatsapp_service = WhatsAppService(db)
@@ -1172,10 +1447,44 @@ async def delete_template(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Delete template
+    Delete a template (soft delete in database).
 
-    Query params:
-        - delete_from_meta: If true, also deletes from Meta (irreversible)
+    Removes template from local database. Optionally can also delete from
+    Meta API (irreversible).
+
+    **IMPORTANT:**
+    - Local delete: Template marked as deleted (can be restored)
+    - Meta delete: Permanently removes from WhatsApp (cannot be undone)
+    - System templates cannot be deleted
+
+    **Path Parameters:**
+    - number_id (UUID): WhatsApp number ID
+    - template_id (UUID): Template ID to delete
+
+    **Query Parameters:**
+    - delete_from_meta (bool): Also delete from Meta API (default: false)
+      ⚠️ WARNING: Meta deletion is permanent and irreversible!
+
+    **Returns:** HTTP 204 No Content on success
+
+    **Example Usage:**
+    ```bash
+    # Delete locally only (can be restored)
+    DELETE /api/v1/whatsapp/{number_id}/templates/{template_id}
+
+    # Delete from Meta too (PERMANENT - Cannot be undone!)
+    DELETE /api/v1/whatsapp/{number_id}/templates/{template_id}?delete_from_meta=true
+    ```
+
+    **Permissions:**
+    - Requires: org_admin or super_admin role
+    - Scoped to: Organization
+
+    **Error Codes:**
+    - 403: Forbidden (not admin)
+    - 404: Template not found
+    - 400: Cannot delete system template
+    - 500: Failed to delete from Meta (local deletion still succeeds)
     """
     from app.services.template_service import TemplateService
 

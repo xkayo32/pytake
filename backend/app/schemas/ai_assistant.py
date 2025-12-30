@@ -11,6 +11,7 @@ class AIProvider(str, Enum):
     """Supported AI providers"""
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
 
 
 class AIModelBase(BaseModel):
@@ -86,6 +87,11 @@ class AIAssistantSettings(BaseModel):
         min_length=10,
         description="Anthropic API key"
     )
+    gemini_api_key: Optional[str] = Field(
+        None,
+        min_length=10,
+        description="Google Gemini API key"
+    )
     model: str = Field(
         default="claude-3-5-sonnet-20241022",
         description="AI model to use"
@@ -121,6 +127,7 @@ class AIAssistantSettingsUpdate(BaseModel):
     default_provider: Optional[AIProvider] = None
     openai_api_key: Optional[str] = Field(None, min_length=10)
     anthropic_api_key: Optional[str] = Field(None, min_length=10)
+    gemini_api_key: Optional[str] = Field(None, min_length=10)
     # Old format (backward compatibility)
     provider: Optional[AIProvider] = None  # Will be converted to default_provider
     api_key: Optional[str] = Field(None, min_length=10)  # Will be converted to provider-specific key

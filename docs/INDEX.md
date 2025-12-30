@@ -49,6 +49,32 @@
    - Error codes
    - Code examples (Python, JS, cURL)
 
+6.1. **[API_DOCUMENTATION.md](./API_DOCUMENTATION.md)** - Guia de Uso da API (NOVO)
+   - Como acessar Swagger UI e ReDoc
+   - Autenticação JWT passo a passo
+   - Exemplos de uso com templates + IA
+   - Rate limiting e códigos de erro
+   - OpenAPI spec disponível
+
+6.2. **[WHATSAPP_TEMPLATE_CATEGORIES_GUIDE.md](./WHATSAPP_TEMPLATE_CATEGORIES_GUIDE.md)** - Categorias de Templates WhatsApp
+   - Categorias disponíveis (MARKETING, UTILITY, AUTHENTICATION)
+   - Mudanças importantes Abril 2025
+   - Campo `suggested_category` (DEPRECATED)
+   - Motivos de rejeição e boas práticas
+
+6.3. **[AI_MODELS_GUIDE.md](./AI_MODELS_GUIDE.md)** - Modelos de IA para Análise de Templates
+   - Modelos padrão recomendados (Haiku, Gemini Flash, GPT-4o mini)
+   - Comparativo de custos e performance
+   - Matriz de decisão por cenário
+   - Como configurar e testar diferentes modelos
+
+6.4. **[META_OPENAPI_FINDINGS.md](./META_OPENAPI_FINDINGS.md)** - Análise Repositório Oficial Meta (NOVO)
+   - Análise do repositório facebook/openapi
+   - Confirmação: campo `suggested_category` não existe mais
+   - Mudanças de Abril 2025 (allow_category_change removido)
+   - Novo comportamento de categorização da Meta
+   - Nossa solução de IA é superior
+
 ### 🆘 Para Resolver Problemas
 7. **[TROUBLESHOOTING_FAQ.md](./TROUBLESHOOTING_FAQ.md)** - Troubleshooting
    - 10+ problemas comuns
@@ -101,9 +127,13 @@
 - [PROJECT_OVERVIEW.md - Architecture](./PROJECT_OVERVIEW.md#-arquitetura)
 
 ### APIs & Integrations
+- [API_DOCUMENTATION.md - API Usage Guide](./API_DOCUMENTATION.md) ⭐ **NOVO**
 - [API_REFERENCE_COMPLETE.md - Endpoints](./API_REFERENCE_COMPLETE.md#-endpoints---templates)
 - [ARCHITECTURE.md - Integration Points](./ARCHITECTURE.md#-integration-points)
 - [API_REFERENCE_COMPLETE.md - Webhooks](./API_REFERENCE_COMPLETE.md#-endpoints---webhooks)
+- [WHATSAPP_TEMPLATE_CATEGORIES_GUIDE.md - Template Categories](./WHATSAPP_TEMPLATE_CATEGORIES_GUIDE.md)
+- [AI_MODELS_GUIDE.md - AI Models for Template Analysis](./AI_MODELS_GUIDE.md)
+- [META_OPENAPI_FINDINGS.md - Meta Official API Analysis](./META_OPENAPI_FINDINGS.md) ⭐ **NOVO**
 
 ### Desenvolvimento
 - [CONTRIBUTING_GUIDE.md - Workflow](./CONTRIBUTING_GUIDE.md#-git-workflow)

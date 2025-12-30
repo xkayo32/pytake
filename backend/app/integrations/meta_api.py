@@ -433,6 +433,7 @@ class MetaCloudAPI:
         }
 
         logger.info(f"Creating template '{name}' ({language}) for WABA {waba_id}")
+        logger.debug(f"Template payload: {payload}")
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             try:
@@ -440,16 +441,40 @@ class MetaCloudAPI:
                 response_data = response.json()
 
                 if response.status_code != 200:
-                    error_message = response_data.get("error", {}).get("message", "Unknown error")
-                    error_code = response_data.get("error", {}).get("code")
+                    error_info = response_data.get("error", {})
+                    error_message = error_info.get("message", "Unknown error")
+                    error_code = error_info.get("code")
+                    error_subcode = error_info.get("error_subcode")
+                    error_user_title = error_info.get("error_user_title")
+                    error_user_msg = error_info.get("error_user_msg")
+
+                    # Log detalhes completos do erro
                     logger.error(f"Meta API error creating template: {error_message}")
+                    logger.error(f"Error code: {error_code}, subcode: {error_subcode}")
+                    logger.error(f"Error details: {error_user_title} - {error_user_msg}")
+                    logger.error(f"Full error response: {error_info}")
+
+                    # Mensagem de erro mais detalhada
+                    detailed_message = error_message
+                    if error_user_msg:
+                        detailed_message = f"{error_message}: {error_user_msg}"
+
                     raise MetaAPIError(
-                        message=error_message,
+                        message=detailed_message,
                         error_code=str(error_code) if error_code else None,
                         status_code=response.status_code
                     )
 
                 logger.info(f"✅ Template '{name}' created successfully. ID: {response_data.get('id')}")
+
+                # Check if Meta suggested a different category
+                returned_category = response_data.get('category')
+                if returned_category and returned_category != category:
+                    logger.warning(
+                        f"⚠️ Meta suggested category '{returned_category}' instead of '{category}' "
+                        f"for template '{name}'. This may help avoid rejection."
+                    )
+
                 return response_data
 
             except httpx.RequestError as e:

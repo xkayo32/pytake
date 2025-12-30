@@ -7,6 +7,7 @@ This service enforces WhatsApp's 24-hour message window rule:
 - Customer messages reset/extend the window
 """
 
+import logging
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -18,6 +19,8 @@ from app.repositories.conversation_window import ConversationWindowRepository
 from app.repositories.conversation import ConversationRepository
 from app.models.conversation import Conversation
 from app.models.conversation_window import ConversationWindow
+
+logger = logging.getLogger(__name__)
 
 
 class WindowStatus(str, Enum):
@@ -231,9 +234,15 @@ class WindowValidationService:
             window = await self.window_repo.reset_window(window.id, organization_id)
 
         # Also update the conversation's last_user_message_at timestamp
-        conversation = await self.conversation_repo.get_by_id(conversation_id)
-        if conversation and conversation.organization_id == organization_id:
-            conversation.update_user_message_window()
+        try:
+            conversation = await self.conversation_repo.get_by_id(conversation_id)
+            if conversation and conversation.organization_id == organization_id:
+                conversation.update_user_message_window()
+                # Commit the changes
+                await self.db.commit()
+        except Exception as e:
+            logger.warning(f"Failed to update conversation window timestamp: {e}")
+            # Não falha a operação se não conseguir atualizar timestamp
 
         return window
 
