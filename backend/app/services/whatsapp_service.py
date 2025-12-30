@@ -4208,8 +4208,11 @@ __result__ = __script_func__()
         from app.repositories.contact import ContactRepository
         from app.repositories.conversation import ConversationRepository, MessageRepository
         from app.models.conversation import Conversation, Message
+        from app.models.chatbot import Node
         from datetime import datetime, timedelta
+        from sqlalchemy import select
 
+        print(f"🚀 _process_incoming_message called: {message.get('id')}")
         logger.info(f"Processing incoming message: {message.get('id')}")
 
         # Extract message data
@@ -4217,9 +4220,12 @@ __result__ = __script_func__()
         whatsapp_message_id = message.get("id")
         message_type = message.get("type", "text")
         timestamp = message.get("timestamp")
+        
+        print(f"  Contact: {whatsapp_contact_id}, Type: {message_type}")
 
         if not whatsapp_contact_id or not whatsapp_message_id:
             logger.warning("Missing required fields in message")
+            print(f"  ❌ Missing fields: contact={whatsapp_contact_id}, msg={whatsapp_message_id}")
             return
 
         # 1. Get or Create Contact
@@ -4259,6 +4265,17 @@ __result__ = __script_func__()
 
         if conversations:
             conversation = conversations[0]
+            print(f"  ℹ️  Existing conversation: {conversation.id}")
+            # Atualizar para garantir que bot está ativo e flow está configurado
+            if (default_flow_id or default_chatbot_id) and not conversation.is_bot_active:
+                await conversation_repo.update(conversation.id, {
+                    "is_bot_active": True,
+                    "active_chatbot_id": default_chatbot_id,
+                    "active_flow_id": default_flow_id,
+                })
+                conversation.is_bot_active = True
+                conversation.active_flow_id = default_flow_id
+                conversation.active_chatbot_id = default_chatbot_id
         else:
             # Create new conversation
             now = datetime.utcnow()
@@ -4280,62 +4297,115 @@ __result__ = __script_func__()
             }
 
             conversation = await conversation_repo.create(conversation_data)
+            print(f"  ✅ Created conversation: {conversation.id}")
             logger.info(f"Created new conversation: {conversation.id}")
-            
-            # 🔄 Iniciar Flow Padrão se configurado
-            if default_flow_id:
-                try:
-                    from app.repositories.chatbot import FlowRepository
+
+        # 🔄 Iniciar Flow Padrão se configurado (SEMPRE ao receber mensagem)
+        if default_flow_id:
+            print(f"  🔄 Initializing default flow: {default_flow_id}")
+            try:
+                from app.repositories.chatbot import FlowRepository, NodeRepository
+                
+                flow_repo = FlowRepository(self.db)
+                node_repo = NodeRepository(self.db)
+                
+                flow = await flow_repo.get_with_nodes(default_flow_id, org_id)
+                
+                print(f"    Flow found: {flow is not None}")
+                if flow:
+                    # Capture flow attributes BEFORE detaching
+                    flow_id = flow.id
+                    flow_name = flow.name
+                    flow_nodes = flow.nodes or []
+                    canvas_data = flow.canvas_data or {}
                     
-                    flow_repo = FlowRepository(self.db)
-                    flow = await flow_repo.get_by_id(default_flow_id, org_id)
+                    print(f"    Flow name: {flow_name}, Nodes: {len(flow_nodes)}")
                     
-                    if flow:
-                        # Obter o start node do flow
-                        start_node = None
-                        for node in flow.nodes:
-                            if node.node_type == "start":
-                                start_node = node
+                    # Obter o start node do flow
+                    start_node = None
+                    for node in flow_nodes:
+                        if node.node_type == "start":
+                            start_node = node
+                            break
+                    
+                    if start_node:
+                        # Encontrar primeiro node com conteúdo seguindo edge
+                        edges = canvas_data.get("edges", [])
+                        start_node_canvas_id = start_node.node_id
+                        next_node_canvas_id = None
+
+                        for edge in edges:
+                            if edge.get("source") == start_node_canvas_id:
+                                next_node_canvas_id = edge.get("target")
                                 break
-                        
-                        if start_node:
-                            # Atualizar conversation com current_node_id
-                            await conversation_repo.update(conversation.id, {
-                                "current_node_id": start_node.id
-                            })
-                            logger.info(f"✅ Default flow initiated: {flow.name} (ID: {flow.id}) for conversation {conversation.id}")
+
+                        if next_node_canvas_id:
+                            # Buscar próximo node
+                            stmt = select(Node).where(
+                                Node.flow_id == default_flow_id,
+                                Node.node_id == next_node_canvas_id,
+                                Node.organization_id == org_id
+                            )
+                            result = await self.db.execute(stmt)
+                            first_node = result.scalar_one_or_none()
+
+                            if first_node:
+                                # Capture first_node attributes BEFORE detaching
+                                first_node_id = first_node.id
+                                first_node_type = first_node.node_type
+                                
+                                # Atualizar conversation com current_node_id
+                                await conversation_repo.update(conversation.id, {
+                                    "current_node_id": first_node_id
+                                })
+                                logger.info(f"✅ Default flow initiated: {flow_name} (ID: {flow_id}) > Node: {first_node_type} (ID: {first_node_id}) for conversation {conversation.id}")
+                            else:
+                                logger.warning(f"⚠️  First node {next_node_canvas_id} not found in flow {flow_id}")
                         else:
-                            logger.warning(f"No start node found in flow {flow.id}")
+                            logger.warning(f"⚠️  No edge found from start node in flow {flow_id}")
                     else:
-                        logger.warning(f"Default flow not found: {default_flow_id}")
-                except Exception as e:
-                    logger.error(f"Error initiating default flow: {e}", exc_info=True)
-                    # Não falha a conversa se o flow não iniciar
+                        logger.warning(f"⚠️  No start node found in flow {flow_id}")
+                else:
+                    logger.warning(f"⚠️  Default flow not found: {default_flow_id}")
+            except Exception as e:
+                logger.error(f"Error initiating default flow: {e}", exc_info=True)
+                # Não falha a conversa se o flow não iniciar
 
-            # VIP Routing: If contact is VIP, assign to VIP queue automatically with overflow check
-            if contact.is_vip:
-                try:
-                    from app.repositories.queue import QueueRepository
-                    from app.services.conversation_service import ConversationService
+        # VIP Routing: If contact is VIP, assign to VIP queue automatically with overflow check
+        # Try to reload contact to avoid lazy load errors on detached objects
+        contact_is_vip = False
+        if contact:
+            try:
+                # Reload contact from DB to get fresh state
+                contact = await contact_repo.get_by_id(contact.id, org_id)
+                contact_is_vip = contact.is_vip if contact else False
+            except Exception as e:
+                logger.warning(f"Failed to reload contact for VIP check: {e}")
+                contact_is_vip = False
+        
+        if contact_is_vip:
+            try:
+                from app.repositories.queue import QueueRepository
+                from app.services.conversation_service import ConversationService
 
-                    queue_repo = QueueRepository(self.db)
-                    conv_service = ConversationService(self.db)
+                queue_repo = QueueRepository(self.db)
+                conv_service = ConversationService(self.db)
 
-                    vip_queue = await queue_repo.get_vip_queue(org_id)
-                    if vip_queue:
-                        await conv_service.assign_to_queue_with_overflow(
-                            conversation_id=conversation.id,
-                            queue_id=vip_queue.id,
-                            organization_id=org_id,
-                        )
-                        # Elevate priority for VIP
-                        await conversation_repo.update(conversation.id, {"queue_priority": 100})
-                        await self.db.commit()
-                        logger.info(
-                            f"🌟 VIP contact detected - assigned (with overflow) to queue: {vip_queue.name}"
-                        )
-                except Exception as e:
-                    logger.error(f"Error assigning VIP conversation with overflow: {e}")
+                vip_queue = await queue_repo.get_vip_queue(org_id)
+                if vip_queue:
+                    await conv_service.assign_to_queue_with_overflow(
+                        conversation_id=conversation.id,
+                        queue_id=vip_queue.id,
+                        organization_id=org_id,
+                    )
+                    # Elevate priority for VIP
+                    await conversation_repo.update(conversation.id, {"queue_priority": 100})
+                    await self.db.commit()
+                    logger.info(
+                        f"🌟 VIP contact detected - assigned (with overflow) to queue: {vip_queue.name}"
+                    )
+            except Exception as e:
+                logger.error(f"Error assigning VIP conversation with overflow: {e}")
 
         # Save conversation metric values before any potential detachment
         current_messages_from_contact = conversation.messages_from_contact or 0
