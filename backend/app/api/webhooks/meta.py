@@ -109,37 +109,70 @@ async def receive_webhook(
     - messages: incoming messages (future)
     
     Security:
-    - Verifies HMAC SHA256 signature
-    - Validates request structure
+    - Verifies HMAC SHA256 signature using phone number's webhook_verify_token
+    - Falls back to META_WEBHOOK_SECRET from .env if not found in database
     """
     # Read raw body for signature verification
     body = await request.body()
     
-    # Verify signature if configured
-    if settings.META_WEBHOOK_SECRET:
-        if not x_hub_signature_256:
-            logger.error("❌ Missing X-Hub-Signature-256 header")
-            raise HTTPException(status_code=401, detail="Missing signature")
-        
-        if not verify_webhook_signature(
-            body,
-            x_hub_signature_256,
-            settings.META_WEBHOOK_SECRET
-        ):
-            logger.error("❌ Invalid webhook signature")
-            raise HTTPException(status_code=403, detail="Invalid signature")
-    
-    # Parse JSON
+    # Parse JSON first to extract phone_number_id
     try:
         data = await request.json()
     except Exception as e:
         logger.error(f"❌ Invalid JSON payload: {e}")
         raise HTTPException(status_code=400, detail="Invalid JSON")
     
+    # Extract phone_number_id from webhook payload
+    phone_number_id = None
+    for entry in data.get("entry", []):
+        for change in entry.get("changes", []):
+            value = change.get("value", {})
+            metadata = value.get("metadata", {})
+            if metadata.get("phone_number_id"):
+                phone_number_id = metadata.get("phone_number_id")
+                break
+        if phone_number_id:
+            break
+    
+    # Verify signature using phone number's token or global secret
+    webhook_secret = None
+    
+    if phone_number_id:
+        # Try to get webhook_verify_token from database
+        async with async_session() as db:
+            from app.repositories.whatsapp import WhatsAppNumberRepository
+            whatsapp_repo = WhatsAppNumberRepository(db)
+            whatsapp_number = await whatsapp_repo.get_by_phone_number_id(phone_number_id)
+            
+            if whatsapp_number and whatsapp_number.webhook_verify_token:
+                webhook_secret = whatsapp_number.webhook_verify_token
+                logger.info(f"🔐 Using webhook token from database for phone {phone_number_id}")
+    
+    # Fallback to global secret from .env
+    if not webhook_secret and settings.META_WEBHOOK_SECRET:
+        webhook_secret = settings.META_WEBHOOK_SECRET
+        logger.info("🔐 Using global META_WEBHOOK_SECRET from .env")
+    
+    # Verify signature if secret is configured
+    if webhook_secret:
+        if not x_hub_signature_256:
+            logger.error("❌ Missing X-Hub-Signature-256 header")
+            raise HTTPException(status_code=401, detail="Missing signature")
+        
+        if not verify_webhook_signature(body, x_hub_signature_256, webhook_secret):
+            logger.error("❌ Invalid webhook signature")
+            raise HTTPException(status_code=403, detail="Invalid signature")
+        
+        logger.info("✅ Webhook signature verified successfully")
+    else:
+        logger.warning("⚠️ No webhook secret configured - signature verification skipped")
+    
+    print(f"🔔 WEBHOOK RECEIVED: {data.get('object', 'unknown')}")
     logger.info(f"📥 Webhook received: {data.get('object', 'unknown')}")
     
     # Validate object type
     if data.get("object") != "whatsapp_business_account":
+        print(f"❌ INVALID OBJECT TYPE: {data.get('object')}")
         logger.warning(f"⚠️ Unexpected object type: {data.get('object')}")
         return {"status": "ignored"}
     
