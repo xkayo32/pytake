@@ -87,6 +87,8 @@ class TemplateResponse(BaseModel):
     name: str
     language: str
     category: str
+    # DEPRECATED: Meta no longer returns suggested_category as of April 2025
+    suggested_category: Optional[str] = None
     status: str
     rejected_reason: Optional[str] = None
 
@@ -114,6 +116,22 @@ class TemplateResponse(BaseModel):
     updated_at: datetime
     approved_at: Optional[datetime] = None
     rejected_at: Optional[datetime] = None
+
+    # AI Analysis (optional)
+    ai_analysis_score: Optional[float] = Field(
+        None,
+        ge=0,
+        le=100,
+        description="Score da análise de IA (0-100). < 60 = crítico, 60-80 = atenção, > 80 = bom"
+    )
+    ai_suggested_category: Optional[str] = Field(
+        None,
+        description="Categoria sugerida pela IA (MARKETING, UTILITY, AUTHENTICATION)"
+    )
+    ai_analyzed_at: Optional[datetime] = Field(
+        None,
+        description="Data/hora quando foi analisado pela IA"
+    )
 
     class Config:
         from_attributes = True

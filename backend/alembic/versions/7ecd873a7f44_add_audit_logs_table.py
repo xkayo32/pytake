@@ -1,7 +1,7 @@
 """add_audit_logs_table
 
 Revision ID: 7ecd873a7f44
-Revises: c5a7f2f4cdae
+Revises: 20251224_001_create_expenses
 Create Date: 2025-12-14 19:59:18.858122
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '7ecd873a7f44'
-down_revision: Union[str, None] = 'c5a7f2f4cdae'
+down_revision: Union[str, None] = '20251224_001_create_expenses'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

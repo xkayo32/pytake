@@ -94,6 +94,7 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
+        foreign_keys="[AgentSkill.user_id]",
     )
 
     # Agent-specific fields
@@ -123,7 +124,7 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     # Relationships
-    organization = relationship("Organization", back_populates="users")
+    organization = relationship("Organization", back_populates="users", foreign_keys=[organization_id])
     role_obj = relationship("Role", back_populates="users", foreign_keys=[role_id])
     refresh_tokens = relationship(
         "RefreshToken", back_populates="user", cascade="all, delete-orphan"

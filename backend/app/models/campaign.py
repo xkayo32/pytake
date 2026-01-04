@@ -241,7 +241,7 @@ class Campaign(Base, TimestampMixin, SoftDeleteMixin):
 
     # Relationships
     organization = relationship("Organization", back_populates="campaigns")
-    created_by_user = relationship("User")
+    created_by_user = relationship("User", foreign_keys=[created_by_user_id])
     whatsapp_number = relationship("WhatsAppNumber")
     template = relationship("WhatsAppTemplate")
     # messages = relationship("CampaignMessage", back_populates="campaign", cascade="all, delete-orphan")

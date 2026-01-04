@@ -46,15 +46,10 @@ class TimestampMixin:
 
 class SoftDeleteMixin:
     """
-    Enhanced Mixin to add soft delete capability with audit trail.
+    Mixin to add soft delete capability with audit trail.
     
     Tracks:
     - When deleted (deleted_at)
-    - Who deleted (deleted_by_user_id)
-    - Why deleted (deleted_reason)
-    - Data before deletion (deleted_data_snapshot)
-    
-    This enables data recovery, compliance auditing, and incident investigation.
     """
 
     deleted_at = Column(
@@ -62,27 +57,6 @@ class SoftDeleteMixin:
         nullable=True,
         index=True,
         comment="Timestamp when record was soft deleted",
-    )
-
-    # ========== NEW AUDIT FIELDS ==========
-    deleted_by_user_id = Column(
-        PostgresUUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-        comment="UUID of user who performed the deletion",
-    )
-
-    deleted_reason = Column(
-        String(50),
-        nullable=True,
-        comment="Reason for deletion (user_request, duplicate, expired, compliance, error, abuse, policy, unknown)",
-    )
-
-    deleted_data_snapshot = Column(
-        JSONB,
-        nullable=True,
-        comment="JSON snapshot of record data before deletion (for recovery)",
     )
 
     @property
@@ -96,44 +70,10 @@ class SoftDeleteMixin:
         reason: Optional[str] = None,
         snapshot: Optional[dict] = None,
     ) -> None:
-        """
-        Soft delete the record with audit trail.
-
-        Args:
-            deleted_by_id: UUID of user performing deletion
-            reason: Reason for deletion (enum string)
-            snapshot: Optional dict with record data before deletion
-        """
+        """Soft delete the record"""
         self.deleted_at = datetime.utcnow()
-        self.deleted_by_user_id = deleted_by_id
-        self.deleted_reason = reason or "unknown"
-
-        # If no snapshot provided, create one automatically
-        if snapshot is None:
-            snapshot = self._create_snapshot()
-        self.deleted_data_snapshot = snapshot
 
     def restore(self) -> None:
         """Restore soft deleted record"""
         self.deleted_at = None
-        self.deleted_by_user_id = None
-        self.deleted_reason = None
-        self.deleted_data_snapshot = None
 
-    def _create_snapshot(self) -> dict:
-        """
-        Create automatic snapshot of current record data.
-
-        Returns:
-            Dictionary with all non-internal attributes
-        """
-        snapshot = {}
-        for key, value in self.__dict__.items():
-            # Skip internal SQLAlchemy attributes and methods
-            if not key.startswith("_") and not callable(value):
-                # Serialize complex types
-                if isinstance(value, (datetime, UUID)):
-                    snapshot[key] = str(value)
-                else:
-                    snapshot[key] = value
-        return snapshot

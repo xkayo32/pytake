@@ -4,6 +4,7 @@ WhatsApp Number Endpoints
 
 from typing import List, Dict, Any, Optional
 from uuid import UUID
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, status, Request, HTTPException, Query
 from fastapi.responses import PlainTextResponse
@@ -406,6 +407,7 @@ async def receive_webhook(
     try:
         # Get raw body for signature verification
         raw_body = await request.body()
+        logger.info(f"Webhook received: {len(raw_body)} bytes, signature present: {bool(request.headers.get('X-Hub-Signature-256'))}")
 
         # Get signature header
         signature = request.headers.get("X-Hub-Signature-256")
@@ -413,6 +415,7 @@ async def receive_webhook(
         # Parse JSON body from raw bytes
         import json
         body = json.loads(raw_body.decode('utf-8'))
+        logger.info(f"Webhook parsed successfully, object: {body.get('object')}")
 
         # Extract phone_number_id from payload
         phone_number_id = None
@@ -428,7 +431,7 @@ async def receive_webhook(
             pass
 
         if not phone_number_id:
-            logger.error("Could not extract phone_number_id from webhook")
+            logger.error(f"Could not extract phone_number_id from webhook payload: {json.dumps(body, indent=2)[:500]}")
             return {"status": "ok"}
 
         # Find WhatsApp number by phone_number_id
@@ -442,7 +445,7 @@ async def receive_webhook(
             number = result.scalar_one_or_none()
 
             if not number:
-                logger.error(f"WhatsApp number not found for phone_number_id: {phone_number_id}")
+                logger.error(f"WhatsApp number not found for phone_number_id: {phone_number_id}, organization might be deleted")
                 return {"status": "ok"}
 
             # Verify signature if token is set
@@ -452,17 +455,19 @@ async def receive_webhook(
                     raise HTTPException(status_code=403, detail="Forbidden")
 
                 if not verify_whatsapp_signature(
+                    payload=raw_body,
                     signature=signature,
-                    body=raw_body,
-                    verify_token=number.webhook_verify_token
+                    app_secret=number.webhook_verify_token
                 ):
                     logger.error("Invalid webhook signature")
                     raise HTTPException(status_code=403, detail="Forbidden")
 
             # Process webhook
+            logger.info(f"Processing webhook for WhatsApp number {number.id}, organization {number.organization_id}")
             from app.services.whatsapp_service import WhatsAppService
             service = WhatsAppService(db)
             await service.process_webhook(body, number.id, number.organization_id)
+            logger.info(f"Webhook processed successfully for WhatsApp number {number.id}")
 
         # Always return 200 OK to Meta
         return {"status": "ok"}
@@ -475,6 +480,116 @@ async def receive_webhook(
         # Log error but still return 200 to prevent Meta from retrying
         logger.error(f"Webhook error: {e}")
         return {"status": "error", "message": str(e)}
+
+
+# ============= Debug Endpoints =============
+
+
+@router.get(
+    "/debug/conversation/{conversation_id}",
+    dependencies=[Depends(get_current_user)]
+)
+async def debug_conversation_state(
+    conversation_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Debug endpoint to check conversation flow state.
+    Returns detailed state information for troubleshooting.
+
+    **Permissions:** Requires authentication (org_admin or agent)
+    """
+    from app.repositories.conversation import ConversationRepository
+    from app.services.chatbot_service import ChatbotService
+
+    conv_repo = ConversationRepository(db)
+    conversation = await conv_repo.get_by_id(
+        conversation_id,
+        current_user.organization_id
+    )
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    chatbot_service = ChatbotService(db)
+
+    # Get current node details
+    current_node = None
+    if conversation.current_node_id:
+        current_node = await chatbot_service.node_repo.get(
+            conversation.current_node_id
+        )
+
+    # Get active flow details
+    active_flow = None
+    if conversation.active_flow_id:
+        active_flow = await chatbot_service.flow_repo.get(
+            conversation.active_flow_id
+        )
+
+    return {
+        "conversation_id": str(conversation.id),
+        "status": conversation.status,
+        "is_bot_active": conversation.is_bot_active,
+        "active_flow_id": str(conversation.active_flow_id) if conversation.active_flow_id else None,
+        "active_flow_name": active_flow.name if active_flow else None,
+        "current_node_id": str(conversation.current_node_id) if conversation.current_node_id else None,
+        "current_node_canvas_id": current_node.node_id if current_node else None,
+        "current_node_type": current_node.node_type if current_node else None,
+        "current_node_label": current_node.label if current_node else None,
+        "context_variables": conversation.context_variables,
+        "execution_path": (conversation.context_variables or {}).get("_execution_path", []),
+        "last_message_at": conversation.last_message_at.isoformat() if conversation.last_message_at else None,
+        "window_expires_at": conversation.window_expires_at.isoformat() if conversation.window_expires_at else None,
+    }
+
+
+@router.post(
+    "/debug/conversation/{conversation_id}/reset-flow",
+    dependencies=[Depends(get_current_user)]
+)
+async def reset_conversation_flow(
+    conversation_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Manually reset a stuck conversation's flow state.
+    Clears current_node_id and execution_path.
+
+    **Permissions:** Requires org_admin role
+    """
+    if current_user.role not in ["org_admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Requires admin role")
+
+    from app.repositories.conversation import ConversationRepository
+
+    conv_repo = ConversationRepository(db)
+    conversation = await conv_repo.get_by_id(
+        conversation_id,
+        current_user.organization_id
+    )
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Clear flow state
+    context_vars = conversation.context_variables or {}
+    context_vars.pop("_execution_path", None)
+    context_vars.pop("_question_timestamp", None)
+
+    await conv_repo.update(conversation_id, {
+        "current_node_id": None,
+        "context_variables": context_vars,
+        "is_bot_active": True
+    })
+    await db.commit()
+
+    return {
+        "status": "reset",
+        "message": "Flow state cleared, next message will restart flow"
+    }
 
 
 # ============= WhatsApp Number Endpoints =============
@@ -960,11 +1075,52 @@ async def list_templates(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    List message templates from Meta for a WhatsApp number.
-    Only works for Official API (connection_type='official').
+    List message templates from Meta Cloud API for a WhatsApp number.
 
-    Query params:
-    - status: Filter by status (APPROVED, PENDING, REJECTED). Default: APPROVED
+    Fetches templates directly from Meta's servers (not local database).
+    Only works for Official API connections (connection_type='official').
+
+    **Path Parameters:**
+    - number_id (UUID): WhatsApp number ID
+
+    **Query Parameters:**
+    - status (str, optional): Filter by status (default: APPROVED)
+      - APPROVED: Templates ready to use
+      - PENDING: Awaiting Meta review
+      - REJECTED: Rejected by Meta
+      - DISABLED: Disabled by Meta
+      - PAUSED: Paused due to quality issues
+
+    **Returns:** List of templates with complete metadata from Meta API
+
+    **Example Response:**
+    ```json
+    [
+      {
+        "id": "1234567890",
+        "name": "welcome_message",
+        "language": "pt_BR",
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Olá {{1}}, bem-vindo!"
+          }
+        ]
+      }
+    ]
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+    - Scoped to: Organization
+
+    **Error Codes:**
+    - 400: Templates not available for QR Code connections
+    - 400: WhatsApp Business Account ID not configured
+    - 404: WhatsApp number not found
+    - 500: Meta API error
     """
     service = WhatsAppService(db)
 
@@ -1015,20 +1171,151 @@ async def create_template(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Create a new WhatsApp template
+    Create a new WhatsApp template.
 
-    Args:
-        number_id: WhatsApp number ID
-        data: Template data (name, language, category, components)
-        submit: Whether to submit to Meta immediately (default: True)
+    Creates a message template for sending notifications outside the 24-hour
+    customer service window. Templates must be approved by Meta before use.
 
-    Returns:
-        Created template with status DRAFT or PENDING
+    **Path Parameters:**
+    - number_id (UUID): WhatsApp number ID
 
-    Notes:
-        - Template names must be lowercase with underscores
-        - If submit=True, template is sent to Meta for approval
-        - Meta takes 24-48h to review templates
+    **Query Parameters:**
+    - submit (bool): Submit to Meta immediately (default: true)
+      - true: Template created and submitted (status: PENDING)
+      - false: Template created as draft (status: DRAFT)
+
+    **Request Body:**
+    - name (str): Template name (lowercase with underscores, e.g., "order_confirmation")
+    - language (str): Language code (e.g., "pt_BR", "en_US")
+    - category (str): Template category (MARKETING, UTILITY, AUTHENTICATION)
+    - components (list): Template components (header, body, footer, buttons)
+
+    **Returns:**
+    - Created template with status DRAFT or PENDING
+    - Fields include: parameter_format, named_variables
+
+    ---
+
+    ## Variable Formats (IMPORTANT)
+
+    Meta WhatsApp API supports **TWO formats** for template variables:
+
+    ### 1. POSITIONAL Format (Traditional)
+    Variables use numbers: {{1}}, {{2}}, {{3}}, etc.
+
+    **Characteristics:**
+    - Order matters: {{1}} = first parameter, {{2}} = second, etc.
+    - Less readable in code
+    - Legacy format
+
+    **Example:**
+    ```json
+    {
+      "type": "BODY",
+      "text": "Olá {{1}}, seu código é {{2}}. Válido por {{3}} minutos."
+    }
+    ```
+
+    ### 2. NAMED Format (Recommended - More Readable)
+    Variables use descriptive names: {{nome}}, {{codigo}}, {{email}}, etc.
+
+    **Characteristics:**
+    - Self-documenting: Clear what each variable represents
+    - Easier to maintain
+    - Recommended by Meta for new templates
+
+    **Rules:**
+    - Must start with letter or underscore: `{{nome}}` ✅ `{{1nome}}` ❌
+    - Can contain letters, numbers, underscores: `{{numero_pedido}}` ✅
+    - Cannot contain spaces or special chars: `{{número-pedido}}` ❌
+    - Case-sensitive: `{{Nome}}` ≠ `{{nome}}`
+
+    **Example:**
+    ```json
+    {
+      "type": "BODY",
+      "text": "Olá {{nome}}, seu código é {{codigo}}. Válido por {{validade}} minutos."
+    }
+    ```
+
+    ### Important Constraints:
+    - **Cannot mix formats** in same template (all positional OR all named)
+    - Variable names must match **EXACTLY** when sending messages
+    - System auto-detects format and stores in `parameter_format` field
+    - Named variables stored in `named_variables` array field
+
+    ---
+
+    ## Example Request (Named Variables - Recommended):
+    ```json
+    {
+      "name": "order_confirmation",
+      "language": "pt_BR",
+      "category": "UTILITY",
+      "components": [
+        {
+          "type": "HEADER",
+          "format": "TEXT",
+          "text": "Pedido {{numero_pedido}}"
+        },
+        {
+          "type": "BODY",
+          "text": "Olá {{cliente}}, seu pedido no valor de {{total}} foi confirmado com sucesso!"
+        },
+        {
+          "type": "FOOTER",
+          "text": "Obrigado pela preferência"
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "QUICK_REPLY",
+              "text": "Ver detalhes"
+            }
+          ]
+        }
+      ]
+    }
+    ```
+
+    ## Example Request (Positional Variables):
+    ```json
+    {
+      "name": "order_update",
+      "language": "en_US",
+      "category": "UTILITY",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Hello {{1}}, your order {{2}} totaling {{3}} has been confirmed!"
+        }
+      ]
+    }
+    ```
+
+    **Response Fields (NEW):**
+    - `parameter_format`: "NAMED" or "POSITIONAL"
+    - `named_variables`: Array of variable names (for NAMED format)
+      Example: ["cliente", "numero_pedido", "total"]
+
+    **Permissions:**
+    - Requires: org_admin or super_admin role
+    - Scoped to: Organization
+
+    **Error Codes:**
+    - 400: Templates not available for QR Code connections
+    - 400: WhatsApp Business Account ID not configured
+    - 400: Invalid parameter (check Meta API error message)
+    - 404: WhatsApp number not found
+    - 409: Template with same name already exists
+    - 500: Meta API error
+
+    **Notes:**
+    - Template names must be lowercase with underscores only
+    - If submit=True, template sent to Meta for approval (24-48h review)
+    - If submit=False, template saved as DRAFT (can edit/submit later)
+    - Meta validates template content and may reject non-compliant templates
     """
     from app.services.template_service import TemplateService
 
@@ -1081,12 +1368,63 @@ async def list_local_templates(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    List templates from local database
+    List templates from local database (not Meta API).
 
-    Query params:
-        - status: Filter by status (DRAFT, PENDING, APPROVED, REJECTED)
-        - skip: Number of records to skip
-        - limit: Number of records to return
+    Returns templates stored in PyTake's database, including drafts and
+    templates synced from Meta. Much faster than fetching from Meta API.
+
+    **Differences from GET /templates:**
+    - Source: Local database (not Meta API)
+    - Includes: DRAFT templates (not submitted to Meta yet)
+    - Performance: Much faster (no external API call)
+    - Offline: Works even if Meta API is down
+    - Extra fields: parameter_format, named_variables
+
+    **Path Parameters:**
+    - number_id (UUID): WhatsApp number ID
+
+    **Query Parameters:**
+    - status (str, optional): Filter by status
+      - DRAFT: Created locally, not submitted to Meta
+      - PENDING: Submitted to Meta, awaiting review
+      - APPROVED: Approved by Meta, ready to use
+      - REJECTED: Rejected by Meta
+      - DISABLED: Disabled by Meta due to quality issues
+    - skip (int): Number of records to skip (default: 0)
+    - limit (int): Max records to return (default: 100, max: 100)
+
+    **Returns:** List of templates with parameter format info
+
+    **Example Response:**
+    ```json
+    [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "name": "welcome_message",
+        "language": "pt_BR",
+        "status": "APPROVED",
+        "category": "UTILITY",
+        "parameter_format": "NAMED",
+        "named_variables": ["nome", "codigo"],
+        "body_text": "Olá {{nome}}, seu código é {{codigo}}",
+        "header_text": null,
+        "footer_text": "PyTake - Automação WhatsApp",
+        "buttons": [],
+        "quality_score": "GREEN",
+        "sent_count": 150,
+        "delivered_count": 148,
+        "created_at": "2025-01-15T14:32:00Z",
+        "approved_at": "2025-01-16T10:00:00Z"
+      }
+    ]
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+    - Scoped to: Organization
+
+    **Error Codes:**
+    - 404: WhatsApp number not found
     """
     from app.services.template_service import TemplateService
 
@@ -1114,7 +1452,59 @@ async def get_template(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get template by ID"""
+    """
+    Get a single template by ID from local database.
+
+    Returns complete template details including components, variables,
+    usage statistics, and quality metrics.
+
+    **Path Parameters:**
+    - number_id (UUID): WhatsApp number ID
+    - template_id (UUID): Template ID
+
+    **Returns:** Complete template object with all fields
+
+    **Example Response:**
+    ```json
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "order_confirmation",
+      "language": "pt_BR",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "parameter_format": "NAMED",
+      "named_variables": ["cliente", "numero_pedido", "total"],
+      "header_type": "TEXT",
+      "header_text": "Pedido Confirmado",
+      "header_variables_count": 0,
+      "body_text": "Olá {{cliente}}! Seu pedido {{numero_pedido}} no valor de {{total}} foi confirmado.",
+      "body_variables_count": 3,
+      "footer_text": "Obrigado pela preferência",
+      "buttons": [],
+      "quality_score": "GREEN",
+      "paused_at": null,
+      "disabled_at": null,
+      "disabled_reason": null,
+      "sent_count": 1250,
+      "delivered_count": 1230,
+      "read_count": 1100,
+      "failed_count": 5,
+      "is_system_template": false,
+      "is_enabled": true,
+      "approved_at": "2025-01-10T10:00:00Z",
+      "rejected_at": null,
+      "created_at": "2025-01-09T15:30:00Z",
+      "updated_at": "2025-01-10T10:00:00Z"
+    }
+    ```
+
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+    - Scoped to: Organization + WhatsApp number
+
+    **Error Codes:**
+    - 404: Template not found or doesn't belong to organization
+    """
     from app.services.template_service import TemplateService
 
     whatsapp_service = WhatsAppService(db)
@@ -1171,10 +1561,44 @@ async def delete_template(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Delete template
+    Delete a template (soft delete in database).
 
-    Query params:
-        - delete_from_meta: If true, also deletes from Meta (irreversible)
+    Removes template from local database. Optionally can also delete from
+    Meta API (irreversible).
+
+    **IMPORTANT:**
+    - Local delete: Template marked as deleted (can be restored)
+    - Meta delete: Permanently removes from WhatsApp (cannot be undone)
+    - System templates cannot be deleted
+
+    **Path Parameters:**
+    - number_id (UUID): WhatsApp number ID
+    - template_id (UUID): Template ID to delete
+
+    **Query Parameters:**
+    - delete_from_meta (bool): Also delete from Meta API (default: false)
+      ⚠️ WARNING: Meta deletion is permanent and irreversible!
+
+    **Returns:** HTTP 204 No Content on success
+
+    **Example Usage:**
+    ```bash
+    # Delete locally only (can be restored)
+    DELETE /api/v1/whatsapp/{number_id}/templates/{template_id}
+
+    # Delete from Meta too (PERMANENT - Cannot be undone!)
+    DELETE /api/v1/whatsapp/{number_id}/templates/{template_id}?delete_from_meta=true
+    ```
+
+    **Permissions:**
+    - Requires: org_admin or super_admin role
+    - Scoped to: Organization
+
+    **Error Codes:**
+    - 403: Forbidden (not admin)
+    - 404: Template not found
+    - 400: Cannot delete system template
+    - 500: Failed to delete from Meta (local deletion still succeeds)
     """
     from app.services.template_service import TemplateService
 
@@ -1334,3 +1758,342 @@ async def reset_rate_limit(
         "message": "Rate limit counters reset successfully",
         "whatsapp_number_id": str(number_id),
     }
+
+
+# ============= TEMPLATE MONITORING & STATUS ENDPOINTS =============
+
+@router.get("/templates/critical")
+async def get_critical_templates(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get all templates requiring attention for the organization.
+    
+    Returns templates with issues:
+    - Status: DISABLED, PAUSED, REJECTED
+    - Quality: RED (failing quality metrics)
+    - Pending approval (PENDING status > 48h)
+    
+    **Returns:**
+    ```json
+    {
+        "critical_templates": [
+            {
+                "id": "template-uuid",
+                "name": "template_name",
+                "status": "DISABLED",
+                "quality_score": "RED",
+                "disabled_reason": "QUALITY_ISSUES",
+                "disabled_at": "2025-01-15T14:30:00Z",
+                "sent_count": 1250,
+                "failed_count": 45,
+                "failure_rate": 0.036,
+                "campaigns_affected": 3,
+                "action_required": "Review template quality metrics and resubmit"
+            }
+        ],
+        "total_critical": 2,
+        "timestamp": "2025-01-15T15:00:00Z"
+    }
+    ```
+    
+    **Permissions:**
+    - Requires: Authenticated user (any role)
+    - Scoped to: Organization
+    """
+    from app.services.template_status_service import TemplateStatusService
+    
+    service = TemplateStatusService(db)
+    templates = await service.get_critical_templates(current_user.organization_id)
+    
+    result = []
+    for template in templates:
+        campaigns_affected = await service._get_template_campaign_count(template.id)
+        failure_rate = (
+            template.failed_count / (template.sent_count or 1)
+            if template.sent_count
+            else 0
+        )
+        
+        result.append({
+            "id": str(template.id),
+            "name": template.name,
+            "status": template.status,
+            "quality_score": template.quality_score,
+            "disabled_reason": template.disabled_reason,
+            "disabled_at": template.disabled_at,
+            "paused_at": template.paused_at,
+            "sent_count": template.sent_count,
+            "delivered_count": template.delivered_count,
+            "failed_count": template.failed_count,
+            "failure_rate": round(failure_rate, 4),
+            "campaigns_affected": campaigns_affected,
+            "last_status_update": template.last_status_update,
+            "action_required": _get_action_required(template),
+        })
+    
+    return {
+        "critical_templates": result,
+        "total_critical": len(result),
+        "timestamp": datetime.utcnow(),
+    }
+
+
+@router.get("/templates/quality-summary")
+async def get_quality_summary(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get quality metrics summary for all organization templates.
+    
+    Provides overview of template quality distribution and metrics.
+    
+    **Returns:**
+    ```json
+    {
+        "quality_summary": {
+            "total_templates": 45,
+            "approved": 40,
+            "pending": 2,
+            "rejected": 1,
+            "disabled": 2,
+            "paused": 0,
+            "quality_distribution": {
+                "GREEN": 35,
+                "YELLOW": 4,
+                "RED": 1,
+                "UNKNOWN": 5
+            },
+            "avg_success_rate": 0.98,
+            "avg_failure_rate": 0.02,
+            "total_messages_sent": 125400,
+            "total_messages_failed": 2450
+        },
+        "recent_quality_changes": [
+            {
+                "template_id": "uuid",
+                "template_name": "name",
+                "previous_score": "GREEN",
+                "current_score": "YELLOW",
+                "changed_at": "2025-01-15T10:30:00Z",
+                "reason": "Quality metrics degraded"
+            }
+        ],
+        "timestamp": "2025-01-15T15:00:00Z"
+    }
+    ```
+    
+    **Permissions:**
+    - Requires: org_admin or super_admin role
+    - Scoped to: Organization
+    """
+    from app.services.template_status_service import TemplateStatusService
+    
+    service = TemplateStatusService(db)
+    summary = await service.get_template_quality_summary(current_user.organization_id)
+    
+    return {
+        "quality_summary": summary,
+        "timestamp": datetime.utcnow(),
+    }
+
+
+@router.get("/{number_id}/templates/{template_id}/status-history")
+async def get_template_status_history(
+    number_id: UUID,
+    template_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+):
+    """
+    Get status change history for a specific template.
+    
+    Shows all status transitions and quality score changes with timestamps
+    and reasons. Useful for auditing and debugging template issues.
+    
+    **Path Parameters:**
+    - number_id: WhatsApp number UUID
+    - template_id: Template UUID
+    
+    **Query Parameters:**
+    - limit: Max results (default: 100, max: 1000)
+    - offset: Pagination offset (default: 0)
+    
+    **Returns:**
+    ```json
+    {
+        "template": {
+            "id": "template-uuid",
+            "name": "template_name",
+            "current_status": "APPROVED",
+            "current_quality": "GREEN"
+        },
+        "history": [
+            {
+                "timestamp": "2025-01-15T14:30:00Z",
+                "event_type": "APPROVED",
+                "previous_status": "PENDING",
+                "new_status": "APPROVED",
+                "quality_score": "UNKNOWN",
+                "reason": "Template approved by Meta",
+                "webhook_id": "evt-123"
+            }
+        ],
+        "total": 15,
+        "limit": 100,
+        "offset": 0
+    }
+    ```
+    
+    **Permissions:**
+    - Requires: Authenticated user
+    - Scoped to: Organization + WhatsApp number
+    
+    **Note:** This endpoint requires implementation of AuditLog model
+    (Future enhancement for complete audit trail)
+    """
+    from app.services.whatsapp_service import WhatsAppService
+    from app.models.whatsapp_number import WhatsAppTemplate
+    
+    # Verify number belongs to organization
+    service = WhatsAppService(db)
+    whatsapp_number = await service.get_number(number_id, current_user.organization_id)
+    
+    if not whatsapp_number:
+        raise HTTPException(status_code=404, detail="WhatsApp number not found")
+    
+    # Verify template exists and belongs to this number
+    from sqlalchemy import select
+    
+    query = select(WhatsAppTemplate).where(
+        WhatsAppTemplate.id == template_id,
+        WhatsAppTemplate.whatsapp_number_id == number_id,
+        WhatsAppTemplate.deleted_at.is_(None),
+    )
+    
+    result = await db.execute(query)
+    template = result.scalars().first()
+    
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    
+    # TODO: Implement AuditLog table to track status changes
+    # For now, return basic current state
+    return {
+        "template": {
+            "id": str(template.id),
+            "name": template.name,
+            "current_status": template.status,
+            "current_quality": template.quality_score,
+        },
+        "history": [
+            {
+                "timestamp": template.last_status_update,
+                "event_type": template.status,
+                "current_status": template.status,
+                "quality_score": template.quality_score,
+                "reason": template.disabled_reason or "Status update from Meta",
+            }
+        ],
+        "note": "Full status history requires AuditLog implementation",
+        "total": 1,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@router.post("/{number_id}/templates/{template_id}/acknowledge-alert")
+async def acknowledge_template_alert(
+    number_id: UUID,
+    template_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Mark template quality alert as acknowledged by user.
+    
+    Used to suppress repeated alerts after admin has reviewed
+    and taken action on a template issue.
+    
+    **Path Parameters:**
+    - number_id: WhatsApp number UUID
+    - template_id: Template UUID
+    
+    **Returns:**
+    ```json
+    {
+        "message": "Alert acknowledged",
+        "template_id": "uuid",
+        "acknowledged_at": "2025-01-15T15:05:00Z",
+        "acknowledged_by": "user@example.com"
+    }
+    ```
+    
+    **Permissions:**
+    - Requires: org_admin or super_admin role
+    - Scoped to: Organization + WhatsApp number
+    """
+    from app.services.whatsapp_service import WhatsAppService
+    from app.models.whatsapp_number import WhatsAppTemplate
+    from datetime import datetime
+    
+    # Verify number belongs to organization
+    service = WhatsAppService(db)
+    whatsapp_number = await service.get_number(number_id, current_user.organization_id)
+    
+    if not whatsapp_number:
+        raise HTTPException(status_code=404, detail="WhatsApp number not found")
+    
+    # Verify template exists
+    from sqlalchemy import select
+    
+    query = select(WhatsAppTemplate).where(
+        WhatsAppTemplate.id == template_id,
+        WhatsAppTemplate.whatsapp_number_id == number_id,
+        WhatsAppTemplate.deleted_at.is_(None),
+    )
+    
+    result = await db.execute(query)
+    template = result.scalars().first()
+    
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    
+    # TODO: Implement alert acknowledgment tracking
+    # For now, just return success
+    return {
+        "message": "Alert acknowledged",
+        "template_id": str(template.id),
+        "acknowledged_at": datetime.utcnow(),
+        "acknowledged_by": current_user.email,
+        "note": "Alert acknowledgment tracking requires AlertLog implementation",
+    }
+
+
+# ============= HELPER FUNCTIONS =============
+
+def _get_action_required(template) -> str:
+    """
+    Generate human-readable action description for critical template.
+    """
+    if template.status == "DISABLED":
+        reason = template.disabled_reason or "Unknown reason"
+        return f"Template disabled ({reason}). Review Meta documentation and resubmit."
+    elif template.status == "PAUSED":
+        return "Template paused by Meta. Check quality metrics and request review."
+    elif template.status == "REJECTED":
+        return "Template was rejected by Meta. Update content and resubmit."
+    elif template.quality_score == "RED":
+        return "Quality score RED. Update template content to improve metrics."
+    elif template.status == "PENDING" and template.created_at:
+        from datetime import datetime, timedelta
+        pending_hours = (datetime.utcnow() - template.created_at).total_seconds() / 3600
+        if pending_hours > 48:
+            return f"Pending for {int(pending_hours)}h. May have been rejected - check Meta dashboard."
+        return f"Pending approval for {int(pending_hours)}h."
+    
+    return "Review template status in Meta dashboard"

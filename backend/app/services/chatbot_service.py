@@ -679,9 +679,9 @@ class ChatbotService:
         nodes_to_create = []
         for idx, node_data in enumerate(nodes_data):
             # Extract node info from React Flow format
-            react_flow_id = node_data.get("id")  # e.g., "node-1"
+            react_flow_id = node_data.get("id")  # e.g., "start-1"
             node_info = node_data.get("data", {})
-            node_type = node_info.get("nodeType", "custom")  # start, message, question, etc.
+            node_type = node_data.get("type", "custom")  # React Flow stores type at root level
             position = node_data.get("position", {})
 
             # Extract label (sanitize JSX objects to strings)

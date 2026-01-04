@@ -131,25 +131,67 @@ async def update_my_organization_settings(
 ):
     """
     Update current user's organization settings
-    
-    **Description:** Updates organization-wide settings like timezone, language, features, and notifications.
-    
+
+    **Description:** Updates organization-wide settings including WhatsApp window expiry,
+    inactivity timeout, timezone, language, and notifications.
+
     **Request Body (all optional):**
-    - `timezone` (string): Timezone for organization (e.g., "America/Sao_Paulo")
-    - `language` (string): Default language (e.g., "pt-BR", "en-US")
-    - `features` (object): Feature toggles and configuration
-    - `notifications` (object): Notification settings
-    
+
+    **WhatsApp & Flow Settings:**
+    - `window_expiry` (object): Configuração global de janela 24h WhatsApp
+      - `action`: "transfer" | "send_template" | "wait_customer"
+      - `template_name`: Nome do template aprovado pela Meta
+      - `send_warning`: bool - enviar aviso antes de expirar
+      - `warning_at_hours`: 1-23 horas antes de expirar
+      - `warning_template_name`: template para aviso
+
+    - `inactivity` (object): Configuração global de timeout de inatividade
+      - `enabled`: bool - habilitar timeout
+      - `timeout_minutes`: minutos de inatividade
+      - `action`: "transfer" | "close" | "send_reminder" | "fallback_flow"
+      - `send_warning_at_minutes`: minutos antes do timeout
+      - `warning_message`: mensagem de aviso
+
+    **General Settings:**
+    - `timezone` (string): Timezone (e.g., "America/Sao_Paulo")
+    - `language` (string): Language (e.g., "pt-BR", "en-US")
+    - `currency` (string): Currency (e.g., "BRL", "USD")
+    - `business_hours` (object): Business hours configuration
+    - `notification_settings` (object): Notification preferences
+    - `security_settings` (object): Security configuration
+
+    **Hierarchy:** Organization settings → Flow settings (flows can override)
+
     **Returns:** Updated Organization object
-    
+
     **Permissions Required:** org_admin or super_admin role
-    
+
     **Possible Errors:**
     - `400`: Invalid settings data
     - `401`: User not authenticated
     - `403`: Insufficient permissions
     - `404`: Organization not found
     - `500`: Database error
+
+    **Example Request:**
+    ```json
+    {
+      "window_expiry": {
+        "action": "send_template",
+        "template_name": "janela_expirada",
+        "send_warning": true,
+        "warning_at_hours": 22,
+        "warning_template_name": "aviso_janela"
+      },
+      "inactivity": {
+        "enabled": true,
+        "timeout_minutes": 60,
+        "action": "transfer"
+      },
+      "timezone": "America/Sao_Paulo",
+      "language": "pt-BR"
+    }
+    ```
     """
     if current_user.role not in ["org_admin", "super_admin"]:
         from app.core.exceptions import ForbiddenException

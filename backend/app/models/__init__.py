@@ -25,6 +25,9 @@ from app.models.flow_automation import (
 )
 from app.models.conversation_state import ConversationState
 from app.models.conversation_log import ConversationLog
+from app.models.conversation_window import ConversationWindow
+from app.models.alert import Alert
+from app.models.alert_notification import AlertNotification
 
 __all__ = [
     "Base",
@@ -57,4 +60,7 @@ __all__ = [
     "FlowAutomationScheduleException",
     "ConversationState",
     "ConversationLog",
+    "ConversationWindow",
+    "Alert",
+    "AlertNotification",
 ]

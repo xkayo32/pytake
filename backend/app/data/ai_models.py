@@ -237,7 +237,81 @@ ANTHROPIC_MODELS = [
     },
 ]
 
-ALL_MODELS = OPENAI_MODELS + ANTHROPIC_MODELS
+# Google Gemini Models (December 2025)
+GEMINI_MODELS = [
+    {
+        "model_id": "gemini-2.5-flash-lite",
+        "provider": "gemini",
+        "name": "Gemini 2.5 Flash-Lite",
+        "description": "Most economical Gemini model for high-volume, low-latency tasks",
+        "context_window": 1000000,  # 1M tokens
+        "max_output_tokens": 8192,
+        "input_cost_per_million": 0.10,
+        "output_cost_per_million": 0.40,
+        "supports_vision": True,
+        "supports_tools": True,
+        "is_deprecated": False,
+        "release_date": "2025-06-01"
+    },
+    {
+        "model_id": "gemini-2.5-flash",
+        "provider": "gemini",
+        "name": "Gemini 2.5 Flash",
+        "description": "Best cost-performance balance with thinking enabled by default (Recommended)",
+        "context_window": 1000000,  # 1M tokens
+        "max_output_tokens": 8192,
+        "input_cost_per_million": 0.30,
+        "output_cost_per_million": 2.50,
+        "supports_vision": True,
+        "supports_tools": True,
+        "is_deprecated": False,
+        "release_date": "2025-06-01"
+    },
+    {
+        "model_id": "gemini-2.5-pro",
+        "provider": "gemini",
+        "name": "Gemini 2.5 Pro",
+        "description": "State-of-the-art multipurpose model excelling at coding and complex reasoning",
+        "context_window": 2000000,  # 2M tokens
+        "max_output_tokens": 8192,
+        "input_cost_per_million": 1.25,
+        "output_cost_per_million": 10.0,
+        "supports_vision": True,
+        "supports_tools": True,
+        "is_deprecated": False,
+        "release_date": "2025-06-01"
+    },
+    {
+        "model_id": "gemini-3-flash",
+        "provider": "gemini",
+        "name": "Gemini 3 Flash (Preview)",
+        "description": "Next-generation Flash model with enhanced performance (Experimental)",
+        "context_window": 1000000,  # 1M tokens
+        "max_output_tokens": 8192,
+        "input_cost_per_million": 0.50,
+        "output_cost_per_million": 3.0,
+        "supports_vision": True,
+        "supports_tools": True,
+        "is_deprecated": False,
+        "release_date": "2025-12-01"
+    },
+    {
+        "model_id": "gemini-3-pro",
+        "provider": "gemini",
+        "name": "Gemini 3 Pro (Preview)",
+        "description": "Reasoning-first model for complex agentic workflows with adaptive thinking (Experimental)",
+        "context_window": 1000000,  # 1M tokens
+        "max_output_tokens": 8192,
+        "input_cost_per_million": 2.0,
+        "output_cost_per_million": 12.0,
+        "supports_vision": True,
+        "supports_tools": True,
+        "is_deprecated": False,
+        "release_date": "2025-12-01"
+    },
+]
+
+ALL_MODELS = OPENAI_MODELS + ANTHROPIC_MODELS + GEMINI_MODELS
 
 
 def get_all_models() -> List[Dict[str, Any]]:
@@ -251,6 +325,8 @@ def get_models_by_provider(provider: str) -> List[Dict[str, Any]]:
         return OPENAI_MODELS.copy()
     elif provider == "anthropic":
         return ANTHROPIC_MODELS.copy()
+    elif provider == "gemini":
+        return GEMINI_MODELS.copy()
     else:
         return []
 
@@ -272,5 +348,7 @@ def get_recommended_models() -> List[Dict[str, Any]]:
         "claude-haiku-4.5",
         "gpt-5",
         "claude-opus-4.1",
+        "gemini-2.5-flash",
+        "gemini-2.5-pro",
     ]
     return [m for m in ALL_MODELS if m["model_id"] in recommended_ids and not m["is_deprecated"]]

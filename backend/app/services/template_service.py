@@ -167,6 +167,22 @@ class TemplateService:
             elif component.type == "BUTTONS" and component.buttons:
                 buttons = [btn.model_dump() for btn in component.buttons]
 
+        # Detect variable format and extract variable names
+        # Check all text fields to determine if using named or positional variables
+        all_text = f"{header_text or ''} {body_text} {footer_text or ''}"
+        parameter_format = self._detect_variable_format(all_text)
+
+        # Extract named variable names if using named format
+        named_variables = []
+        if parameter_format == "NAMED":
+            if header_text:
+                named_variables.extend(self._extract_named_variables(header_text))
+            named_variables.extend(self._extract_named_variables(body_text))
+            if footer_text:
+                named_variables.extend(self._extract_named_variables(footer_text))
+            # Remove duplicates while preserving order
+            named_variables = list(dict.fromkeys(named_variables))
+
         # Create template in database
         template = WhatsAppTemplate(
             organization_id=organization_id,
@@ -182,6 +198,8 @@ class TemplateService:
             body_variables_count=body_vars,
             footer_text=footer_text,
             buttons=buttons,
+            parameter_format=parameter_format,
+            named_variables=named_variables,
         )
 
         self.db.add(template)
@@ -190,8 +208,77 @@ class TemplateService:
 
         logger.info(f"Template '{data.name}' created locally with ID {template.id}")
 
+        # ALWAYS run AI Analysis (regardless of submit_to_meta)
+        # This provides immediate feedback on template quality
+        from app.services.template_ai_analysis_service import TemplateAIAnalysisService
+
+        ai_service = TemplateAIAnalysisService(self.db)
+        analysis = None
+
+        try:
+            # Execute AI analysis
+            logger.info(f"Running AI analysis for template '{template.name}'")
+            analysis = await ai_service.analyze_template(
+                template=template,
+                organization_id=organization_id
+            )
+
+            # Save analysis results to template
+            template.ai_analysis_result = analysis.dict()
+            template.ai_analysis_score = analysis.overall_score
+            template.ai_suggested_category = analysis.suggested_category
+            template.ai_analyzed_at = datetime.utcnow()
+            await self.db.commit()
+
+            logger.info(
+                f"AI analysis completed for template '{template.name}': "
+                f"score={analysis.overall_score}, can_submit={analysis.can_submit}, "
+                f"critical_issues={analysis.has_critical_issues}"
+            )
+
+        except Exception as e:
+            # If AI analysis fails, continue (failsafe)
+            logger.warning(
+                f"AI analysis failed for template '{template.name}': {e}. "
+                f"Template created without analysis."
+            )
+
         # Submit to Meta if requested
         if submit_to_meta:
+            # If analysis detected critical issues, DO NOT submit to Meta
+            # Return template with analysis for user to review
+            if analysis and analysis.has_critical_issues:
+                logger.warning(
+                    f"Template '{template.name}' has critical issues "
+                    f"(score: {analysis.overall_score}). Not submitting to Meta."
+                )
+                await self.db.refresh(template)
+
+                # Return dict with analysis info instead of just template
+                # This will be handled by the endpoint to return proper response
+                return {
+                    "template": template,
+                    "ai_analysis": analysis,
+                    "submitted_to_meta": False,
+                    "message": (
+                        "Template não foi enviado à Meta devido a problemas detectados pela IA. "
+                        "Revise as sugestões e corrija os problemas antes de submeter."
+                    )
+                }
+
+            # Analysis passed (or no analysis), continue with Meta submission
+            if analysis:
+                logger.info(
+                    f"Template '{template.name}' passed AI analysis "
+                    f"(score: {analysis.overall_score}). Proceeding with Meta submission."
+                )
+            else:
+                logger.info(
+                    f"Template '{template.name}' proceeding with Meta submission "
+                    f"(AI analysis was not available)."
+                )
+
+            # Submit to Meta
             try:
                 await self.submit_to_meta(template, waba_id, access_token)
             except MetaAPIError as e:
@@ -358,6 +445,22 @@ class TemplateService:
         template.status = response.get("status", "PENDING")
         template.updated_at = datetime.utcnow()
 
+        # LEGACY CODE: Check if Meta suggested a different category
+        # NOTE: As of April 2025, Meta no longer returns a different category in API responses.
+        # Meta now either approves/rejects templates directly, or automatically changes
+        # categories during monthly reviews (with 30-day advance notice).
+        # This code is kept for backward compatibility but will not be triggered anymore.
+        # Ref: https://support.wati.io/en/articles/12320234
+        returned_category = response.get("category")
+        if returned_category and returned_category != template.category:
+            template.suggested_category = returned_category
+            logger.warning(
+                f"Meta suggested category '{returned_category}' for template '{template.name}' "
+                f"(submitted as '{template.category}')"
+            )
+        else:
+            template.suggested_category = None
+
         await self.db.commit()
         await self.db.refresh(template)
 
@@ -397,6 +500,9 @@ class TemplateService:
         # Fetch all templates from Meta (all statuses)
         meta_templates = await meta_api.list_templates(waba_id, status="", limit=1000)
 
+        print(f"\n\n🔥 DEBUG SYNC: Fetched {len(meta_templates)} templates from Meta API\n\n", flush=True)
+        logger.info(f"📥 Fetched {len(meta_templates)} templates from Meta API")
+
         stats = {"created": 0, "updated": 0, "deleted": 0}
 
         # Get all local templates
@@ -411,26 +517,75 @@ class TemplateService:
         for meta_template in meta_templates:
             name = meta_template.get("name")
             language = meta_template.get("language")
-            key = f"{name}_{language}"
 
+            # Meta API can return nested structure with templates[] array
+            # Each item in templates[] has language-specific data
+            template_data = meta_template
+            if "templates" in meta_template and isinstance(meta_template["templates"], list):
+                # Find the template version for this language
+                for lang_version in meta_template["templates"]:
+                    if lang_version.get("language") == language:
+                        template_data = lang_version
+                        break
+
+            # Log every template from Meta for debugging
+            print(
+                f"🔥 Meta template: name={name}, language={language}, "
+                f"status={template_data.get('status')}, "
+                f"rejected_reason={template_data.get('rejected_reason')}", flush=True
+            )
+            logger.info(
+                f"📋 Meta template: name={name}, language={language}, "
+                f"status={template_data.get('status')}, "
+                f"rejected_reason={template_data.get('rejected_reason')}"
+            )
+
+            key = f"{name}_{language}"
             local_template = local_by_name.get(key)
 
             if local_template:
                 # Update existing template
                 updated = False
 
-                if local_template.status != meta_template.get("status"):
-                    local_template.status = meta_template.get("status")
+                # Get status and rejected_reason from correct level
+                status = template_data.get("status")
+                rejected_reason = template_data.get("rejected_reason")
+
+                # Log for debugging REJECTED templates
+                if status == "REJECTED":
+                    logger.info(
+                        f"🔍 REJECTED template sync - name={name}, "
+                        f"rejected_reason={rejected_reason}, "
+                        f"has_templates_array={('templates' in meta_template)}"
+                    )
+                    # Log full template_data structure for debugging
+                    logger.debug(f"Full template_data: {template_data}")
+
+                # Log for debugging when rejected_reason is found
+                if rejected_reason and rejected_reason != "NONE":
+                    logger.info(f"✅ Found rejected_reason for {name}: {rejected_reason}")
+
+                if local_template.status != status:
+                    local_template.status = status
                     updated = True
 
-                if meta_template.get("status") == "APPROVED" and not local_template.approved_at:
+                if status == "APPROVED" and not local_template.approved_at:
                     local_template.approved_at = datetime.utcnow()
                     updated = True
 
-                if meta_template.get("status") == "REJECTED" and not local_template.rejected_at:
-                    local_template.rejected_at = datetime.utcnow()
-                    local_template.rejected_reason = meta_template.get("rejected_reason", "Unknown")
-                    updated = True
+                if status == "REJECTED":
+                    if not local_template.rejected_at:
+                        local_template.rejected_at = datetime.utcnow()
+                        updated = True
+
+                    # Update rejected_reason if available and not "NONE"
+                    if rejected_reason and rejected_reason != "NONE":
+                        local_template.rejected_reason = rejected_reason
+                        updated = True
+                    elif not local_template.rejected_reason:
+                        # Set default if Meta didn't provide reason
+                        local_template.rejected_reason = "Rejected by Meta (reason not specified)"
+                        updated = True
 
                 if updated:
                     local_template.updated_at = datetime.utcnow()
@@ -475,10 +630,59 @@ class TemplateService:
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
+    def _detect_variable_format(self, text: str) -> str:
+        """
+        Detect if template uses positional or named variables
+
+        Returns:
+            "POSITIONAL" if uses {{1}}, {{2}}, etc.
+            "NAMED" if uses {{name}}, {{codigo}}, etc.
+            "POSITIONAL" as default if no variables found
+        """
+        if not text:
+            return "POSITIONAL"
+
+        # Check for named variables (non-numeric)
+        named_matches = re.findall(r'\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}', text)
+        if named_matches:
+            return "NAMED"
+
+        # Check for positional variables (numeric)
+        positional_matches = re.findall(r'\{\{(\d+)\}\}', text)
+        if positional_matches:
+            return "POSITIONAL"
+
+        return "POSITIONAL"
+
+    def _extract_named_variables(self, text: str) -> List[str]:
+        """
+        Extract named variable names from text
+
+        Example: "Hello {{name}}, your code is {{codigo}}"
+        Returns: ["name", "codigo"]
+        """
+        if not text:
+            return []
+
+        matches = re.findall(r'\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}', text)
+        return list(set(matches))  # Remove duplicates
+
     def _count_variables(self, text: str) -> int:
-        """Count number of variables in text ({{1}}, {{2}}, etc.)"""
-        matches = re.findall(r'\{\{(\d+)\}\}', text)
-        return len(set(matches))  # Use set to count unique variables
+        """
+        Count number of unique variables in text
+        Supports both positional ({{1}}) and named ({{name}}) variables
+        """
+        if not text:
+            return 0
+
+        # Try named variables first
+        named_matches = re.findall(r'\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}', text)
+        if named_matches:
+            return len(set(named_matches))
+
+        # Fall back to positional variables
+        positional_matches = re.findall(r'\{\{(\d+)\}\}', text)
+        return len(set(positional_matches))
 
     async def _create_from_meta_response(
         self,
@@ -491,8 +695,19 @@ class TemplateService:
 
         Used during sync to import templates created directly in Meta
         """
+        # Meta API can return nested structure with templates[] array
+        template_data = meta_template
+        language = meta_template.get("language")
+
+        if "templates" in meta_template and isinstance(meta_template["templates"], list):
+            # Find the template version for this language
+            for lang_version in meta_template["templates"]:
+                if lang_version.get("language") == language:
+                    template_data = lang_version
+                    break
+
         # Extract components
-        components = meta_template.get("components", [])
+        components = template_data.get("components", [])
 
         header_type = None
         header_text = None
@@ -521,6 +736,25 @@ class TemplateService:
             elif comp_type == "BUTTONS":
                 buttons = comp.get("buttons", [])
 
+        # Detect variable format and extract variable names
+        all_text = f"{header_text or ''} {body_text} {footer_text or ''}"
+        parameter_format = self._detect_variable_format(all_text)
+
+        # Extract named variable names if using named format
+        named_variables = []
+        if parameter_format == "NAMED":
+            if header_text:
+                named_variables.extend(self._extract_named_variables(header_text))
+            named_variables.extend(self._extract_named_variables(body_text))
+            if footer_text:
+                named_variables.extend(self._extract_named_variables(footer_text))
+            # Remove duplicates while preserving order
+            named_variables = list(dict.fromkeys(named_variables))
+
+        # Get status and rejection info from correct level
+        status = template_data.get("status")
+        rejected_reason = template_data.get("rejected_reason")
+
         # Create template
         template = WhatsAppTemplate(
             organization_id=organization_id,
@@ -529,7 +763,7 @@ class TemplateService:
             name=meta_template.get("name"),
             language=meta_template.get("language"),
             category=meta_template.get("category"),
-            status=meta_template.get("status"),
+            status=status,
             header_type=header_type,
             header_text=header_text,
             header_variables_count=header_vars,
@@ -537,10 +771,19 @@ class TemplateService:
             body_variables_count=body_vars,
             footer_text=footer_text,
             buttons=buttons,
+            parameter_format=parameter_format,
+            named_variables=named_variables,
         )
 
-        if meta_template.get("status") == "APPROVED":
+        # Set approval/rejection timestamps and reasons
+        if status == "APPROVED":
             template.approved_at = datetime.utcnow()
+        elif status == "REJECTED":
+            template.rejected_at = datetime.utcnow()
+            if rejected_reason and rejected_reason != "NONE":
+                template.rejected_reason = rejected_reason
+            else:
+                template.rejected_reason = "Rejected by Meta (reason not specified)"
 
         self.db.add(template)
         return template

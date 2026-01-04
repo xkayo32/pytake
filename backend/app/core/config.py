@@ -200,9 +200,26 @@ class Settings(BaseSettings):
         description="Redis backend for Celery results"
     )
     
-    # Legacy SMTP fields (kept for backwards compatibility)
-    SMTP_USER: Optional[str] = None
-    SMTP_FROM: EmailStr = Field(default="noreply@pytake.com")
+    # Email Configuration (SMTP)
+    SMTP_HOST: Optional[str] = Field(default=None, description="SMTP server hostname")
+    SMTP_PORT: int = Field(default=587, description="SMTP server port (default 587 for TLS)")
+    SMTP_USER: Optional[str] = Field(default=None, description="SMTP username")
+    SMTP_PASSWORD: Optional[str] = Field(default=None, description="SMTP password")
+    SMTP_FROM_EMAIL: EmailStr = Field(default="noreply@pytake.com", description="From email address")
+    SMTP_FROM_NAME: str = Field(default="PyTake", description="From display name")
+    SMTP_USE_TLS: bool = Field(default=True, description="Use TLS for SMTP connection")
+    SMTP_USE_SSL: bool = Field(default=False, description="Use SSL for SMTP connection")
+    SMTP_TIMEOUT_SECONDS: int = Field(default=10, description="SMTP connection timeout")
+    EMAIL_ENABLED: bool = Field(default=True, description="Enable email notifications")
+
+    # Slack Configuration (Webhooks)
+    SLACK_WEBHOOK_URL: Optional[str] = Field(default=None, description="Slack webhook URL (global or default)")
+    SLACK_ENABLED: bool = Field(default=True, description="Enable Slack notifications")
+    SLACK_TIMEOUT_SECONDS: int = Field(default=10, description="Slack webhook timeout")
+    SLACK_RETRY_COUNT: int = Field(default=3, description="Number of retry attempts for Slack")
+    SLACK_MENTION_ON_ESCALATION: bool = Field(default=True, description="@mention on alert escalation")
+    SLACK_THREAD_REPLIES: bool = Field(default=False, description="Send follow-ups as thread replies")
+    SLACK_INCLUDE_THREAD_TS: bool = Field(default=False, description="Include thread timestamp in metadata")
 
     # AWS S3
     AWS_ACCESS_KEY_ID: Optional[str] = None

@@ -80,7 +80,7 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
     stripe_subscription_id = Column(String(255), nullable=True)
 
     # Relationships
-    users = relationship("User", back_populates="organization", cascade="all, delete-orphan")
+    users = relationship("User", back_populates="organization", cascade="all, delete-orphan", foreign_keys="[User.organization_id]")
     whatsapp_numbers = relationship("WhatsAppNumber", back_populates="organization", cascade="all, delete-orphan")
     chatbots = relationship("Chatbot", back_populates="organization", cascade="all, delete-orphan")
     contacts = relationship("Contact", back_populates="organization", cascade="all, delete-orphan")
@@ -89,6 +89,8 @@ class Organization(Base, TimestampMixin, SoftDeleteMixin):
     departments = relationship("Department", back_populates="organization", cascade="all, delete-orphan")
     queues = relationship("Queue", back_populates="organization", cascade="all, delete-orphan")
     custom_ai_models = relationship("AICustomModel", back_populates="organization", cascade="all, delete-orphan")
+    alerts = relationship("Alert", back_populates="organization", cascade="all, delete-orphan")
+    conversation_windows = relationship("ConversationWindow", back_populates="organization", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Organization(id={self.id}, name='{self.name}', slug='{self.slug}')>"

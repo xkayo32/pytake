@@ -6,7 +6,7 @@ from typing import List, Optional
 import uuid
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import get_current_user, get_db, require_permission_dynamic
 from app.models.user import User
@@ -320,16 +320,28 @@ async def send_message(
     """
     from app.services.whatsapp_service import WhatsAppService
 
-    service = WhatsAppService(db)
-    message = await service.send_message(
-        conversation_id=conversation_id,
-        organization_id=current_user.organization_id,
-        message_type=data.message_type,
-        content=data.content,
-        sender_user_id=current_user.id,
-    )
-
-    return message
+    try:
+        service = WhatsAppService(db)
+        message = await service.send_message(
+            conversation_id=conversation_id,
+            organization_id=current_user.organization_id,
+            message_type=data.message_type,
+            content=data.content,
+            sender_user_id=current_user.id,
+        )
+        return message
+    except ValueError as e:
+        # Handle validation errors like 24-hour window expiration
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        # Handle other unexpected errors
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send message",
+        )
 
 
 @router.post("/{conversation_id}/read", response_model=Conversation)
@@ -506,6 +518,46 @@ async def get_sla_alerts(
         nearing_threshold=nearing_threshold,
         skip=skip,
         limit=limit,
+    )
+
+
+# ============================================
+# WINDOW VALIDATION (24-HOUR META POLICY)
+# ============================================
+
+@router.get("/{conversation_id}/window-status")
+async def get_window_status(
+    conversation_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get 24-hour conversation window status for Meta WhatsApp API.
+
+    Returns detailed information about the conversation's message window:
+    - Whether the 24-hour window is currently open
+    - When the window expires
+    - Time remaining in the window
+    - Last message timestamps
+
+    **Meta WhatsApp Policy:**
+    - Free messages can only be sent within 24 hours of last customer message
+    - Outside the 24-hour window, must use template messages
+    - Template messages reset the window
+
+    **Permissions Required:** User must have access to the organization
+
+    **Possible Errors:**
+    - `401`: User not authenticated
+    - `404`: Conversation not found
+    - `500`: Database error
+    """
+    service = ConversationService(db)
+    window_service = service.window_validation_service
+    
+    return await window_service.get_window_status(
+        conversation_id=conversation_id,
+        organization_id=current_user.organization_id,
     )
 
 

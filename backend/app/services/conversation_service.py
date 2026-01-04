@@ -23,6 +23,7 @@ from app.schemas.conversation import (
 )
 from app.schemas.sla import SlaAlert
 from app.core.exceptions import NotFoundException
+from app.services.window_validation_service import WindowValidationService
 
 
 class ConversationService:
@@ -36,6 +37,7 @@ class ConversationService:
         self.queue_repo = QueueRepository(db)
         self.user_repo = UserRepository(db)
         self.department_repo = DepartmentRepository(db)
+        self.window_validation_service = WindowValidationService(db)
 
     async def get_by_id(
         self, conversation_id: UUID, organization_id: UUID
@@ -72,7 +74,7 @@ class ConversationService:
     async def create_conversation(
         self, data: ConversationCreate, organization_id: UUID, user_id: UUID
     ) -> Conversation:
-        """Create new conversation"""
+        """Create new conversation and initialize 24h window"""
         # Verify contact exists
         contact = await self.contact_repo.get(data.contact_id)
         if not contact or contact.organization_id != organization_id:
@@ -91,6 +93,17 @@ class ConversationService:
         }
 
         conversation = await self.repo.create(conversation_data)
+
+        # Create conversation window for 24h message tracking
+        try:
+            from app.repositories.conversation_window import ConversationWindowRepository
+            window_repo = ConversationWindowRepository(self.db)
+            await window_repo.create(conversation.id, organization_id)
+        except Exception as e:
+            # Log but don't fail conversation creation if window creation fails
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to create conversation window for {conversation.id}: {str(e)}")
 
         # Create initial message if provided
         if data.initial_message:
@@ -127,8 +140,29 @@ class ConversationService:
         organization_id: UUID,
         sender_id: UUID,
     ) -> Message:
-        """Send a message in a conversation"""
+        """Send a message in a conversation
+        
+        Enforces WhatsApp's 24-hour message window rule:
+        - Free messages can only be sent within 24h of last customer message
+        - Template messages can be sent anytime
+        - Messages outside 24h window without template are blocked
+        """
         conversation = await self.get_by_id(conversation_id, organization_id)
+
+        # Validate 24-hour window unless this is a template message
+        is_template_message = hasattr(data, 'template_id') and data.template_id is not None
+        if not is_template_message:
+            # Check if we can send free message (must be within 24h window)
+            can_send_free = await self.window_validation_service.can_send_free_message(
+                conversation_id, organization_id
+            )
+            
+            if not can_send_free:
+                # Outside 24h window - template required
+                raise ValueError(
+                    "Cannot send free message outside 24-hour window. "
+                    "Please use an approved template or wait for customer response."
+                )
 
         message_data = {
             "conversation_id": conversation_id,

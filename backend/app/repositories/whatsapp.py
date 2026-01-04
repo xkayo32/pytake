@@ -41,6 +41,16 @@ class WhatsAppNumberRepository(BaseRepository[WhatsAppNumber]):
         )
         return result.scalar_one_or_none()
 
+    async def get_by_phone_number_id(self, phone_number_id: str) -> Optional[WhatsAppNumber]:
+        """Get WhatsApp number by Meta phone_number_id (without organization filter for webhook validation)"""
+        result = await self.db.execute(
+            select(WhatsAppNumber).where(
+                WhatsAppNumber.phone_number_id == phone_number_id,
+                WhatsAppNumber.deleted_at.is_(None),
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def get_active_numbers(self, organization_id: UUID) -> List[WhatsAppNumber]:
         """Get all active WhatsApp numbers"""
         result = await self.db.execute(

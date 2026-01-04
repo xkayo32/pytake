@@ -6,6 +6,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -193,6 +194,14 @@ class WhatsAppTemplate(Base, TimestampMixin, SoftDeleteMixin):
         String(50), nullable=False
     )  # MARKETING, UTILITY, AUTHENTICATION
 
+    # DEPRECATED/LEGACY: Meta's suggested category (if different from submitted)
+    # NOTE: As of April 2025, Meta no longer returns suggested_category in API responses.
+    # Meta now either approves/rejects templates directly, or automatically changes
+    # categories during monthly reviews (with 30-day notice). This field is kept for
+    # historical data compatibility but will always be NULL for new templates.
+    # See: https://support.wati.io/en/articles/12320234
+    suggested_category = Column(String(50), nullable=True)
+
     # Meta's template ID
     meta_template_id = Column(String(255), nullable=True)
 
@@ -210,6 +219,25 @@ class WhatsAppTemplate(Base, TimestampMixin, SoftDeleteMixin):
     rejected_reason = Column(Text, nullable=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
     rejected_at = Column(DateTime(timezone=True), nullable=True)
+
+    # AI Analysis results (optional)
+    # Stores results from template_ai_analysis_service.py
+    ai_analysis_result = Column(
+        JSONB,
+        nullable=True,
+        comment="Resultado completo da análise de IA (validações, sugestões, problemas)",
+    )
+    ai_analysis_score = Column(
+        Float, nullable=True, comment="Score geral da análise de IA (0-100)"
+    )
+    ai_suggested_category = Column(
+        String(50), nullable=True, comment="Categoria sugerida pela IA"
+    )
+    ai_analyzed_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Data/hora quando foi analisado pela IA",
+    )
 
     # Template Content
     # Header (optional): TEXT, IMAGE, VIDEO, DOCUMENT
@@ -241,6 +269,33 @@ class WhatsAppTemplate(Base, TimestampMixin, SoftDeleteMixin):
         default=[],
         server_default=text("'[]'::jsonb"),
     )
+
+    # Parameter Format Support (Named vs Positional)
+    # POSITIONAL: {{1}}, {{2}} (legacy)
+    # NAMED: {{name}}, {{email}} (new, recommended)
+    parameter_format = Column(
+        String(20),
+        nullable=False,
+        default="POSITIONAL",
+        server_default="POSITIONAL"
+    )
+    named_variables = Column(
+        JSONB,
+        nullable=False,
+        default=[],
+        server_default=text("'[]'::jsonb"),
+    )
+
+    # Quality Score & Status Tracking
+    # GREEN: High quality, low blocking rate
+    # YELLOW: Acceptable quality
+    # RED: Low quality, high blocking rate
+    # UNKNOWN: Not yet rated (first 24h after approval)
+    quality_score = Column(String(20), nullable=True)
+    paused_at = Column(DateTime(timezone=True), nullable=True)  # When Meta paused this template
+    disabled_at = Column(DateTime(timezone=True), nullable=True)  # When Meta disabled this template
+    disabled_reason = Column(Text, nullable=True)  # Why Meta disabled
+    last_status_update = Column(DateTime(timezone=True), nullable=True)  # Last webhook status update
 
     # Usage tracking
     sent_count = Column(Integer, default=0, server_default="0")

@@ -179,7 +179,7 @@ async def whatsapp_webhook_receive(request: Request):
 
         # Process webhook
         service = WhatsAppService(db)
-        await service.process_webhook(body)
+        await service.process_webhook(body, whatsapp_number.id, whatsapp_number.organization_id)
 
     return {"status": "ok"}
 
@@ -230,6 +230,12 @@ api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboar
 flow_automations = _load_endpoint_module("flow_automations")
 api_router.include_router(flow_automations.router, prefix="/flow-automations", tags=["Flow Automations"])
 
+template_analytics = _load_endpoint_module("template_analytics")
+api_router.include_router(template_analytics.router, prefix="/templates", tags=["Template Analytics"])
+
+expenses = _load_endpoint_module("expenses")
+api_router.include_router(expenses.router, prefix="/expenses", tags=["Expenses"])
+
 secrets = _load_endpoint_module("secrets")
 api_router.include_router(secrets.router, prefix="/secrets", tags=["Secrets"])
 
@@ -241,6 +247,18 @@ api_router.include_router(ai_assistant.router, prefix="/ai-assistant", tags=["AI
 
 agent_skills = _load_endpoint_module("agent_skills")
 api_router.include_router(agent_skills.router, tags=["Users", "Agent Skills"])
+
+alerts = _load_endpoint_module("alerts")
+api_router.include_router(alerts.router, tags=["Alerts"])
+
+alerts_dashboard = _load_endpoint_module("alerts_dashboard")
+api_router.include_router(alerts_dashboard.router, tags=["Alerts Dashboard"])
+
+alerts_search = _load_endpoint_module("alerts_search")
+api_router.include_router(alerts_search.router, tags=["Alerts Search"])
+
+conversation_windows = _load_endpoint_module("conversation_windows")
+api_router.include_router(conversation_windows.router, tags=["Conversation Windows"])
 
 websocket = _load_endpoint_module("websocket")
 api_router.include_router(websocket.router, tags=["WebSocket"])

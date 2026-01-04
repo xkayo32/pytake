@@ -149,7 +149,7 @@ class Contact(Base, TimestampMixin, SoftDeleteMixin):
     # Relationships
     organization = relationship("Organization", back_populates="contacts")
     tags = relationship("Tag", secondary=contact_tags, back_populates="contacts")
-    assigned_agent = relationship("User")
+    assigned_agent = relationship("User", foreign_keys=[assigned_agent_id])
     assigned_department = relationship("Department")
     conversations = relationship("Conversation", back_populates="contact", cascade="all, delete-orphan")
     # campaigns_sent = relationship("CampaignMessage", back_populates="contact")

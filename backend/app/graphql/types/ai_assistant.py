@@ -18,6 +18,7 @@ class AIProviderEnum(Enum):
 
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
 
 
 @strawberry.type
@@ -39,6 +40,7 @@ class AIAssistantSettingsUpdateInput:
     default_provider: Optional[AIProviderEnum] = None
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
+    gemini_api_key: Optional[str] = None
     model: Optional[str] = None
     max_tokens: Optional[int] = None
     temperature: Optional[float] = None

@@ -1,0 +1,9 @@
+# Este diretório contém backups do banco de dados PostgreSQL
+# Os arquivos não são commitados, apenas criados localmente
+
+# Estrutura esperada:
+# - pytake_db_YYYYMMDD_HHMMSS.tar.gz (arquivos de backup compactados)
+# - cron.log (log de backups automáticos)
+# - run_backup.sh (script wrapper executado pelo cron)
+
+# Ver documentação em: scripts/backup/README.md
