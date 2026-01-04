@@ -3,10 +3,126 @@ Chatbot, Flow, and Node schemas
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
+
+
+# ============================================
+# WINDOW EXPIRY SCHEMAS
+# ============================================
+
+class WindowExpirySettings(BaseModel):
+    """
+    WhatsApp 24-Hour Window Expiry Settings
+
+    Configuração do que fazer quando a janela de 24h do WhatsApp expirar.
+    A janela de 24h é aberta quando o cliente envia uma mensagem.
+    Após 24h sem mensagem do cliente, apenas templates aprovados podem ser enviados.
+    """
+
+    action: Literal["transfer", "send_template", "wait_customer"] = Field(
+        default="transfer",
+        description=(
+            "Ação a ser tomada quando janela expirar:\n"
+            "- 'transfer': Transfere para agente humano silenciosamente\n"
+            "- 'send_template': Envia template aprovado + transfere para humano\n"
+            "- 'wait_customer': Apenas finaliza fluxo, aguarda cliente reabrir janela"
+        )
+    )
+
+    template_name: Optional[str] = Field(
+        default=None,
+        description="Nome do template aprovado pela Meta para enviar quando janela expirar (obrigatório se action='send_template')"
+    )
+
+    send_warning: bool = Field(
+        default=False,
+        description="Enviar template de aviso X horas antes da janela expirar?"
+    )
+
+    warning_at_hours: int = Field(
+        default=22,
+        ge=1,
+        le=23,
+        description="Quantas horas antes do vencimento enviar o aviso (1-23 horas)"
+    )
+
+    warning_template_name: Optional[str] = Field(
+        default=None,
+        description="Nome do template para aviso de vencimento (obrigatório se send_warning=true)"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "action": "send_template",
+                "template_name": "janela_expirada",
+                "send_warning": True,
+                "warning_at_hours": 22,
+                "warning_template_name": "aviso_janela_expirando"
+            }
+        }
+
+
+class InactivitySettings(BaseModel):
+    """
+    Flow Inactivity Settings
+
+    Configuração de timeout de inatividade do fluxo.
+    Define o que fazer quando usuário fica inativo por X minutos.
+    """
+
+    enabled: bool = Field(
+        default=True,
+        description="Habilitar timeout de inatividade?"
+    )
+
+    timeout_minutes: int = Field(
+        default=60,
+        ge=1,
+        description="Tempo de inatividade em minutos antes de tomar ação"
+    )
+
+    send_warning_at_minutes: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="Enviar aviso X minutos antes do timeout (opcional)"
+    )
+
+    warning_message: Optional[str] = Field(
+        default=None,
+        description="Mensagem de aviso de inatividade (obrigatório se send_warning_at_minutes definido)"
+    )
+
+    action: Literal["transfer", "close", "send_reminder", "fallback_flow"] = Field(
+        default="transfer",
+        description=(
+            "Ação a ser tomada quando timeout:\n"
+            "- 'transfer': Transfere para agente humano\n"
+            "- 'close': Fecha a conversa\n"
+            "- 'send_reminder': Envia mensagem lembrando usuário\n"
+            "- 'fallback_flow': Redireciona para fluxo de fallback"
+        )
+    )
+
+    fallback_flow_id: Optional[UUID] = Field(
+        default=None,
+        description="ID do fluxo de fallback (obrigatório se action='fallback_flow')"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "enabled": True,
+                "timeout_minutes": 60,
+                "send_warning_at_minutes": 50,
+                "warning_message": "Você ainda está aí? Posso ajudar em algo mais?",
+                "action": "transfer",
+                "fallback_flow_id": None
+            }
+        }
 
 
 # ============================================
@@ -70,6 +186,16 @@ class FlowBase(BaseModel):
     variables: dict = Field(default_factory=dict)
     is_active: bool = True
 
+    inactivity_settings: Optional[InactivitySettings] = Field(
+        default=None,
+        description="Configuração de timeout de inatividade (override global da organização)"
+    )
+
+    window_expiry_settings: Optional[WindowExpirySettings] = Field(
+        default=None,
+        description="Configuração de janela 24h WhatsApp (override global da organização)"
+    )
+
 
 class FlowCreate(FlowBase):
     """Schema for creating a flow"""
@@ -86,6 +212,16 @@ class FlowUpdate(BaseModel):
     canvas_data: Optional[dict] = None
     variables: Optional[dict] = None
     is_active: Optional[bool] = None
+
+    inactivity_settings: Optional[InactivitySettings] = Field(
+        default=None,
+        description="Configuração de timeout de inatividade (override global da organização)"
+    )
+
+    window_expiry_settings: Optional[WindowExpirySettings] = Field(
+        default=None,
+        description="Configuração de janela 24h WhatsApp (override global da organização)"
+    )
 
 
 class FlowInDB(FlowBase):

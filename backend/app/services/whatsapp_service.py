@@ -1110,6 +1110,124 @@ class WhatsAppService:
 
         logger.info(f"📤 Enviando mensagem: {final_text[:50]}...")
 
+        # 🔒 VALIDAÇÃO DA JANELA DE 24H (Meta WhatsApp Rule)
+        # Verificar se está dentro da janela antes de enviar mensagem livre
+        from datetime import timezone
+
+        # Recarregar conversation para pegar window_expires_at atualizado
+        conv_repo = ConversationRepository(self.db)
+        conversation_fresh = await conv_repo.get_by_id(conversation_id, organization_id)
+
+        if not conversation_fresh:
+            logger.error(f"Conversation {conversation_id} not found")
+            return None
+
+        window_expires = conversation_fresh.window_expires_at
+        if window_expires and window_expires.tzinfo is None:
+            window_expires = window_expires.replace(tzinfo=timezone.utc)
+
+        now = datetime.utcnow().replace(tzinfo=timezone.utc)
+        is_within_window = window_expires and now < window_expires
+
+        if not is_within_window:
+            # Janela expirada - não pode enviar mensagem livre
+            hours_since_window = (now - window_expires).total_seconds() / 3600 if window_expires else 999
+
+            logger.warning(
+                f"⏰ Janela de 24h expirada para conversa {conversation_id}. "
+                f"Última mensagem do cliente há {hours_since_window:.1f} horas. "
+                f"Bot não pode enviar mensagem livre."
+            )
+
+            # Buscar configuração de window_expiry (organização + fluxo)
+            flow_id = conversation_fresh.active_flow_id
+            if not flow_id:
+                logger.error("No active flow for window expiry handling")
+                return None
+
+            window_config = await self._get_window_expiry_config(flow_id, organization_id)
+            action = window_config.get("action", "transfer")
+
+            logger.info(f"🎯 Ação configurada para janela expirada: {action}")
+
+            # Executar ação configurada
+            if action == "send_template":
+                # Enviar template aprovado + transferir para humano
+                template_name = window_config.get("template_name")
+
+                if template_name:
+                    logger.info(f"📤 Enviando template '{template_name}' devido a janela expirada")
+
+                    # Enviar template via Meta API
+                    whatsapp_number = await self.repo.get(conversation_fresh.whatsapp_number_id)
+
+                    if whatsapp_number.connection_type == "official":
+                        from app.integrations.meta_api import MetaCloudAPI
+
+                        meta_api = MetaCloudAPI(
+                            phone_number_id=whatsapp_number.phone_number_id,
+                            access_token=whatsapp_number.access_token
+                        )
+
+                        # Buscar contact para pegar whatsapp_id
+                        contact_id = conversation_fresh.contact_id
+                        if contact_id:
+                            from app.models.contact import Contact
+                            stmt_contact = select(Contact).where(Contact.id == contact_id)
+                            result_contact = await self.db.execute(stmt_contact)
+                            contact = result_contact.scalar_one_or_none()
+
+                            if contact:
+                                to_number = contact.whatsapp_id.replace("+", "")
+
+                                try:
+                                    await meta_api.send_template_message(
+                                        to=to_number,
+                                        template_name=template_name,
+                                        language_code="pt_BR",
+                                        components=[]
+                                    )
+                                    logger.info(f"✅ Template enviado com sucesso")
+                                except Exception as e:
+                                    logger.error(f"❌ Erro ao enviar template: {e}")
+                else:
+                    logger.warning("⚠️ Ação 'send_template' configurada mas template_name não definido")
+
+                # Transferir para humano após enviar template
+                handoff_data = {
+                    "transferMessage": f"Janela 24h expirada, template enviado (última msg há {hours_since_window:.1f}h)",
+                    "priority": "high",
+                    "sendTransferMessage": False
+                }
+                await self._execute_handoff(conversation_fresh, handoff_data)
+
+            elif action == "wait_customer":
+                # Apenas finalizar fluxo, aguardar cliente enviar nova mensagem
+                logger.info(f"⏳ Aguardando cliente enviar nova mensagem para reabrir janela")
+                # Não transfere, não envia template, apenas finaliza
+
+            else:  # action == "transfer" (default)
+                # Transferir para humano silenciosamente (sem enviar mensagem)
+                handoff_data = {
+                    "transferMessage": f"Transferência automática: janela 24h expirada (última msg há {hours_since_window:.1f}h)",
+                    "priority": "high",
+                    "sendTransferMessage": False  # Não envia mensagem (janela expirada)
+                }
+                await self._execute_handoff(conversation_fresh, handoff_data)
+
+            # Finalizar fluxo em todas as ações
+            await self._finalize_flow(conversation_fresh)
+
+            logger.info(
+                f"✅ Janela expirada tratada com ação '{action}'. "
+                f"Cliente precisa enviar nova mensagem para reabrir janela."
+            )
+            return None
+
+        # Calcular tempo restante da janela
+        time_remaining = (window_expires - now).total_seconds() / 3600 if window_expires else 0
+        logger.info(f"✅ Dentro da janela de 24h. Tempo restante: {time_remaining:.1f} horas")
+
         # Enviar mensagem via WhatsApp
         whatsapp_number = await self.repo.get(conversation.whatsapp_number_id)
 
@@ -1668,6 +1786,63 @@ class WhatsAppService:
         else:
             # Executar próximo node
             await self._execute_node(conversation, next_node_id, flow_db_id, incoming_message)
+
+    async def _get_window_expiry_config(self, flow_id: UUID, organization_id: UUID) -> dict:
+        """
+        Obtém configuração de window_expiry mesclando organização + fluxo.
+
+        Hierarquia: Organization defaults → Flow overrides
+
+        Args:
+            flow_id: ID do fluxo
+            organization_id: ID da organização
+
+        Returns:
+            dict com configuração mesclada: {
+                "action": "transfer|send_template|wait_customer",
+                "template_name": null,
+                "send_warning": false,
+                "warning_at_hours": 22,
+                "warning_template_name": null
+            }
+        """
+        from app.models.organization import Organization
+        from app.models.chatbot import Flow
+        from sqlalchemy import select
+
+        # Configuração default (fallback caso nada esteja configurado)
+        default_config = {
+            "action": "transfer",  # Transfere para humano silenciosamente
+            "template_name": None,
+            "send_warning": False,
+            "warning_at_hours": 22,
+            "warning_template_name": None
+        }
+
+        # 1. Buscar configuração da organização
+        stmt_org = select(Organization).where(Organization.id == organization_id)
+        result_org = await self.db.execute(stmt_org)
+        org = result_org.scalar_one_or_none()
+
+        config = default_config.copy()
+
+        if org and org.settings and "window_expiry" in org.settings:
+            org_config = org.settings["window_expiry"]
+            config.update(org_config)  # Override defaults com configuração da org
+            logger.info(f"📋 Configuração window_expiry da organização: {org_config}")
+
+        # 2. Buscar configuração do fluxo (override)
+        stmt_flow = select(Flow).where(Flow.id == flow_id)
+        result_flow = await self.db.execute(stmt_flow)
+        flow = result_flow.scalar_one_or_none()
+
+        if flow and flow.window_expiry_settings:
+            flow_config = flow.window_expiry_settings
+            config.update(flow_config)  # Override org com configuração do fluxo
+            logger.info(f"📋 Configuração window_expiry do fluxo: {flow_config}")
+
+        logger.info(f"✅ Configuração final window_expiry: {config}")
+        return config
 
     async def _finalize_flow(self, conversation):
         """

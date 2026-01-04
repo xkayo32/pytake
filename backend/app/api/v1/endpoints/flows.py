@@ -37,12 +37,33 @@ async def create_flow(
     **Path Parameters:** None
 
     **Request Body:**
+
+    **Basic Fields:**
     - name (str, required): Flow name
     - description (str, optional): Flow description
     - chatbot_id (UUID, required): Chatbot this flow belongs to
     - is_main (bool, optional): Mark as main entry flow
     - is_fallback (bool, optional): Mark as fallback flow for errors
     - canvas_data (object, optional): React Flow canvas data with nodes and edges
+    - variables (object, optional): Flow-scoped variables
+
+    **Configuration Overrides (optional):**
+
+    - `inactivity_settings` (object): Override timeout de inatividade da organização
+      - `enabled`: bool - habilitar timeout
+      - `timeout_minutes`: minutos de inatividade
+      - `action`: "transfer" | "close" | "send_reminder" | "fallback_flow"
+      - `send_warning_at_minutes`: minutos antes do timeout
+      - `warning_message`: mensagem de aviso
+
+    - `window_expiry_settings` (object): Override janela 24h WhatsApp da organização
+      - `action`: "transfer" | "send_template" | "wait_customer"
+      - `template_name`: template aprovado pela Meta
+      - `send_warning`: bool - enviar aviso antes de expirar
+      - `warning_at_hours`: 1-23 horas antes de expirar
+      - `warning_template_name`: template para aviso
+
+    **Hierarchy:** Organization settings (global) → Flow settings (override)
 
     **Returns:**
     - Flow object with id, name, description, canvas_data, timestamps
@@ -145,12 +166,36 @@ async def update_flow(
     **Path Parameters:**
     - flow_id (UUID): Flow ID
 
-    **Request Body:**
-    - name (str, optional): New flow name
-    - description (str, optional): New description
-    - is_main (bool, optional): Change main flow status
-    - is_fallback (bool, optional): Change fallback status
-    - canvas_data (object, optional): Updated React Flow canvas data
+    **Request Body (all optional):**
+
+    **Basic Fields:**
+    - name (str): New flow name
+    - description (str): New description
+    - is_main (bool): Change main flow status
+    - is_fallback (bool): Change fallback status
+    - is_active (bool): Activate/deactivate flow
+    - canvas_data (object): Updated React Flow canvas data
+    - variables (object): Update flow variables
+
+    **Configuration Overrides:**
+
+    - `inactivity_settings` (object): Configuração de timeout de inatividade
+      - `enabled`: bool - habilitar timeout
+      - `timeout_minutes`: minutos de inatividade
+      - `action`: "transfer" | "close" | "send_reminder" | "fallback_flow"
+      - `send_warning_at_minutes`: minutos antes do timeout
+      - `warning_message`: mensagem de aviso
+      - `fallback_flow_id`: UUID do fluxo de fallback
+
+    - `window_expiry_settings` (object): Configuração de janela 24h WhatsApp
+      - `action`: "transfer" | "send_template" | "wait_customer"
+      - `template_name`: template aprovado pela Meta
+      - `send_warning`: bool - enviar aviso antes de expirar
+      - `warning_at_hours`: 1-23 horas antes de expirar
+      - `warning_template_name`: template para aviso
+
+    **Note:** Setting configuration to `null` removes flow-specific override,
+    falling back to organization defaults.
 
     **Returns:**
     - Updated Flow object

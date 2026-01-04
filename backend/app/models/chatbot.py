@@ -217,6 +217,22 @@ class Flow(Base, TimestampMixin, SoftDeleteMixin):
         ),
     )
 
+    # WhatsApp 24h Window Expiry Settings
+    # Configuração do que fazer quando janela de 24h do WhatsApp expirar
+    # {
+    #   "action": "transfer|send_template|wait_customer",
+    #   "template_name": null,
+    #   "send_warning": false,
+    #   "warning_at_hours": 22,
+    #   "warning_template_name": null
+    # }
+    window_expiry_settings = Column(
+        JSONB,
+        nullable=True,
+        default=None,
+        server_default=None,
+    )
+
     # Versioning
     version = Column(Integer, default=1, server_default="1", nullable=False)
 
