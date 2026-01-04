@@ -407,6 +407,7 @@ async def receive_webhook(
     try:
         # Get raw body for signature verification
         raw_body = await request.body()
+        logger.info(f"Webhook received: {len(raw_body)} bytes, signature present: {bool(request.headers.get('X-Hub-Signature-256'))}")
 
         # Get signature header
         signature = request.headers.get("X-Hub-Signature-256")
@@ -414,6 +415,7 @@ async def receive_webhook(
         # Parse JSON body from raw bytes
         import json
         body = json.loads(raw_body.decode('utf-8'))
+        logger.info(f"Webhook parsed successfully, object: {body.get('object')}")
 
         # Extract phone_number_id from payload
         phone_number_id = None
@@ -429,7 +431,7 @@ async def receive_webhook(
             pass
 
         if not phone_number_id:
-            logger.error("Could not extract phone_number_id from webhook")
+            logger.error(f"Could not extract phone_number_id from webhook payload: {json.dumps(body, indent=2)[:500]}")
             return {"status": "ok"}
 
         # Find WhatsApp number by phone_number_id
@@ -443,7 +445,7 @@ async def receive_webhook(
             number = result.scalar_one_or_none()
 
             if not number:
-                logger.error(f"WhatsApp number not found for phone_number_id: {phone_number_id}")
+                logger.error(f"WhatsApp number not found for phone_number_id: {phone_number_id}, organization might be deleted")
                 return {"status": "ok"}
 
             # Verify signature if token is set
@@ -453,17 +455,19 @@ async def receive_webhook(
                     raise HTTPException(status_code=403, detail="Forbidden")
 
                 if not verify_whatsapp_signature(
+                    payload=raw_body,
                     signature=signature,
-                    body=raw_body,
-                    verify_token=number.webhook_verify_token
+                    app_secret=number.webhook_verify_token
                 ):
                     logger.error("Invalid webhook signature")
                     raise HTTPException(status_code=403, detail="Forbidden")
 
             # Process webhook
+            logger.info(f"Processing webhook for WhatsApp number {number.id}, organization {number.organization_id}")
             from app.services.whatsapp_service import WhatsAppService
             service = WhatsAppService(db)
             await service.process_webhook(body, number.id, number.organization_id)
+            logger.info(f"Webhook processed successfully for WhatsApp number {number.id}")
 
         # Always return 200 OK to Meta
         return {"status": "ok"}
@@ -476,6 +480,116 @@ async def receive_webhook(
         # Log error but still return 200 to prevent Meta from retrying
         logger.error(f"Webhook error: {e}")
         return {"status": "error", "message": str(e)}
+
+
+# ============= Debug Endpoints =============
+
+
+@router.get(
+    "/debug/conversation/{conversation_id}",
+    dependencies=[Depends(get_current_user)]
+)
+async def debug_conversation_state(
+    conversation_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Debug endpoint to check conversation flow state.
+    Returns detailed state information for troubleshooting.
+
+    **Permissions:** Requires authentication (org_admin or agent)
+    """
+    from app.repositories.conversation import ConversationRepository
+    from app.services.chatbot_service import ChatbotService
+
+    conv_repo = ConversationRepository(db)
+    conversation = await conv_repo.get_by_id(
+        conversation_id,
+        current_user.organization_id
+    )
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    chatbot_service = ChatbotService(db)
+
+    # Get current node details
+    current_node = None
+    if conversation.current_node_id:
+        current_node = await chatbot_service.node_repo.get(
+            conversation.current_node_id
+        )
+
+    # Get active flow details
+    active_flow = None
+    if conversation.active_flow_id:
+        active_flow = await chatbot_service.flow_repo.get(
+            conversation.active_flow_id
+        )
+
+    return {
+        "conversation_id": str(conversation.id),
+        "status": conversation.status,
+        "is_bot_active": conversation.is_bot_active,
+        "active_flow_id": str(conversation.active_flow_id) if conversation.active_flow_id else None,
+        "active_flow_name": active_flow.name if active_flow else None,
+        "current_node_id": str(conversation.current_node_id) if conversation.current_node_id else None,
+        "current_node_canvas_id": current_node.node_id if current_node else None,
+        "current_node_type": current_node.node_type if current_node else None,
+        "current_node_label": current_node.label if current_node else None,
+        "context_variables": conversation.context_variables,
+        "execution_path": (conversation.context_variables or {}).get("_execution_path", []),
+        "last_message_at": conversation.last_message_at.isoformat() if conversation.last_message_at else None,
+        "window_expires_at": conversation.window_expires_at.isoformat() if conversation.window_expires_at else None,
+    }
+
+
+@router.post(
+    "/debug/conversation/{conversation_id}/reset-flow",
+    dependencies=[Depends(get_current_user)]
+)
+async def reset_conversation_flow(
+    conversation_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Manually reset a stuck conversation's flow state.
+    Clears current_node_id and execution_path.
+
+    **Permissions:** Requires org_admin role
+    """
+    if current_user.role not in ["org_admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Requires admin role")
+
+    from app.repositories.conversation import ConversationRepository
+
+    conv_repo = ConversationRepository(db)
+    conversation = await conv_repo.get_by_id(
+        conversation_id,
+        current_user.organization_id
+    )
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Clear flow state
+    context_vars = conversation.context_variables or {}
+    context_vars.pop("_execution_path", None)
+    context_vars.pop("_question_timestamp", None)
+
+    await conv_repo.update(conversation_id, {
+        "current_node_id": None,
+        "context_variables": context_vars,
+        "is_bot_active": True
+    })
+    await db.commit()
+
+    return {
+        "status": "reset",
+        "message": "Flow state cleared, next message will restart flow"
+    }
 
 
 # ============= WhatsApp Number Endpoints =============

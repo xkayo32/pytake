@@ -179,7 +179,7 @@ async def whatsapp_webhook_receive(request: Request):
 
         # Process webhook
         service = WhatsAppService(db)
-        await service.process_webhook(body)
+        await service.process_webhook(body, whatsapp_number.id, whatsapp_number.organization_id)
 
     return {"status": "ok"}
 
