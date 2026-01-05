@@ -142,7 +142,7 @@ class FlowGeneratorService:
 
         # Call AI API
         try:
-            if ai_settings.provider == AIProvider.ANTHROPIC:
+            if ai_settings.default_provider == AIProvider.ANTHROPIC:
                 ai_response = await self._call_anthropic(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
@@ -151,7 +151,7 @@ class FlowGeneratorService:
                     max_tokens=ai_settings.max_tokens,
                     temperature=ai_settings.temperature
                 )
-            elif ai_settings.provider == AIProvider.OPENAI:
+            elif ai_settings.default_provider == AIProvider.OPENAI:
                 ai_response = await self._call_openai(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
@@ -160,7 +160,7 @@ class FlowGeneratorService:
                     max_tokens=ai_settings.max_tokens,
                     temperature=ai_settings.temperature
                 )
-            elif ai_settings.provider == AIProvider.GEMINI:
+            elif ai_settings.default_provider == AIProvider.GEMINI:
                 ai_response = await self._call_gemini(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
@@ -172,7 +172,7 @@ class FlowGeneratorService:
             else:
                 return GenerateFlowResponse(
                     status="error",
-                    error_message=f"Provedor de IA não suportado: {ai_settings.provider}"
+                    error_message=f"Provedor de IA não suportado: {ai_settings.default_provider}"
                 )
 
         except Exception as e:
@@ -298,7 +298,7 @@ class FlowGeneratorService:
 
         # Call AI API
         try:
-            if ai_settings.provider == AIProvider.ANTHROPIC:
+            if ai_settings.default_provider == AIProvider.ANTHROPIC:
                 ai_response = await self._call_anthropic(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
@@ -307,7 +307,7 @@ class FlowGeneratorService:
                     max_tokens=ai_settings.max_tokens,
                     temperature=0.5  # Lower temperature for more consistent analysis
                 )
-            elif ai_settings.provider == AIProvider.OPENAI:
+            elif ai_settings.default_provider == AIProvider.OPENAI:
                 ai_response = await self._call_openai(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
@@ -316,7 +316,7 @@ class FlowGeneratorService:
                     max_tokens=ai_settings.max_tokens,
                     temperature=0.5
                 )
-            elif ai_settings.provider == AIProvider.GEMINI:
+            elif ai_settings.default_provider == AIProvider.GEMINI:
                 ai_response = await self._call_gemini(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
@@ -326,7 +326,7 @@ class FlowGeneratorService:
                     temperature=0.5
                 )
             else:
-                raise ValueError(f"Provedor de IA não suportado: {ai_settings.provider}")
+                raise ValueError(f"Provedor de IA não suportado: {ai_settings.default_provider}")
 
         except Exception as e:
             logger.error(f"Error calling AI API for improvements: {e}")
