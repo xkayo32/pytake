@@ -25,6 +25,7 @@ from app.repositories.chatbot import ChatbotRepository
 from app.repositories.organization import OrganizationRepository
 from app.models.chatbot import Chatbot
 from app.models.organization import Organization
+from app.utils.node_availability import NodeAvailability
 
 logger = logging.getLogger(__name__)
 
@@ -469,7 +470,35 @@ class FlowGeneratorService:
     # ==================== Prompt Building ====================
 
     def _build_system_prompt(self, language: str, whatsapp_type: Optional[str] = None) -> str:
-        """Build system prompt for flow generation"""
+        """Build system prompt for flow generation with dynamic node types"""
+        
+        # Get available nodes based on WhatsApp type
+        if whatsapp_type:
+            available_nodes = NodeAvailability.get_available_nodes(whatsapp_type)
+        else:
+            # If no WhatsApp type specified, use ALL nodes
+            available_nodes = NodeAvailability.ALL_NODES
+        
+        # Get node descriptions
+        from app.utils.node_availability import get_node_descriptions_for_ai
+        node_descriptions = get_node_descriptions_for_ai()
+        
+        # Build node types documentation dynamically
+        node_types_doc = []
+        for idx, node_type in enumerate(available_nodes, start=1):
+            description = node_descriptions.get(node_type, "Tipo de node disponível")
+            
+            # Highlight special nodes
+            if node_type in NodeAvailability.OFFICIAL_ONLY_NODES:
+                availability = " **(Apenas Official API)**"
+            elif node_type in NodeAvailability.EXPERIMENTAL_NODES and whatsapp_type == "qrcode":
+                availability = " **(Experimental em QR Code)**"
+            else:
+                availability = ""
+            
+            node_types_doc.append(f'{idx}. **{node_type}**: {description}{availability}')
+        
+        node_types_section = "\n".join(node_types_doc)
 
         # WhatsApp type-specific instructions
         whatsapp_instructions = ""
@@ -493,7 +522,7 @@ Para opções de escolha do usuário, use mensagens de texto com numeração:
 - Depois use node **question** para capturar a resposta numérica
 - Use node **condition** para validar a opção escolhida
 
-NÃO use interactive_buttons ou interactive_list, pois o WhatsApp QR Code não suporta componentes interativos.
+NÃO use interactive_buttons ou interactive_list (não disponíveis).
 """
 
         return f"""Você é um especialista em automação de WhatsApp e design de chatbots.
@@ -501,53 +530,23 @@ NÃO use interactive_buttons ou interactive_list, pois o WhatsApp QR Code não s
 Sua tarefa é gerar flows de chatbots estruturados em formato JSON baseado em descrições em linguagem natural.
 
 Um flow consiste em:
-- **Nodes** (nós): Unidades de ação (message, question, condition, action, api_call, ai_prompt, jump, handoff, end)
+- **Nodes** (nós): Unidades de ação (message, question, condition, action, etc.)
 - **Edges** (conexões): Links entre nodes
 {whatsapp_instructions}
+**ATENÇÃO: USE APENAS OS TIPOS DE NODES LISTADOS ABAIXO - NÃO INVENTE NODES QUE NÃO EXISTEM!**
+
 Tipos de nodes disponíveis (sempre use type="default" e especifique nodeType em data):
-1. **start**: Início do flow
-   - data: {{"label": "Início", "nodeType": "start"}}
 
-2. **message**: Envia mensagem ao usuário
-   - data: {{"label": "Nome descritivo", "nodeType": "message", "messageText": "Texto da mensagem"}}
-
-3. **question**: Faz pergunta e armazena resposta em variável
-   - data: {{"label": "Nome descritivo", "nodeType": "question", "questionText": "Sua pergunta?", "outputVariable": "nome_variavel"}}
-
-4. **condition**: Ramificação baseada em condições
-   - data: {{"label": "Nome descritivo", "nodeType": "condition", "conditions": [...]}}
-
-5. **action**: Executa ações (salvar contato, enviar email, webhook)
-   - data: {{"label": "Nome descritivo", "nodeType": "action", "actionType": "save_contact"}}
-
-6. **api_call**: Chama APIs externas
-   - data: {{"label": "Nome descritivo", "nodeType": "api_call", "url": "https://...", "method": "GET"}}
-
-7. **ai_prompt**: Usa IA para processar informações
-   - data: {{"label": "Nome descritivo", "nodeType": "ai_prompt", "prompt": "Prompt para IA", "outputVariable": "resultado"}}
-
-8. **jump**: Navega para outro node/flow
-   - data: {{"label": "Nome descritivo", "nodeType": "jump", "jumpType": "node", "targetNode": "node_id"}}
-
-9. **handoff**: Transfere para atendente humano
-   - data: {{"label": "Nome descritivo", "nodeType": "handoff", "handoffType": "queue"}}
-
-10. **end**: Finaliza flow
-    - data: {{"label": "Nome descritivo", "nodeType": "end", "endType": "simple"}}
-
-11. **interactive_buttons**: Botões interativos WhatsApp (apenas Official API)
-    - data: {{"label": "Nome descritivo", "nodeType": "interactive_buttons", "bodyText": "Texto", "buttons": [...]}}
-
-12. **interactive_list**: Lista interativa WhatsApp (apenas Official API)
-    - data: {{"label": "Nome descritivo", "nodeType": "interactive_list", "bodyText": "Texto", "buttonText": "Ver opções", "sections": [...]}}
+{node_types_section}
 
 Regras importantes:
 - Todo flow DEVE começar com node type="start"
 - IDs dos nodes devem ser únicos (use formato: "node_1", "node_2", etc)
 - Edges conectam nodes via source e target IDs
-- Use variáveis para armazenar dados do usuário (formato: {{variable_name}})
+- Use variáveis para armazenar dados do usuário (formato: {{{{variable_name}}}})
 - Seja específico nos labels e mensagens
 - Considere casos de erro e fallback
+- **CRÍTICO**: Use APENAS os tipos de nodes listados acima - não crie tipos novos!
 
 Idioma do flow: {language}
 

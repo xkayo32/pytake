@@ -200,12 +200,42 @@ def validate_node_compatibility(
         ValueError: If node is incompatible and raise_error=True
     """
     is_available = NodeAvailability.is_node_available(node_type, connection_type)
-
+    
     if not is_available and raise_error:
+        warning = NodeAvailability.get_node_warning(node_type, connection_type)
         raise ValueError(
-            f"Node type '{node_type}' is not available for "
-            f"connection type '{connection_type}'. "
-            f"This node requires Meta Cloud API (official connection)."
+            f"Node '{node_type}' não é compatível com '{connection_type}'. {warning}"
         )
-
+    
     return is_available
+
+
+def get_node_descriptions_for_ai() -> Dict[str, str]:
+    """
+    Get detailed descriptions of all node types for AI prompt generation.
+    
+    Returns:
+        Dict mapping node_type to description string
+    """
+    return {
+        "start": "Início do flow - Ponto de entrada do fluxo conversacional",
+        "message": "Envia mensagem ao usuário - Texto simples ou com variáveis",
+        "question": "Faz pergunta e armazena resposta em variável - Captura input do usuário",
+        "condition": "Ramificação baseada em condições - if/else logic",
+        "end": "Finaliza flow - Encerra a conversa",
+        "handoff": "Transfere para atendente humano - Passa para queue ou departamento",
+        "delay": "Pausa temporizada - Aguarda X segundos antes de continuar",
+        "jump": "Navega para outro node ou flow - Redirecionamento",
+        "action": "Executa ações (salvar contato, enviar email, webhook) - Side effects",
+        "api_call": "Chama APIs externas - Integração com sistemas externos",
+        "ai_prompt": "Usa IA para processar informações - GPT/Claude para análise",
+        "database_query": "Consulta banco de dados - SELECT/INSERT/UPDATE queries",
+        "script": "Executa código JavaScript - Lógica customizada",
+        "set_variable": "Define ou atualiza variável - Manipulação de dados",
+        "random": "Escolhe caminho aleatório - A/B testing ou variação",
+        "datetime": "Trabalha com datas/horas - Agendamentos e validações temporais",
+        "analytics": "Registra evento analítico - Tracking e métricas",
+        "whatsapp_template": "Envia template aprovado pelo WhatsApp - Apenas Official API",
+        "interactive_buttons": "Botões interativos WhatsApp (até 3 opções) - Apenas Official API",
+        "interactive_list": "Lista interativa WhatsApp (4+ opções) - Apenas Official API",
+    }
