@@ -50,7 +50,7 @@ router = APIRouter()
 
 @router.get("/models", response_model=AIModelListResponse)
 async def list_ai_models(
-    provider: Optional[str] = Query(None, description="Filter by provider (openai, anthropic)"),
+    provider: Optional[str] = Query(None, description="Filter by provider (openai, anthropic, gemini)"),
     recommended: bool = Query(False, description="Show only recommended models"),
     include_deprecated: bool = Query(False, description="Include deprecated models"),
     current_user: User = Depends(get_current_user),
@@ -64,7 +64,7 @@ async def list_ai_models(
     **Path Parameters:** None
 
     **Query Parameters:**
-    - provider (str, optional): Filter by provider ('openai', 'anthropic', 'google', etc.)
+    - provider (str, optional): Filter by provider ('openai', 'anthropic', 'gemini')
     - recommended (bool): Show only recommended models for flow generation (default: false)
     - include_deprecated (bool): Include models no longer supported (default: false)
 
@@ -72,7 +72,7 @@ async def list_ai_models(
     - models (array): List of available AI models:
       - id (str): Unique model identifier
       - name (str): Human-readable model name
-      - provider (str): Provider name ('openai', 'anthropic', etc.)
+      - provider (str): Provider name ('openai', 'anthropic', 'gemini')
       - max_tokens (int): Maximum context window size
       - cost_per_1k_input (float): Input token cost per 1K tokens
       - cost_per_1k_output (float): Output token cost per 1K tokens
@@ -177,7 +177,7 @@ async def get_model_details(
     **Returns:**
     - id (str): Model identifier
     - name (str): Human-readable name
-    - provider (str): Provider ('openai', 'anthropic', etc.)
+    - provider (str): Provider ('openai', 'anthropic', 'gemini')
     - description (str): Detailed model description
     - max_tokens (int): Maximum context window
     - training_date (str): Latest training data cutoff
@@ -254,7 +254,7 @@ async def create_custom_model(
     **Request Body:**
     - model_id (str, required): Unique model identifier (e.g., 'custom_gpt4_finetuned')
     - name (str, required): Human-readable model name
-    - provider (str, required): Provider ('openai', 'anthropic', 'custom')
+    - provider (str, required): Provider ('openai', 'anthropic', 'gemini', 'custom')
     - description (str, optional): Model description and use cases
     - max_tokens (int, required): Context window size
     - cost_per_1k_input (float, optional): Input token cost (default: 0)
@@ -352,7 +352,7 @@ async def get_ai_settings(
 
     **Returns:**
     - enabled (bool): Whether AI Assistant is active
-    - default_provider (str): Primary provider ('openai', 'anthropic')
+    - default_provider (str): Primary provider ('openai', 'anthropic', 'gemini')
     - default_model (str): Default model for flow generation
     - openai_api_key (str, optional): OpenAI API key (masked in response)
     - anthropic_api_key (str, optional): Anthropic API key (masked in response)
@@ -440,10 +440,11 @@ async def update_ai_settings(
 
     **Request Body:**
     - enabled (bool, optional): Enable/disable AI Assistant
-    - default_provider (str, optional): Provider choice ('openai', 'anthropic')
+    - default_provider (str, optional): Provider choice ('openai', 'anthropic', 'gemini')
     - default_model (str, optional): Model identifier for generation
     - openai_api_key (str, optional): OpenAI API key
     - anthropic_api_key (str, optional): Anthropic API key
+    - gemini_api_key (str, optional): Google Gemini API key
     - temperature (float, optional): Generation temperature (0-2, default: 0.7)
     - max_tokens (int, optional): Max output tokens (default: 2048)
     - enable_flow_generation (bool, optional): Allow AI flow generation
@@ -603,6 +604,16 @@ async def test_ai_connection(
     }
     ```
 
+    **Example Response (Success - Gemini):**
+    ```json
+    {
+        "success": true,
+        "provider": "gemini",
+        "message": "Connection successful! Google Gemini API is working.",
+        "model_tested": "gemini-2.5-flash-lite"
+    }
+    ```
+
     **Example Response (Auth Error):**
     ```json
     {
@@ -723,6 +734,32 @@ async def test_ai_connection(
                 "provider": "openai",
                 "message": "Connection successful! OpenAI API is working.",
                 "model_tested": "gpt-4o-mini"
+            }
+
+        elif settings.default_provider == "gemini":
+            # Test Google Gemini API
+            if not settings.gemini_api_key:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Gemini API key not configured"
+                )
+
+            # Import here to avoid loading if not needed
+            import google.genai as genai
+
+            client = genai.Client(api_key=settings.gemini_api_key)
+
+            # Make a minimal test call
+            response = client.models.generate_content(
+                model="gemini-2.5-flash-lite",  # Smallest/cheapest model
+                contents="Hi"
+            )
+
+            return {
+                "success": True,
+                "provider": "gemini",
+                "message": "Connection successful! Google Gemini API is working.",
+                "model_tested": "gemini-2.5-flash-lite"
             }
 
         else:
