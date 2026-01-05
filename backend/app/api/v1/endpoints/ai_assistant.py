@@ -1055,13 +1055,26 @@ async def generate_flow(
 
     ## ⚠️ Error Responses
 
-    | Status Code | Error | Solution |
-    |-------------|-------|----------|
-    | 401 | Unauthorized | Provide valid Bearer token |
-    | 400 | AI Assistant not configured | Configure AI settings in organization |
-    | 404 | Chatbot not found | Check `chatbot_id` exists and belongs to your organization |
-    | 422 | Invalid description | Provide description between 10-2000 characters |
-    | 500 | Flow generation failed | Check AI settings, API keys, and try again |
+    | Status Code | Error | Causa Comum | Solução |
+    |-------------|-------|-------------|---------|
+    | 401 | Unauthorized / Invalid API key | Token inválido ou API key incorreta | Verifique Bearer token ou reconfigure API key do provedor |
+    | 400 | AI Assistant not configured | AI não configurado na organização | Configure AI Assistant nas configurações |
+    | 404 | Chatbot not found | chatbot_id não existe ou não pertence à org | Verifique o chatbot_id |
+    | 422 | Invalid description | Descrição muito curta ou inválida | Forneça descrição entre 10-2000 caracteres |
+    | 429 | Quota exceeded / Rate limit | Quota da API excedida (Gemini free tier comum) | Mude para OpenAI/Anthropic ou aguarde reset da quota |
+    | 500 | Flow generation failed | Erro inesperado na geração | Verifique logs do backend |
+
+    **Erros Comuns - Quota Excedida (429):**
+    ```json
+    {
+        "detail": "429 RESOURCE_EXHAUSTED - Quota do Gemini excedida. Aguarde 30s ou mude para outro provedor (OpenAI/Anthropic)."
+    }
+    ```
+    
+    **Solução Recomendada para 429:**
+    - **Imediato**: Mude para OpenAI (gpt-4o-mini) ou Anthropic (claude-3-haiku)
+    - **Alternativo**: Aguarde alguns minutos para reset da quota por minuto
+    - **Gemini free tier**: Limites muito baixos (15 RPM, 1500 RPD, 1M tokens/dia)
 
     ## 💡 Tips for Better Flow Generation
 
@@ -1100,14 +1113,56 @@ async def generate_flow(
             flow_name=request.flow_name
         )
 
+        # Check if service returned error status
+        if response.status == "error":
+            error_msg = response.error_message or "Unknown error"
+            
+            # Parse error type and return appropriate HTTP status
+            if "quota" in error_msg.lower() or "429" in error_msg:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=error_msg
+                )
+            elif "authentication" in error_msg.lower() or "api key" in error_msg.lower() or "401" in error_msg:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=error_msg
+                )
+            elif "não está configurado" in error_msg.lower() or "not configured" in error_msg.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=error_msg
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=error_msg
+                )
+
         return response
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error generating flow: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating flow: {str(e)}"
-        )
+        error_msg = str(e)
+        
+        # Parse exception type
+        if "429" in error_msg or "quota" in error_msg.lower() or "rate limit" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Quota de API excedida: {error_msg}"
+            )
+        elif "401" in error_msg or "authentication" in error_msg.lower() or "api key" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Erro de autenticação: {error_msg}"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Erro ao gerar flow: {error_msg}"
+            )
 
 
 @router.post("/suggest-improvements", response_model=SuggestImprovementsResponse)

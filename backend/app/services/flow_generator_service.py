@@ -177,10 +177,34 @@ class FlowGeneratorService:
 
         except Exception as e:
             logger.error(f"Error calling AI API: {e}")
-            return GenerateFlowResponse(
-                status="error",
-                error_message=f"Erro ao chamar API de IA: {str(e)}"
-            )
+            error_str = str(e)
+            
+            # Parse error type and provide helpful message
+            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str or "quota" in error_str.lower():
+                return GenerateFlowResponse(
+                    status="error",
+                    error_message=f"429 - Quota da API excedida. {error_str}"
+                )
+            elif "401" in error_str or "authentication" in error_str.lower() or "unauthorized" in error_str.lower():
+                return GenerateFlowResponse(
+                    status="error",
+                    error_message=f"401 - Erro de autenticação na API. Verifique a API key. {error_str}"
+                )
+            elif "403" in error_str or "permission" in error_str.lower():
+                return GenerateFlowResponse(
+                    status="error",
+                    error_message=f"403 - Sem permissão para acessar a API. {error_str}"
+                )
+            elif "rate limit" in error_str.lower():
+                return GenerateFlowResponse(
+                    status="error",
+                    error_message=f"429 - Limite de taxa excedido. Aguarde alguns segundos. {error_str}"
+                )
+            else:
+                return GenerateFlowResponse(
+                    status="error",
+                    error_message=f"Erro ao chamar API de IA: {error_str}"
+                )
 
         # Parse AI response
         try:
@@ -464,8 +488,25 @@ class FlowGeneratorService:
                 raise Exception("Empty response from Google Gemini API")
 
         except Exception as e:
-            logger.error(f"Google Gemini API call failed: {e}")
-            raise
+            error_msg = str(e)
+            logger.error(f"Google Gemini API call failed: {error_msg}")
+            
+            # Extract useful error information
+            if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+                # Try to extract retry delay if available
+                import re
+                retry_match = re.search(r"retry in ([\d.]+)s", error_msg, re.IGNORECASE)
+                retry_delay = retry_match.group(1) if retry_match else "alguns segundos"
+                
+                raise Exception(
+                    f"429 RESOURCE_EXHAUSTED - Quota do Gemini excedida. "
+                    f"Aguarde {retry_delay} ou mude para outro provedor (OpenAI/Anthropic). "
+                    f"Detalhes: {error_msg[:300]}"
+                )
+            elif "401" in error_msg or "authentication" in error_msg.lower():
+                raise Exception(f"401 - API key do Gemini inválida ou expirada: {error_msg[:200]}")
+            else:
+                raise Exception(f"Erro na API do Gemini: {error_msg[:300]}")
 
     # ==================== Prompt Building ====================
 
