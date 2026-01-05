@@ -806,82 +806,280 @@ async def generate_flow(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Generate a chatbot flow from natural language description using AI.
+    🤖 Generate a chatbot flow from natural language description using AI (OpenAI/Anthropic/Gemini).
 
-    Creates a complete conversational flow based on user description.
-    Requires AI Assistant to be configured and enabled.
+    Creates a complete conversational flow based on user description and optionally saves it directly
+    to the database, making it immediately usable in the chatbot.
 
-    **Path Parameters:** None
+    ## 🚀 How It Works
+    
+    1. **Describe your flow** in natural language (Portuguese or English)
+    2. **AI generates** the complete flow structure (nodes, edges, variables)
+    3. **Optional**: Auto-save to database with `save_to_database: true`
+    4. **Result**: Ready-to-use flow or JSON for manual import
 
-    **Request Body:**
-    - description (str, required): What the flow should do in natural language
-    - industry (str, optional): Industry context ('ecommerce', 'support', 'banking')
-    - language (str, optional): Flow language (default: 'pt-BR')
-    - chatbot_id (str, optional): Target chatbot UUID (for direct assignment)
-    - save_to_database (bool, optional): If true, saves flow directly to database (default: false)
-    - flow_name (str, optional): Custom name for the flow (auto-generated if not provided)
-    - clarifications (object, optional): User answers to clarification questions
+    ## 📋 Request Body
 
-    **Returns:**
-    - flow_id (str, optional): Generated flow UUID (if saved to database)
-    - flow_name (str, optional): Flow name (if saved to database)
-    - saved_to_database (bool): Whether the flow was saved to database
-    - status (str): Generation status ('success', 'needs_clarification', 'error')
-    - flow_data (object, optional): Flow diagram and node structure
-    - clarification_questions (array, optional): Questions needing clarification
-    - error_message (str, optional): Error message if status is 'error'
+    | Field | Type | Required | Description |
+    |-------|------|----------|-------------|
+    | `description` | string | ✅ Yes | Natural language description of what the flow should do (10-2000 chars) |
+    | `industry` | string | ❌ No | Industry context: `ecommerce`, `support`, `banking`, `healthcare`, `real_estate`, etc. |
+    | `language` | string | ❌ No | Flow language. Default: `pt-BR`. Options: `pt-BR`, `en-US`, `es-ES` |
+    | `chatbot_id` | string (UUID) | ❌ No | Target chatbot UUID (required if `save_to_database: true`) |
+    | `save_to_database` | boolean | ❌ No | If `true`, saves flow directly to database. Default: `false` |
+    | `flow_name` | string | ❌ No | Custom flow name (max 200 chars). Auto-generated if not provided |
 
-    **Example Request:**
+    ## 📤 Response Body
+
+    | Field | Type | Description |
+    |-------|------|-------------|
+    | `status` | string | `success`, `needs_clarification`, or `error` |
+    | `flow_id` | string (UUID) | Flow UUID (only if `saved_to_database: true`) |
+    | `flow_name` | string | Flow name (only if saved) |
+    | `saved_to_database` | boolean | Whether flow was saved to database |
+    | `flow_data` | object | Generated flow structure with nodes and edges |
+    | `clarification_questions` | array | Questions if AI needs more info (status: `needs_clarification`) |
+    | `error_message` | string | Error details (status: `error`) |
+
+    ## 📚 Example 1: Generate WITHOUT Saving (Preview Mode)
+
+    **Request:**
     ```json
     {
-        "description": "Create a flow for customer support. Start by asking what issue they have, then route to specialized agent based on category (technical, billing, or general).",
-        "industry": "support",
-        "language": "pt-BR",
-        "chatbot_id": "550e8400-e29b-41d4-a716-446655440000",
-        "save_to_database": true,
-        "flow_name": "Roteador de Suporte ao Cliente"
+        "description": "Criar um flow de boas-vindas. Cumprimentar o usuário, perguntar o nome dele, e agradecer pela visita.",
+        "language": "pt-BR"
     }
     ```
 
-    **Example Response (saved to database):**
+    **Response:**
     ```json
     {
-        "flow_id": "550e8400-e29b-41d4-a716-446655440001",
-        "flow_name": "Roteador de Suporte ao Cliente",
-        "saved_to_database": true,
         "status": "success",
+        "saved_to_database": false,
         "flow_data": {
+            "name": "Flow de Boas-Vindas",
+            "description": "Flow gerado automaticamente",
             "nodes": [
-                {"id": "start", "type": "start", "data": {"label": "Start"}},
-                {"id": "ask_issue", "type": "text", "data": {"message": "What issue are you experiencing?"}},
-                {"id": "route", "type": "router", "data": {"routes": ["technical", "billing", "general"]}}
+                {
+                    "id": "node_start",
+                    "type": "start",
+                    "position": {"x": 250, "y": 50},
+                    "data": {"label": "Início"}
+                },
+                {
+                    "id": "node_greeting",
+                    "type": "message",
+                    "position": {"x": 250, "y": 150},
+                    "data": {
+                        "message": "Olá! Seja bem-vindo(a)! 👋"
+                    }
+                },
+                {
+                    "id": "node_ask_name",
+                    "type": "question",
+                    "position": {"x": 250, "y": 250},
+                    "data": {
+                        "question": "Qual é o seu nome?",
+                        "variable": "contact_name",
+                        "validation": "text"
+                    }
+                },
+                {
+                    "id": "node_thanks",
+                    "type": "message",
+                    "position": {"x": 250, "y": 350},
+                    "data": {
+                        "message": "Muito obrigado, {{contact_name}}! É um prazer ter você aqui! ✨"
+                    }
+                }
+            ],
+            "edges": [
+                {"source": "node_start", "target": "node_greeting"},
+                {"source": "node_greeting", "target": "node_ask_name"},
+                {"source": "node_ask_name", "target": "node_thanks"}
             ]
         }
     }
     ```
 
-    **Example Response (not saved, only generated):**
+    ## 📚 Example 2: Generate AND Save to Database ✨ (Production Mode)
+
+    **Request:**
     ```json
     {
-        "saved_to_database": false,
-        "status": "success",
-        "flow_data": {
-            "nodes": [...]
-        }
+        "description": "Criar um flow de qualificação de leads para imobiliária. Perguntar nome, telefone, tipo de imóvel desejado (casa/apartamento), número de quartos, e orçamento disponível. Se orçamento acima de R$ 500.000, transferir para corretor senior.",
+        "industry": "real_estate",
+        "language": "pt-BR",
+        "chatbot_id": "550e8400-e29b-41d4-a716-446655440000",
+        "save_to_database": true,
+        "flow_name": "Qualificador de Leads - Imobiliária Premium"
     }
     ```
 
-    **Permissions:**
-    - Requires: Authenticated user (any role)
-    - Scoped to: Organization (organization_id from current user)
-    - Note: Requires configured AI Assistant settings
+    **Response:**
+    ```json
+    {
+        "status": "success",
+        "flow_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+        "flow_name": "Qualificador de Leads - Imobiliária Premium",
+        "saved_to_database": true,
+        "flow_data": {
+            "name": "Qualificador de Leads - Imobiliária Premium",
+            "description": "Flow gerado automaticamente para qualificação de leads imobiliários",
+            "nodes": [
+                {
+                    "id": "node_start",
+                    "type": "start",
+                    "data": {"label": "Início"}
+                },
+                {
+                    "id": "node_welcome",
+                    "type": "message",
+                    "data": {
+                        "message": "Olá! Vou te ajudar a encontrar o imóvel ideal! 🏡"
+                    }
+                },
+                {
+                    "id": "node_ask_name",
+                    "type": "question",
+                    "data": {
+                        "question": "Para começar, qual é o seu nome?",
+                        "variable": "contact_name"
+                    }
+                },
+                {
+                    "id": "node_ask_phone",
+                    "type": "question",
+                    "data": {
+                        "question": "Ótimo, {{contact_name}}! Qual o melhor telefone para contato?",
+                        "variable": "contact_phone",
+                        "validation": "phone"
+                    }
+                },
+                {
+                    "id": "node_ask_property_type",
+                    "type": "question",
+                    "data": {
+                        "question": "Você está procurando casa ou apartamento?",
+                        "variable": "property_type",
+                        "options": ["Casa", "Apartamento"]
+                    }
+                },
+                {
+                    "id": "node_ask_budget",
+                    "type": "question",
+                    "data": {
+                        "question": "Qual é o seu orçamento disponível?",
+                        "variable": "budget"
+                    }
+                },
+                {
+                    "id": "node_condition",
+                    "type": "condition",
+                    "data": {
+                        "variable": "budget",
+                        "operator": "greater_than",
+                        "value": "500000"
+                    }
+                },
+                {
+                    "id": "node_handoff_senior",
+                    "type": "handoff",
+                    "data": {
+                        "message": "Perfeito! Vou transferir você para um corretor senior especializado.",
+                        "department": "Vendas Premium"
+                    }
+                },
+                {
+                    "id": "node_handoff_regular",
+                    "type": "handoff",
+                    "data": {
+                        "message": "Vou transferir você para um corretor que vai te ajudar!",
+                        "department": "Vendas"
+                    }
+                }
+            ],
+            "edges": [
+                {"source": "node_start", "target": "node_welcome"},
+                {"source": "node_welcome", "target": "node_ask_name"},
+                {"source": "node_ask_name", "target": "node_ask_phone"},
+                {"source": "node_ask_phone", "target": "node_ask_property_type"},
+                {"source": "node_ask_property_type", "target": "node_ask_budget"},
+                {"source": "node_ask_budget", "target": "node_condition"},
+                {"source": "node_condition", "target": "node_handoff_senior", "label": "true"},
+                {"source": "node_condition", "target": "node_handoff_regular", "label": "false"}
+            ]
+        }
+    }
+    ```
+    
+    ✅ **Flow is now saved and ready to use!** It will appear in:
+    - `GET /api/v1/chatbots/{chatbot_id}/flows`
+    - `GET /api/v1/flows/{flow_id}`
+    - Flow Builder UI
 
-    **Error Codes:**
-    - 401: Unauthorized (invalid or missing token)
-    - 400: Bad Request (AI Assistant not configured)
-    - 404: Chatbot not found (if chatbot_id provided)
-    - 422: Unprocessable Entity (invalid description or parameters)
-    - 500: Server error (flow generation failed)
+    ## 📚 Example 3: Needs Clarification
+
+    **Request:**
+    ```json
+    {
+        "description": "Criar um flow de vendas",
+        "language": "pt-BR"
+    }
+    ```
+
+    **Response:**
+    ```json
+    {
+        "status": "needs_clarification",
+        "clarification_questions": [
+            {
+                "question": "Que tipo de produto ou serviço será vendido?",
+                "field": "product_type",
+                "options": ["Produto físico", "Serviço", "Produto digital"]
+            },
+            {
+                "question": "Qual é o fluxo de venda? (Catálogo, orçamento, pedido direto?)",
+                "field": "sales_flow_type"
+            }
+        ]
+    }
+    ```
+
+    ## 🔒 Permissions & Security
+
+    - **Authentication**: Requires valid Bearer token (any authenticated role)
+    - **Multi-tenancy**: Flow saved with `organization_id` from current user
+    - **Chatbot validation**: If `save_to_database: true`, verifies chatbot belongs to organization
+    - **AI Settings**: Requires AI Assistant configured (OpenAI, Anthropic, or Gemini)
+
+    ## ⚠️ Error Responses
+
+    | Status Code | Error | Solution |
+    |-------------|-------|----------|
+    | 401 | Unauthorized | Provide valid Bearer token |
+    | 400 | AI Assistant not configured | Configure AI settings in organization |
+    | 404 | Chatbot not found | Check `chatbot_id` exists and belongs to your organization |
+    | 422 | Invalid description | Provide description between 10-2000 characters |
+    | 500 | Flow generation failed | Check AI settings, API keys, and try again |
+
+    ## 💡 Tips for Better Flow Generation
+
+    1. **Be specific**: Describe the exact steps and questions
+    2. **Include conditions**: Mention "if X then Y" logic
+    3. **Specify variables**: "save name as contact_name"
+    4. **Add context**: Mention industry or use case
+    5. **Use examples**: "ask for name, like 'What's your name?'"
+
+    ## 🎯 Use Cases
+
+    - Lead qualification flows
+    - Customer support routing
+    - Product catalog browsing
+    - Appointment booking
+    - Survey and feedback collection
+    - Order processing
+    - FAQ automation
     """
     service = FlowGeneratorService(db)
 
