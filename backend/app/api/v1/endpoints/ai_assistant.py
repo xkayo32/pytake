@@ -818,16 +818,18 @@ async def generate_flow(
     - industry (str, optional): Industry context ('ecommerce', 'support', 'banking')
     - language (str, optional): Flow language (default: 'pt-BR')
     - chatbot_id (str, optional): Target chatbot UUID (for direct assignment)
+    - save_to_database (bool, optional): If true, saves flow directly to database (default: false)
+    - flow_name (str, optional): Custom name for the flow (auto-generated if not provided)
     - clarifications (object, optional): User answers to clarification questions
 
     **Returns:**
-    - flow_id (str): Generated flow UUID
-    - name (str): Auto-generated flow name
-    - canvas_data (object): Flow diagram and node structure
-    - variables (object): Variables extracted from description
-    - success (bool): Generation successful
-    - message (str): Generation summary
-    - cost_estimate (float, optional): Estimated API cost
+    - flow_id (str, optional): Generated flow UUID (if saved to database)
+    - flow_name (str, optional): Flow name (if saved to database)
+    - saved_to_database (bool): Whether the flow was saved to database
+    - status (str): Generation status ('success', 'needs_clarification', 'error')
+    - flow_data (object, optional): Flow diagram and node structure
+    - clarification_questions (array, optional): Questions needing clarification
+    - error_message (str, optional): Error message if status is 'error'
 
     **Example Request:**
     ```json
@@ -835,29 +837,37 @@ async def generate_flow(
         "description": "Create a flow for customer support. Start by asking what issue they have, then route to specialized agent based on category (technical, billing, or general).",
         "industry": "support",
         "language": "pt-BR",
-        "chatbot_id": "550e8400-e29b-41d4-a716-446655440000"
+        "chatbot_id": "550e8400-e29b-41d4-a716-446655440000",
+        "save_to_database": true,
+        "flow_name": "Roteador de Suporte ao Cliente"
     }
     ```
 
-    **Example Response:**
+    **Example Response (saved to database):**
     ```json
     {
         "flow_id": "550e8400-e29b-41d4-a716-446655440001",
-        "name": "Customer Support Router - Generated",
-        "canvas_data": {
+        "flow_name": "Roteador de Suporte ao Cliente",
+        "saved_to_database": true,
+        "status": "success",
+        "flow_data": {
             "nodes": [
                 {"id": "start", "type": "start", "data": {"label": "Start"}},
                 {"id": "ask_issue", "type": "text", "data": {"message": "What issue are you experiencing?"}},
                 {"id": "route", "type": "router", "data": {"routes": ["technical", "billing", "general"]}}
             ]
-        },
-        "variables": {
-            "issue_type": {"type": "string"},
-            "priority": {"type": "string"}
-        },
-        "success": true,
-        "message": "Flow generated successfully with 12 nodes and 3 decision points",
-        "cost_estimate": 0.0456
+        }
+    }
+    ```
+
+    **Example Response (not saved, only generated):**
+    ```json
+    {
+        "saved_to_database": false,
+        "status": "success",
+        "flow_data": {
+            "nodes": [...]
+        }
     }
     ```
 
@@ -887,7 +897,9 @@ async def generate_flow(
             industry=request.industry,
             language=request.language,
             clarifications=None,  # TODO: Support clarifications in future
-            chatbot_id=chatbot_id
+            chatbot_id=chatbot_id,
+            save_to_database=request.save_to_database,
+            flow_name=request.flow_name
         )
 
         return response

@@ -158,6 +158,15 @@ class GenerateFlowRequest(BaseModel):
         None,
         description="Chatbot ID to associate the flow with"
     )
+    save_to_database: bool = Field(
+        default=False,
+        description="If True, saves the generated flow directly to the database"
+    )
+    flow_name: Optional[str] = Field(
+        None,
+        max_length=200,
+        description="Custom name for the flow (auto-generated if not provided)"
+    )
 
 
 class ClarificationQuestion(BaseModel):
@@ -178,6 +187,18 @@ class ClarificationResponse(BaseModel):
 
 class GenerateFlowResponse(BaseModel):
     """Response from flow generation"""
+    flow_id: Optional[str] = Field(
+        None,
+        description="Flow UUID if saved to database"
+    )
+    flow_name: Optional[str] = Field(
+        None,
+        description="Flow name if saved to database"
+    )
+    saved_to_database: bool = Field(
+        default=False,
+        description="Whether the flow was saved to database"
+    )
     status: str = Field(..., description="Status: 'success', 'needs_clarification', 'error'")
     flow_data: Optional[Dict[str, Any]] = Field(
         None,
