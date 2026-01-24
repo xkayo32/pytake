@@ -11,6 +11,7 @@ Background task that monitors conversations for inactivity and executes configur
 import logging
 import re
 from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 from typing import Optional, Dict, Any
 
@@ -96,10 +97,10 @@ def check_conversation_inactivity(self):
         # Run async logic
         asyncio.run(async_check_conversation_inactivity())
         logger.info("✅ Conversation inactivity check completed successfully")
-        return {"status": "success", "timestamp": datetime.utcnow().isoformat()}
+        return {"status": "success", "timestamp": datetime.now(timezone.utc).isoformat()}
     except Exception as e:
         logger.error(f"❌ Error in conversation inactivity check: {str(e)}", exc_info=True)
-        return {"status": "error", "message": str(e), "timestamp": datetime.utcnow().isoformat()}
+        return {"status": "error", "message": str(e), "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
 async def async_check_conversation_inactivity():
@@ -138,15 +139,12 @@ async def async_check_conversation_inactivity():
                     continue
                 
                 # Calculate inactivity duration
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 time_since_last_message = now - conversation.last_inbound_message_at
                 
                 # Load flow and its inactivity settings
                 flow_repo = FlowRepository(session)
-                flow = await flow_repo.get_by_id(
-                    conversation.active_flow_id,
-                    conversation.organization_id
-                )
+                flow = await flow_repo.get(conversation.active_flow_id)
                 
                 if not flow:
                     logger.warning(
@@ -235,7 +233,7 @@ async def async_check_conversation_inactivity():
                                 )
                                 
                                 # Mark warning as sent
-                                context_vars[warning_key] = datetime.utcnow().isoformat()
+                                context_vars[warning_key] = datetime.now(timezone.utc).isoformat()
                                 conv_repo = ConversationRepository(session)
                                 await conv_repo.update(
                                     conversation.id,
@@ -308,7 +306,7 @@ async def execute_inactivity_action(
                         {
                             "status": "queued",
                             "queue_id": queues[0].id,
-                            "queued_at": datetime.utcnow(),
+                            "queued_at": datetime.now(timezone.utc),
                             "is_bot_active": False,
                         }
                     )
@@ -327,7 +325,7 @@ async def execute_inactivity_action(
             logger.info(f"🔒 Closing conversation {conversation.id} due to inactivity")
             
             # Calculate inactive time
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             if conversation.last_inbound_message_at:
                 inactive_minutes = (now - conversation.last_inbound_message_at).total_seconds() / 60
             else:
@@ -337,7 +335,7 @@ async def execute_inactivity_action(
                 conversation.id,
                 {
                     "status": "closed",
-                    "closed_at": datetime.utcnow(),
+                    "closed_at": datetime.now(timezone.utc),
                     "is_bot_active": False,
                 }
             )
@@ -368,7 +366,7 @@ async def execute_inactivity_action(
             logger.info(f"💬 Sending reminder to conversation {conversation.id}")
             
             # Calculate inactive time
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             if conversation.last_inbound_message_at:
                 inactive_minutes = (now - conversation.last_inbound_message_at).total_seconds() / 60
             else:
