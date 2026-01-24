@@ -10,6 +10,8 @@ Background task that monitors conversations for inactivity and executes configur
 
 import logging
 import re
+import gevent.monkey
+gevent.monkey.patch_all()
 from datetime import datetime, timedelta
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
@@ -114,18 +116,26 @@ async def async_check_conversation_inactivity():
     
     # Use the async session from core.database
     async with AsyncSessionLocal() as session:
-        # Find all active conversations with bot
-        stmt = select(Conversation).where(
+        # Import ConversationWindow model
+        from app.models.conversation_window import ConversationWindow
+        
+        # Find all active conversations with bot AND active window (within 24h)
+        stmt = select(Conversation).join(
+            ConversationWindow,
+            Conversation.id == ConversationWindow.conversation_id
+        ).where(
             Conversation.status.in_(["open", "active"]),
             Conversation.is_bot_active == True,
             Conversation.active_flow_id.is_not(None),
             Conversation.deleted_at.is_(None),
+            ConversationWindow.ends_at > datetime.now(timezone.utc),  # Window still valid
+            ConversationWindow.is_active == True,
         )
         
         result = await session.execute(stmt)
         conversations = result.scalars().all()
         
-        print(f"✅ Found {len(conversations)} active conversations")
+        print(f"✅ Found {len(conversations)} active conversations with valid window")
         logger.info(f"Found {len(conversations)} active conversations to check for inactivity")
         
         processed = 0
