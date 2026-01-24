@@ -106,14 +106,13 @@ async def async_check_conversation_inactivity():
     """
     Async implementation of conversation inactivity monitoring
     """
-    from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-    from sqlalchemy.orm import sessionmaker
+    from app.core.database import AsyncSessionLocal
     
-    # Create database session
-    engine = create_async_engine(str(settings.DATABASE_URL))
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    print("🔄 Starting inactivity check...")
+    logger.info("🔄 Starting conversation inactivity check")
     
-    async with async_session() as session:
+    # Use the async session from core.database
+    async with AsyncSessionLocal() as session:
         # Find all active conversations with bot
         stmt = select(Conversation).where(
             Conversation.status.in_(["open", "active"]),
@@ -125,6 +124,7 @@ async def async_check_conversation_inactivity():
         result = await session.execute(stmt)
         conversations = result.scalars().all()
         
+        print(f"✅ Found {len(conversations)} active conversations")
         logger.info(f"Found {len(conversations)} active conversations to check for inactivity")
         
         processed = 0
