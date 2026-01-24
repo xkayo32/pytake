@@ -9,6 +9,7 @@ Background task that monitors conversations for inactivity and executes configur
 """
 
 import logging
+import re
 from datetime import datetime, timedelta
 from uuid import UUID
 from typing import Optional, Dict, Any
@@ -28,6 +29,51 @@ from app.services.whatsapp_service import WhatsAppService
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+
+def replace_message_variables(
+    message: str,
+    timeout_minutes: int,
+    warning_at_minutes: Optional[int],
+    inactive_minutes: float,
+) -> str:
+    """
+    Replace template variables in message with actual values
+    
+    Available variables:
+    - {{timeout_minutes}} - Total timeout configured
+    - {{warning_at_minutes}} - When warning is sent
+    - {{inactive_minutes}} - How long user has been inactive
+    - {{remaining_minutes}} - Time remaining before timeout
+    
+    Args:
+        message: Template message with {{variables}}
+        timeout_minutes: Configured timeout in minutes
+        warning_at_minutes: When warning is sent (optional)
+        inactive_minutes: Current inactive time in minutes
+        
+    Returns:
+        Message with variables replaced
+    """
+    if not message:
+        return message
+    
+    # Calculate remaining minutes
+    remaining_minutes = max(0, timeout_minutes - int(inactive_minutes))
+    
+    # Replace variables
+    replacements = {
+        "{{timeout_minutes}}": str(timeout_minutes),
+        "{{warning_at_minutes}}": str(warning_at_minutes) if warning_at_minutes else "N/A",
+        "{{inactive_minutes}}": str(int(inactive_minutes)),
+        "{{remaining_minutes}}": str(remaining_minutes),
+    }
+    
+    result = message
+    for var, value in replacements.items():
+        result = result.replace(var, value)
+    
+    return result
 
 
 @shared_task(bind=True, name="check_conversation_inactivity")
@@ -168,10 +214,17 @@ async def async_check_conversation_inactivity():
                                 f"⚠️ Sending inactivity warning to conversation {conversation.id}"
                             )
                             
-                            # Send warning message
-                            warning_msg = inactivity_config.get(
+                            # Send warning message with variable replacement
+                            warning_msg_template = inactivity_config.get(
                                 "warning_message",
                                 "Estou aqui esperando sua resposta. Por favor, responda para continuarmos!"
+                            )
+                            
+                            warning_msg = replace_message_variables(
+                                warning_msg_template,
+                                timeout_minutes=timeout_minutes,
+                                warning_at_minutes=inactivity_config.get("send_warning_at_minutes"),
+                                inactive_minutes=time_since_last_message.total_seconds() / 60
                             )
                             
                             try:
@@ -273,6 +326,13 @@ async def execute_inactivity_action(
             # Close conversation
             logger.info(f"🔒 Closing conversation {conversation.id} due to inactivity")
             
+            # Calculate inactive time
+            now = datetime.utcnow()
+            if conversation.last_inbound_message_at:
+                inactive_minutes = (now - conversation.last_inbound_message_at).total_seconds() / 60
+            else:
+                inactive_minutes = config.get("timeout_minutes", 60)
+            
             await conv_repo.update(
                 conversation.id,
                 {
@@ -283,10 +343,22 @@ async def execute_inactivity_action(
             )
             await session.commit()
             
-            # Send closing message
+            # Send closing message with variable replacement
+            closing_msg_template = config.get(
+                "closing_message",
+                "Sua conversa foi encerrada por inatividade. Entre em contato conosco novamente se precisar!"
+            )
+            
+            closing_msg = replace_message_variables(
+                closing_msg_template,
+                timeout_minutes=config.get("timeout_minutes", 60),
+                warning_at_minutes=config.get("send_warning_at_minutes"),
+                inactive_minutes=inactive_minutes
+            )
+            
             await whatsapp_service._send_error_message(
                 conversation,
-                "Sua conversa foi encerrada por inatividade. Entre em contato conosco novamente se precisar!"
+                closing_msg
             )
             logger.info(f"✅ Conversation {conversation.id} closed")
             return True
@@ -295,9 +367,23 @@ async def execute_inactivity_action(
             # Send reminder message
             logger.info(f"💬 Sending reminder to conversation {conversation.id}")
             
-            reminder_msg = config.get(
+            # Calculate inactive time
+            now = datetime.utcnow()
+            if conversation.last_inbound_message_at:
+                inactive_minutes = (now - conversation.last_inbound_message_at).total_seconds() / 60
+            else:
+                inactive_minutes = 0
+            
+            reminder_msg_template = config.get(
                 "warning_message",
                 "Ainda estou aqui! Qual seria sua próxima pergunta?"
+            )
+            
+            reminder_msg = replace_message_variables(
+                reminder_msg_template,
+                timeout_minutes=config.get("timeout_minutes", 60),
+                warning_at_minutes=config.get("send_warning_at_minutes"),
+                inactive_minutes=inactive_minutes
             )
             
             await whatsapp_service._send_error_message(

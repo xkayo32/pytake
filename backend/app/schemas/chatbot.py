@@ -93,7 +93,20 @@ class InactivitySettings(BaseModel):
 
     warning_message: Optional[str] = Field(
         default=None,
-        description="Mensagem de aviso de inatividade (obrigatório se send_warning_at_minutes definido)"
+        description=(
+            "Mensagem de aviso de inatividade (obrigatório se send_warning_at_minutes definido)\n"
+            "Suporta variáveis: {{timeout_minutes}}, {{warning_at_minutes}}, "
+            "{{inactive_minutes}}, {{remaining_minutes}}"
+        )
+    )
+
+    closing_message: Optional[str] = Field(
+        default=None,
+        description=(
+            "Mensagem ao fechar conversa por inatividade (opcional)\n"
+            "Se não definido, usa mensagem padrão do sistema.\n"
+            "Suporta variáveis: {{timeout_minutes}}, {{inactive_minutes}}"
+        )
     )
 
     action: Literal["transfer", "close", "send_reminder", "fallback_flow"] = Field(
@@ -118,8 +131,9 @@ class InactivitySettings(BaseModel):
                 "enabled": True,
                 "timeout_minutes": 60,
                 "send_warning_at_minutes": 50,
-                "warning_message": "Você ainda está aí? Posso ajudar em algo mais?",
-                "action": "transfer",
+                "warning_message": "⚠️ Você está inativo há {{inactive_minutes}} minutos. Temos {{remaining_minutes}} minuto(s) para continuar!",
+                "closing_message": "Conversa encerrada após {{timeout_minutes}} minutos de inatividade. Entre em contato novamente quando precisar!",
+                "action": "close",
                 "fallback_flow_id": None
             }
         }
