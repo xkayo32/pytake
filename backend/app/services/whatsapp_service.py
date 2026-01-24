@@ -1,3 +1,4 @@
+from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Optional
 from uuid import UUID
 import logging
@@ -375,6 +376,17 @@ class WhatsAppService:
             
             print(f"🎯 Node type: {node.node_type}")
             node_data = node.data or {}
+            
+            # Se é END node, resetar para reiniciar na próxima mensagem
+            if node.node_type == "end":
+                print("🏁 Node END detectado - resetando conversation para reiniciar fluxo")
+                logger.info(f"🏁 Flow chegou ao fim, resetando current_node_id para permitir reinício")
+                await conv_repo.update(conversation_id, {
+                    "current_node_id": None
+                })
+                await self.db.commit()
+                print("✅ Conversation resetada, próxima mensagem vai reiniciar o fluxo")
+                return
             
             # Se é message/question node, enviar mensagem
             if node.node_type in ["text", "message", "question"]:
@@ -1112,7 +1124,6 @@ class WhatsAppService:
 
         # 🔒 VALIDAÇÃO DA JANELA DE 24H (Meta WhatsApp Rule)
         # Verificar se está dentro da janela antes de enviar mensagem livre
-        from datetime import timezone
 
         # Recarregar conversation para pegar window_expires_at atualizado
         conv_repo = ConversationRepository(self.db)
@@ -1328,7 +1339,6 @@ class WhatsAppService:
 
         # Salvar mensagem no banco
         from app.repositories.conversation import MessageRepository
-        from datetime import datetime
 
         message_repo = MessageRepository(self.db)
         message_data = {
@@ -1367,7 +1377,6 @@ class WhatsAppService:
         """
         from app.repositories.conversation import ConversationRepository
         from app.services.chatbot_service import ChatbotService
-        from datetime import datetime, timedelta
         from uuid import UUID
 
         # Extrair IDs DE FORMA SEGURA - ANTES de qualquer await
@@ -2153,7 +2162,6 @@ class WhatsAppService:
 
             # Salvar mensagem no banco
             from app.repositories.conversation import MessageRepository
-            from datetime import datetime
 
             message_repo = MessageRepository(self.db)
             message_data = {
@@ -2173,7 +2181,6 @@ class WhatsAppService:
         # Atualizar conversa: desativar bot e atribuir à fila ou agente
         conv_repo = ConversationRepository(self.db)
         from app.services.conversation_service import ConversationService
-        from datetime import datetime
 
         # Mapear prioridade textual para prioridade numérica da fila
         priority_map = {
@@ -2428,7 +2435,6 @@ class WhatsAppService:
 
         # Salvar mensagem no banco
         from app.repositories.conversation import MessageRepository
-        from datetime import datetime
 
         message_repo = MessageRepository(self.db)
         message_data = {
@@ -2525,7 +2531,6 @@ class WhatsAppService:
 
             # Salvar mensagem no banco
             from app.repositories.conversation import MessageRepository
-            from datetime import datetime
 
             message_repo = MessageRepository(self.db)
             message_data = {
@@ -2838,7 +2843,6 @@ class WhatsAppService:
 
         # Salvar mensagem no banco
         from app.repositories.conversation import MessageRepository
-        from datetime import datetime
 
         message_repo = MessageRepository(self.db)
         message_data = {
@@ -4386,7 +4390,6 @@ __result__ = __script_func__()
         - parse: Parse de string para data
         """
         from app.repositories.conversation import ConversationRepository
-        from datetime import datetime, timedelta
         from dateutil.relativedelta import relativedelta
         import pytz
 
@@ -4542,7 +4545,6 @@ __result__ = __script_func__()
         """
         from app.repositories.conversation import ConversationRepository
         from app.core.mongodb import get_mongodb_client
-        from datetime import datetime
         import uuid
 
         logger.info(f"📊 Analytics Node - Rastreando evento")
@@ -5057,7 +5059,6 @@ __result__ = __script_func__()
         # Update status for each number asynchronously (non-blocking)
         # This ensures fresh status on each list
         import asyncio
-        from datetime import datetime
         from sqlalchemy import update
         from app.models.whatsapp_number import WhatsAppNumber as WhatsAppNumberModel
         
@@ -5318,7 +5319,6 @@ __result__ = __script_func__()
         """Process incoming WhatsApp message - SIMPLIFIED VERSION"""
         from app.repositories.contact import ContactRepository
         from app.repositories.conversation import ConversationRepository, MessageRepository
-        from datetime import datetime, timedelta
 
         # 1. Extract message data
         whatsapp_contact_id = message.get("from")
@@ -5504,7 +5504,6 @@ __result__ = __script_func__()
         }
         """
         from app.repositories.conversation import MessageRepository
-        from datetime import datetime
 
         whatsapp_message_id = status.get("id")
         message_status = status.get("status")
@@ -5564,7 +5563,6 @@ __result__ = __script_func__()
 
         # Emit WebSocket event for status update
         from app.websocket.manager import emit_to_conversation
-        from datetime import timezone
 
         await emit_to_conversation(
             conversation_id=str(message.conversation_id),
@@ -5833,7 +5831,6 @@ __result__ = __script_func__()
         from app.repositories.conversation import ConversationRepository, MessageRepository
         from app.repositories.contact import ContactRepository
         from app.integrations.meta_api import MetaCloudAPI, MetaAPIError
-        from datetime import datetime
 
         logger.info(f"Sending {message_type} message to conversation {conversation_id}")
 
@@ -5855,7 +5852,6 @@ __result__ = __script_func__()
             raise ValueError("Send message only supported for Meta Cloud API")
 
         # 4. Validate 24-hour window for non-template messages
-        from datetime import timezone
         now = datetime.now(timezone.utc)
 
         # Ensure window_expires_at is timezone-aware
