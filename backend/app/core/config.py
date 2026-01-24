@@ -265,12 +265,12 @@ class Settings(BaseSettings):
 
     # Conversation Inactivity Settings
     CONVERSATION_INACTIVITY_TIMEOUT_MINUTES: int = Field(
-        default=60,
+        default=5,
         description="Default timeout for conversation inactivity in minutes (can be overridden per flow)"
     )
-    CONVERSATION_INACTIVITY_CHECK_INTERVAL_MINUTES: int = Field(
-        default=5,
-        description="How often to check for inactive conversations (in minutes)"
+    CONVERSATION_INACTIVITY_CHECK_INTERVAL_SECONDS: int = Field(
+        default=15,
+        description="How often to check for inactive conversations (in seconds)"
     )
     CONVERSATION_INACTIVITY_DEFAULT_ACTION: str = Field(
         default="transfer",

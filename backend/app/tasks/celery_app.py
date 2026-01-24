@@ -71,13 +71,13 @@ celery_app.conf.beat_schedule = {
         },
     },
 
-    # Conversation Inactivity Check - Configurable interval (default: every 5 minutes)
+    # Conversation Inactivity Check - Configurable interval (default: every 15 seconds)
     "check-conversation-inactivity": {
         "task": "check_conversation_inactivity",
-        "schedule": crontab(minute=f"*/{settings.CONVERSATION_INACTIVITY_CHECK_INTERVAL_MINUTES}"),
+        "schedule": settings.CONVERSATION_INACTIVITY_CHECK_INTERVAL_SECONDS,  # Seconds interval
         "options": {
             "queue": "default",
-            "expires": settings.CONVERSATION_INACTIVITY_CHECK_INTERVAL_MINUTES * 60,
+            "expires": settings.CONVERSATION_INACTIVITY_CHECK_INTERVAL_SECONDS * 2,  # 2x interval
         },
     },
 
