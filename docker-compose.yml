@@ -119,6 +119,110 @@ services:
       retries: 3
       start_period: 40s
 
+  # Celery Worker - Background Task Executor
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pytake-celery-worker-dev
+    restart: unless-stopped
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./backend:/app
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pytake_user}:Odc7%2FffNnTnG4hkbwV%2BSx2ZgK61rXW2r9U2o7Rd25DU%3D@postgres:5432/${POSTGRES_DB:-pytake}
+      POSTGRES_USER: ${POSTGRES_USER:-pytake_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Odc7/ffNnTnG4hkbwV+Sx2ZgK61rXW2r9U2o7Rd25DU=}
+      POSTGRES_SERVER: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-pytake}
+
+      # Redis (Celery Broker)
+      REDIS_URL: redis://default:gOe7JRn%2Bi8iWY5UAvYt3mJxBFJnAf9%2Bjo%2FVZM3UN4xw%3D@redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-gOe7JRn+i8iWY5UAvYt3mJxBFJnAf9+jo/VZM3UN4xw=}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      
+      # Celery
+      CELERY_BROKER_URL: redis://default:gOe7JRn%2Bi8iWY5UAvYt3mJxBFJnAf9%2Bjo%2FVZM3UN4xw%3D@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://default:gOe7JRn%2Bi8iWY5UAvYt3mJxBFJnAf9%2Bjo%2FVZM3UN4xw%3D@redis:6379/2
+
+      # MongoDB
+      MONGODB_URL: mongodb://${MONGO_USER:-pytake_user}:${MONGO_PASSWORD:-pytake_mongo_password}@mongodb:27017
+      MONGODB_DB: ${MONGODB_DB:-pytake_logs}
+
+      # Auth & Security
+      SECRET_KEY: ${SECRET_KEY:-0lKDucCTqSt0gh1mbLsvF/d5mhXqCtEW8JfwWwbTeIk=}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-0lKDucCTqSt0gh1mbLsvF/d5mhXqCtEW8JfwWwbTeIk=}
+      
+      # Environment
+      NODE_ENV: development
+      ENVIRONMENT: development
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
+    networks:
+      - pytake-network
+
+  # Celery Beat - Task Scheduler
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pytake-celery-beat-dev
+    restart: unless-stopped
+    command: celery -A app.tasks.celery_app beat --loglevel=info
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./backend:/app
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pytake_user}:Odc7%2FffNnTnG4hkbwV%2BSx2ZgK61rXW2r9U2o7Rd25DU%3D@postgres:5432/${POSTGRES_DB:-pytake}
+      POSTGRES_USER: ${POSTGRES_USER:-pytake_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Odc7/ffNnTnG4hkbwV+Sx2ZgK61rXW2r9U2o7Rd25DU=}
+      POSTGRES_SERVER: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-pytake}
+
+      # Redis (Celery Broker)
+      REDIS_URL: redis://default:gOe7JRn%2Bi8iWY5UAvYt3mJxBFJnAf9%2Bjo%2FVZM3UN4xw%3D@redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-gOe7JRn+i8iWY5UAvYt3mJxBFJnAf9+jo/VZM3UN4xw=}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      
+      # Celery
+      CELERY_BROKER_URL: redis://default:gOe7JRn%2Bi8iWY5UAvYt3mJxBFJnAf9%2Bjo%2FVZM3UN4xw%3D@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://default:gOe7JRn%2Bi8iWY5UAvYt3mJxBFJnAf9%2Bjo%2FVZM3UN4xw%3D@redis:6379/2
+
+      # MongoDB
+      MONGODB_URL: mongodb://${MONGO_USER:-pytake_user}:${MONGO_PASSWORD:-pytake_mongo_password}@mongodb:27017
+      MONGODB_DB: ${MONGODB_DB:-pytake_logs}
+
+      # Auth & Security
+      SECRET_KEY: ${SECRET_KEY:-0lKDucCTqSt0gh1mbLsvF/d5mhXqCtEW8JfwWwbTeIk=}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-0lKDucCTqSt0gh1mbLsvF/d5mhXqCtEW8JfwWwbTeIk=}
+      
+      # Environment
+      NODE_ENV: development
+      ENVIRONMENT: development
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
+    networks:
+      - pytake-network
+
   # Nginx Reverse Proxy
   nginx:
     image: nginx:1.25-alpine
