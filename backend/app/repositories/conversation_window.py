@@ -18,7 +18,7 @@ class ConversationWindowRepository(BaseRepository[ConversationWindow]):
 
     def __init__(self, db: AsyncSession):
         """Initialize repository with database session."""
-        super().__init__(db, ConversationWindow)
+        super().__init__(ConversationWindow, db)
 
     async def get_by_conversation_id(
         self, conversation_id: UUID, organization_id: UUID

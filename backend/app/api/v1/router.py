@@ -157,10 +157,20 @@ async def whatsapp_webhook_receive(request: Request):
 
         # Verify signature if app_secret is configured
         if whatsapp_number.app_secret:
+            # Try to decrypt app_secret (it may be encrypted with Fernet)
+            from app.core.security import decrypt_string
+            try:
+                decrypted_secret = decrypt_string(whatsapp_number.app_secret)
+                logger.info("🔓 Using decrypted app_secret")
+            except Exception:
+                # If decryption fails, use as plain text
+                decrypted_secret = whatsapp_number.app_secret
+                logger.info("🔓 Using plain app_secret")
+            
             is_valid = verify_whatsapp_signature(
                 payload=raw_body,
                 signature=signature,
-                app_secret=whatsapp_number.app_secret
+                app_secret=decrypted_secret
             )
 
             if not is_valid:

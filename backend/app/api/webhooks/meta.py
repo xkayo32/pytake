@@ -138,15 +138,22 @@ async def receive_webhook(
     webhook_secret = None
     
     if phone_number_id:
-        # Try to get webhook_verify_token from database
+        # Try to get app_secret from database
         async with async_session() as db:
             from app.repositories.whatsapp import WhatsAppNumberRepository
+            from app.core.security import decrypt_string
             whatsapp_repo = WhatsAppNumberRepository(db)
             whatsapp_number = await whatsapp_repo.get_by_phone_number_id(phone_number_id)
             
-            if whatsapp_number and whatsapp_number.webhook_verify_token:
-                webhook_secret = whatsapp_number.webhook_verify_token
-                logger.info(f"🔐 Using webhook token from database for phone {phone_number_id}")
+            if whatsapp_number and whatsapp_number.app_secret:
+                # Decrypt app_secret if it's encrypted
+                try:
+                    webhook_secret = decrypt_string(whatsapp_number.app_secret)
+                    logger.info(f"🔐 Using decrypted app_secret from database for phone {phone_number_id}")
+                except:
+                    # If decryption fails, use as plain text
+                    webhook_secret = whatsapp_number.app_secret
+                    logger.info(f"🔐 Using plain app_secret from database for phone {phone_number_id}")
     
     # Fallback to global secret from .env
     if not webhook_secret and settings.META_WEBHOOK_SECRET:
@@ -186,6 +193,9 @@ async def receive_webhook(
                 value = change.get("value", {})
                 
                 if field == "messages":
+                    # Extract metadata for phone_number_id
+                    metadata = value.get("metadata", {})
+                    
                     # Process message status updates
                     statuses = value.get("statuses", [])
                     for status in statuses:
@@ -195,13 +205,16 @@ async def receive_webhook(
                             logger.error(f"❌ Error processing status: {e}")
                             # Continue processing other statuses
                     
-                    # Process incoming messages (reset 24h window)
+                    # Process incoming messages (create conversation and trigger flow)
                     messages = value.get("messages", [])
                     for message in messages:
                         try:
-                            await webhook_service.process_customer_message_for_window(message)
+                            await webhook_service.process_customer_message_for_window(
+                                message=message,
+                                metadata=metadata
+                            )
                         except Exception as e:
-                            logger.error(f"❌ Error processing customer message window: {e}")
+                            logger.error(f"❌ Error processing customer message: {e}")
                             # Continue processing other messages
                 
                 elif field == "message_template_status_update":
