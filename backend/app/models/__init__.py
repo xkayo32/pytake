@@ -29,6 +29,7 @@ from app.models.conversation_window import ConversationWindow
 from app.models.alert import Alert
 from app.models.alert_notification import AlertNotification
 from app.models.oauth_sso import OAuthProvider, UserIdentity, SSOAuditLog
+from app.models.mfa import MFAMethod, MFAChallenge, MFABackupCode
 
 __all__ = [
     "Base",
@@ -67,4 +68,7 @@ __all__ = [
     "OAuthProvider",
     "UserIdentity",
     "SSOAuditLog",
+    "MFAMethod",
+    "MFAChallenge",
+    "MFABackupCode",
 ]

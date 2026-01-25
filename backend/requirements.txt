@@ -44,3 +44,4 @@ python3-saml>=1.15.0
 authlib>=1.2.0
 
 gevent==24.2.1
+pyotp>=2.9.0
