@@ -5388,6 +5388,9 @@ __result__ = __script_func__()
             }
             conversation = await conversation_repo.create(conversation_data)
             
+            # Commit conversation with flow/chatbot IDs to database
+            await self.db.commit()
+            
             # Create conversation window for 24h tracking
             try:
                 from app.repositories.conversation_window import ConversationWindowRepository
