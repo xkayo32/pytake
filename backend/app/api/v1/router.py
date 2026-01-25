@@ -249,6 +249,9 @@ api_router.include_router(expenses.router, prefix="/expenses", tags=["Expenses"]
 secrets = _load_endpoint_module("secrets")
 api_router.include_router(secrets.router, prefix="/secrets", tags=["Secrets"])
 
+saml = _load_endpoint_module("saml")
+api_router.include_router(saml.router, prefix="", tags=["SAML"])
+
 database = _load_endpoint_module("database")
 api_router.include_router(database.router, prefix="/database", tags=["Database"])
 

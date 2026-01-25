@@ -28,6 +28,7 @@ from app.models.conversation_log import ConversationLog
 from app.models.conversation_window import ConversationWindow
 from app.models.alert import Alert
 from app.models.alert_notification import AlertNotification
+from app.models.oauth_sso import OAuthProvider, UserIdentity, SSOAuditLog
 
 __all__ = [
     "Base",
@@ -63,4 +64,7 @@ __all__ = [
     "ConversationWindow",
     "Alert",
     "AlertNotification",
+    "OAuthProvider",
+    "UserIdentity",
+    "SSOAuditLog",
 ]
