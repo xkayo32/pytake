@@ -5386,6 +5386,19 @@ __result__ = __script_func__()
                 logger.info(f"🔄 Updated conversation flow/chatbot: flow={default_flow_id}, chatbot={default_chatbot_id}")
             else:
                 print(f"❌ Não entrou no if - nenhum flow/chatbot definido")
+            
+            # Ensure conversation has a window for inactivity tracking
+            try:
+                from app.repositories.conversation_window import ConversationWindowRepository
+                window_repo = ConversationWindowRepository(self.db)
+                window = await window_repo.get_by_conversation_id(conversation.id, org_id)
+                if not window:
+                    print(f"📝 Creating missing conversation window for {conversation.id}")
+                    await window_repo.create(conversation.id, org_id)
+                    await self.db.commit()
+                    logger.info(f"🪟 Created missing conversation window for {conversation.id}")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to create conversation window: {str(e)}")
         else:
             # Create new conversation
             conversation_data = {
@@ -5412,6 +5425,7 @@ __result__ = __script_func__()
                 from app.repositories.conversation_window import ConversationWindowRepository
                 window_repo = ConversationWindowRepository(self.db)
                 await window_repo.create(conversation.id, org_id)
+                await self.db.commit()  # Persist the window
                 logger.info(f"🪟 Conversation window created for {conversation.id}")
             except Exception as e:
                 logger.warning(f"⚠️ Failed to create conversation window: {str(e)}")
