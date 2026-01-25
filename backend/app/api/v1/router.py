@@ -252,6 +252,9 @@ api_router.include_router(secrets.router, prefix="/secrets", tags=["Secrets"])
 saml = _load_endpoint_module("saml")
 api_router.include_router(saml.router, prefix="", tags=["SAML"])
 
+oidc = _load_endpoint_module("oidc")
+api_router.include_router(oidc.router, prefix="", tags=["OIDC"])
+
 database = _load_endpoint_module("database")
 api_router.include_router(database.router, prefix="/database", tags=["Database"])
 
