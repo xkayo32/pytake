@@ -470,8 +470,15 @@ class WebhookService:
                 conversation = None  # Force creation of new conversation
             
             if not conversation:
-                # Create new conversation
+                # Create new conversation with proper timestamps and window
                 is_new_conversation = True
+                
+                # Import timezone helper
+                from app.core.config import get_settings
+                from zoneinfo import ZoneInfo
+                
+                now_brazil = datetime.now(ZoneInfo("America/Sao_Paulo"))
+                
                 conversation_data = {
                     "organization_id": organization_id,
                     "contact_id": contact.id,
@@ -483,9 +490,20 @@ class WebhookService:
                     "messages_from_contact": 0,
                     "messages_from_agent": 0,
                     "messages_from_bot": 0,
+                    "last_inbound_message_at": now_brazil,  # Set for inactivity tracking
                 }
                 
                 conversation = await conv_repo.create(conversation_data)
+                
+                # Create conversation window for 24h tracking
+                try:
+                    from app.repositories.conversation_window import ConversationWindowRepository
+                    window_repo = ConversationWindowRepository(self.db)
+                    await window_repo.create(conversation.id, organization_id)
+                    logger.info(f"🪟 Conversation window created for {conversation.id}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to create conversation window: {str(e)}")
+                
                 await self.db.commit()
                 logger.info(f"✨ New conversation created: {conversation.id}")
             else:
@@ -525,9 +543,14 @@ class WebhookService:
             logger.info(f"💾 Message saved: {saved_message.id}")
             
             # 5. Update conversation last_message_at and message counts
+            # IMPORTANT: Update last_inbound_message_at for inactivity tracking
+            from zoneinfo import ZoneInfo
+            now_brazil = datetime.now(ZoneInfo("America/Sao_Paulo"))
+            
             await conv_repo.update(conversation.id, {
                 "last_message_at": datetime.utcnow(),
                 "last_message_from_contact_at": datetime.utcnow(),
+                "last_inbound_message_at": now_brazil,  # Update timestamp for inactivity check
                 "total_messages": conversation.total_messages + 1,
                 "messages_from_contact": conversation.messages_from_contact + 1,
             })

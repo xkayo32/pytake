@@ -189,7 +189,7 @@ async def async_check_conversation_inactivity():
                 inactivity_config = {
                     "enabled": True,
                     "timeout_minutes": settings_obj.CONVERSATION_INACTIVITY_TIMEOUT_MINUTES,
-                    "send_warning_at_minutes": None,
+                    "send_warning_at_minutes": 1,  # Default: warn at 1 minute for testing
                     "warning_message": None,
                     "action": settings_obj.CONVERSATION_INACTIVITY_DEFAULT_ACTION,
                     "fallback_flow_id": None,
@@ -264,47 +264,66 @@ async def async_check_conversation_inactivity():
                                 inactive_minutes=time_since_last_message.total_seconds() / 60
                             )
                             
+                            logger.info(f"🔍 INICIANDO ENVIO DE AVISO para {conversation.id}")
+                            
                             try:
                                 # Send warning via MessageSenderService to save in database
                                 from app.services.message_sender_service import MessageSenderService
                                 from app.repositories.whatsapp import WhatsAppNumberRepository
                                 from app.repositories.contact import ContactRepository
                                 
-                                logger.info(f"🔍 Fetching WhatsApp number and contact for conversation {conversation.id}")
+                                logger.info(f"🔍 [DEBUG 1] Fetching WhatsApp number ID: {conversation.whatsapp_number_id}")
                                 
                                 whatsapp_repo = WhatsAppNumberRepository(session)
                                 whatsapp_number = await whatsapp_repo.get(conversation.whatsapp_number_id)
                                 
+                                logger.info(f"🔍 [DEBUG 2] WhatsApp number: {whatsapp_number}")
+                                if whatsapp_number:
+                                    logger.info(f"🔍 [DEBUG 2a] Connection type: {whatsapp_number.connection_type}")
+                                    logger.info(f"🔍 [DEBUG 2b] Phone number ID: {whatsapp_number.phone_number_id}")
+                                
                                 if whatsapp_number and whatsapp_number.connection_type == "official":
+                                    logger.info(f"🔍 [DEBUG 3] Fetching contact ID: {conversation.contact_id}")
                                     contact_repo = ContactRepository(session)
                                     contact = await contact_repo.get(conversation.contact_id)
                                     
-                                    if contact and contact.phone_number:
+                                    logger.info(f"🔍 [DEBUG 4] Contact: {contact}")
+                                    if contact:
+                                        logger.info(f"🔍 [DEBUG 4a] Contact phone: {contact.phone_number}")
+                                        logger.info(f"🔍 [DEBUG 4b] Contact whatsapp_id: {contact.whatsapp_id}")
+                                    
+                                    # Use whatsapp_id if phone_number is not available
+                                    phone = contact.phone_number or contact.whatsapp_id
+                                    
+                                    if contact and phone:
                                         phone = contact.phone_number.replace("+", "")
-                                        
-                                        logger.info(
-                                            f"📤 Sending warning to {phone} via MessageSenderService"
-                                        )
+                                        logger.info(f"🔍 [DEBUG 5] Phone ready: {phone}")
+                                        logger.info(f"🔍 [DEBUG 6] Message text: {warning_msg}")
                                         
                                         # Use MessageSenderService to send and save message
                                         message_sender = MessageSenderService(session)
-                                        result = await message_sender.send_text_message(
-                                            organization_id=conversation.organization_id,
-                                            phone_number_id=whatsapp_number.phone_number_id,
-                                            recipient_phone=phone,
-                                            text=warning_msg,
-                                            access_token=whatsapp_number.access_token,
-                                            metadata={
-                                                "conversation_id": str(conversation.id),
-                                                "type": "inactivity_warning"
-                                            }
-                                        )
+                                        logger.info(f"🔍 [DEBUG 7] MessageSenderService created")
                                         
-                                        logger.info(f"📨 MessageSenderService result: {result}")
+                                        try:
+                                            result = await message_sender.send_text_message(
+                                                organization_id=conversation.organization_id,
+                                                phone_number_id=whatsapp_number.phone_number_id,
+                                                recipient_phone=phone,
+                                                text=warning_msg,
+                                                access_token=whatsapp_number.access_token,
+                                                metadata={
+                                                    "conversation_id": str(conversation.id),
+                                                    "type": "inactivity_warning"
+                                                }
+                                            )
+                                            logger.info(f"🔍 [DEBUG 8] Result from send_text_message: {result}")
+                                        except Exception as send_err:
+                                            logger.error(f"❌ [DEBUG 8] Error calling send_text_message: {str(send_err)}", exc_info=True)
+                                            raise
                                     else:
-                                        logger.warning(f"⚠️ Contact not found or no phone for conversation {conversation.id}")
+                                        logger.warning(f"⚠️ [DEBUG] Contact not found or no phone for conversation {conversation.id}")
                                 else:
-                                    logger.warning(f"⚠️ WhatsApp number not found or not official for conversation {conversation.id}")
+                                    logger.warning(f"⚠️ [DEBUG] WhatsApp number not found or not official for conversation {conversation.id}")
                                 
                                 # Mark warning as sent
                                 context_vars[warning_key] = now_brazil().isoformat()

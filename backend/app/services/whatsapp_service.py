@@ -5380,19 +5380,31 @@ __result__ = __script_func__()
                 "channel": "whatsapp",
                 "first_message_at": now,
                 "last_message_at": now,
+                "last_inbound_message_at": now,  # Set for inactivity tracking
                 "window_expires_at": now + timedelta(hours=24),
                 "is_bot_active": True,
                 "active_chatbot_id": default_chatbot_id,
                 "active_flow_id": default_flow_id,
             }
             conversation = await conversation_repo.create(conversation_data)
+            
+            # Create conversation window for 24h tracking
+            try:
+                from app.repositories.conversation_window import ConversationWindowRepository
+                window_repo = ConversationWindowRepository(self.db)
+                await window_repo.create(conversation.id, org_id)
+                logger.info(f"🪟 Conversation window created for {conversation.id}")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to create conversation window: {str(e)}")
+            
             print(f"✅ Conversa criada: {conversation.id}")
             logger.info(f"✅ Conversa criada: {conversation.id}")
 
-        # 4. Update conversation timestamps
+        # 4. Update conversation timestamps (including last_inbound_message_at for inactivity)
         print("⏰ Atualizando timestamps...")
         await conversation_repo.update(conversation.id, {
             "last_message_at": datetime.utcnow(),
+            "last_inbound_message_at": now,  # Update inactivity tracking timestamp
             "window_expires_at": datetime.utcnow() + timedelta(hours=24),
         })
 

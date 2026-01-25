@@ -75,12 +75,18 @@ class ConversationService:
         self, data: ConversationCreate, organization_id: UUID, user_id: UUID
     ) -> Conversation:
         """Create new conversation and initialize 24h window"""
+        from app.core.config import get_settings
+        from zoneinfo import ZoneInfo
+        
+        settings = get_settings()
+        
         # Verify contact exists
         contact = await self.contact_repo.get(data.contact_id)
         if not contact or contact.organization_id != organization_id:
             raise NotFoundException("Contact not found")
 
-        # Create conversation
+        # Create conversation with last_inbound_message_at set to now
+        now_brazil = datetime.now(ZoneInfo("America/Sao_Paulo"))
         conversation_data = {
             "organization_id": organization_id,
             "contact_id": data.contact_id,
@@ -90,6 +96,7 @@ class ConversationService:
             "channel": "whatsapp",
             "total_messages": 0,
             "unread_count": 0,
+            "last_inbound_message_at": now_brazil,  # Set timestamp for inactivity tracking
         }
 
         conversation = await self.repo.create(conversation_data)
