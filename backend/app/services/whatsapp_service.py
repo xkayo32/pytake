@@ -5286,6 +5286,8 @@ __result__ = __script_func__()
                     # Extract chatbot and flow configuration
                     default_chatbot_id = whatsapp_number.default_chatbot_id
                     default_flow_id = whatsapp_number.default_flow_id
+                    print(f"📞 WhatsApp número: {whatsapp_number.phone_number}")
+                    print(f"📝 default_chatbot_id={default_chatbot_id}, default_flow_id={default_flow_id}")
 
                     # Process messages
                     if field == "messages":
@@ -5370,6 +5372,20 @@ __result__ = __script_func__()
             conversation = conversations[0]
             print(f"💬 Conversa existente: {conversation.id}")
             logger.info(f"💬 Conversa existente: {conversation.id}")
+            
+            # Update flow/chatbot configuration for existing conversations
+            # (They may have been set later in the WhatsApp number)
+            print(f"🔍 Checando: default_flow_id={default_flow_id}, default_chatbot_id={default_chatbot_id}")
+            if default_flow_id or default_chatbot_id:
+                print(f"✅ Entrando no if para atualizar flow/chatbot...")
+                conversation = await conversation_repo.update(conversation.id, {
+                    "active_chatbot_id": default_chatbot_id,
+                    "active_flow_id": default_flow_id,
+                })
+                print(f"🔄 Atualizado: flow={default_flow_id}, chatbot={default_chatbot_id}")
+                logger.info(f"🔄 Updated conversation flow/chatbot: flow={default_flow_id}, chatbot={default_chatbot_id}")
+            else:
+                print(f"❌ Não entrou no if - nenhum flow/chatbot definido")
         else:
             # Create new conversation
             conversation_data = {
