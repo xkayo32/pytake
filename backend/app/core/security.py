@@ -501,3 +501,38 @@ class TokenBucket:
         new_tokens = elapsed * self.refill_rate
         self.tokens = min(self.capacity, self.tokens + new_tokens)
         self.last_refill = now
+
+
+# ============= SESSION MANAGEMENT =============
+
+async def validate_token_not_blacklisted(
+    user_id: str,
+    token: str,
+) -> bool:
+    """
+    Validate that a JWT token is not blacklisted (logged out).
+    
+    Used in dependency injection for protected endpoints.
+    Checks Redis blacklist set during logout.
+    
+    Args:
+        user_id: User ID from JWT token
+        token: JWT token string
+        
+    Returns:
+        True if token is valid (NOT blacklisted), False if logged out
+        
+    Example:
+        @router.get("/protected")
+        async def protected_endpoint(
+            current_user: User = Depends(get_current_user),
+            token: str = Depends(get_token_from_header),
+        ):
+            if not await validate_token_not_blacklisted(str(current_user.id), token):
+                raise UnauthorizedException("Token has been revoked (logged out)")
+            # Continue with endpoint logic
+    """
+    from app.services.session_manager import SessionManager
+    
+    is_blacklisted = await SessionManager.is_token_blacklisted(user_id, token)
+    return not is_blacklisted  # Return True if NOT blacklisted (i.e., still valid)

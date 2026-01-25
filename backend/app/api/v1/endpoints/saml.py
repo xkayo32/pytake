@@ -222,6 +222,7 @@ async def saml_single_logout(
     Single Logout (SLO) endpoint.
     
     Initiates SAML logout request to IdP. Used when user clicks "Logout" in UI.
+    Also blacklists the current session token.
     
     Query Parameters:
         - provider_id (required): OAuth provider configuration ID
@@ -235,13 +236,25 @@ async def saml_single_logout(
     try:
         provider_id_param = request.query_params.get("provider_id")
         if not provider_id_param:
-            raise ValidationError("Missing required parameter: provider_id")
+            raise BadRequestException("Missing required parameter: provider_id")
         
         provider_id = UUID(provider_id_param)
         
         # Extract client context
         client_ip = request.client.host if request.client else "unknown"
         user_agent = request.headers.get("user-agent", "unknown")
+        
+        # Get current token and blacklist it
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]  # Remove "Bearer " prefix
+            from app.services.session_manager import SessionManager
+            # Blacklist token for 15 minutes (default access token TTL)
+            await SessionManager.blacklist_token(
+                user_id=current_user.id,
+                token=token,
+                expires_in=900,  # 15 minutes
+            )
         
         logout_url = await service.process_logout_request(
             organization_id=organization_id,

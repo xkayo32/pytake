@@ -161,12 +161,11 @@ class SAMLService:
         # Generate session tokens
         access_token = create_access_token(
             subject=str(user.id),
-            organization_id=str(organization_id),
+            additional_claims={"organization_id": str(organization_id)},
             expires_delta=timedelta(minutes=15),
         )
         refresh_token = create_refresh_token(
             subject=str(user.id),
-            organization_id=str(organization_id),
             expires_delta=timedelta(days=7),
         )
 
