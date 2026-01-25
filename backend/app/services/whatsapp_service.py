@@ -5365,13 +5365,13 @@ __result__ = __script_func__()
             status="open"
         )
 
+        now = datetime.utcnow()
         if conversations:
             conversation = conversations[0]
             print(f"💬 Conversa existente: {conversation.id}")
             logger.info(f"💬 Conversa existente: {conversation.id}")
         else:
             # Create new conversation
-            now = datetime.utcnow()
             conversation_data = {
                 "organization_id": org_id,
                 "contact_id": contact.id,
