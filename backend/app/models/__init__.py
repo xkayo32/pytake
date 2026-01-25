@@ -30,6 +30,7 @@ from app.models.alert import Alert
 from app.models.alert_notification import AlertNotification
 from app.models.oauth_sso import OAuthProvider, UserIdentity, SSOAuditLog
 from app.models.mfa import MFAMethod, MFAChallenge, MFABackupCode
+from app.models.passkey import PasskeyCredential, PasskeyChallenge
 
 __all__ = [
     "Base",
@@ -71,4 +72,6 @@ __all__ = [
     "MFAMethod",
     "MFAChallenge",
     "MFABackupCode",
+    "PasskeyCredential",
+    "PasskeyChallenge",
 ]
