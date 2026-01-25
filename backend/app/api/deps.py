@@ -300,3 +300,73 @@ async def get_current_user_optional(
         return user
     except:
         return None
+
+
+# ============= SESSION MANAGEMENT DEPENDENCIES =============
+
+async def get_token_from_header(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> str:
+    """
+    Extract JWT token from Authorization header.
+    
+    Used for session blacklist validation.
+    
+    Args:
+        credentials: HTTPAuthorizationCredentials from Bearer token
+        
+    Returns:
+        JWT token string
+        
+    Raises:
+        HTTPException: If token is missing or invalid
+    """
+    if not credentials or not credentials.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing authorization token"
+        )
+    return credentials.credentials
+
+
+async def validate_token_not_revoked(
+    current_user: User = Depends(get_current_user),
+    token: str = Depends(get_token_from_header),
+) -> User:
+    """
+    Validate JWT token is not revoked (blacklisted).
+    
+    Used as a dependency for endpoints that need logout protection.
+    Checks Redis blacklist for revoked tokens.
+    
+    Args:
+        current_user: Current authenticated user
+        token: JWT token from Authorization header
+        
+    Returns:
+        User if token is valid and not revoked
+        
+    Raises:
+        HTTPException: If token is blacklisted (logged out)
+        
+    Example:
+        @router.get("/protected")
+        async def protected_endpoint(
+            current_user: User = Depends(validate_token_not_revoked),
+        ):
+            return {"message": f"Hello {current_user.email}"}
+    """
+    from app.core.security import validate_token_not_blacklisted
+    
+    is_valid = await validate_token_not_blacklisted(
+        user_id=str(current_user.id),
+        token=token,
+    )
+    
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked (logged out)"
+        )
+    
+    return current_user
