@@ -31,11 +31,11 @@ from app.schemas.passkey_schemas import (
 from app.core.exceptions import HTTPException
 
 
-router = APIRouter()
+router = APIRouter(prefix="/passkeys", tags=["Passwordless"])
 
 
 @router.post(
-    "/passkeys/registration/start",
+    "/registration/start",
     response_model=PasskeyRegistrationStartResponse,
     summary="Start Passkey Registration",
     tags=["Passwordless"],
@@ -57,7 +57,7 @@ async def start_passkey_registration(
 
 
 @router.post(
-    "/passkeys/registration/complete",
+    "/registration/complete",
     response_model=PasskeyRegistrationCompleteResponse,
     summary="Complete Passkey Registration",
     tags=["Passwordless"],
@@ -100,7 +100,7 @@ async def complete_passkey_registration(
 
 
 @router.post(
-    "/passkeys/authentication/start",
+    "/authentication/start",
     response_model=PasskeyAuthenticationStartResponse,
     summary="Start Passkey Authentication",
     tags=["Passwordless"],
@@ -120,7 +120,7 @@ async def start_passkey_authentication(
 
 
 @router.post(
-    "/passkeys/authentication/complete",
+    "/authentication/complete",
     response_model=PasskeyAuthenticationCompleteResponse,
     summary="Complete Passkey Authentication",
     tags=["Passwordless"],
@@ -150,7 +150,7 @@ async def complete_passkey_authentication(
 
 
 @router.get(
-    "/passkeys",
+    "",
     response_model=PasskeyListResponse,
     summary="List My Passkeys",
     tags=["Passwordless"],
@@ -171,7 +171,7 @@ async def list_passkeys(
 
 
 @router.post(
-    "/passkeys/{credential_id}/rename",
+    "/{credential_id}/rename",
     response_model=PasskeyRenameResponse,
     summary="Rename Passkey",
     tags=["Passwordless"],
@@ -200,7 +200,7 @@ async def rename_passkey(
 
 
 @router.delete(
-    "/passkeys/{credential_id}",
+    "/{credential_id}",
     response_model=PasskeyDeleteResponse,
     summary="Delete Passkey",
     tags=["Passwordless"],
@@ -227,7 +227,7 @@ async def delete_passkey(
 
 
 @router.post(
-    "/passkeys/{credential_id}/set-primary",
+    "/{credential_id}/set-primary",
     response_model=PasskeySetPrimaryResponse,
     summary="Set Primary Passkey",
     tags=["Passwordless"],
@@ -255,7 +255,7 @@ async def set_primary_passkey(
 
 
 @router.get(
-    "/passkeys/health",
+    "/health",
     response_model=PasskeyHealthResponse,
     summary="Passkey Service Health",
     tags=["Passwordless"],

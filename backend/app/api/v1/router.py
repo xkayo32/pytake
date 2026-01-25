@@ -256,10 +256,10 @@ oidc = _load_endpoint_module("oidc")
 api_router.include_router(oidc.router, prefix="", tags=["OIDC"])
 
 mfa = _load_endpoint_module("mfa")
-api_router.include_router(mfa.router, prefix="/api/v1", tags=["MFA"])
+api_router.include_router(mfa.router, tags=["MFA"])
 
 passkey = _load_endpoint_module("passkey")
-api_router.include_router(passkey.router, prefix="/api/v1", tags=["Passwordless"])
+api_router.include_router(passkey.router, tags=["Passwordless"])
 
 database = _load_endpoint_module("database")
 api_router.include_router(database.router, prefix="/database", tags=["Database"])
