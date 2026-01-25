@@ -355,13 +355,18 @@ class WebhookService:
             )
     
     async def process_customer_message_for_window(
-        self, message: Dict[str, Any]
+        self, message: Dict[str, Any], metadata: Optional[Dict[str, Any]] = None
     ) -> None:
         """
-        Process incoming customer message to reset/extend 24-hour conversation window
+        Process incoming customer message - creates conversation if needed and triggers default flow
         
-        When a customer sends a message, the 24-hour window resets.
-        This updates the window_expires_at and last_user_message_at timestamps.
+        When a customer sends a message:
+        1. Extract phone_number_id from metadata to find WhatsAppNumber
+        2. Get or create Contact by whatsapp_id (phone number)
+        3. Get or create Conversation for this contact
+        4. Save inbound message to database
+        5. Trigger default flow if conversation is new or has no active flow
+        6. Reset 24-hour conversation window
         
         Message format from Meta webhook:
         {
@@ -369,44 +374,207 @@ class WebhookService:
           "id": "wamid.xxx",
           "timestamp": "1234567890",
           "type": "text|interactive|media|etc",
-          "text": {...} or "interactive": {...}
+          "text": {"body": "..."} or "interactive": {...}
+        }
+        
+        Metadata format:
+        {
+          "phone_number_id": "574293335763643",
+          "display_phone_number": "+556181277787"
         }
         
         Args:
             message: Incoming message object from webhook
+            metadata: Metadata from webhook containing phone_number_id
         """
         try:
-            from app.repositories.conversation import ConversationRepository
+            from app.repositories.conversation import ConversationRepository, MessageRepository
+            from app.repositories.contact import ContactRepository
+            from app.repositories.whatsapp import WhatsAppNumberRepository
             from app.services.window_validation_service import WindowValidationService
+            from app.services.whatsapp_service import WhatsAppService
+            from datetime import datetime
             
+            # Extract message data
             message_id = message.get("id")
             from_number = message.get("from")
             timestamp = message.get("timestamp")
+            message_type = message.get("type", "text")
+            
+            # Extract text content
+            text_content = ""
+            if message_type == "text":
+                text_content = message.get("text", {}).get("body", "")
+            elif message_type == "interactive":
+                # Handle button/list responses
+                interactive = message.get("interactive", {})
+                if interactive.get("type") == "button_reply":
+                    text_content = interactive.get("button_reply", {}).get("title", "")
+                elif interactive.get("type") == "list_reply":
+                    text_content = interactive.get("list_reply", {}).get("title", "")
             
             if not from_number:
                 logger.warning(f"⚠️ Missing 'from' number in message: {message_id}")
                 return
             
+            # Extract phone_number_id from metadata
+            phone_number_id = metadata.get("phone_number_id") if metadata else None
+            if not phone_number_id:
+                logger.error(f"❌ Missing phone_number_id in metadata for message {message_id}")
+                return
+            
             logger.info(
-                f"📞 Customer message received: {message_id} from {from_number}"
+                f"📞 Customer message received: {message_id} from {from_number} "
+                f"to phone_number_id {phone_number_id}"
             )
             
-            # Find conversation by phone number
-            conv_repo = ConversationRepository(self.db)
-            conversation = await conv_repo.get_by_phone_number(from_number)
+            # 1. Get WhatsAppNumber by phone_number_id to determine organization
+            whatsapp_repo = WhatsAppNumberRepository(self.db)
+            whatsapp_number = await whatsapp_repo.get_by_phone_number_id(phone_number_id)
             
-            if not conversation:
-                logger.warning(
-                    f"⚠️ Conversation not found for phone: {from_number}. "
-                    f"Cannot update window."
+            if not whatsapp_number:
+                logger.error(
+                    f"❌ WhatsAppNumber not found for phone_number_id: {phone_number_id}. "
+                    f"Cannot process message."
                 )
                 return
             
-            # Update window using WindowValidationService
+            organization_id = whatsapp_number.organization_id
+            whatsapp_number_id = whatsapp_number.id
+            default_flow_id = whatsapp_number.default_flow_id
+            default_chatbot_id = whatsapp_number.default_chatbot_id
+            
+            logger.info(f"📋 Organization ID: {organization_id}")
+            logger.info(f"📱 WhatsAppNumber ID: {whatsapp_number_id}")
+            logger.info(f"🔄 Default Flow ID: {default_flow_id}")
+            
+            # 2. Get or create Contact by whatsapp_id
+            contact_repo = ContactRepository(self.db)
+            whatsapp_name = message.get("profile", {}).get("name")
+            contact = await contact_repo.get_or_create_by_whatsapp_id(
+                whatsapp_id=from_number,
+                organization_id=organization_id,
+                whatsapp_name=whatsapp_name
+            )
+            logger.info(f"👤 Contact: {contact.id} ({contact.name or contact.whatsapp_id})")
+            
+            # 3. Get or create Conversation
+            conv_repo = ConversationRepository(self.db)
+            conversation = await conv_repo.get_by_contact_phone(from_number, organization_id)
+            
+            is_new_conversation = False
+            
+            # If conversation exists but is closed, create a new one (new session)
+            if conversation and conversation.status == "closed":
+                logger.info(f"🔒 Previous conversation {conversation.id} is closed, creating new conversation")
+                conversation = None  # Force creation of new conversation
+            
+            if not conversation:
+                # Create new conversation
+                is_new_conversation = True
+                conversation_data = {
+                    "organization_id": organization_id,
+                    "contact_id": contact.id,
+                    "whatsapp_number_id": whatsapp_number_id,
+                    "status": "open",
+                    "channel": "whatsapp",
+                    "is_bot_active": True,
+                    "total_messages": 0,
+                    "messages_from_contact": 0,
+                    "messages_from_agent": 0,
+                    "messages_from_bot": 0,
+                }
+                
+                conversation = await conv_repo.create(conversation_data)
+                await self.db.commit()
+                logger.info(f"✨ New conversation created: {conversation.id}")
+            else:
+                logger.info(f"💬 Existing conversation found: {conversation.id}")
+            
+            # 4. Save inbound message to database (check if not already processed)
+            message_repo = MessageRepository(self.db)
+            
+            # Check if message already exists to avoid duplicates
+            from sqlalchemy import select
+            from app.models.conversation import Message
+            
+            existing_message = await self.db.execute(
+                select(Message).where(
+                    Message.whatsapp_message_id == message_id,
+                    Message.organization_id == organization_id
+                )
+            )
+            if existing_message.scalar_one_or_none():
+                logger.info(f"⚠️ Message {message_id} already processed, skipping")
+                return
+            
+            message_data = {
+                "organization_id": organization_id,
+                "conversation_id": conversation.id,
+                "whatsapp_message_id": message_id,
+                "direction": "inbound",
+                "sender_type": "contact",
+                "content": {"text": text_content} if text_content else {},
+                "message_type": message_type,
+                "status": "received",
+                "extra_data": message,
+            }
+            
+            saved_message = await message_repo.create(message_data)
+            await self.db.commit()
+            logger.info(f"💾 Message saved: {saved_message.id}")
+            
+            # 5. Update conversation last_message_at and message counts
+            await conv_repo.update(conversation.id, {
+                "last_message_at": datetime.utcnow(),
+                "last_message_from_contact_at": datetime.utcnow(),
+                "total_messages": conversation.total_messages + 1,
+                "messages_from_contact": conversation.messages_from_contact + 1,
+            })
+            await self.db.commit()
+            
+            # 6. Trigger default flow if needed
+            should_trigger_flow = (
+                is_new_conversation or 
+                (conversation.active_flow_id is None and default_flow_id is not None)
+            )
+            
+            if should_trigger_flow and default_flow_id:
+                logger.info(
+                    f"🔥 Triggering default flow: {default_flow_id} "
+                    f"for conversation {conversation.id}"
+                )
+                
+                # Use WhatsAppService to trigger flow
+                whatsapp_service = WhatsAppService(self.db)
+                await whatsapp_service._trigger_flow_simple(
+                    conversation_id=conversation.id,
+                    organization_id=organization_id,
+                    active_flow_id=default_flow_id,
+                    active_chatbot_id=default_chatbot_id,
+                    whatsapp_number_id=whatsapp_number_id,
+                )
+            elif conversation.active_flow_id:
+                # Flow already active - user is responding to a question
+                logger.info(f"💬 Flow already active, user responding to question")
+                
+                # Use WhatsAppService to continue flow execution
+                whatsapp_service = WhatsAppService(self.db)
+                await whatsapp_service._trigger_flow_simple(
+                    conversation_id=conversation.id,
+                    organization_id=organization_id,
+                    active_flow_id=conversation.active_flow_id,
+                    active_chatbot_id=conversation.active_chatbot_id,
+                    whatsapp_number_id=whatsapp_number_id,
+                )
+            else:
+                logger.info(f"ℹ️ No default flow configured for WhatsAppNumber {whatsapp_number_id}")
+            
+            # 7. Update 24-hour conversation window
             window_service = WindowValidationService(self.db)
             updated_window = await window_service.reset_window_on_customer_message(
                 conversation_id=conversation.id,
-                organization_id=conversation.organization_id
+                organization_id=organization_id
             )
             
             if updated_window:
@@ -417,7 +585,7 @@ class WebhookService:
             
         except Exception as e:
             logger.error(
-                f"❌ Error processing customer message for window: {e}",
+                f"❌ Error processing customer message: {e}",
                 exc_info=True
             )
 

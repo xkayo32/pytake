@@ -10,10 +10,8 @@ Background task that monitors conversations for inactivity and executes configur
 
 import logging
 import re
-import gevent.monkey
-gevent.monkey.patch_all()
-from datetime import datetime, timedelta
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from uuid import UUID
 from typing import Optional, Dict, Any
 
@@ -32,6 +30,13 @@ from app.services.whatsapp_service import WhatsAppService
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+# Timezone de Brasília
+BRAZIL_TZ = ZoneInfo("America/Sao_Paulo")
+
+def now_brazil():
+    """Retorna datetime atual no timezone de Brasília"""
+    return datetime.now(BRAZIL_TZ)
 
 
 def replace_message_variables(
@@ -91,18 +96,29 @@ def check_conversation_inactivity(self):
     2. Load flow's inactivity_settings
     3. Execute configured action (transfer, close, send_reminder, fallback_flow)
     """
-    import asyncio
-    
     logger.info("🕐 Starting conversation inactivity check task...")
     
     try:
-        # Run async logic
-        asyncio.run(async_check_conversation_inactivity())
+        # Use synchronous wrapper
+        import asyncio
+        
+        # Try to get existing loop, or create new one if none exists
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        result = loop.run_until_complete(async_check_conversation_inactivity())
         logger.info("✅ Conversation inactivity check completed successfully")
-        return {"status": "success", "timestamp": datetime.now(timezone.utc).isoformat()}
+        return {"status": "success", "timestamp": now_brazil().isoformat()}
+                
     except Exception as e:
         logger.error(f"❌ Error in conversation inactivity check: {str(e)}", exc_info=True)
-        return {"status": "error", "message": str(e), "timestamp": datetime.now(timezone.utc).isoformat()}
+        return {"status": "error", "message": str(e), "timestamp": now_brazil().isoformat()}
 
 
 async def async_check_conversation_inactivity():
@@ -128,7 +144,7 @@ async def async_check_conversation_inactivity():
             Conversation.is_bot_active == True,
             Conversation.active_flow_id.is_not(None),
             Conversation.deleted_at.is_(None),
-            ConversationWindow.ends_at > datetime.now(timezone.utc),  # Window still valid
+            ConversationWindow.ends_at > now_brazil(),  # Window still valid
             ConversationWindow.is_active == True,
         )
         
@@ -149,8 +165,14 @@ async def async_check_conversation_inactivity():
                     continue
                 
                 # Calculate inactivity duration
-                now = datetime.now(timezone.utc)
+                now = now_brazil()
                 time_since_last_message = now - conversation.last_inbound_message_at
+                inactive_minutes = time_since_last_message.total_seconds() / 60
+                
+                logger.info(
+                    f"🔍 Checking conversation {conversation.id}: "
+                    f"inactive for {inactive_minutes:.1f} minutes"
+                )
                 
                 # Load flow and its inactivity settings
                 flow_repo = FlowRepository(session)
@@ -183,6 +205,13 @@ async def async_check_conversation_inactivity():
                 
                 timeout_minutes = inactivity_config.get("timeout_minutes", 60)
                 timeout_seconds = timeout_minutes * 60
+                warning_minutes = inactivity_config.get("send_warning_at_minutes")
+                
+                logger.info(
+                    f"📋 Config for conversation {conversation.id}: "
+                    f"timeout={timeout_minutes}min, warning={warning_minutes}min, "
+                    f"action={inactivity_config.get('action')}"
+                )
                 
                 # Check if conversation has exceeded inactivity timeout
                 if time_since_last_message.total_seconds() >= timeout_seconds:
@@ -236,14 +265,49 @@ async def async_check_conversation_inactivity():
                             )
                             
                             try:
-                                whatsapp_service = WhatsAppService(session)
-                                await whatsapp_service._send_error_message(
-                                    conversation,
-                                    warning_msg
-                                )
+                                # Send warning via MessageSenderService to save in database
+                                from app.services.message_sender_service import MessageSenderService
+                                from app.repositories.whatsapp import WhatsAppNumberRepository
+                                from app.repositories.contact import ContactRepository
+                                
+                                logger.info(f"🔍 Fetching WhatsApp number and contact for conversation {conversation.id}")
+                                
+                                whatsapp_repo = WhatsAppNumberRepository(session)
+                                whatsapp_number = await whatsapp_repo.get(conversation.whatsapp_number_id)
+                                
+                                if whatsapp_number and whatsapp_number.connection_type == "official":
+                                    contact_repo = ContactRepository(session)
+                                    contact = await contact_repo.get(conversation.contact_id)
+                                    
+                                    if contact and contact.phone_number:
+                                        phone = contact.phone_number.replace("+", "")
+                                        
+                                        logger.info(
+                                            f"📤 Sending warning to {phone} via MessageSenderService"
+                                        )
+                                        
+                                        # Use MessageSenderService to send and save message
+                                        message_sender = MessageSenderService(session)
+                                        result = await message_sender.send_text_message(
+                                            organization_id=conversation.organization_id,
+                                            phone_number_id=whatsapp_number.phone_number_id,
+                                            recipient_phone=phone,
+                                            text=warning_msg,
+                                            access_token=whatsapp_number.access_token,
+                                            metadata={
+                                                "conversation_id": str(conversation.id),
+                                                "type": "inactivity_warning"
+                                            }
+                                        )
+                                        
+                                        logger.info(f"📨 MessageSenderService result: {result}")
+                                    else:
+                                        logger.warning(f"⚠️ Contact not found or no phone for conversation {conversation.id}")
+                                else:
+                                    logger.warning(f"⚠️ WhatsApp number not found or not official for conversation {conversation.id}")
                                 
                                 # Mark warning as sent
-                                context_vars[warning_key] = datetime.now(timezone.utc).isoformat()
+                                context_vars[warning_key] = now_brazil().isoformat()
                                 conv_repo = ConversationRepository(session)
                                 await conv_repo.update(
                                     conversation.id,
@@ -293,7 +357,48 @@ async def execute_inactivity_action(
     """
     try:
         conv_repo = ConversationRepository(session)
-        whatsapp_service = WhatsAppService(session)
+        
+        # Helper to send message
+        async def send_inactivity_message(message_text: str):
+            """Send message using WhatsApp service"""
+            try:
+                whatsapp_service = WhatsAppService(session)
+                from app.repositories.whatsapp import WhatsAppNumberRepository
+                from app.integrations.meta_api import MetaCloudAPI
+                
+                # Get WhatsApp number
+                whatsapp_repo = WhatsAppNumberRepository(session)
+                whatsapp_number = await whatsapp_repo.get(conversation.whatsapp_number_id)
+                
+                if not whatsapp_number:
+                    logger.error(f"WhatsApp number not found for conversation {conversation.id}")
+                    return
+                
+                # Get contact
+                from app.repositories.contact import ContactRepository
+                contact_repo = ContactRepository(session)
+                contact = await contact_repo.get(conversation.contact_id)
+                
+                if not contact or not contact.phone_number:
+                    logger.error(f"Contact phone not found for conversation {conversation.id}")
+                    return
+                
+                # Remove + from phone
+                phone = contact.phone_number.replace("+", "")
+                
+                # Send via Meta API
+                if whatsapp_number.connection_type == "official":
+                    meta_api = MetaCloudAPI(
+                        phone_number_id=whatsapp_number.phone_number_id,
+                        access_token=whatsapp_number.access_token
+                    )
+                    await meta_api.send_text_message(to=phone, text=message_text)
+                    logger.info(f"✅ Message sent to conversation {conversation.id}")
+                else:
+                    logger.warning(f"Connection type {whatsapp_number.connection_type} not supported for inactivity messages")
+                    
+            except Exception as e:
+                logger.error(f"Failed to send error message to conversation {conversation.id}: {e}")
         
         if action == "transfer":
             # Transfer to agent via queue assignment
@@ -316,15 +421,14 @@ async def execute_inactivity_action(
                         {
                             "status": "queued",
                             "queue_id": queues[0].id,
-                            "queued_at": datetime.now(timezone.utc),
+                            "queued_at": now_brazil(),
                             "is_bot_active": False,
                         }
                     )
                     await session.commit()
                     
                     # Send notification message
-                    await whatsapp_service._send_error_message(
-                        conversation,
+                    await send_inactivity_message(
                         "Você será atendido por um agente em breve. Obrigado pela paciência!"
                     )
                     logger.info(f"✅ Conversation {conversation.id} assigned to queue")
@@ -335,7 +439,7 @@ async def execute_inactivity_action(
             logger.info(f"🔒 Closing conversation {conversation.id} due to inactivity")
             
             # Calculate inactive time
-            now = datetime.now(timezone.utc)
+            now = now_brazil()
             if conversation.last_inbound_message_at:
                 inactive_minutes = (now - conversation.last_inbound_message_at).total_seconds() / 60
             else:
@@ -345,7 +449,7 @@ async def execute_inactivity_action(
                 conversation.id,
                 {
                     "status": "closed",
-                    "closed_at": datetime.now(timezone.utc),
+                    "closed_at": now_brazil(),
                     "is_bot_active": False,
                 }
             )
@@ -364,10 +468,7 @@ async def execute_inactivity_action(
                 inactive_minutes=inactive_minutes
             )
             
-            await whatsapp_service._send_error_message(
-                conversation,
-                closing_msg
-            )
+            await send_inactivity_message(closing_msg)
             logger.info(f"✅ Conversation {conversation.id} closed")
             return True
         
@@ -376,7 +477,7 @@ async def execute_inactivity_action(
             logger.info(f"💬 Sending reminder to conversation {conversation.id}")
             
             # Calculate inactive time
-            now = datetime.now(timezone.utc)
+            now = now_brazil()
             if conversation.last_inbound_message_at:
                 inactive_minutes = (now - conversation.last_inbound_message_at).total_seconds() / 60
             else:
@@ -394,10 +495,7 @@ async def execute_inactivity_action(
                 inactive_minutes=inactive_minutes
             )
             
-            await whatsapp_service._send_error_message(
-                conversation,
-                reminder_msg
-            )
+            await send_inactivity_message(reminder_msg)
             logger.info(f"✅ Reminder sent to conversation {conversation.id}")
             return True
         

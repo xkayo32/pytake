@@ -126,7 +126,7 @@ services:
       dockerfile: Dockerfile
     container_name: pytake-celery-worker-dev
     restart: unless-stopped
-    command: celery -A app.tasks.celery_app worker --pool=gevent --concurrency=10 --loglevel=info
+    command: celery -A app.tasks.celery_app worker --pool=prefork --concurrency=4 --loglevel=info
     volumes:
       - ./.env:/app/.env:ro
       - ./backend:/app

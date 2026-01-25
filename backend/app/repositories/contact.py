@@ -63,6 +63,26 @@ class ContactRepository(BaseRepository[Contact]):
         )
         return result.scalar_one_or_none()
 
+    async def get_or_create_by_whatsapp_id(
+        self, whatsapp_id: str, organization_id: UUID, whatsapp_name: Optional[str] = None
+    ) -> Contact:
+        """Get or create contact by WhatsApp ID"""
+        # Try to get existing contact
+        contact = await self.get_by_whatsapp_id(whatsapp_id, organization_id)
+        
+        if contact:
+            return contact
+        
+        # Create new contact
+        contact_data = {
+            "whatsapp_id": whatsapp_id,
+            "organization_id": organization_id,
+            "whatsapp_name": whatsapp_name,
+            "name": whatsapp_name,  # Use WhatsApp name as default name
+        }
+        
+        return await self.create(contact_data)
+
     async def search_contacts(
         self,
         organization_id: UUID,

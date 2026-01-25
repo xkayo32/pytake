@@ -65,6 +65,23 @@ class ConversationRepository(BaseRepository[Conversation]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_by_contact_phone(
+        self, whatsapp_id: str, organization_id: UUID
+    ) -> Optional[Conversation]:
+        """Get active conversation by contact's WhatsApp ID (phone number)"""
+        result = await self.db.execute(
+            select(Conversation)
+            .join(Contact, Contact.id == Conversation.contact_id)
+            .where(
+                Contact.whatsapp_id == whatsapp_id,
+                Conversation.organization_id == organization_id,
+                Conversation.deleted_at.is_(None),
+            )
+            .order_by(desc(Conversation.last_message_at))
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def list_conversations(
         self,
         organization_id: UUID,

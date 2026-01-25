@@ -1,40 +1,38 @@
 ## Copilot Instructions — PyTake
 
-**PyTake** = WhatsApp Business Automation Platform com flow builder visual, chatbots inteligentes, gestão de conversas e integração WhatsApp. Backend Python: FastAPI + SQLAlchemy + Alembic. Infra: Postgres, Redis, MongoDB, tudo containerizado (Docker/Podman).
+**PyTake** = WhatsApp Business Automation Platform com flow builder visual, chatbots inteligentes, gestão de conversas e integração WhatsApp. Backend Python: FastAPI + SQLAlchemy + Alembic. Infra: PostgreSQL 15, Redis 7, MongoDB 7 (containerizados Docker).
 
 ---
 
-## 🚨 REGRA CRÍTICA: NUNCA RESETAR BANCO DE DADOS
+## ⚠️ REGRA CRÍTICA: NUNCA RESETAR BANCO DE DADOS
 
-❌ **JAMAIS execute `docker compose down -v`**  
-❌ **JAMAIS execute `docker compose down` SEM AVISO EXPLÍCITO DO USUÁRIO**  
-❌ **NUNCA apague volumes com `-v` sem confirmação**  
+**JAMAIS execute** `docker compose down -v` ou `docker compose down` **sem aviso explícito do usuário**.
 
-**Isso apaga TODOS os dados permanentemente!** Se o usuário não pediu explicitamente para limpar/resetar, NÃO FAÇA.
-
-**O que fazer em vez disso:**
-- Se banco está corrompido → avisar usuário e pedir confirmação
-- Se precisa de backup → fazer dump SQL antes
-- Se migration falhou → revisar e corrigir a migration, não resetar
+Se banco está corrompido/migrations falharam: avisar, pedir confirmação, fazer backup SQL antes (`docker exec pytake-postgres-dev pg_dump -U pytake_user pytake > backup.sql`), depois corrigir migrations.
 
 ---
 
-## 🏗️ Arquitetura & Data Flow
+## 🏗️ Arquitetura
 
-### Layering Estrito (NÃO pule camadas)
+### Camadas (Separação Estrita)
 ```
-Routes (app/api/v1/endpoints/)
-  ↓ validação, auth, serialização
-Services (app/services/)
-  ↓ lógica de negócio, orquestração
-Repositories (app/repositories/)
-  ↓ CRUD puro no banco
-Models (app/models/)
+Routes (app/api/v1/endpoints/) → validação, auth, serialização
+Services (app/services/)        → lógica de negócio, orquestração
+Repositories (app/repositories/) → CRUD puro no banco
+Models (app/models/)           → SQLAlchemy ORM
 ```
-**Regra crítica**: Routes nunca acessam Repositories diretamente. Exemplo: `ConversationRepository.get_by_id()` deve ser chamado via `ConversationService`, não diretamente em endpoints.
+**Regra crítica**: Routes NUNCA acessam Repositories diretamente. Ex: `ConversationRepository.get_by_id()` via `ConversationService`.
+
+### Stack Atual
+| Componente | Versão | Container |
+|--|--|--|
+| PostgreSQL | 15 | `pytake-postgres-dev:5435` |
+| Redis | 7 | `pytake-redis-dev:6382` |
+| MongoDB | 7 | `pytake-mongodb-dev:27020` |
+| FastAPI | Backend | `pytake-backend-dev:8002` |
 
 ### Multi-Tenancy (CRÍTICO)
-**TODA query DEVE filtrar por `organization_id`** — sem exceção. Violação = data leak.
+**TODA query DEVE filtrar por `organization_id`** — sem exceção (data leak). 
 ```python
 # ❌ ERRADO
 stmt = select(Conversation)
@@ -42,16 +40,12 @@ stmt = select(Conversation)
 # ✅ CORRETO
 stmt = select(Conversation).where(Conversation.organization_id == org_id)
 ```
-- Modelos multi-tenant: `Organization`, `User`, `Conversation`, `Flow`, `ChatBot`, `Contact`, `Department`, `Queue`, `Campaign`, etc.
-- Padrão em repositories: `async def get_by_id(self, id: UUID, organization_id: UUID)`
+Modelos multi-tenant: `Organization`, `User`, `Conversation`, `Flow`, `ChatBot`, `Contact`, `Department`, `Queue`, `Campaign`, etc. Padrão: `async def get_by_id(self, id: UUID, organization_id: UUID)`
 
-### Flow Execution Pipeline
-1. **FlowExecutor** (`flow_executor.py`): Orquestra execução de nós sequencialmente
-2. **NodeExecutor** (`node_executor.py`): Executa um nó individual, retorna resposta + próximo nó
-3. **ConversationState**: Mantém estado (variáveis coletadas, nó atual, histórico)
-4. **Node Types**: `text`, `question`, `condition`, `api_call`, `assignment`, `end`, `jump_to_flow`
-
-Fluxo típico: mensagem de usuário → FlowExecutor carrega ConversationState → itera nós → atualiza estado → retorna resposta.
+### Padrões de Banco
+- **Soft Delete**: Models com `SoftDeleteMixin` têm `deleted_at`. Sempre filtrar: `.where(Model.deleted_at.is_(None))`
+- **Timestamps**: `TimestampMixin` adiciona `created_at`, `updated_at`
+- **Multi-tenant Query**: `select(Model).where(Model.id == id).where(Model.organization_id == org_id).where(Model.deleted_at.is_(None))`
 
 ---
 
@@ -61,6 +55,7 @@ Fluxo típico: mensagem de usuário → FlowExecutor carrega ConversationState �
 - Token format: Bearer token em header `Authorization`
 - Verificação: `get_current_user(credentials)` → `AuthService.get_current_user(token)` → retorna `User`
 - Dependency: `Depends(get_current_user)` em rotas protegidas
+- Tokens curtos (~15min), refresh tokens longos
 
 ### Roles Dinâmicas
 - Legacy: `user.role = "super_admin"|"org_admin"|"agent"|"viewer"` (string)
@@ -77,12 +72,15 @@ cp .env.example .env
 docker compose up -d
 
 # 2. Migrations (automático no startup, mas manual se precisar)
-docker exec pytake-backend alembic revision --autogenerate -m "descricao"
-docker exec pytake-backend alembic upgrade head
+docker exec pytake-backend-dev alembic revision --autogenerate -m "descricao"
+docker exec pytake-backend-dev alembic upgrade head
 
 # 3. Logs & testes
 docker compose logs -f backend
-docker exec pytake-backend pytest
+docker exec pytake-backend-dev pytest
+
+# 4. Health Check
+curl http://localhost:8002/api/v1/health
 ```
 
 ---
@@ -149,25 +147,45 @@ async def get_by_id(self, id: UUID, organization_id: UUID):
 
 ---
 
-## ✅ Migrations & Database
+## 🔄 Padrões Críticos
 
-### Alembic Rules
-```bash
-# Gerar migration automática (SQLAlchemy detecta mudanças)
-docker exec pytake-backend alembic revision --autogenerate -m "add_field_to_user"
+### Flow Execution Pipeline
+1. **FlowExecutor** (`app/services/flow_executor.py`): Orquestra execução de nós sequencialmente
+2. **NodeExecutor** (`app/services/node_executor.py`): Executa um nó individual, retorna resposta + próximo nó
+3. **ConversationState**: Mantém estado (variáveis coletadas, nó atual, histórico)
+4. **Node Types**: `text`, `question`, `condition`, `api_call`, `assignment`, `end`, `jump_to_flow`
 
-# Aplicar migrations
-docker exec pytake-backend alembic upgrade head
+Fluxo: mensagem usuário → FlowExecutor carrega ConversationState → itera nós → NodeExecutor processa → atualiza estado → retorna resposta.
 
-# Voltar uma versão (em dev apenas)
-docker exec pytake-backend alembic downgrade -1
-```
-- **NUNCA** editar migrations aplicadas (produção)
-- **SEMPRE** revisar `alembic/versions/*.py` antes de aplicar
+### Webhook WhatsApp & Security
+- **Verificação**: GET com `hub.mode`, `hub.challenge`, `hub.verify_token`
+- **HMAC Validation**: POST com `X-Hub-Signature-256` header (app_secret por WhatsAppNumber na DB)
+- **Event Types**: `messages` (entrada), `message_status` (delivery)
+- **Real-time**: WebSocket broadcast via Socket.IO por organization/conversation
+
+### Variables em Templates WhatsApp
+- **Positional**: `{{1}}`, `{{2}}` (tradicional)
+- **Named**: `{{nome}}`, `{{codigo}}` (recomendado, mais legível)
+- `TemplateService._detect_variable_format()` detecta automaticamente
+- `parameter_format` armazena "POSITIONAL" ou "NAMED"
+- `named_variables` é array com nomes das variáveis
+
+### Department vs Queue
+- **Department**: Unidades organizacionais (Vendas, Suporte, Financeiro)
+- **Queue**: Múltiplas filas dentro de um department (VIP, Normal, Técnico)
+- Hierarquia: `Organization → Department → Queue(s)`
+- Conversas pertencem a `queue_id`, **não** diretamente a department
+
+## 🔑 Secrets & Environment
+
+- **NUNCA** commit `.env` ou hardcode secrets
+- **SEMPRE** usar GitHub Secrets para CI/CD
+- **Em dev**: `.env.example` é template público
+- Keys principais: `DATABASE_URL`, `REDIS_URL`, `MONGODB_URL`, `WHATSAPP_ACCESS_TOKEN`, `WEBHOOK_VERIFY_TOKEN`
 
 ---
 
-## 🔑 Secrets & Environment
+## � Environment & Secrets
 
 - **NUNCA** commit `.env` ou hardcode secrets
 - **SEMPRE** usar GitHub Secrets para CI/CD
@@ -181,17 +199,15 @@ docker exec pytake-backend alembic downgrade -1
 **REGRA**: Nunca commit direto em `main` ou `develop`
 
 ```bash
-# Antes de começar
+# Setup
 git fetch origin && git pull origin develop
+git checkout -b feature/TICKET-123-description
 
-# Criar branch
-git branch feature/TICKET-123-description
-git checkout feature/TICKET-123-description
-
-# Commits
+# Commits  
 git commit -m "feat: description | Author: Kayo Carvalho Fernandes"
 
-# Submeter PR para develop (não main)
+# Push & PR para develop (nunca main)
+git push origin feature/TICKET-123-description
 ```
 
 **Branch pattern**:
@@ -205,34 +221,67 @@ git commit -m "feat: description | Author: Kayo Carvalho Fernandes"
 
 ```bash
 # Rodar testes
-docker exec pytake-backend pytest
+docker exec pytake-backend-dev pytest
 
 # Arquivo específico
-docker exec pytake-backend pytest tests/test_conversation.py
+docker exec pytake-backend-dev pytest tests/test_conversation.py
 
 # Verbose
-docker exec pytake-backend pytest -v --tb=short
+docker exec pytake-backend-dev pytest -v --tb=short
 ```
 
 ---
 
 ## 📊 APIs
 
-- **REST/OpenAPI**: `/api/v1/docs` (Swagger) | 217+ endpoints
-- **GraphQL**: `/graphql` (Strawberry) | 15+ modules
+- **REST/OpenAPI**: `/api/v1/docs` (Swagger)
+- **GraphQL**: `/graphql` (Strawberry)
 - **WebSocket**: `/socket.io` (Socket.IO) | Real-time
 
 ---
 
-## ⚡ Common Gotchas
+## ⚡ Gotchas Comuns
 
-1. **Missing `organization_id` filter** → Data leak. Sempre filtrar.
-2. **Skipping layering** → Services calling Repositories directly without Service layer → difícil de testar
-3. **Soft deletes**: Não esquecer `.where(Model.deleted_at.is_(None))`
-4. **JWT Expiry**: Access tokens curtos (~15min), refresh tokens longos
-5. **Async/await**: Toda operação DB é `async`. Não esquecer `await`
-6. **Encryption**: WhatsApp tokens guardados com Fernet encryption
+1. **Missing `organization_id`** → Data leak. Filtrar sempre.
+2. **Skip layering** → Routes diretos em Repositories são anti-padrão.
+3. **Soft deletes** → `.where(Model.deleted_at.is_(None))`
+4. **Async/await** → DB é async, não esquecer `await`
+5. **Tokens** → Access curtos (~15min), refresh longos
+6. **Webhook WhatsApp** → Validar HMAC em `X-Hub-Signature-256` antes de processar
 
 ---
 
-**Autor**: Kayo Carvalho Fernandes
+## 🔧 Troubleshooting
+
+### Erro: "column does not exist"
+**Causa**: Model tem coluna não ainda no banco (migration não criada/aplicada)
+
+```bash
+docker exec pytake-backend-dev alembic revision --autogenerate -m "add_missing_columns"
+docker exec pytake-backend-dev alembic upgrade head
+docker restart pytake-backend-dev
+```
+
+### Backend não inicia / Migrations travadas
+```bash
+docker logs pytake-backend-dev --tail 50
+docker exec pytake-backend-dev alembic current
+docker exec pytake-backend-dev alembic upgrade head
+docker compose down && docker compose up --build -d
+```
+
+### Erro 502 do Nginx após restart
+**Causa**: IP do backend mudou, Nginx em cache antigo  
+**Solução**: `docker restart pytake-nginx-dev`
+
+### Erro ao criar templates WhatsApp
+- Nomes de variáveis devem ser exatos entre criação e envio
+- Padrão named variables: `[a-zA-Z_][a-zA-Z0-9_]*`
+- Nome template: apenas minúsculas e underscore
+- Verificar logs: `docker logs pytake-backend-dev 2>&1 | grep "Meta API"`
+
+---
+
+**Autor**: Kayo Carvalho Fernandes. NUNCA mencionar IA, Copilot ou assistente.
+
+**Autor**: Kayo Carvalho Fernandes. NUNCA mencionar IA, Copilot ou assistente.

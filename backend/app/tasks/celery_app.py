@@ -76,7 +76,7 @@ celery_app.conf.beat_schedule = {
         "task": "check_conversation_inactivity",
         "schedule": settings.CONVERSATION_INACTIVITY_CHECK_INTERVAL_SECONDS,  # Seconds interval
         "options": {
-            "queue": "default",
+            "queue": "celery",
             "expires": settings.CONVERSATION_INACTIVITY_CHECK_INTERVAL_SECONDS * 2,  # 2x interval
         },
     },

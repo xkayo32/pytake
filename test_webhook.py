@@ -11,6 +11,7 @@ payload = {
     "entry": [{
         "id": "123",
         "changes": [{
+            "field": "messages",
             "value": {
                 "messaging_product": "whatsapp",
                 "metadata": {
@@ -19,7 +20,7 @@ payload = {
                 },
                 "messages": [{
                     "from": "556194013828",
-                    "id": "wamid.TESTFLOW123",
+                    "id": "wamid.TESTFLOW_" + str(int(__import__('time').time())),
                     "timestamp": "1735599600",
                     "type": "text",
                     "text": {
