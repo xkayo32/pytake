@@ -261,6 +261,9 @@ api_router.include_router(mfa.router, tags=["MFA"])
 passkey = _load_endpoint_module("passkey")
 api_router.include_router(passkey.router, tags=["Passwordless"])
 
+social = _load_endpoint_module("social")
+api_router.include_router(social.router, tags=["Social Login"])
+
 database = _load_endpoint_module("database")
 api_router.include_router(database.router, prefix="/database", tags=["Database"])
 
