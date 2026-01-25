@@ -135,13 +135,13 @@ async def async_check_conversation_inactivity():
         # Import ConversationWindow model
         from app.models.conversation_window import ConversationWindow
         
-        # Find all active conversations with bot AND active window (within 24h)
+        # Find all active conversations with valid window (within 24h)
+        # NOTE: Don't filter by is_bot_active - monitor inactivity even if bot is not responding
         stmt = select(Conversation).join(
             ConversationWindow,
             Conversation.id == ConversationWindow.conversation_id
         ).where(
             Conversation.status.in_(["open", "active"]),
-            Conversation.is_bot_active == True,
             Conversation.active_flow_id.is_not(None),
             Conversation.deleted_at.is_(None),
             ConversationWindow.ends_at > now_brazil(),  # Window still valid
@@ -213,34 +213,14 @@ async def async_check_conversation_inactivity():
                     f"action={inactivity_config.get('action')}"
                 )
                 
-                # Check if conversation has exceeded inactivity timeout
-                if time_since_last_message.total_seconds() >= timeout_seconds:
-                    logger.info(
-                        f"⏰ Conversation {conversation.id} inactive for "
-                        f"{time_since_last_message.total_seconds() / 60:.1f} minutes "
-                        f"(timeout: {timeout_minutes} minutes)"
-                    )
-                    
-                    # Execute configured action
-                    action = inactivity_config.get("action", "transfer")
-                    executed = await execute_inactivity_action(
-                        session=session,
-                        conversation=conversation,
-                        action=action,
-                        config=inactivity_config
-                    )
-                    
-                    if executed:
-                        actions_executed += 1
-                
-                # Check if should send warning message
-                elif inactivity_config.get("send_warning_at_minutes"):
+                # Check if should send warning message FIRST (before timeout action)
+                if inactivity_config.get("send_warning_at_minutes"):
                     warning_minutes = inactivity_config.get("send_warning_at_minutes")
                     warning_seconds = warning_minutes * 60
                     
                     if (
                         time_since_last_message.total_seconds() >= warning_seconds
-                        and time_since_last_message.total_seconds() < timeout_seconds
+                        and time_since_last_message.total_seconds() <= timeout_seconds
                     ):
                         # Check if warning was already sent
                         warning_key = f"_inactivity_warning_sent_{conversation.id}"
@@ -267,8 +247,7 @@ async def async_check_conversation_inactivity():
                             logger.info(f"🔍 INICIANDO ENVIO DE AVISO para {conversation.id}")
                             
                             try:
-                                # Send warning via MessageSenderService to save in database
-                                from app.services.message_sender_service import MessageSenderService
+                                # Send warning via MetaCloudAPI directly (same pattern as flow/close messages)
                                 from app.repositories.whatsapp import WhatsAppNumberRepository
                                 from app.repositories.contact import ContactRepository
                                 
@@ -296,26 +275,21 @@ async def async_check_conversation_inactivity():
                                     phone = contact.phone_number or contact.whatsapp_id
                                     
                                     if contact and phone:
-                                        phone = contact.phone_number.replace("+", "")
+                                        phone = phone.replace("+", "")
                                         logger.info(f"🔍 [DEBUG 5] Phone ready: {phone}")
                                         logger.info(f"🔍 [DEBUG 6] Message text: {warning_msg}")
                                         
-                                        # Use MessageSenderService to send and save message
-                                        message_sender = MessageSenderService(session)
-                                        logger.info(f"🔍 [DEBUG 7] MessageSenderService created")
+                                        # Use MetaCloudAPI directly (same as flow messages)
+                                        from app.integrations.meta_api import MetaCloudAPI
+                                        
+                                        meta_api = MetaCloudAPI(
+                                            phone_number_id=whatsapp_number.phone_number_id,
+                                            access_token=whatsapp_number.access_token
+                                        )
+                                        logger.info(f"🔍 [DEBUG 7] MetaCloudAPI created")
                                         
                                         try:
-                                            result = await message_sender.send_text_message(
-                                                organization_id=conversation.organization_id,
-                                                phone_number_id=whatsapp_number.phone_number_id,
-                                                recipient_phone=phone,
-                                                text=warning_msg,
-                                                access_token=whatsapp_number.access_token,
-                                                metadata={
-                                                    "conversation_id": str(conversation.id),
-                                                    "type": "inactivity_warning"
-                                                }
-                                            )
+                                            result = await meta_api.send_text_message(to=phone, text=warning_msg)
                                             logger.info(f"🔍 [DEBUG 8] Result from send_text_message: {result}")
                                         except Exception as send_err:
                                             logger.error(f"❌ [DEBUG 8] Error calling send_text_message: {str(send_err)}", exc_info=True)
@@ -340,6 +314,26 @@ async def async_check_conversation_inactivity():
                                 logger.error(
                                     f"❌ Failed to send warning message to {conversation.id}: {str(e)}"
                                 )
+                
+                # Check if conversation has exceeded inactivity timeout
+                if time_since_last_message.total_seconds() >= timeout_seconds:
+                    logger.info(
+                        f"⏰ Conversation {conversation.id} inactive for "
+                        f"{time_since_last_message.total_seconds() / 60:.1f} minutes "
+                        f"(timeout: {timeout_minutes} minutes)"
+                    )
+                    
+                    # Execute configured action
+                    action = inactivity_config.get("action", "transfer")
+                    executed = await execute_inactivity_action(
+                        session=session,
+                        conversation=conversation,
+                        action=action,
+                        config=inactivity_config
+                    )
+                    
+                    if executed:
+                        actions_executed += 1
                 
                 processed += 1
                 
@@ -397,13 +391,19 @@ async def execute_inactivity_action(
                 from app.repositories.contact import ContactRepository
                 contact_repo = ContactRepository(session)
                 contact = await contact_repo.get(conversation.contact_id)
+                if not contact:
+                    logger.error(f"Contact not found for conversation {conversation.id}")
+                    return
                 
-                if not contact or not contact.phone_number:
+                # Use phone_number or whatsapp_id
+                phone = contact.phone_number or contact.whatsapp_id
+                
+                if not phone:
                     logger.error(f"Contact phone not found for conversation {conversation.id}")
                     return
                 
                 # Remove + from phone
-                phone = contact.phone_number.replace("+", "")
+                phone = phone.replace("+", "")
                 
                 # Send via Meta API
                 if whatsapp_number.connection_type == "official":

@@ -5375,17 +5375,24 @@ __result__ = __script_func__()
             
             # Update flow/chatbot configuration for existing conversations
             # (They may have been set later in the WhatsApp number)
+            # ALWAYS reactivate bot for incoming messages
             print(f"🔍 Checando: default_flow_id={default_flow_id}, default_chatbot_id={default_chatbot_id}")
             if default_flow_id or default_chatbot_id:
                 print(f"✅ Entrando no if para atualizar flow/chatbot...")
                 conversation = await conversation_repo.update(conversation.id, {
                     "active_chatbot_id": default_chatbot_id,
                     "active_flow_id": default_flow_id,
+                    "is_bot_active": True,
                 })
-                print(f"🔄 Atualizado: flow={default_flow_id}, chatbot={default_chatbot_id}")
-                logger.info(f"🔄 Updated conversation flow/chatbot: flow={default_flow_id}, chatbot={default_chatbot_id}")
+                print(f"🔄 Atualizado: flow={default_flow_id}, chatbot={default_chatbot_id}, is_bot_active=True")
+                logger.info(f"🔄 Updated conversation flow/chatbot: flow={default_flow_id}, chatbot={default_chatbot_id}, is_bot_active=True")
             else:
                 print(f"❌ Não entrou no if - nenhum flow/chatbot definido")
+                # Still reactivate bot even if no flow/chatbot (for inactivity tracking)
+                conversation = await conversation_repo.update(conversation.id, {
+                    "is_bot_active": True,
+                })
+                logger.info(f"🔄 Reactivated bot for existing conversation (no flow/chatbot configured)")
             
             # Ensure conversation has a window for inactivity tracking
             try:
