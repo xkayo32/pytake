@@ -41,7 +41,50 @@ async def start_google_oauth(
     organization_id: UUID = Depends(get_organization_id),
     db: AsyncSession = Depends(get_db),
 ) -> SocialLoginStartResponse:
-    """Initiate Google OAuth flow."""
+    """
+    Initiate Google OAuth flow.
+    
+    Returns authorization URL and state token for frontend redirect.
+    Uses PKCE (RFC 7636) for enhanced security with public clients.
+    
+    **Security**:
+    - State token: Prevents CSRF attacks (verified on callback)
+    - PKCE: Prevents authorization code interception attacks
+    - code_challenge_method: S256 (SHA256, recommended over plain)
+    - Public endpoint (no user auth required)
+    - Redirect URI validated against whitelist
+    
+    **OAuth 2.0 Parameters**:
+    - scope: email profile (standard Google scopes)
+    - access_type: offline (for refresh tokens)
+    - prompt: consent (force consent screen for token refresh)
+    
+    **Example Request**:
+    ```bash
+    curl -X POST http://localhost:8002/api/v1/social/google/start \
+      -H "Content-Type: application/json" \
+      -d '{
+        "redirect_uri": "http://localhost:3000/auth/callback/google"
+      }'
+    ```
+    
+    **Example Response** (200 OK):
+    ```json
+    {
+      "authorization_url": "https://accounts.google.com/o/oauth2/v2/auth?...",
+      "state": "state_token_for_verification",
+      "code_verifier": "code_verifier_for_pkce"
+    }
+    ```
+    
+    **Error Responses**:
+    - `400 BadRequest`: Invalid redirect_uri format
+    - `500 Internal Server Error`: Service failure
+    
+    **Next Step**: Frontend redirects user to authorization_url, handle callback at `/google/callback`
+    
+    Initiate Google OAuth flow.
+    """
     service = SocialLoginService(db)
     
     # TODO: Get client_id from organization config
@@ -64,7 +107,51 @@ async def start_github_oauth(
     organization_id: UUID = Depends(get_organization_id),
     db: AsyncSession = Depends(get_db),
 ) -> SocialLoginStartResponse:
-    """Initiate GitHub OAuth flow."""
+    """
+    Initiate GitHub OAuth flow.
+    
+    Returns authorization URL and state token for frontend redirect.
+    GitHub uses PKCE for public client security.
+    
+    **Security**:
+    - State token: Prevents CSRF attacks (verified on callback)
+    - PKCE: Prevents authorization code interception
+    - code_challenge_method: S256 (SHA256)
+    - Public endpoint (no user auth required)
+    - Redirect URI validated against whitelist
+    
+    **OAuth 2.0 Parameters**:
+    - scope: user:email (GitHub user scope)
+    - allow_signup: true (allows new users to sign up)
+    
+    **Note**: GitHub doesn't return email in /user endpoint (requires separate call to /user/emails)
+    
+    **Example Request**:
+    ```bash
+    curl -X POST http://localhost:8002/api/v1/social/github/start \
+      -H "Content-Type: application/json" \
+      -d '{
+        "redirect_uri": "http://localhost:3000/auth/callback/github"
+      }'
+    ```
+    
+    **Example Response** (200 OK):
+    ```json
+    {
+      "authorization_url": "https://github.com/login/oauth/authorize?...",
+      "state": "state_token_for_verification",
+      "code_verifier": "code_verifier_for_pkce"
+    }
+    ```
+    
+    **Error Responses**:
+    - `400 BadRequest`: Invalid redirect_uri format
+    - `500 Internal Server Error`: Service failure
+    
+    **Next Step**: Frontend redirects user to authorization_url, handle callback at `/github/callback`
+    
+    Initiate GitHub OAuth flow.
+    """
     service = SocialLoginService(db)
     
     # TODO: Get client_id from organization config
@@ -87,7 +174,53 @@ async def start_microsoft_oauth(
     organization_id: UUID = Depends(get_organization_id),
     db: AsyncSession = Depends(get_db),
 ) -> SocialLoginStartResponse:
-    """Initiate Microsoft OAuth flow."""
+    """
+    Initiate Microsoft OAuth flow.
+    
+    Returns authorization URL and state token for frontend redirect.
+    Microsoft uses Azure AD OAuth 2.0 with PKCE support.
+    
+    **Security**:
+    - State token: Prevents CSRF attacks (verified on callback)
+    - PKCE: Prevents authorization code interception
+    - code_challenge_method: S256 (SHA256)
+    - Public endpoint (no user auth required)
+    - Redirect URI validated against whitelist
+    - Tenant scoping: Uses 'common' for multi-tenant or specific tenant ID
+    
+    **OAuth 2.0 Parameters** (Microsoft Graph API v2.0):
+    - scope: openid profile email (standard OIDC)
+    - response_type: code (authorization code flow)
+    - prompt: login (optional, force login)
+    
+    **Endpoint**: Uses https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+    
+    **Example Request**:
+    ```bash
+    curl -X POST http://localhost:8002/api/v1/social/microsoft/start \
+      -H "Content-Type: application/json" \
+      -d '{
+        "redirect_uri": "http://localhost:3000/auth/callback/microsoft"
+      }'
+    ```
+    
+    **Example Response** (200 OK):
+    ```json
+    {
+      "authorization_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?...",
+      "state": "state_token_for_verification",
+      "code_verifier": "code_verifier_for_pkce"
+    }
+    ```
+    
+    **Error Responses**:
+    - `400 BadRequest`: Invalid redirect_uri format
+    - `500 Internal Server Error`: Service failure
+    
+    **Next Step**: Frontend redirects user to authorization_url, handle callback at `/microsoft/callback`
+    
+    Initiate Microsoft OAuth flow.
+    """
     service = SocialLoginService(db)
     
     # TODO: Get client_id from organization config
@@ -114,6 +247,62 @@ async def oauth_callback(
 ) -> SocialLoginCallbackResponse:
     """
     Handle OAuth callback from provider.
+    
+    Exchanges authorization code for tokens, verifies PKCE, fetches user info,
+    and creates or links user account. Returns JWT access/refresh tokens.
+    
+    **Security**:
+    - PKCE validation: code_verifier matches code_challenge
+    - State token validation: Prevents CSRF attacks
+    - OAuth error handling: Rejects invalid_grant, access_denied, etc.
+    - Access token stored encrypted (Fernet AES-128)
+    - Refresh token stored encrypted
+    - Multi-tenancy isolation enforced
+    - No sensitive data in error messages
+    
+    **Provider-Specific Behavior**:
+    - **Google**: Returns {id, email, name, picture} from /userinfo endpoint
+    - **GitHub**: Email from /user/emails (separate call), requires email scope
+    - **Microsoft**: Returns {id, userPrincipalName, displayName} from /me endpoint
+    
+    **User Creation Logic**:
+    - New user: Creates account with email as primary identifier
+    - Existing user: Links social identity, updates profile if needed
+    - Email matching: Uses email to prevent duplicate accounts
+    
+    **Example Request**:
+    ```bash
+    curl -X POST http://localhost:8002/api/v1/social/google/callback \
+      -H "Content-Type: application/json" \
+      -d '{
+        "code": "authorization_code_from_provider",
+        "state": "state_token_from_start"
+      }'
+    ```
+    
+    **Example Response** (200 OK):
+    ```json
+    {
+      "user_id": "12345678-1234-5678-1234-567812345678",
+      "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "token_type": "bearer",
+      "expires_in": 3600,
+      "linked_account": false
+    }
+    ```
+    
+    **Error Responses**:
+    - `400 BadRequest`: Invalid provider, OAuth error from provider, code exchange failed
+    - `401 Unauthorized`: PKCE validation failed, state token mismatch
+    - `500 Internal Server Error`: User creation failed, service failure
+    
+    **Field Mappings** (extracted from provider):
+    - provider_user_id: Google(id), GitHub(id), Microsoft(id)
+    - email: All providers
+    - name: All providers (display name)
+    - profile_picture: Google(picture), GitHub(avatar_url), Microsoft(null)
+    
     Exchange authorization code for tokens and create/link user.
     """
     if provider not in ["google", "github", "microsoft"]:
@@ -233,7 +422,61 @@ async def list_social_identities(
     organization_id: UUID = Depends(get_organization_id),
     db: AsyncSession = Depends(get_db),
 ) -> SocialIdentitiesListResponse:
-    """List all social accounts linked to current user."""
+    """
+    List all social accounts linked to current user.
+    
+    Returns array of linked providers with metadata. Useful for account
+    management UI showing connected social accounts and profile info.
+    
+    **Security**:
+    - Multi-tenancy isolation enforced
+    - Only returns identities for authenticated user
+    - Soft-deleted identities excluded
+    - Access tokens NOT returned (encrypted and hidden)
+    - Refresh tokens NOT returned
+    - Safe to expose to frontend
+    
+    **Example Request**:
+    ```bash
+    curl -X GET http://localhost:8002/api/v1/social/identities \
+      -H "Authorization: Bearer {access_token}"
+    ```
+    
+    **Example Response** (200 OK):
+    ```json
+    {
+      "identities": [
+        {
+          "id": "12345678-1234-5678-1234-567812345678",
+          "provider": "google",
+          "provider_user_id": "google_user_123",
+          "email": "user@gmail.com",
+          "full_name": "John Doe",
+          "profile_picture_url": "https://...",
+          "linked_at": "2026-01-25T10:00:00Z",
+          "expires_at": "2026-03-26T10:00:00Z"
+        },
+        {
+          "id": "87654321-4321-8765-4321-876543218765",
+          "provider": "github",
+          "provider_user_id": "john_doe_gh",
+          "email": "john@github.com",
+          "full_name": "John Doe",
+          "profile_picture_url": "https://...",
+          "linked_at": "2026-01-26T08:00:00Z",
+          "expires_at": null
+        }
+      ],
+      "total": 2
+    }
+    ```
+    
+    **Error Responses**:
+    - `401 Unauthorized`: Invalid or expired access token
+    - `500 Internal Server Error`: Database failure
+    
+    List all social accounts linked to current user.
+    """
     service = SocialLoginService(db)
     identities_data = await service.list_identities(current_user.id, organization_id)
     
@@ -256,7 +499,47 @@ async def unlink_social_account(
     organization_id: UUID = Depends(get_organization_id),
     db: AsyncSession = Depends(get_db),
 ) -> SocialUnlinkResponse:
-    """Disconnect a linked social account."""
+    """
+    Disconnect a linked social account.
+    
+    Soft-deletes social identity (sets deleted_at). User loses ability to
+    login via this provider, but can re-link later. Access/refresh tokens
+    are NOT revoked at provider (browser cache cleanup required).
+    
+    **Security**:
+    - Multi-tenancy isolation enforced
+    - Only user who owns the identity can unlink
+    - Soft delete (data retained for audit)
+    - Provider tokens are removed from database
+    - Cannot unlink only authentication method (business logic)
+    
+    **Provider Validation**: Only [google, github, microsoft] supported
+    
+    **Example Request**:
+    ```bash
+    curl -X DELETE http://localhost:8002/api/v1/social/google/unlink \
+      -H "Authorization: Bearer {access_token}" \
+      -H "Content-Type: application/json" \
+      -d '{}'
+    ```
+    
+    **Example Response** (200 OK):
+    ```json
+    {
+      "provider": "google"
+    }
+    ```
+    
+    **Error Responses**:
+    - `400 BadRequest`: Unknown provider (not in [google, github, microsoft])
+    - `401 Unauthorized`: Invalid or expired access token
+    - `404 NotFound`: Social account not linked or already unlinked
+    - `500 Internal Server Error`: Database failure
+    
+    **Note**: User can immediately re-link the same provider (goes through OAuth flow again)
+    
+    Disconnect a linked social account.
+    """
     if provider not in ["google", "github", "microsoft"]:
         raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
     
