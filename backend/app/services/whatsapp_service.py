@@ -5445,11 +5445,34 @@ __result__ = __script_func__()
 
         # 4. Update conversation timestamps (including last_inbound_message_at for inactivity)
         logger.debug("Updating timestamps")
-        await conversation_repo.update(conversation.id, {
+        
+        # Prepare update data
+        update_data = {
             "last_message_at": datetime.utcnow(),
             "last_inbound_message_at": now,  # Update inactivity tracking timestamp
             "window_expires_at": datetime.utcnow() + timedelta(hours=24),
-        })
+        }
+        
+        # PHASE 1 FIX: Reset inactivity warning flags when user sends new message
+        # This allows the inactivity timeout system to re-trigger warnings
+        if conversation.context_variables:
+            # Clear all inactivity warning flags (e.g., _inactivity_warning_sent_1)
+            cleaned_context = {
+                k: v for k, v in conversation.context_variables.items()
+                if not k.startswith("_inactivity_warning_sent_")
+            }
+            if cleaned_context != conversation.context_variables:
+                update_data["context_variables"] = cleaned_context
+                logger.info(
+                    "Reset inactivity warning flags (allowing re-trigger)",
+                    extra={
+                        "conversation_id": str(conversation.id),
+                        "organization_id": str(org_id),
+                        "flags_cleared": [k for k in conversation.context_variables if k.startswith("_inactivity_warning_sent_")]
+                    }
+                )
+        
+        await conversation_repo.update(conversation.id, update_data)
 
         # 5. Save message (check for duplicates first)
         logger.debug("Saving message")

@@ -223,13 +223,14 @@ async def async_check_conversation_inactivity():
                         time_since_last_message.total_seconds() >= warning_seconds
                         and time_since_last_message.total_seconds() <= timeout_seconds
                     ):
-                        # Check if warning was already sent
-                        warning_key = f"_inactivity_warning_sent_{conversation.id}"
+                        # PHASE 3 FIX: Improved idempotency with window-based flag
+                        # Use timeout_minutes to create unique window (allows multi-cycle warnings)
+                        warning_key = f"_inactivity_warning_sent_{timeout_minutes}"
                         context_vars = conversation.context_variables or {}
                         
                         if not context_vars.get(warning_key):
                             logger.info(
-                                f"⚠️ Sending inactivity warning to conversation {conversation.id}"
+                                f"Sending inactivity warning to conversation {conversation.id}"
                             )
                             
                             # Send warning message with variable replacement
@@ -372,6 +373,35 @@ async def execute_inactivity_action(
     try:
         conv_repo = ConversationRepository(session)
         
+        # PHASE 2 FIX: Helper to reset inactivity flags after action
+        async def reset_inactivity_flags():
+            """Reset inactivity tracking for next cycle"""
+            try:
+                update_data = {
+                    "last_inbound_message_at": now_brazil(),  # Reset timestamp
+                }
+                
+                # Clear all inactivity warning flags
+                if conversation.context_variables:
+                    cleaned_context = {
+                        k: v for k, v in conversation.context_variables.items()
+                        if not k.startswith("_inactivity_warning_sent_")
+                    }
+                    if cleaned_context != conversation.context_variables:
+                        update_data["context_variables"] = cleaned_context
+                
+                await conv_repo.update(conversation.id, update_data)
+                logger.info(
+                    "Reset inactivity tracking after timeout action (ready for next cycle)",
+                    extra={
+                        "conversation_id": str(conversation.id),
+                        "action": action,
+                        "flags_cleared": [k for k in (conversation.context_variables or {}) if k.startswith("_inactivity_warning_sent_")]
+                    }
+                )
+            except Exception as e:
+                logger.error(f"Failed to reset inactivity flags: {str(e)}")
+        
         # Helper to send message
         async def send_inactivity_message(message_text: str):
             """Send message using WhatsApp service"""
@@ -413,16 +443,16 @@ async def execute_inactivity_action(
                         access_token=whatsapp_number.access_token
                     )
                     await meta_api.send_text_message(to=phone, text=message_text)
-                    logger.info(f"✅ Message sent to conversation {conversation.id}")
+                    logger.info(f"Message sent to conversation {conversation.id}")
                 else:
                     logger.warning(f"Connection type {whatsapp_number.connection_type} not supported for inactivity messages")
                     
             except Exception as e:
-                logger.error(f"Failed to send error message to conversation {conversation.id}: {e}")
+                logger.error(f"Failed to send message to conversation {conversation.id}: {e}")
         
         if action == "transfer":
             # Transfer to agent via queue assignment
-            logger.info(f"↔️ Transferring conversation {conversation.id} to agent due to inactivity")
+            logger.info(f"Transferring conversation {conversation.id} to agent due to inactivity")
             
             # Get default queue for department
             if conversation.department_id:
@@ -451,12 +481,16 @@ async def execute_inactivity_action(
                     await send_inactivity_message(
                         "Você será atendido por um agente em breve. Obrigado pela paciência!"
                     )
-                    logger.info(f"✅ Conversation {conversation.id} assigned to queue")
+                    
+                    # PHASE 2: Reset inactivity flags
+                    await reset_inactivity_flags()
+                    
+                    logger.info(f"Conversation {conversation.id} assigned to queue")
                     return True
         
         elif action == "close":
             # Close conversation
-            logger.info(f"🔒 Closing conversation {conversation.id} due to inactivity")
+            logger.info(f"Closing conversation {conversation.id} due to inactivity")
             
             # Calculate inactive time
             now = now_brazil()
@@ -489,12 +523,16 @@ async def execute_inactivity_action(
             )
             
             await send_inactivity_message(closing_msg)
-            logger.info(f"✅ Conversation {conversation.id} closed")
+            
+            # PHASE 2: Reset inactivity flags
+            await reset_inactivity_flags()
+            
+            logger.info(f"Conversation {conversation.id} closed")
             return True
         
         elif action == "send_reminder":
             # Send reminder message
-            logger.info(f"💬 Sending reminder to conversation {conversation.id}")
+            logger.info(f"Sending reminder to conversation {conversation.id}")
             
             # Calculate inactive time
             now = now_brazil()
@@ -516,7 +554,11 @@ async def execute_inactivity_action(
             )
             
             await send_inactivity_message(reminder_msg)
-            logger.info(f"✅ Reminder sent to conversation {conversation.id}")
+            
+            # PHASE 2: Reset inactivity flags
+            await reset_inactivity_flags()
+            
+            logger.info(f"Reminder sent to conversation {conversation.id}")
             return True
         
         elif action == "fallback_flow":
@@ -530,7 +572,7 @@ async def execute_inactivity_action(
                 return False
             
             logger.info(
-                f"🔄 Routing conversation {conversation.id} to fallback flow {fallback_flow_id}"
+                f"Routing conversation {conversation.id} to fallback flow {fallback_flow_id}"
             )
             
             await conv_repo.update(
@@ -543,7 +585,10 @@ async def execute_inactivity_action(
             )
             await session.commit()
             
-            logger.info(f"✅ Conversation {conversation.id} routed to fallback flow")
+            # PHASE 2: Reset inactivity flags (already cleared context above)
+            await reset_inactivity_flags()
+            
+            logger.info(f"Conversation {conversation.id} routed to fallback flow")
             return True
         
         else:
@@ -552,7 +597,7 @@ async def execute_inactivity_action(
             
     except Exception as e:
         logger.error(
-            f"❌ Failed to execute inactivity action '{action}' for conversation {conversation.id}: {str(e)}",
+            f"Failed to execute inactivity action '{action}' for conversation {conversation.id}: {str(e)}",
             exc_info=True
         )
         return False
