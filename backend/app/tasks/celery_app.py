@@ -7,8 +7,10 @@ Configures Celery for background tasks and periodic scheduling
 from celery import Celery
 from celery.schedules import crontab
 from app.core.config import get_settings
+from app.core.logging import get_logger
 
 settings = get_settings()
+logger = get_logger(__name__)
 
 # Create Celery app
 celery_app = Celery(
@@ -116,4 +118,4 @@ celery_app.autodiscover_tasks(
 @celery_app.task(bind=True)
 def debug_task(self):
     """Debug task for testing Celery configuration"""
-    print(f"Request: {self.request!r}")
+    logger.debug(f"Celery debug task executed with request: {self.request!r}")

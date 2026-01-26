@@ -29,9 +29,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import async_session
 from app.core.config import settings
 from app.services.webhook_service import WebhookService
+from app.core.logging import get_logger
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def verify_webhook_signature(payload: bytes, signature: str, secret: str) -> bool:
@@ -174,12 +175,10 @@ async def receive_webhook(
     else:
         logger.warning("⚠️ No webhook secret configured - signature verification skipped")
     
-    print(f"🔔 WEBHOOK RECEIVED: {data.get('object', 'unknown')}")
     logger.info(f"📥 Webhook received: {data.get('object', 'unknown')}")
     
     # Validate object type
     if data.get("object") != "whatsapp_business_account":
-        print(f"❌ INVALID OBJECT TYPE: {data.get('object')}")
         logger.warning(f"⚠️ Unexpected object type: {data.get('object')}")
         return {"status": "ignored"}
     

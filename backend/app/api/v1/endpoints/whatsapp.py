@@ -25,8 +25,10 @@ from app.schemas.template import (
     TemplateSyncResponse,
 )
 from app.services.whatsapp_service import WhatsAppService
+from app.core.logging import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+logger = get_logger(__name__)
 router = APIRouter()
 
 
@@ -278,7 +280,7 @@ async def verify_webhook(
         except HTTPException:
             raise
         except Exception as e:
-            print(f"Error verifying webhook token: {e}")
+            logger.error(f"Error verifying webhook token: {e}", exc_info=True)
             raise HTTPException(
                 status_code=403,
                 detail="Invalid verify token"

@@ -27,8 +27,9 @@ from app.repositories.conversation import ConversationRepository
 from app.repositories.chatbot import FlowRepository
 from app.services.conversation_service import ConversationService
 from app.services.whatsapp_service import WhatsAppService
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 settings = get_settings()
 
 # Timezone de Brasília
@@ -127,7 +128,7 @@ async def async_check_conversation_inactivity():
     """
     from app.core.database import AsyncSessionLocal
     
-    print("🔄 Starting inactivity check...")
+    logger.info("Starting conversation inactivity check")
     logger.info("🔄 Starting conversation inactivity check")
     
     # Use the async session from core.database
@@ -151,7 +152,7 @@ async def async_check_conversation_inactivity():
         result = await session.execute(stmt)
         conversations = result.scalars().all()
         
-        print(f"✅ Found {len(conversations)} active conversations with valid window")
+        logger.info(f"Found {len(conversations)} active conversations to check for inactivity")
         logger.info(f"Found {len(conversations)} active conversations to check for inactivity")
         
         processed = 0

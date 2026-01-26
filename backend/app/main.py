@@ -19,12 +19,20 @@ from app.core.mongodb import mongodb_client
 from app.core.redis import redis_client
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.rbac_init import initialize_rbac
+from app.core.logging import configure_logging, get_logger
+from app.core.logging_middleware import CorrelationIDMiddleware
 
 # Import routers
 from app.api.v1.router import api_router
 
-# Configure logging to disable uvicorn access logs
-logging.getLogger("uvicorn.access").setLevel(logging.CRITICAL)
+# Initialize logger
+logger = get_logger(__name__)
+
+# Configure professional logging system on module import
+configure_logging(
+    log_level=getattr(settings, "LOG_LEVEL", "DEBUG"),
+    json_output=True,
+)
 
 
 def run_migrations():
@@ -39,7 +47,7 @@ def run_migrations():
         app_dir = os.path.dirname(os.path.abspath(__file__))
         backend_dir = os.path.dirname(app_dir)
         
-        print("🔄 Running Alembic migrations...", flush=True)
+        logger.info("Running Alembic migrations...")
         sys.stdout.flush()
         
         # Change to backend directory so alembic.ini can be found
@@ -55,13 +63,13 @@ def run_migrations():
             
             # Run migrations
             command.upgrade(alembic_cfg, "head")
-            print("✅ Alembic migrations completed successfully", flush=True)
+            logger.info("Alembic migrations completed successfully")
             
         finally:
             os.chdir(original_cwd)
             
     except Exception as e:
-        print(f"⚠️ Could not run migrations: {type(e).__name__}: {e}", flush=True)
+        logger.warning(f"Could not run migrations: {type(e).__name__}: {e}")
 
 
 async def _ensure_admin_user_exists():
@@ -93,7 +101,7 @@ async def _ensure_admin_user_exists():
                 # Also set legacy role field for backwards compatibility
                 admin.role = "super_admin"
                 await session.commit()
-                print("✅ Admin user verified (password updated)")
+                logger.info("Admin user verified (password updated)")
             else:
                 # Create default organization if not exists
                 result = await session.execute(
@@ -142,11 +150,11 @@ async def _ensure_admin_user_exists():
                 )
                 session.add(admin_user)
                 await session.commit()
-                print("✅ Default admin user created (admin@pytake.net / nYVUJy9w5hYQGh52CSpM0g)")
+                logger.info("Default admin user created (admin@pytake.net / nYVUJy9w5hYQGh52CSpM0g)")
             break
         
     except Exception as e:
-        print(f"⚠️ Could not ensure admin user: {type(e).__name__}: {e}", flush=True)
+        logger.warning(f"Could not ensure admin user: {type(e).__name__}: {e}")
 
 
 @asynccontextmanager
@@ -155,7 +163,7 @@ async def lifespan(app: FastAPI):
     Lifespan context manager for startup and shutdown events
     """
     # Startup
-    print("🚀 Starting PyTake...")
+    logger.info("Starting PyTake...")
 
     # Initialize database connections
     try:
@@ -164,7 +172,7 @@ async def lifespan(app: FastAPI):
         
         # PostgreSQL
         await init_db()
-        print("✅ PostgreSQL connected")
+        logger.info("PostgreSQL connected")
         
         # Initialize RBAC (permissions and system roles)
         try:
@@ -172,46 +180,46 @@ async def lifespan(app: FastAPI):
             async with AsyncSessionLocal() as db:
                 await initialize_rbac(db)
         except Exception as e:
-            print(f"⚠️  Warning: RBAC initialization skipped: {e}")
+            logger.warning(f"RBAC initialization skipped: {e}")
         
         # Initialize default admin user if not exists
         await _ensure_admin_user_exists()
 
         # Redis
         await redis_client.connect()
-        print("✅ Redis connected")
+        logger.info("Redis connected")
 
         # MongoDB
         await mongodb_client.connect()
-        print("✅ MongoDB connected")
+        logger.info("MongoDB connected")
 
-        print(f"🎉 PyTake v{settings.APP_VERSION} started successfully!")
-        print(f"📍 Environment: {settings.ENVIRONMENT}")
-        print(f"🔧 Debug mode: {settings.DEBUG}")
+        logger.info(f"PyTake v{settings.APP_VERSION} started successfully!")
+        logger.info(f"Environment: {settings.ENVIRONMENT}")
+        logger.info(f"Debug mode: {settings.DEBUG}")
 
     except Exception as e:
-        print(f"❌ Error during startup: {e}")
+        logger.error(f"Error during startup: {e}", exc_info=True)
         raise
 
     yield
 
     # Shutdown
-    print("👋 Shutting down PyTake...")
+    logger.info("Shutting down PyTake...")
 
     try:
         await close_db()
-        print("✅ PostgreSQL disconnected")
+        logger.info("PostgreSQL disconnected")
 
         await redis_client.disconnect()
-        print("✅ Redis disconnected")
+        logger.info("Redis disconnected")
 
         await mongodb_client.disconnect()
-        print("✅ MongoDB disconnected")
+        logger.info("MongoDB disconnected")
 
-        print("✅ PyTake shutdown complete")
+        logger.info("PyTake shutdown complete")
 
     except Exception as e:
-        print(f"❌ Error during shutdown: {e}")
+        logger.error(f"Error during shutdown: {e}", exc_info=True)
 
 
 # Create FastAPI application
@@ -329,7 +337,7 @@ try:
     from slowapi import _rate_limit_exceeded_handler
     limiter._storage_uri = f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}"
 except Exception as e:
-    print(f"⚠️ Warning: Could not configure rate limiter storage: {e}")
+    logger.warning(f"Could not configure rate limiter storage: {e}")
 
 
 # ============================================
@@ -369,6 +377,9 @@ app.add_middleware(
 
 # GZip Compression
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Request Correlation & Logging Middleware (must be near the top to catch all requests)
+app.add_middleware(CorrelationIDMiddleware)
 
 # Custom CORS middleware to ensure headers are always present (including on errors)
 @app.middleware("http")
@@ -459,7 +470,7 @@ async def log_requests(request: Request, call_next):
 
     # Log to stdout for immediate visibility
     log_msg = f"[{response.status_code}] {request.method} {request.url.path} | User: {user_id} | Org: {organization_id} | {response_time_ms:.2f}ms | IP: {request.client.host if request.client else 'unknown'}"
-    print(log_msg, flush=True)
+    logger.info(log_msg)
 
     # Log to MongoDB (fire and forget)
     try:
@@ -475,7 +486,7 @@ async def log_requests(request: Request, call_next):
         )
     except Exception as e:
         # Don't fail request if logging fails
-        print(f"Error logging request to MongoDB: {e}", flush=True)
+        logger.error(f"Error logging request to MongoDB: {e}")
 
     return response
 
@@ -598,9 +609,9 @@ graphql_app = GraphQLRouter(
 # Mount GraphQL endpoint
 app.include_router(graphql_app, prefix="/graphql")
 
-print(f"✅ GraphQL API mounted at /graphql")
+logger.info("GraphQL API mounted at /graphql")
 if settings.DEBUG:
-    print(f"📊 GraphiQL IDE available at /graphql")
+    logger.debug("GraphiQL IDE available at /graphql")
 
 
 # ============================================
@@ -614,7 +625,7 @@ import app.websocket.events as _  # Import to register event handlers (side effe
 sio_asgi_app = get_sio_app()
 app.mount("/socket.io", sio_asgi_app)
 
-print("✅ WebSocket/Socket.IO mounted at /socket.io")
+logger.info("WebSocket/Socket.IO mounted at /socket.io")
 
 
 # ============================================
@@ -678,8 +689,7 @@ async def pydantic_validation_exception_handler(request: Request, exc: Validatio
 async def general_exception_handler(request: Request, exc: Exception):
     """Handle all other exceptions"""
     # Log error
-    print(f"Unhandled exception: {exc}")
-    print(traceback.format_exc())
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
 
     # Don't expose internal errors in production
     if settings.is_production:

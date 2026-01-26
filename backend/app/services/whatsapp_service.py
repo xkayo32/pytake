@@ -13,8 +13,9 @@ from app.schemas.whatsapp import WhatsAppNumberCreate, WhatsAppNumberUpdate, Con
 from app.core.exceptions import ConflictException, NotFoundException
 from app.integrations.evolution_api import EvolutionAPIClient, generate_instance_name, EvolutionAPIError
 from app.utils.node_availability import NodeAvailability
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class WhatsAppService:
     """Service for WhatsApp number management"""
@@ -55,44 +56,51 @@ class WhatsAppService:
         """
         from app.services.chatbot_service import ChatbotService
         
-        print(f"🔥 _trigger_flow_simple INICIADO")
-        print(f"   conversation={conversation_id}")
-        print(f"   flow={active_flow_id}")
-        print(f"   chatbot={active_chatbot_id}")
-        logger.info(f"🔄 _trigger_flow_simple iniciado: conversation={conversation_id}, flow={active_flow_id}, chatbot={active_chatbot_id}")
+        logger.debug(
+            "_trigger_flow_simple initiated",
+            extra={
+                "conversation_id": str(conversation_id),
+                "flow_id": str(active_flow_id),
+                "chatbot_id": str(active_chatbot_id),
+                "organization_id": str(organization_id)
+            }
+        )
         
         try:
-            print("🔥 Carregando conversation do banco...")
+            logger.debug("Loading conversation from database")
             # Recarregar conversation data do banco (apenas dados necessários)
             conv_repo = ConversationRepository(self.db)
             conversation = await conv_repo.get_by_id(conversation_id, organization_id)
-            print(f"🔥 Conversation carregada: {conversation.id if conversation else 'NONE'}")
+            logger.debug(f"Conversation loaded: {conversation.id if conversation else 'None'}")
             if not conversation:
-                print(f"❌ Conversation {conversation_id} not found")
-                logger.error(f"❌ Conversation {conversation_id} not found")
+                logger.error(
+                    f"Conversation not found",
+                    extra={"conversation_id": str(conversation_id), "organization_id": str(organization_id)}
+                )
                 return
             
-            print(f"🔥 active_flow_id={conversation.active_flow_id}, current_node_id={conversation.current_node_id}")
-            logger.info(f"🔄 Conversation loaded: active_flow_id={conversation.active_flow_id}, current_node_id={conversation.current_node_id}")
+            logger.debug(
+                f"Conversation state: active_flow_id={conversation.active_flow_id}, current_node_id={conversation.current_node_id}"
+            )
             
             # Se tem flow mas não tem current_node, precisa inicializar
             if conversation.active_flow_id and not conversation.current_node_id:
-                print("🔥 TEM FLOW mas SEM current_node - inicializando do primeiro node...")
+                logger.debug("Flow exists but no current_node - initializing from first node")
                 # Já tem flow, só precisa encontrar o primeiro node
                 chatbot_service = ChatbotService(self.db)
                 flow = await chatbot_service.flow_repo.get(conversation.active_flow_id)
                 
                 if not flow:
-                    print(f"❌ Flow {conversation.active_flow_id} não encontrado")
+                    logger.error(f"Flow not found: {conversation.active_flow_id}")
                     return
                 
                 # Buscar start node
                 start_node = await chatbot_service.node_repo.get_start_node(flow.id, organization_id)
                 if not start_node:
-                    print("❌ Start node not found")
+                    logger.error("Start node not found")
                     return
                 
-                print(f"✅ Start node encontrado: {start_node.node_id}")
+                logger.info(f"Start node found: {start_node.node_id}")
                 
                 # Procura próximo node após start
                 canvas_data = flow.canvas_data or {}
@@ -105,7 +113,6 @@ class WhatsAppService:
                         break
                 
                 if not first_node_canvas_id:
-                    print("❌ No edge found from start node")
                     logger.error(f"Flow {flow.id} has no edge from start node")
 
                     # Send error message to user
@@ -124,7 +131,9 @@ class WhatsAppService:
                     await self._execute_handoff(conversation, handoff_data)
                     return
                 
-                print(f"🔍 Buscando node: flow_id={flow.id}, node_id={first_node_canvas_id}, org={organization_id}")
+                logger.debug(
+                    f"Searching for node: flow_id={flow.id}, node_id={first_node_canvas_id}, org={organization_id}"
+                )
 
                 # Buscar primeiro node usando named parameters
                 try:
@@ -133,15 +142,13 @@ class WhatsAppService:
                         node_id=first_node_canvas_id,
                         organization_id=organization_id
                     )
-                    print(f"✅ Query executada, resultado: {first_node.id if first_node else 'NONE'}")
+                    logger.debug(f"Query executed, result: {first_node.id if first_node else 'None'}")
                 except Exception as e:
-                    print(f"❌ ERRO na query get_by_node_id: {e}")
-                    import traceback
-                    print(traceback.format_exc())
+                    logger.error(f"Error in query get_by_node_id: {e}")
+                    logger.debug(traceback.format_exc())
                     return
                 
                 if not first_node:
-                    print(f"❌ Node {first_node_canvas_id} not found")
                     logger.error(f"Node {first_node_canvas_id} not found in flow {flow.id}")
 
                     # Send error message to user
@@ -164,25 +171,24 @@ class WhatsAppService:
                 first_node_db_id = first_node.id
 
                 # Atualizar conversation com current_node
-                print(f"🔥 Antes de update")
+                logger.debug("Updating conversation before commit")
                 await conv_repo.update(conversation_id, {
                     "current_node_id": first_node_db_id
                 })
-                print(f"🔥 Depois de update, antes de commit")
+                logger.debug("After update, before commit")
                 await self.db.commit()
-                print(f"🔥 Depois de commit")
+                logger.debug("After commit")
 
-                print(f"✅ Flow inicializado do primeiro node: {first_node_canvas_id}")
-                print(f"🚀 Chamando _send_first_node_message com node_id={first_node_db_id}")
+                logger.info(f"Flow initialized from first node: {first_node_canvas_id}")
+                logger.debug(f"Calling _send_first_node_message with node_id={first_node_db_id}")
 
                 # Executar primeiro node
                 try:
                     await self._send_first_node_message(conversation_id, first_node_db_id, organization_id)
-                    print(f"✅ _send_first_node_message CONCLUÍDO")
+                    logger.debug("_send_first_node_message completed")
                 except Exception as e:
-                    print(f"❌ ERRO em _send_first_node_message: {e}")
-                    import traceback
-                    print(traceback.format_exc())
+                    logger.error(f"Error in _send_first_node_message: {e}")
+                    logger.debug(traceback.format_exc())
                 return
             
             # Se não tem flow, tenta inicializar com default
@@ -282,25 +288,24 @@ class WhatsAppService:
                 await self._send_first_node_message(conversation_id, first_node_id, organization_id)
             else:
                 # Flow já ativo - usuário respondeu, precisamos processar
-                print("🔥 ELSE: Flow já ativo")
-                logger.info(f"💬 Flow já ativo, mensagem recebida do usuário")
+                logger.debug("Flow already active")
                 
                 # Recuperar o conversation atualizado para pegar current_node_id
-                print("🔥 Recarregando conversation...")
+                logger.debug("Reloading conversation")
                 conv_repo = ConversationRepository(self.db)
                 conversation = await conv_repo.get_by_id(conversation_id, organization_id)
                 
-                print(f"🔥 current_node_id = {conversation.current_node_id}")
+                logger.debug(f"current_node_id = {conversation.current_node_id}")
                 if conversation.current_node_id:
                     # Usuário respondeu - precisamos carregar o node para pegar canvas_id e flow_id
                     chatbot_service = ChatbotService(self.db)
                     current_node = await chatbot_service.node_repo.get(conversation.current_node_id)
                     
                     if current_node:
-                        print(f"🔥 Node atual é do tipo: {current_node.node_type}")
+                        logger.debug(f"Current node type: {current_node.node_type}")
                         # Se é pergunta, usuário respondeu - PROCESSAR e validar resposta
                         if current_node.node_type == "question":
-                            print(f"🔥 Usuário respondeu a pergunta, processando resposta...")
+                            logger.debug("User answered question, processing response")
 
                             # Buscar última mensagem inbound do usuário
                             from sqlalchemy import select
@@ -333,14 +338,13 @@ class WhatsAppService:
                                 logger.error("No user message found for question response")
                         else:
                             # Node de mensagem - não deveria ter parado aqui, mas reenviar se acontecer
-                            print(f"🔥 Node não é pergunta, reenviando mensagem...")
+                            logger.debug("Node is not a question, resending message")
                             await self._send_first_node_message(conversation_id, current_node.id, organization_id)
-                        print(f"🔥 RETORNOU do processamento")
+                        logger.debug("Returned from processing")
                     else:
-                        print("❌ Node não encontrado no banco")
+                        logger.error("Node not found in database")
                 else:
-                    print("❌ Flow ativo mas sem current_node_id")
-                    logger.warning(f"⚠️ Flow ativo mas sem current_node_id")
+                    logger.warning("Flow active but no current_node_id")
         except Exception as e:
             import traceback
             logger.error(f"❌ Erro em _trigger_flow_simple: {str(e)}")
@@ -354,71 +358,66 @@ class WhatsAppService:
         from app.services.chatbot_service import ChatbotService
         from app.repositories.conversation import ConversationRepository
         
-        print(f"🎯 _send_first_node_message INICIADO: node={node_id}")
+        logger.debug(f"_send_first_node_message initiated: node={node_id}")
         try:
-            print("🎯 Carregando node...")
+            logger.debug("Loading node")
             # Recarregar node e conversation
             chatbot_service = ChatbotService(self.db)
             node = await chatbot_service.node_repo.get(node_id)
-            print(f"🎯 Node carregado: {node.node_type if node else 'NONE'}")
+            logger.debug(f"Node loaded: {node.node_type if node else 'None'}")
             if not node:
-                print(f"❌ Node {node_id} not found")
-                logger.error(f"❌ Node {node_id} not found")
+                logger.error(f"Node {node_id} not found")
                 return
             
-            print(f"🎯 Carregando conversation...")
+            logger.debug("Loading conversation")
             conv_repo = ConversationRepository(self.db)
             conversation = await conv_repo.get_by_id(conversation_id, organization_id)
             if not conversation:
-                print(f"❌ Conversation {conversation_id} not found")
-                logger.error(f"❌ Conversation {conversation_id} not found")
+                logger.error(f"Conversation {conversation_id} not found")
                 return
             
-            print(f"🎯 Node type: {node.node_type}")
+            logger.debug(f"Node type: {node.node_type}")
             node_data = node.data or {}
             
             # Se é END node, resetar para reiniciar na próxima mensagem
             if node.node_type == "end":
-                print("🏁 Node END detectado - resetando conversation para reiniciar fluxo")
-                logger.info(f"🏁 Flow chegou ao fim, resetando current_node_id para permitir reinício")
+                logger.info("END node detected - resetting conversation to restart flow")
                 await conv_repo.update(conversation_id, {
                     "current_node_id": None
                 })
                 await self.db.commit()
-                print("✅ Conversation resetada, próxima mensagem vai reiniciar o fluxo")
+                logger.info("Conversation reset, next message will restart the flow")
                 return
             
             # Se é message/question node, enviar mensagem
             if node.node_type in ["text", "message", "question"]:
-                print("🎯 É um node de texto/mensagem/pergunta, enviando...")
+                logger.debug("Node is text/message/question, sending")
                 # Tentar pegar de "content" ou "message"
                 message_text = node_data.get("content") or node_data.get("message", "")
-                print(f"🎯 Texto da mensagem: {message_text[:50] if message_text else 'VAZIO'}...")
+                logger.debug(f"Message text: {message_text[:50] if message_text else 'empty'}...")
                 if message_text:
                     # Enviar mensagem via WhatsApp Meta Cloud API
-                    print(f"📤 Enviando via Meta Cloud API...")
-                    logger.info(f"📤 Enviando mensagem: {message_text[:50]}...")
+                    logger.debug("Sending via Meta Cloud API")
                     
                     # Usar Meta Cloud API
                     from app.integrations.meta_api import MetaCloudAPI
                     
-                    print(f"📤 Carregando whatsapp_number...")
+                    logger.debug("Loading whatsapp_number")
                     whatsapp_number = await self.repo.get(conversation.whatsapp_number_id)
                     if whatsapp_number:
-                        print(f"📤 WhatsApp Number carregado: {whatsapp_number.phone_number}")
+                        logger.debug(f"WhatsApp Number loaded: {whatsapp_number.phone_number}")
                         
                         # Carregar contact separadamente
-                        print(f"📤 Carregando contact...")
+                        logger.debug("Loading contact")
                         from app.repositories.contact import ContactRepository
                         contact_repo = ContactRepository(self.db)
                         contact = await contact_repo.get(conversation.contact_id)
                         
                         if not contact:
-                            print(f"❌ Contact não encontrado: {conversation.contact_id}")
-                            logger.error(f"Contact não encontrado: {conversation.contact_id}")
+                            logger.error(f"Contact not found: {conversation.contact_id}")
                             return
                         
-                        print(f"📤 Contact carregado: {contact.whatsapp_id}")
+                        logger.debug(f"Contact loaded: {contact.whatsapp_id}")
                         
                         # Criar cliente Meta Cloud API
                         client = MetaCloudAPI(
@@ -428,7 +427,7 @@ class WhatsAppService:
                         
                         # Remover caracteres especiais do número do contato
                         contact_number = contact.whatsapp_id.replace("+", "").replace(" ", "")
-                        print(f"📤 Enviando para contato: {contact_number}")
+                        logger.debug(f"Sending to contact: {contact_number}")
                         
                         # Capturar dados do node ANTES de qualquer operação async
                         node_canvas_id = node.node_id
@@ -440,11 +439,16 @@ class WhatsAppService:
                                 to=contact_number,
                                 text=message_text
                             )
-                            print(f"✅ Resposta da Meta API: {response}")
+                            logger.debug(f"Meta API response: {response}")
                             
                             if response:
-                                print(f"✅ Mensagem enviada com sucesso!")
-                                logger.info(f"✅ Mensagem enviada com sucesso")
+                                logger.info(
+                                    "Message sent successfully",
+                                    extra={
+                                        "conversation_id": str(conversation_id),
+                                        "organization_id": str(organization_id)
+                                    }
+                                )
                                 
                                 # Salvar como mensagem outbound
                                 message_repo = MessageRepository(self.db)
@@ -460,12 +464,12 @@ class WhatsAppService:
                                 }
                                 await message_repo.create(message_data)
                                 await self.db.commit()
-                                print(f"💾 Mensagem outbound salva no banco")
-                                print(f"✅ Mensagem enviada! Aguardando resposta do usuário...")
+                                logger.debug("Outbound message saved to database")
+                                logger.debug("Message sent, awaiting user response")
                                 
                                 # Se é mensagem informativa (não pergunta), avançar automaticamente
                                 if node.node_type in ["message", "text"]:
-                                    print(f"➡️ É mensagem informativa, avançando para próximo node...")
+                                    logger.debug("Informational message, advancing to next node")
                                     await self._advance_flow_to_next_node(
                                         conversation_id=conversation_id,
                                         organization_id=organization_id,
@@ -475,9 +479,8 @@ class WhatsAppService:
                                 # Se é pergunta, fica esperando resposta
                                 
                         except Exception as e:
-                            print(f"❌ Erro ao enviar mensagem: {e}")
-                            logger.error(f"❌ Erro ao enviar mensagem: {e}")
-                            logger.error(traceback.format_exc())
+                            logger.error(f"Error sending message: {e}")
+                            logger.debug(traceback.format_exc())
             else:
                 logger.info(f"ℹ️ Node tipo {node.node_type} não é message node, ignorando")
         except Exception as e:
@@ -490,14 +493,14 @@ class WhatsAppService:
         from app.repositories.conversation import ConversationRepository
         
         try:
-            print(f"➡️ Avançando do node {current_node_canvas_id}...")
+            logger.debug(f"Advancing from node {current_node_canvas_id}")
             
             # Carregar flow para pegar canvas_data (edges)
             chatbot_service = ChatbotService(self.db)
             flow = await chatbot_service.flow_repo.get(current_node_flow_id)
             
             if not flow:
-                print(f"❌ Flow não encontrado: {current_node_flow_id}")
+                logger.error(f"Flow not found: {current_node_flow_id}")
                 return
             
             # Buscar próximo node nos edges
@@ -508,11 +511,11 @@ class WhatsAppService:
             for edge in edges:
                 if edge.get("source") == current_node_canvas_id:
                     next_node_canvas_id = edge.get("target")
-                    print(f"➡️ Próximo node encontrado: {next_node_canvas_id}")
+                    logger.debug(f"Next node found: {next_node_canvas_id}")
                     break
             
             if not next_node_canvas_id:
-                print(f"✅ Fim do flow - sem próximo node")
+                logger.info("End of flow - no next node")
                 # Marcar flow como concluído
                 conv_repo = ConversationRepository(self.db)
                 await conv_repo.update(conversation_id, {
@@ -530,14 +533,14 @@ class WhatsAppService:
             )
             
             if not next_node:
-                print(f"❌ Próximo node não encontrado no banco: {next_node_canvas_id}")
+                logger.error(f"Next node not found in database: {next_node_canvas_id}")
                 return
             
             # CAPTURAR TODOS OS DADOS DO NODE ANTES DE QUALQUER OPERAÇÃO ASYNC
             next_node_id = next_node.id
             next_node_type = next_node.node_type
             
-            print(f"➡️ Próximo node tipo: {next_node_type}")
+            logger.debug(f"Next node type: {next_node_type}")
             
             # Atualizar current_node_id
             conv_repo = ConversationRepository(self.db)
@@ -545,22 +548,21 @@ class WhatsAppService:
                 "current_node_id": next_node_id
             })
             await self.db.commit()
-            print(f"✅ current_node_id atualizado para: {next_node_id}")
+            logger.info(f"current_node_id updated to: {next_node_id}")
             
             # Se é mensagem informativa, enviar automaticamente
             if next_node_type in ["message", "text"]:
-                print(f"➡️ Próximo node é mensagem informativa, enviando...")
+                logger.debug("Next node is informational message, sending")
                 await self._send_first_node_message(conversation_id, next_node_id, organization_id)
             elif next_node_type == "question":
-                print(f"➡️ Próximo node é pergunta, enviando e aguardando resposta...")
+                logger.debug("Next node is question, sending and awaiting response")
                 await self._send_first_node_message(conversation_id, next_node_id, organization_id)
             else:
-                print(f"ℹ️ Próximo node tipo {next_node_type} - aguardando ação do usuário")
+                logger.debug(f"Next node type {next_node_type} - awaiting user action")
                 
         except Exception as e:
-            print(f"❌ Erro em _advance_flow_to_next_node: {e}")
-            logger.error(f"❌ Erro em _advance_flow_to_next_node: {e}")
-            logger.error(traceback.format_exc())
+            logger.error(f"Error in _advance_flow_to_next_node: {e}")
+            logger.debug(traceback.format_exc())
 
     async def _trigger_chatbot(self, conversation_id: UUID, organization_id: UUID, new_message_id: UUID):
         """
@@ -5286,8 +5288,10 @@ __result__ = __script_func__()
                     # Extract chatbot and flow configuration
                     default_chatbot_id = whatsapp_number.default_chatbot_id
                     default_flow_id = whatsapp_number.default_flow_id
-                    print(f"📞 WhatsApp número: {whatsapp_number.phone_number}")
-                    print(f"📝 default_chatbot_id={default_chatbot_id}, default_flow_id={default_flow_id}")
+                    logger.debug(
+                        f"WhatsApp number: {whatsapp_number.phone_number}, "
+                        f"default_chatbot_id={default_chatbot_id}, default_flow_id={default_flow_id}"
+                    )
 
                     # Process messages
                     if field == "messages":
@@ -5328,17 +5332,23 @@ __result__ = __script_func__()
         message_type = message.get("type", "text")
         timestamp = message.get("timestamp")
         
-        print(f"📥 MENSAGEM RECEBIDA: {whatsapp_message_id} de {whatsapp_contact_id}")
-        print(f"📥 default_flow_id: {default_flow_id}, default_chatbot_id: {default_chatbot_id}")
-        logger.info(f"📥 Mensagem recebida: {whatsapp_message_id} de {whatsapp_contact_id}")
+        logger.info(
+            f"Message received: {whatsapp_message_id} from {whatsapp_contact_id}",
+            extra={
+                "whatsapp_message_id": whatsapp_message_id,
+                "whatsapp_contact_id": whatsapp_contact_id,
+                "default_flow_id": str(default_flow_id) if default_flow_id else None,
+                "default_chatbot_id": str(default_chatbot_id) if default_chatbot_id else None,
+                "organization_id": str(org_id)
+            }
+        )
 
         if not whatsapp_contact_id or not whatsapp_message_id:
-            print("❌ Campos faltando")
-            logger.warning("Campos obrigatórios faltando")
+            logger.warning("Required fields missing")
             return
 
         # 2. Get or Create Contact
-        print("🔍 Buscando contato...")
+        logger.debug("Searching for contact")
         contact_repo = ContactRepository(self.db)
         contact = await contact_repo.get_by_whatsapp_id(
             whatsapp_id=whatsapp_contact_id,
@@ -5355,11 +5365,10 @@ __result__ = __script_func__()
                 "last_message_received_at": datetime.utcnow(),
             }
             contact = await contact_repo.create(contact_data)
-            print(f"✅ Contato criado: {contact.id}")
-            logger.info(f"✅ Contato criado: {contact.id}")
+            logger.info(f"Contact created: {contact.id}", extra={"contact_id": str(contact.id), "organization_id": str(org_id)})
 
         # 3. Get or Create Conversation
-        print(f"🔍 Buscando conversa para contato {contact.id}...")
+        logger.debug(f"Searching for conversation for contact {contact.id}")
         conversation_repo = ConversationRepository(self.db)
         conversations = await conversation_repo.get_by_contact(
             contact_id=contact.id,
@@ -5370,29 +5379,26 @@ __result__ = __script_func__()
         now = datetime.utcnow()
         if conversations:
             conversation = conversations[0]
-            print(f"💬 Conversa existente: {conversation.id}")
-            logger.info(f"💬 Conversa existente: {conversation.id}")
+            logger.debug(f"Existing conversation: {conversation.id}")
             
             # Update flow/chatbot configuration for existing conversations
             # (They may have been set later in the WhatsApp number)
             # ALWAYS reactivate bot for incoming messages
-            print(f"🔍 Checando: default_flow_id={default_flow_id}, default_chatbot_id={default_chatbot_id}")
+            logger.debug(f"Checking: default_flow_id={default_flow_id}, default_chatbot_id={default_chatbot_id}")
             if default_flow_id or default_chatbot_id:
-                print(f"✅ Entrando no if para atualizar flow/chatbot...")
+                logger.debug("Updating flow/chatbot")
                 conversation = await conversation_repo.update(conversation.id, {
                     "active_chatbot_id": default_chatbot_id,
                     "active_flow_id": default_flow_id,
                     "is_bot_active": True,
                 })
-                print(f"🔄 Atualizado: flow={default_flow_id}, chatbot={default_chatbot_id}, is_bot_active=True")
-                logger.info(f"🔄 Updated conversation flow/chatbot: flow={default_flow_id}, chatbot={default_chatbot_id}, is_bot_active=True")
+                logger.info(f"Updated conversation flow/chatbot: flow={default_flow_id}, chatbot={default_chatbot_id}, is_bot_active=True")
             else:
-                print(f"❌ Não entrou no if - nenhum flow/chatbot definido")
+                logger.debug("No flow/chatbot defined")
                 # Still reactivate bot even if no flow/chatbot (for inactivity tracking)
                 conversation = await conversation_repo.update(conversation.id, {
                     "is_bot_active": True,
                 })
-                logger.info(f"🔄 Reactivated bot for existing conversation (no flow/chatbot configured)")
             
             # Ensure conversation has a window for inactivity tracking
             try:
@@ -5400,12 +5406,11 @@ __result__ = __script_func__()
                 window_repo = ConversationWindowRepository(self.db)
                 window = await window_repo.get_by_conversation_id(conversation.id, org_id)
                 if not window:
-                    print(f"📝 Creating missing conversation window for {conversation.id}")
+                    logger.debug(f"Creating missing conversation window for {conversation.id}")
                     await window_repo.create(conversation.id, org_id)
                     await self.db.commit()
-                    logger.info(f"🪟 Created missing conversation window for {conversation.id}")
             except Exception as e:
-                logger.warning(f"⚠️ Failed to create conversation window: {str(e)}")
+                logger.warning(f"Failed to create conversation window: {str(e)}")
         else:
             # Create new conversation
             conversation_data = {
@@ -5433,15 +5438,13 @@ __result__ = __script_func__()
                 window_repo = ConversationWindowRepository(self.db)
                 await window_repo.create(conversation.id, org_id)
                 await self.db.commit()  # Persist the window
-                logger.info(f"🪟 Conversation window created for {conversation.id}")
             except Exception as e:
-                logger.warning(f"⚠️ Failed to create conversation window: {str(e)}")
+                logger.warning(f"Failed to create conversation window: {str(e)}")
             
-            print(f"✅ Conversa criada: {conversation.id}")
-            logger.info(f"✅ Conversa criada: {conversation.id}")
+            logger.info(f"Conversation created: {conversation.id}", extra={"conversation_id": str(conversation.id), "organization_id": str(org_id)})
 
         # 4. Update conversation timestamps (including last_inbound_message_at for inactivity)
-        print("⏰ Atualizando timestamps...")
+        logger.debug("Updating timestamps")
         await conversation_repo.update(conversation.id, {
             "last_message_at": datetime.utcnow(),
             "last_inbound_message_at": now,  # Update inactivity tracking timestamp
@@ -5449,7 +5452,7 @@ __result__ = __script_func__()
         })
 
         # 5. Save message (check for duplicates first)
-        print("💾 Salvando mensagem...")
+        logger.debug("Saving message")
         message_repo = MessageRepository(self.db)
         
         # Check if message already exists (WhatsApp may send duplicate webhooks)
@@ -5464,8 +5467,7 @@ __result__ = __script_func__()
         existing_message = result.scalar_one_or_none()
 
         if existing_message:
-            print(f"⚠️ Mensagem duplicada: {whatsapp_message_id}")
-            logger.info(f"⚠️ Mensagem duplicada ignorada: {whatsapp_message_id}")
+            logger.warning(f"Duplicate message ignored: {whatsapp_message_id}")
             return  # Idempotent - just return without error
         
         # Extract content
@@ -5489,14 +5491,12 @@ __result__ = __script_func__()
         
         await message_repo.create(message_data)
         await self.db.commit()
-        print(f"✅ Mensagem salva com sucesso")
-        logger.info(f"💾 Mensagem salva")
+        logger.info("Message saved successfully", extra={"conversation_id": str(conversation.id), "organization_id": str(org_id)})
 
         # 6. Trigger flow se configurado
-        print(f"🔍 Verificando flow: chatbot={default_chatbot_id}, flow={default_flow_id}")
+        logger.debug(f"Checking flow: chatbot={default_chatbot_id}, flow={default_flow_id}")
         if default_chatbot_id or default_flow_id:
-            print(f"🚀 DISPARANDO FLOW...")
-            logger.info(f"🚀 Disparando flow: chatbot={default_chatbot_id}, flow={default_flow_id}")
+            logger.info(f"Triggering flow: chatbot={default_chatbot_id}, flow={default_flow_id}")
             try:
                 await self._trigger_flow_simple(
                     conversation_id=conversation.id,
