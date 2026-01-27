@@ -168,6 +168,7 @@ class WhatsAppNumberInDB(WhatsAppNumberBase):
     default_department_id: Optional[UUID] = None
     default_chatbot_id: Optional[UUID] = None
     webhook_url: Optional[str] = None
+    webhook_token: UUID = Field(..., description="Token único para isolamento de tenant em webhooks")
 
     created_at: datetime
     updated_at: datetime

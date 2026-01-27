@@ -290,12 +290,170 @@ async def verify_webhook(
     return challenge
 
 
+# ============= SECURE TENANT-ISOLATED WEBHOOK =============
+
+@router.post("/webhook/{webhook_token}", dependencies=[])
+async def receive_webhook_secure(
+    webhook_token: str,
+    request: Request,
+):
+    """
+    Webhook endpoint with tenant isolation (RECOMMENDED).
+    
+    Each WhatsApp number has a unique webhook_token that identifies its organization.
+    This ensures complete isolation of webhook data between tenants.
+    
+    **Path Parameters:**
+    - webhook_token (str): Unique token per WhatsApp number (UUID format)
+    
+    **Request Body:** Same as legacy webhook
+    
+    **Returns:** HTTP 200 OK
+    
+    **Example URL:**
+    ```
+    POST https://pytake.net/api/v1/whatsapp/webhook/550e8400-e29b-41d4-a716-446655440000
+    ```
+    
+    **Security:**
+    - Token is unique per WhatsApp number
+    - Organization ID is validated from token lookup
+    - HMAC signature still validated if configured
+    - Prevents cross-tenant data leakage
+    
+    **Error Codes:**
+    - 200: OK (always, even on errors, to prevent Meta retries)
+    - 403: Forbidden (invalid signature if configured)
+    
+    **Tenant Isolation:**
+    - Webhook token directly maps to organization
+    - No ambiguity if multiple numbers share same phone_number_id
+    - Complete isolation guaranteed at routing level
+    """
+    import logging
+    import json
+    from app.core.security import verify_whatsapp_signature
+    from sqlalchemy import select
+    from app.models.whatsapp_number import WhatsAppNumber
+    from app.core.database import async_session
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Get raw body for signature verification
+        raw_body = await request.body()
+        
+        # Parse JSON body
+        body = json.loads(raw_body.decode('utf-8'))
+
+        logger.info(
+            f"🔐 Secure webhook received: token={webhook_token[:8]}..., "
+            f"size={len(raw_body)} bytes"
+        )
+
+        # Step 1: Find WhatsAppNumber by webhook_token (UNIQUE, TENANT-ISOLATED)
+        async with async_session() as db:
+            stmt = select(WhatsAppNumber).where(
+                WhatsAppNumber.webhook_token == webhook_token,
+                WhatsAppNumber.deleted_at.is_(None),
+            )
+            result = await db.execute(stmt)
+            number = result.scalar_one_or_none()
+
+            if not number:
+                logger.warning(
+                    f"⚠️ Invalid webhook_token: {webhook_token}. "
+                    f"Number not found or deleted."
+                )
+                # Return 200 to prevent Meta retry
+                return {"status": "ok"}
+
+            logger.info(
+                f"✅ Webhook token valid: org_id={number.organization_id}, "
+                f"phone_number={number.phone_number}"
+            )
+
+            # Step 2: Extract phone_number_id from webhook payload
+            phone_number_id = None
+            try:
+                entries = body.get("entry", [])
+                if entries:
+                    changes = entries[0].get("changes", [])
+                    if changes:
+                        value = changes[0].get("value", {})
+                        metadata = value.get("metadata", {})
+                        phone_number_id = metadata.get("phone_number_id")
+            except (IndexError, KeyError, TypeError):
+                pass
+
+            # Step 3: Validate that phone_number_id matches our stored number
+            # This prevents webhook token reuse/hijacking
+            if phone_number_id and phone_number_id != number.phone_number_id:
+                logger.error(
+                    f"❌ SECURITY: Phone number ID mismatch! "
+                    f"Token={webhook_token[:8]}... expected phone_number_id={number.phone_number_id}, "
+                    f"got={phone_number_id}. Possible hijack attempt."
+                )
+                return {"status": "ok"}
+
+            # Step 4: Verify signature if token is configured
+            if number.webhook_verify_token:
+                signature = request.headers.get("X-Hub-Signature-256")
+                
+                if not signature:
+                    logger.error(
+                        f"❌ Missing X-Hub-Signature-256 header for webhook_token={webhook_token[:8]}..."
+                    )
+                    return {"status": "ok"}
+
+                if not verify_whatsapp_signature(
+                    payload=raw_body,
+                    signature=signature,
+                    app_secret=number.webhook_verify_token
+                ):
+                    logger.error(
+                        f"❌ Invalid webhook signature for webhook_token={webhook_token[:8]}..."
+                    )
+                    return {"status": "ok"}
+
+            # Step 5: Process webhook with guaranteed tenant isolation
+            logger.info(
+                f"🔄 Processing webhook for org_id={number.organization_id}, "
+                f"phone_number={number.phone_number}"
+            )
+            
+            from app.services.whatsapp_service import WhatsAppService
+            service = WhatsAppService(db)
+            await service.process_webhook(body, number.id, number.organization_id)
+            
+            logger.info(
+                f"✅ Webhook processed successfully (secured): "
+                f"org_id={number.organization_id}, token={webhook_token[:8]}..."
+            )
+
+        # Always return 200 OK to Meta
+        return {"status": "ok"}
+
+    except Exception as e:
+        logger.error(f"❌ Webhook error (secure): {e}", exc_info=True)
+        # Always return 200 OK to prevent Meta retry
+        return {"status": "ok"}
+
+
+# ============= LEGACY WEBHOOK (DEPRECATED, WITH VALIDATION) =============
+
 @router.post("/webhook", dependencies=[])
 async def receive_webhook(
     request: Request,
 ):
     """
-    Webhook endpoint for receiving WhatsApp messages and events from Meta Cloud API.
+    Webhook endpoint for receiving WhatsApp messages (DEPRECATED).
+    
+    ⚠️  LEGACY ENDPOINT - Use POST /api/v1/whatsapp/webhook/{webhook_token} in production
+    
+    This endpoint maintains backward compatibility but adds validation for tenant isolation.
+    If multiple WhatsApp numbers share the same phone_number_id across organizations,
+    this endpoint will log a warning and process with the first match.
 
     This endpoint receives and processes incoming messages, status updates, and
     customer information changes. All events are validated using HMAC signature.
@@ -444,11 +602,24 @@ async def receive_webhook(
                 WhatsAppNumber.deleted_at.is_(None),
             )
             result = await db.execute(stmt)
-            number = result.scalar_one_or_none()
+            numbers = result.scalars().all()  # Get ALL matches
 
-            if not number:
-                logger.error(f"WhatsApp number not found for phone_number_id: {phone_number_id}, organization might be deleted")
+            if not numbers:
+                logger.error(f"Could not find WhatsApp number for phone_number_id: {phone_number_id}")
                 return {"status": "ok"}
+
+            # SECURITY: Check for duplicates across organizations (tenant isolation issue)
+            if len(numbers) > 1:
+                org_ids = [str(n.organization_id) for n in numbers]
+                logger.warning(
+                    f"⚠️ SECURITY ALERT: Duplicate phone_number_id across {len(numbers)} organizations! "
+                    f"phone_number_id={phone_number_id}, org_ids={org_ids}. "
+                    f"Using first organization: {numbers[0].organization_id}. "
+                    f"PLEASE MIGRATE TO SECURE WEBHOOK ENDPOINT: /webhook/{{webhook_token}}"
+                )
+                # Consider adding monitoring/alerting here
+
+            number = numbers[0]  # Use first match (but logged the risk above)
 
             # Verify signature if token is set
             if number.webhook_verify_token:

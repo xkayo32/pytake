@@ -133,6 +133,13 @@ class WhatsAppNumber(Base, TimestampMixin, SoftDeleteMixin):
 
     # Webhooks
     webhook_url = Column(Text, nullable=True)  # Custom webhook for this number
+    webhook_token = Column(
+        UUID(as_uuid=True),
+        nullable=False,
+        unique=True,
+        server_default=text("gen_random_uuid()"),
+        index=True,
+    )  # Unique token for tenant-isolated webhook URL
 
     # Relationships
     organization = relationship("Organization", back_populates="whatsapp_numbers")
