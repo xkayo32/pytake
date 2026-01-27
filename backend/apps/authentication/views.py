@@ -72,7 +72,28 @@ class LoginViewSet(viewsets.ViewSet):
         })
         
         if serializer.is_valid():
-            return Response(serializer.validated_data, status=status.HTTP_200_OK)
+            data = serializer.validated_data
+            
+            # Transform tokens for frontend compatibility
+            if 'access' in data:
+                data['access_token'] = data.pop('access')
+            if 'refresh' in data:
+                data['refresh_token'] = data.pop('refresh')
+            if 'token_type' not in data:
+                data['token_type'] = 'Bearer'
+            if 'expires_in' not in data:
+                data['expires_in'] = 900
+            
+            # Frontend expects token wrapped in a 'token' key
+            return Response({
+                'token': {
+                    'access_token': data.get('access_token'),
+                    'refresh_token': data.get('refresh_token'),
+                    'token_type': data.get('token_type'),
+                    'expires_in': data.get('expires_in')
+                },
+                'user': data.get('user')
+            }, status=status.HTTP_200_OK)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
