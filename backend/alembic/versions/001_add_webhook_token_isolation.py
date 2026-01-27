@@ -1,7 +1,7 @@
 """Add webhook_token to WhatsAppNumber for tenant isolation
 
 Revision ID: 001_webhook_token_isolation
-Revises: 20260125_1921_sso_oauth_tables
+Revises: b28b8e76f20a
 Create Date: 2026-01-26 21:00:00.000000
 
 """
@@ -13,7 +13,7 @@ import uuid
 
 # revision identifiers, used by Alembic.
 revision = '001_webhook_token_isolation'
-down_revision = '20260125_1921_sso_oauth_tables'
+down_revision = 'b28b8e76f20a'
 branch_labels = None
 depends_on = None
 

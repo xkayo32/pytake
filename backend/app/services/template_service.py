@@ -499,44 +499,44 @@ class TemplateService:
         )
 
         # Fetch all templates from Meta (all statuses)
-         meta_templates = await meta_api.list_templates(waba_id, status="", limit=1000)
+        meta_templates = await meta_api.list_templates(waba_id, status="", limit=1000)
 
-         logger.info(f"Fetched {len(meta_templates)} templates from Meta API")
+        logger.info(f"Fetched {len(meta_templates)} templates from Meta API")
 
-         stats = {"created": 0, "updated": 0, "deleted": 0}
+        stats = {"created": 0, "updated": 0, "deleted": 0}
 
-         # Get all local templates
-         local_templates = await self.list_templates(
-             whatsapp_number_id=whatsapp_number_id,
-             organization_id=organization_id,
-             limit=1000
-         )
-         local_by_name = {f"{t.name}_{t.language}": t for t in local_templates}
+        # Get all local templates
+        local_templates = await self.list_templates(
+            whatsapp_number_id=whatsapp_number_id,
+            organization_id=organization_id,
+            limit=1000
+        )
+        local_by_name = {f"{t.name}_{t.language}": t for t in local_templates}
 
-         # Process Meta templates
-         for meta_template in meta_templates:
-             name = meta_template.get("name")
-             language = meta_template.get("language")
+        # Process Meta templates
+        for meta_template in meta_templates:
+            name = meta_template.get("name")
+            language = meta_template.get("language")
 
-             # Meta API can return nested structure with templates[] array
-             # Each item in templates[] has language-specific data
-             template_data = meta_template
-             if "templates" in meta_template and isinstance(meta_template["templates"], list):
-                 # Find the template version for this language
-                 for lang_version in meta_template["templates"]:
-                     if lang_version.get("language") == language:
-                         template_data = lang_version
-                         break
+            # Meta API can return nested structure with templates[] array
+            # Each item in templates[] has language-specific data
+            template_data = meta_template
+            if "templates" in meta_template and isinstance(meta_template["templates"], list):
+                # Find the template version for this language
+                for lang_version in meta_template["templates"]:
+                    if lang_version.get("language") == language:
+                        template_data = lang_version
+                        break
 
-             # Log every template from Meta for debugging
-             logger.info(
-                 f"Meta template: name={name}, language={language}, "
-                 f"status={template_data.get('status')}, "
-                 f"rejected_reason={template_data.get('rejected_reason')}"
-             )
+            # Log every template from Meta for debugging
+            logger.info(
+                f"Meta template: name={name}, language={language}, "
+                f"status={template_data.get('status')}, "
+                f"rejected_reason={template_data.get('rejected_reason')}"
+            )
 
-             key = f"{name}_{language}"
-             local_template = local_by_name.get(key)
+            key = f"{name}_{language}"
+            local_template = local_by_name.get(key)
 
             if local_template:
                 # Update existing template
