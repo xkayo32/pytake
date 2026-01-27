@@ -16,15 +16,14 @@ django_asgi_app = get_asgi_application()
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 
-# Import routing configuration (will be created later)
-# from apps.conversations.routing import websocket_urlpatterns
+# Import routing configuration
+from pytake.asgi_routing import websocket_urlpatterns
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
     "websocket": AuthMiddlewareStack(
         URLRouter(
-            # websocket_urlpatterns  # Will be added when creating apps
-            []
+            websocket_urlpatterns
         )
     ),
 })
