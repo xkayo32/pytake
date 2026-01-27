@@ -98,9 +98,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         return Response({
             'period_days': int(period),
             'total_conversations': conversations.count(),
-            'avg_response_time': conversations.aggregate(
-                Avg('average_response_time_seconds')
-            )['average_response_time_seconds__avg'] or 0,
+            'avg_response_time': 0,  # TODO: Calculate from message timestamps
             'resolved': conversations.filter(status='resolved').count(),
             'by_status': {
                 'active': conversations.filter(status='active').count(),
