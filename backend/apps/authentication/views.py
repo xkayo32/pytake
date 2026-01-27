@@ -148,7 +148,12 @@ class UserViewSet(viewsets.ViewSet):
         )
         
         serializer = UserDetailSerializer(users, many=True)
-        return Response(serializer.data)
+        return Response({
+            'count': len(users),
+            'next': None,
+            'previous': None,
+            'results': serializer.data
+        })
     
     def retrieve(self, request, pk=None):
         """Get specific user"""
