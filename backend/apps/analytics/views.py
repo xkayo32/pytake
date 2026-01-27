@@ -253,3 +253,36 @@ class AnalyticsViewSet(viewsets.ViewSet):
             'date': timezone.now().date().isoformat(),
             'data': hourly_data
         })
+    
+    @action(detail=False, methods=['get'])
+    def daily(self, request):
+        """GET /api/v1/analytics/conversations/daily - Get daily conversation data"""
+        from apps.conversations.models import Conversation
+        from datetime import date
+        
+        org = request.user.organization
+        days = int(request.query_params.get('days', 7))
+        
+        conversations = Conversation.objects.filter(
+            organization=org,
+            deleted_at__isnull=True
+        )
+        
+        # Group by day (last N days)
+        daily_data = []
+        for i in range(days):
+            day = timezone.now().date() - timedelta(days=i)
+            count = conversations.filter(created_at__date=day).count()
+            daily_data.append({
+                'date': day.isoformat(),
+                'count': count
+            })
+        
+        # Reverse to ascending order
+        daily_data.reverse()
+        
+        return Response({
+            'granularity': 'day',
+            'days': days,
+            'data': daily_data
+        })
