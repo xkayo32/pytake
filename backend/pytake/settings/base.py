@@ -34,30 +34,32 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.postgres',  # PostgreSQL-specific features
     
     # Third-party
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'channels',
     'drf_spectacular',
     
-    # PyTake apps (to be created)
-    # 'apps.authentication',
-    # 'apps.organizations',
-    # 'apps.rbac',
-    # 'apps.whatsapp',
-    # 'apps.conversations',
-    # 'apps.chatbots',
-    # 'apps.campaigns',
-    # 'apps.analytics',
-    # 'apps.ai_assistant',
-    # 'apps.webhooks',
-    # 'apps.queues',
-    # 'apps.alerts',
-    # 'apps.templates',
-    # 'apps.expenses',
-    # 'apps.core',
+    # PyTake apps
+    'apps.core',
+    'apps.organizations',
+    'apps.rbac',
+    'apps.authentication',
+    'apps.whatsapp',
+    'apps.conversations',
+    'apps.chatbots',
+    'apps.campaigns',
+    'apps.analytics',
+    'apps.ai_assistant',
+    'apps.webhooks',
+    'apps.queues',
+    'apps.alerts',
+    'apps.templates',
+    'apps.expenses',
 ]
 
 MIDDLEWARE = [
@@ -346,3 +348,4 @@ LOGGING = {
         },
     },
 }
+AUTH_USER_MODEL = 'authentication.User'
