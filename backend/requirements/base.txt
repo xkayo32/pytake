@@ -63,3 +63,5 @@ pyotp>=2.9.0
 tenacity>=8.2.0
 python-dateutil>=2.9.0
 Pillow>=10.0.0
+
+reportlab>=4.4.0
