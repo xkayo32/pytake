@@ -23,7 +23,7 @@ COPY requirements/ /tmp/requirements/
 
 # Install Python dependencies
 RUN pip install --upgrade pip setuptools wheel && \
-    pip install -r /tmp/requirements/base.txt
+    pip install -r /tmp/requirements/development.txt
 
 # Copy project
 COPY . .

@@ -8,6 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenBlacklistView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import authenticate
+from drf_spectacular.utils import extend_schema
 
 from .models import User
 from .serializers import UserDetailSerializer, UserCreateSerializer, UserUpdateSerializer
@@ -34,7 +35,12 @@ class LoginViewSet(viewsets.ViewSet):
     POST /api/v1/auth/login/
     """
     permission_classes = [AllowAny]
+    serializer_class = UserDetailSerializer
     
+    @extend_schema(
+        request=UserCreateSerializer,
+        responses=UserDetailSerializer
+    )
     def create(self, request):
         """Login with email and password"""
         email = request.data.get('email')
@@ -77,7 +83,12 @@ class RegisterViewSet(viewsets.ViewSet):
     POST /api/v1/auth/register/
     """
     permission_classes = [AllowAny]
+    serializer_class = UserCreateSerializer
     
+    @extend_schema(
+        request=UserCreateSerializer,
+        responses=UserDetailSerializer
+    )
     def create(self, request):
         """Register new user"""
         serializer = UserCreateSerializer(data=request.data)
@@ -103,6 +114,8 @@ class UserViewSet(viewsets.ViewSet):
     GET /api/v1/users/me/ - Get current user
     PUT /api/v1/users/me/ - Update current user
     """
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserDetailSerializer
     permission_classes = [IsAuthenticated]
     
     def list(self, request):
@@ -175,6 +188,7 @@ class UserViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(exclude=True)
 class TokenBlacklistViewSet(viewsets.ViewSet):
     """
     API endpoint for logout (token blacklist)

@@ -9,6 +9,7 @@ from rest_framework.permissions import AllowAny
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.http import JsonResponse
+from drf_spectacular.utils import extend_schema
 from apps.services.database.mongodb_service import MongoDBService
 import logging
 import stripe
@@ -18,6 +19,7 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
+@extend_schema(exclude=True)
 @method_decorator(csrf_exempt, name='dispatch')
 class StripeWebhookViewSet(viewsets.ViewSet):
     """
@@ -192,6 +194,7 @@ class StripeWebhookViewSet(viewsets.ViewSet):
         logger.error(f"❌ Invoice payment failed: {invoice_id}")
 
 
+@extend_schema(exclude=True)
 @method_decorator(csrf_exempt, name='dispatch')
 class SendGridWebhookViewSet(viewsets.ViewSet):
     """
@@ -268,6 +271,7 @@ class SendGridWebhookViewSet(viewsets.ViewSet):
         logger.info(f"📧 Email unsubscribe: {email}")
 
 
+@extend_schema(exclude=True)
 @method_decorator(csrf_exempt, name='dispatch')
 class TwilioWebhookViewSet(viewsets.ViewSet):
     """

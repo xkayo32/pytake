@@ -5,6 +5,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import extend_schema
 from django.db.models import Count, Sum, Avg, Q
 from django.utils import timezone
 from datetime import timedelta
@@ -12,6 +13,7 @@ from datetime import timedelta
 from apps.authentication.permissions import IsOrganizerUser
 
 
+@extend_schema(exclude=True)
 class AnalyticsViewSet(viewsets.ViewSet):
     """
     API endpoints for Analytics and Dashboard

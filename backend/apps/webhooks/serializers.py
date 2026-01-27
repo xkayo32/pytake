@@ -28,7 +28,7 @@ class WebhookEndpointSerializer(serializers.ModelSerializer):
             'last_delivery_at', 'created_at'
         ]
         read_only_fields = [
-            'id', 'secret_key', 'total_deliveries', 'successful_deliveries',
+            'id', 'total_deliveries', 'successful_deliveries',
             'failed_deliveries', 'last_delivery_at', 'created_at'
         ]
         extra_kwargs = {

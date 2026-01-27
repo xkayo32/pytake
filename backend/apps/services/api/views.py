@@ -5,6 +5,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import extend_schema
 from apps.authentication.permissions import HasRBACPermission
 from apps.services.database.mongodb_service import MongoDBService
 from datetime import datetime, timedelta
@@ -13,6 +14,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+@extend_schema(exclude=True)
 class AuditLogViewSet(viewsets.ViewSet):
     """
     REST API for accessing audit logs from MongoDB
@@ -141,6 +143,7 @@ class AuditLogViewSet(viewsets.ViewSet):
             )
 
 
+@extend_schema(exclude=True)
 class AnalyticsViewSet(viewsets.ViewSet):
     """
     REST API for accessing analytics data from MongoDB
@@ -271,6 +274,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         })
 
 
+@extend_schema(exclude=True)
 class MessageHistoryViewSet(viewsets.ViewSet):
     """
     REST API for message history from MongoDB

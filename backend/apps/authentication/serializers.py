@@ -135,7 +135,7 @@ class OAuthSSOSerializer(serializers.ModelSerializer):
         model = OAuthSSO
         fields = [
             'id', 'organization', 'name', 'provider',
-            'client_id', 'is_active', 'config', 'created_at', 'updated_at'
+            'client_id', 'client_secret', 'is_active', 'config', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
         extra_kwargs = {

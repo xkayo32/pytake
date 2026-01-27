@@ -38,6 +38,8 @@ class IntegrationProviderViewSet(viewsets.ModelViewSet):
     ordering = ["-created_at"]
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return IntegrationProvider.objects.none()
         return IntegrationProvider.objects.filter(
             organization=self.request.user.organization,
             deleted_at__isnull=True,
@@ -123,6 +125,8 @@ class IntegrationLogViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ["-created_at"]
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return IntegrationLog.objects.none()
         return IntegrationLog.objects.filter(
             integration__organization=self.request.user.organization,
             integration__deleted_at__isnull=True,
@@ -145,6 +149,8 @@ class WebhookDestinationViewSet(viewsets.ModelViewSet):
     ordering = ["-created_at"]
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return WebhookDestination.objects.none()
         return WebhookDestination.objects.filter(
             organization=self.request.user.organization,
             deleted_at__isnull=True,
@@ -231,14 +237,16 @@ class WebhookDeliveryAttemptViewSet(viewsets.ReadOnlyModelViewSet):
 
     permission_classes = [HasRBACPermission]
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ["endpoint", "status", "event_type"]
+    filterset_fields = ["destination", "status", "event_type"]
     ordering_fields = ["created_at", "last_attempt_at"]
     ordering = ["-created_at"]
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return WebhookDeliveryAttempt.objects.none()
         return WebhookDeliveryAttempt.objects.filter(
-            endpoint__organization=self.request.user.organization,
-            endpoint__deleted_at__isnull=True,
+            destination__organization=self.request.user.organization,
+            destination__deleted_at__isnull=True,
         )
 
     def get_serializer_class(self):

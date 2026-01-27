@@ -33,6 +33,8 @@ class CampaignViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Return only user's organization campaigns"""
+        if getattr(self, 'swagger_fake_view', False):
+            return Campaign.objects.none()
         return Campaign.objects.filter(
             organization=self.request.user.organization,
             deleted_at__isnull=True

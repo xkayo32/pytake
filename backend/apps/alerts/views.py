@@ -31,6 +31,8 @@ class AlertViewSet(viewsets.ReadOnlyModelViewSet):
     
     def get_queryset(self):
         """Return only user's organization alerts"""
+        if getattr(self, 'swagger_fake_view', False):
+            return Alert.objects.none()
         return Alert.objects.filter(
             organization=self.request.user.organization
         )

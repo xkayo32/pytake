@@ -6,9 +6,11 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import extend_schema
 from .models import MFA
 
 
+@extend_schema(exclude=True)
 class MFAViewSet(viewsets.ViewSet):
     """
     API endpoints for Multi-Factor Authentication (MFA)

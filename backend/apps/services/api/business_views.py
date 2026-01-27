@@ -5,6 +5,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import extend_schema
 from apps.authentication.permissions import HasRBACPermission
 from apps.services.business.email_sender import EmailSenderService
 from apps.services.business.sms_sender import SMSSenderService
@@ -15,6 +16,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+@extend_schema(exclude=True)
 class EmailViewSet(viewsets.ViewSet):
     """
     REST API for email operations
@@ -144,6 +146,7 @@ class EmailViewSet(viewsets.ViewSet):
             )
 
 
+@extend_schema(exclude=True)
 class SMSViewSet(viewsets.ViewSet):
     """
     REST API for SMS operations
@@ -276,6 +279,7 @@ class SMSViewSet(viewsets.ViewSet):
             )
 
 
+@extend_schema(exclude=True)
 class PaymentViewSet(viewsets.ViewSet):
     """
     REST API for payment operations
@@ -414,6 +418,7 @@ class PaymentViewSet(viewsets.ViewSet):
             )
 
 
+@extend_schema(exclude=True)
 class ReportingViewSet(viewsets.ViewSet):
     """
     REST API for report generation

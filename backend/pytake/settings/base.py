@@ -309,6 +309,14 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'SCHEMA_PATH_PREFIX': '/api/v1',
     'COMPONENT_SPLIT_REQUEST': True,
+    'COERCE_DECIMAL_TO_STRING': False,
+    'ENUM_ADD_UNDERSCORES': False,
+    'CONTACT': {'name': 'PyTake API Support', 'email': 'support@pytake.net'},
+    'LICENSE': {'name': 'Apache 2.0'},
+    'SERVERS': [
+        {'url': 'https://api-dev.pytake.net', 'description': 'Development'},
+        {'url': 'https://api.pytake.net', 'description': 'Production'},
+    ],
 }
 
 # ============================================================================

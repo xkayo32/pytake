@@ -34,6 +34,8 @@ class ContactViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Return only user's organization contacts"""
+        if getattr(self, 'swagger_fake_view', False):
+            return Contact.objects.none()
         return Contact.objects.filter(
             organization=self.request.user.organization,
             deleted_at__isnull=True
@@ -87,6 +89,8 @@ class ConversationViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Return only user's organization conversations"""
+        if getattr(self, 'swagger_fake_view', False):
+            return Conversation.objects.none()
         return Conversation.objects.filter(
             organization=self.request.user.organization,
             deleted_at__isnull=True
