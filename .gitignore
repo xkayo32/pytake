@@ -106,3 +106,4 @@ certbot/conf/archive/*/
 certbot/conf/renewal/
 certbot/conf/accounts/
 
+backend/celerybeat-schedule
