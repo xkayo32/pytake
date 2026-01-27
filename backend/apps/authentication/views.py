@@ -216,3 +216,39 @@ class TokenBlacklistViewSet(viewsets.ViewSet):
                 {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+
+class TokenRefreshCompatibilityView(TokenRefreshView):
+    """
+    Custom TokenRefresh that returns frontend-compatible response format.
+    
+    Default Django REST SimplJWT returns: { "access": "...", "refresh": "..." }
+    Frontend expects: { "access_token": "...", "refresh_token": "...", "token_type": "Bearer", "expires_in": ... }
+    
+    This view wraps the standard response to match frontend expectations.
+    """
+    
+    def post(self, request, *args, **kwargs):
+        """Override post to transform response"""
+        response = super().post(request, *args, **kwargs)
+        
+        if response.status_code == status.HTTP_200_OK:
+            # Transform field names for frontend compatibility
+            data = response.data
+            
+            # Rename fields: access -> access_token, refresh -> refresh_token
+            if 'access' in data:
+                data['access_token'] = data.pop('access')
+            
+            if 'refresh' in data:
+                data['refresh_token'] = data.pop('refresh')
+            
+            # Add standard OAuth fields if not present
+            if 'token_type' not in data:
+                data['token_type'] = 'Bearer'
+            
+            # Add expires_in (15 minutes from JWT exp claim)
+            if 'expires_in' not in data:
+                data['expires_in'] = 900  # 15 minutes in seconds
+        
+        return response
