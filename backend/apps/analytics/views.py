@@ -203,3 +203,53 @@ class AnalyticsViewSet(viewsets.ViewSet):
                 'quality_rating': num.quality_rating
             } for num in wa_numbers]
         })
+    
+    @action(detail=False, methods=['get'])
+    def overview(self, request):
+        """GET /api/v1/analytics/overview/ - Get analytics overview"""
+        from apps.conversations.models import Conversation
+        
+        org = request.user.organization
+        today = timezone.now().date()
+        
+        conversations = Conversation.objects.filter(
+            organization=org,
+            deleted_at__isnull=True
+        )
+        
+        return Response({
+            'total_conversations': conversations.count(),
+            'active_conversations': conversations.filter(status='active').count(),
+            'resolved_conversations': conversations.filter(status='resolved').count(),
+            'closed_conversations': conversations.filter(status='closed').count(),
+        })
+    
+    @action(detail=False, methods=['get'])
+    def hourly(self, request):
+        """GET /api/v1/analytics/conversations/hourly - Get hourly conversation data"""
+        from apps.conversations.models import Conversation
+        from django.db.models.functions import ExtractHour
+        
+        org = request.user.organization
+        granularity = request.query_params.get('granularity', 'hour')
+        
+        conversations = Conversation.objects.filter(
+            organization=org,
+            deleted_at__isnull=True,
+            created_at__date=timezone.now().date()
+        )
+        
+        # Group by hour
+        hourly_data = []
+        for hour in range(24):
+            count = conversations.filter(created_at__hour=hour).count()
+            hourly_data.append({
+                'hour': hour,
+                'count': count
+            })
+        
+        return Response({
+            'granularity': granularity,
+            'date': timezone.now().date().isoformat(),
+            'data': hourly_data
+        })
