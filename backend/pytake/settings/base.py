@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'apps.templates',
     'apps.expenses',
     'apps.integrations',
+    'apps.services',
 ]
 
 MIDDLEWARE = [
