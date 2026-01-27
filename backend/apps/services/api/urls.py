@@ -8,11 +8,21 @@ from apps.services.api.views import (
     AnalyticsViewSet,
     MessageHistoryViewSet,
 )
+from apps.services.api.business_views import (
+    EmailViewSet,
+    SMSViewSet,
+    PaymentViewSet,
+    ReportingViewSet,
+)
 
 router = SimpleRouter()
 router.register(r'audit-logs', AuditLogViewSet, basename='audit-logs')
 router.register(r'analytics', AnalyticsViewSet, basename='analytics')
 router.register(r'message-history', MessageHistoryViewSet, basename='message-history')
+router.register(r'email', EmailViewSet, basename='email')
+router.register(r'sms', SMSViewSet, basename='sms')
+router.register(r'payments', PaymentViewSet, basename='payments')
+router.register(r'reports', ReportingViewSet, basename='reports')
 
 urlpatterns = [
     path('', include(router.urls)),
