@@ -20,10 +20,14 @@ urlpatterns = [
     
     # API Routes
     path('api/v1/auth/', include('apps.authentication.urls')),
+    path('api/v1/', include('apps.organizations.urls')),
+    path('api/v1/', include('apps.conversations.urls')),
+    path('api/v1/', include('apps.campaigns.urls')),
     
     # Future: Add other app URLs here
-    # path('api/v1/organizations/', include('apps.organizations.urls')),
-    # path('api/v1/conversations/', include('apps.conversations.urls')),
-    # path('api/v1/campaigns/', include('apps.campaigns.urls')),
+    # path('api/v1/chatbots/', include('apps.chatbots.urls')),
+    # path('api/v1/whatsapp/', include('apps.whatsapp.urls')),
+    # path('api/v1/queues/', include('apps.queues.urls')),
+    # path('api/v1/alerts/', include('apps.alerts.urls')),
     # ... etc
 ]
