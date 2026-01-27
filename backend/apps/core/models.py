@@ -70,3 +70,59 @@ class BaseModel(UUIDModel, TimestampModel, SoftDeleteModel):
     """
     class Meta:
         abstract = True
+
+
+class AuditLog(UUIDModel, TimestampModel):
+    """Audit log for tracking changes"""
+    
+    organization = models.ForeignKey(
+        'organizations.Organization',
+        on_delete=models.CASCADE,
+        related_name='audit_logs',
+        null=True,
+        blank=True
+    )
+    user = models.ForeignKey(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='audit_logs'
+    )
+    
+    action = models.CharField(max_length=50, db_index=True)
+    resource_type = models.CharField(max_length=50, db_index=True)
+    resource_id = models.UUIDField(null=True, blank=True)
+    changes = models.JSONField(default=dict, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'audit_logs'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['organization', '-created_at']),
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['resource_type', 'resource_id']),
+        ]
+
+
+class Secret(BaseModel):
+    """Encrypted secrets storage"""
+    
+    organization = models.ForeignKey(
+        'organizations.Organization',
+        on_delete=models.CASCADE,
+        related_name='secrets'
+    )
+    
+    key = models.CharField(max_length=255, unique=True, db_index=True)
+    encrypted_value = models.TextField()
+    description = models.TextField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'secrets'
+        ordering = ['key']
+    
+    def __str__(self):
+        return self.key

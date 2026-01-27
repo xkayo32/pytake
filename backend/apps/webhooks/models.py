@@ -1,3 +1,7 @@
+"""
+Webhook models - currently empty, webhooks handled in WhatsApp models
+"""
 from django.db import models
 
-# Create your models here.
+# Webhooks are configured at WhatsAppNumber level
+# This app is reserved for future webhook management features

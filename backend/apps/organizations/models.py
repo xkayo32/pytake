@@ -134,3 +134,28 @@ class Organization(BaseModel):
     def can_send_message(self):
         limits = self._get_plan_limits()
         return self.current_month_messages_sent < limits['monthly_messages']
+
+
+class Department(BaseModel):
+    """Department model for organizing teams"""
+    
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='departments'
+    )
+    
+    name = models.CharField(max_length=255)
+    description = models.TextField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    settings = models.JSONField(default=dict, blank=True)
+    
+    class Meta:
+        db_table = 'departments'
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['organization', 'is_active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.name} ({self.organization.name})"

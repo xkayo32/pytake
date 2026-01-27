@@ -213,3 +213,86 @@ class RefreshToken(UUIDModel, TimestampModel):
         self.revoked_at = timezone.now()
         self.revoked_reason = reason
         self.save(update_fields=['revoked', 'revoked_at', 'revoked_reason'])
+
+
+class MFA(UUIDModel, TimestampModel):
+    """Multi-Factor Authentication"""
+    
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='mfa'
+    )
+    
+    is_enabled = models.BooleanField(default=False)
+    secret = models.CharField(max_length=255)
+    backup_codes = models.JSONField(default=list, blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'mfa'
+
+
+class Passkey(UUIDModel, TimestampModel):
+    """WebAuthn Passkey"""
+    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='passkeys'
+    )
+    
+    name = models.CharField(max_length=255)
+    credential_id = models.TextField(unique=True)
+    public_key = models.TextField()
+    counter = models.IntegerField(default=0)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'passkeys'
+        ordering = ['-created_at']
+
+
+class SocialIdentity(UUIDModel, TimestampModel):
+    """Social login identity"""
+    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='social_identities'
+    )
+    
+    PROVIDER_CHOICES = [
+        ('google', 'Google'),
+        ('github', 'GitHub'),
+        ('facebook', 'Facebook'),
+    ]
+    provider = models.CharField(max_length=50, choices=PROVIDER_CHOICES)
+    provider_user_id = models.CharField(max_length=255)
+    access_token = models.TextField(null=True, blank=True)
+    refresh_token = models.TextField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'social_identities'
+        unique_together = [['provider', 'provider_user_id']]
+
+
+class OAuthSSO(UUIDModel, TimestampModel):
+    """OAuth SSO configuration"""
+    
+    organization = models.ForeignKey(
+        'organizations.Organization',
+        on_delete=models.CASCADE,
+        related_name='oauth_configs'
+    )
+    
+    name = models.CharField(max_length=255)
+    provider = models.CharField(max_length=50)
+    client_id = models.CharField(max_length=255)
+    client_secret = models.TextField()
+    is_active = models.BooleanField(default=True)
+    config = models.JSONField(default=dict, blank=True)
+    
+    class Meta:
+        db_table = 'oauth_sso'
