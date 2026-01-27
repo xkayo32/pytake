@@ -3,7 +3,8 @@ Authentication serializers
 """
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import User, RefreshToken, Role, MFA, Passkey, SocialIdentity, OAuthSSO
+from .models import User, RefreshToken, MFA, Passkey, SocialIdentity, OAuthSSO
+from apps.rbac.models import Role
 
 
 class RoleSerializer(serializers.ModelSerializer):
