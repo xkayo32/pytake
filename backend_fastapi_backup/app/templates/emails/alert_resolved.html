@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header {
+            border-bottom: 2px solid #388e3c;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #388e3c;
+            margin: 0;
+            font-size: 24px;
+        }
+        .alert-icon {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background-color: #388e3c;
+            border-radius: 50%;
+            color: #fff;
+            text-align: center;
+            line-height: 24px;
+            margin-right: 8px;
+            font-weight: bold;
+        }
+        .content {
+            margin-bottom: 30px;
+            line-height: 1.6;
+            color: #555;
+        }
+        .alert-details {
+            background-color: #f1f8e9;
+            padding: 20px;
+            border-left: 4px solid #388e3c;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .detail-row {
+            display: flex;
+            margin-bottom: 12px;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #333;
+            min-width: 120px;
+        }
+        .detail-value {
+            color: #666;
+            flex: 1;
+        }
+        .cta-button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #388e3c;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 600;
+            margin: 20px 0;
+        }
+        .cta-button:hover {
+            background-color: #2e7d32;
+        }
+        .footer {
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+        }
+        .resolution-info {
+            background-color: #e8f5e9;
+            border-left: 4px solid #388e3c;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><span class="alert-icon">✓</span>Alerta Resolvido</h1>
+        </div>
+
+        <div class="content">
+            <p>Olá {{ recipient_name }},</p>
+            <p>Boas notícias! Um alerta que você estava monitorando foi <strong>resolvido</strong>.</p>
+
+            <div class="resolution-info">
+                <strong>✓ Status:</strong> Resolvido<br>
+                <strong>Resolvido em:</strong> {{ resolved_at }}<br>
+                {% if resolved_by %}
+                <strong>Resolvido por:</strong> {{ resolved_by }}<br>
+                {% endif %}
+            </div>
+
+            <div class="alert-details">
+                <div class="detail-row">
+                    <span class="detail-label">Título do Alerta:</span>
+                    <span class="detail-value"><strong>{{ alert_title }}</strong></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Descrição:</span>
+                    <span class="detail-value">{{ alert_description }}</span>
+                </div>
+                {% if resolution_notes %}
+                <div class="detail-row">
+                    <span class="detail-label">Notas de Resolução:</span>
+                    <span class="detail-value">{{ resolution_notes }}</span>
+                </div>
+                {% endif %}
+                <div class="detail-row">
+                    <span class="detail-label">Categoria:</span>
+                    <span class="detail-value">{{ category }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Duração:</span>
+                    <span class="detail-value">{{ duration }}</span>
+                </div>
+                {% if organization_name %}
+                <div class="detail-row">
+                    <span class="detail-label">Organização:</span>
+                    <span class="detail-value">{{ organization_name }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <p>Este alerta foi removido de sua lista de itens em aberto.</p>
+
+            <center>
+                <a href="{{ dashboard_url }}" class="cta-button">Ver Histórico</a>
+            </center>
+        </div>
+
+        <div class="footer">
+            <p>&copy; 2025 PyTake. Todos os direitos reservados.</p>
+            <p>Você recebeu este email porque estava inscrever nos alertas resolvidos do sistema PyTake.</p>
+        </div>
+    </div>
+</body>
+</html>

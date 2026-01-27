@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'apps.alerts',
     'apps.templates',
     'apps.expenses',
+    'apps.integrations',
 ]
 
 MIDDLEWARE = [

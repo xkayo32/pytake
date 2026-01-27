@@ -30,4 +30,5 @@ urlpatterns = [
     path('api/v1/', include('apps.ai_assistant.urls')),
     path('api/v1/', include('apps.analytics.urls')),
     path('api/v1/', include('apps.webhooks.urls')),
+    path('api/v1/integrations/', include('apps.integrations.urls')),
 ]

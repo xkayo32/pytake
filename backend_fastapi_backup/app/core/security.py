@@ -1,0 +1,538 @@
+"""
+Security utilities: JWT tokens, password hashing, encryption
+
+Best practices:
+- Uses Argon2 for password hashing (more robust than bcrypt)
+- JWT tokens with expiration and token type verification
+- Fernet encryption for sensitive data
+- HMAC webhook signature verification
+- Rate limiting with token bucket algorithm
+
+Usage:
+    # Password hashing
+    hashed = hash_password("user_password")
+    is_valid = verify_password("user_password", hashed)
+
+    # JWT tokens
+    tokens = create_token_pair(user_id="123")
+    access_token = tokens["access_token"]
+    user_id = verify_token(access_token, token_type="access")
+
+    # Encryption (for sensitive data like WhatsApp tokens)
+    encrypted = encrypt_string("sensitive_data")
+    decrypted = decrypt_string(encrypted)
+
+    # Rate limiting
+    bucket = TokenBucket(capacity=100, refill_rate=10.0)
+    if bucket.consume():  # Allow
+        pass
+"""
+
+import base64
+import hashlib
+import hmac
+import re
+import secrets
+from datetime import datetime, timedelta, timezone
+from typing import Any, Optional, Union
+
+from cryptography.fernet import Fernet
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+
+from app.core.config import settings
+
+# Password hashing context using argon2
+# Argon2 is more robust and doesn't have bcrypt's 72-byte limitation
+# Support bcrypt for backward compatibility with existing hashes
+pwd_context = CryptContext(
+    schemes=["argon2", "bcrypt"],
+    deprecated="bcrypt"  # Deprecate bcrypt, upgrade to argon2
+)
+
+
+# ============================================
+# PASSWORD HASHING
+# ============================================
+
+def hash_password(password: str) -> str:
+    """Hash a password using argon2"""
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash (supports both argon2 and bcrypt for backward compatibility)"""
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+# ============================================
+# JWT TOKEN MANAGEMENT
+# ============================================
+
+def create_access_token(
+    subject: Union[str, Any],
+    expires_delta: Optional[timedelta] = None,
+    additional_claims: Optional[dict] = None,
+) -> str:
+    """
+    Create JWT access token
+
+    Args:
+        subject: User ID or identifier
+        expires_delta: Optional custom expiration time
+        additional_claims: Additional data to include in token
+
+    Returns:
+        Encoded JWT token string
+    """
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
+
+    to_encode = {
+        "exp": expire,
+        "sub": str(subject),
+        "type": "access",
+    }
+
+    if additional_claims:
+        to_encode.update(additional_claims)
+
+    encoded_jwt = jwt.encode(
+        to_encode,
+        settings.JWT_SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+    return encoded_jwt
+
+
+def create_refresh_token(
+    subject: Union[str, Any],
+    expires_delta: Optional[timedelta] = None,
+) -> str:
+    """
+    Create JWT refresh token
+
+    Args:
+        subject: User ID or identifier
+        expires_delta: Optional custom expiration time
+
+    Returns:
+        Encoded JWT token string
+    """
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(
+            days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+        )
+
+    to_encode = {
+        "exp": expire,
+        "sub": str(subject),
+        "type": "refresh",
+    }
+
+    encoded_jwt = jwt.encode(
+        to_encode,
+        settings.JWT_SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+    return encoded_jwt
+
+
+def decode_token(token: str) -> dict:
+    """
+    Decode and validate JWT token
+
+    Args:
+        token: JWT token string
+
+    Returns:
+        Decoded token payload
+
+    Raises:
+        JWTError: If token is invalid or expired
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM],
+        )
+        return payload
+    except JWTError as e:
+        # Log token decoding error (e.g., expired, invalid signature)
+        raise JWTError(f"Token validation failed: {str(e)}") from e
+
+
+def decode_refresh_token(token: str) -> dict:
+    """
+    Decode and validate refresh token
+
+    Args:
+        token: Refresh token string
+
+    Returns:
+        Decoded token payload
+
+    Raises:
+        JWTError: If token is invalid or expired
+    """
+    payload = decode_token(token)
+    if payload.get("type") != "refresh":
+        raise JWTError("Invalid token type")
+    return payload
+
+
+def verify_token(token: str, token_type: str = "access") -> Optional[str]:
+    """
+    Verify JWT token and return subject (user_id)
+
+    Args:
+        token: JWT token string
+        token_type: Expected token type ("access" or "refresh")
+
+    Returns:
+        User ID if valid, None otherwise
+    """
+    try:
+        payload = decode_token(token)
+
+        # Verify token type
+        if payload.get("type") != token_type:
+            return None
+
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+
+        return user_id
+    except JWTError:
+        return None
+
+
+def create_token_pair(user_id: str) -> dict:
+    """
+    Create both access and refresh tokens
+
+    Args:
+        user_id: User identifier
+
+    Returns:
+        Dict with access_token and refresh_token
+    """
+    access_token = create_access_token(subject=user_id)
+    refresh_token = create_refresh_token(subject=user_id)
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
+
+
+# ============================================
+# ENCRYPTION (for sensitive data like WhatsApp tokens)
+# ============================================
+
+def _get_encryption_salt() -> bytes:
+    """
+    Get encryption salt from environment or use default
+    In production, should be stored in secure environment variable
+    """
+    import os
+    
+    # Try to get from environment, fallback to default
+    salt_env = os.getenv('ENCRYPTION_SALT', 'pytake_salt_v1')
+    return salt_env.encode() if isinstance(salt_env, str) else salt_env
+
+
+def _get_encryption_key() -> bytes:
+    """
+    Derive encryption key from SECRET_KEY using PBKDF2
+    
+    Uses:
+    - SHA256 hash algorithm
+    - 100,000 iterations (OWASP recommendation)
+    - Salt from environment or default
+    """
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=_get_encryption_salt(),
+        iterations=100000,
+        backend=default_backend(),
+    )
+    key = base64.urlsafe_b64encode(
+        kdf.derive(settings.SECRET_KEY.encode())
+    )
+    return key
+
+
+def encrypt_string(plaintext: str) -> str:
+    """
+    Encrypt sensitive string data using Fernet (AES-128)
+
+    Args:
+        plaintext: String to encrypt (e.g., WhatsApp token, API key)
+
+    Returns:
+        Base64 encoded encrypted string (safe to store in database)
+        
+    Example:
+        >>> encrypted = encrypt_string("my_secret_token")
+        >>> decrypted = decrypt_string(encrypted)
+    """
+    try:
+        f = Fernet(_get_encryption_key())
+        encrypted = f.encrypt(plaintext.encode())
+        return encrypted.decode()
+    except Exception as e:
+        raise ValueError(f"Encryption failed: {str(e)}") from e
+
+
+def decrypt_string(encrypted: str) -> str:
+    """
+    Decrypt sensitive string data using Fernet (AES-128)
+
+    Args:
+        encrypted: Base64 encoded encrypted string from database
+
+    Returns:
+        Decrypted plaintext string
+        
+    Raises:
+        ValueError: If decryption fails (invalid token or wrong key)
+    """
+    try:
+        f = Fernet(_get_encryption_key())
+        decrypted = f.decrypt(encrypted.encode())
+        return decrypted.decode()
+    except Exception as e:
+        raise ValueError(f"Decryption failed: {str(e)}") from e
+
+
+# ============================================
+# API KEY GENERATION
+# ============================================
+
+def generate_api_key() -> str:
+    """Generate a secure random API key"""
+    return secrets.token_urlsafe(32)
+
+
+def generate_verification_token() -> str:
+    """Generate a verification token for email/phone"""
+    return secrets.token_urlsafe(32)
+
+
+def generate_webhook_secret() -> str:
+    """Generate a webhook secret for signature verification"""
+    return secrets.token_urlsafe(32)
+
+
+# ============================================
+# WEBHOOK SIGNATURE VERIFICATION
+# ============================================
+
+def generate_webhook_signature(payload: str, secret: str) -> str:
+    """
+    Generate HMAC signature for webhook payload
+
+    Args:
+        payload: Webhook payload as string
+        secret: Webhook secret key
+
+    Returns:
+        HMAC signature
+    """
+    signature = hmac.new(
+        secret.encode(),
+        payload.encode(),
+        hashlib.sha256,
+    ).hexdigest()
+    return signature
+
+
+def verify_webhook_signature(
+    payload: str,
+    signature: str,
+    secret: str,
+) -> bool:
+    """
+    Verify webhook signature
+
+    Args:
+        payload: Webhook payload as string
+        signature: Received signature
+        secret: Webhook secret key
+
+    Returns:
+        True if signature is valid
+    """
+    expected_signature = generate_webhook_signature(payload, secret)
+    return hmac.compare_digest(signature, expected_signature)
+
+
+# ============================================
+# WHATSAPP SIGNATURE VERIFICATION (Meta)
+# ============================================
+
+def verify_whatsapp_signature(
+    payload: bytes,
+    signature: str,
+    app_secret: str,
+) -> bool:
+    """
+    Verify WhatsApp webhook signature from Meta
+
+    Args:
+        payload: Raw request body bytes
+        signature: X-Hub-Signature-256 header value (format: sha256=<signature>)
+        app_secret: WhatsApp App Secret
+
+    Returns:
+        True if signature is valid
+    """
+    # Remove 'sha256=' prefix
+    if signature.startswith("sha256="):
+        signature = signature[7:]
+
+    # Calculate expected signature
+    expected_signature = hmac.new(
+        app_secret.encode(),
+        payload,
+        hashlib.sha256,
+    ).hexdigest()
+
+    return hmac.compare_digest(signature, expected_signature)
+
+
+# ============================================
+# PASSWORD VALIDATION
+# ============================================
+
+def validate_password_strength(password: str) -> tuple[bool, Optional[str]]:
+    """
+    Validate password strength
+
+    Requirements:
+    - At least 8 characters
+    - At least one uppercase letter
+    - At least one lowercase letter
+    - At least one digit
+    - At least one special character
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+
+    if not re.search(r"[A-Z]", password):
+        return False, "Password must contain at least one uppercase letter"
+
+    if not re.search(r"[a-z]", password):
+        return False, "Password must contain at least one lowercase letter"
+
+    if not re.search(r"\d", password):
+        return False, "Password must contain at least one digit"
+
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        return False, "Password must contain at least one special character"
+
+    return True, None
+
+
+# ============================================
+# RATE LIMITING TOKEN BUCKET
+# ============================================
+
+class TokenBucket:
+    """
+    Token bucket algorithm for rate limiting
+    Can be used in-memory or with Redis backend
+    """
+
+    def __init__(self, capacity: int, refill_rate: float):
+        """
+        Initialize token bucket for rate limiting
+        
+        Args:
+            capacity: Maximum number of tokens (burst size)
+            refill_rate: Tokens added per second (sustained rate)
+            
+        Example:
+            >>> bucket = TokenBucket(capacity=100, refill_rate=10.0)
+            >>> if bucket.consume(5):  # Try to consume 5 tokens
+            ...     # Request allowed
+        """
+        self.capacity = capacity
+        self.refill_rate = refill_rate
+        self.tokens = capacity
+        self.last_refill = datetime.now(timezone.utc)
+
+    def consume(self, tokens: int = 1) -> bool:
+        """
+        Try to consume tokens
+
+        Returns:
+            True if tokens were available and consumed
+        """
+        self._refill()
+
+        if self.tokens >= tokens:
+            self.tokens -= tokens
+            return True
+        return False
+
+    def _refill(self):
+        """Refill tokens based on time elapsed"""
+        now = datetime.now(timezone.utc)
+        elapsed = (now - self.last_refill).total_seconds()
+
+        new_tokens = elapsed * self.refill_rate
+        self.tokens = min(self.capacity, self.tokens + new_tokens)
+        self.last_refill = now
+
+
+# ============= SESSION MANAGEMENT =============
+
+async def validate_token_not_blacklisted(
+    user_id: str,
+    token: str,
+) -> bool:
+    """
+    Validate that a JWT token is not blacklisted (logged out).
+    
+    Used in dependency injection for protected endpoints.
+    Checks Redis blacklist set during logout.
+    
+    Args:
+        user_id: User ID from JWT token
+        token: JWT token string
+        
+    Returns:
+        True if token is valid (NOT blacklisted), False if logged out
+        
+    Example:
+        @router.get("/protected")
+        async def protected_endpoint(
+            current_user: User = Depends(get_current_user),
+            token: str = Depends(get_token_from_header),
+        ):
+            if not await validate_token_not_blacklisted(str(current_user.id), token):
+                raise UnauthorizedException("Token has been revoked (logged out)")
+            # Continue with endpoint logic
+    """
+    from app.services.session_manager import SessionManager
+    
+    is_blacklisted = await SessionManager.is_token_blacklisted(user_id, token)
+    return not is_blacklisted  # Return True if NOT blacklisted (i.e., still valid)
