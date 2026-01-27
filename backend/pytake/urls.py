@@ -18,16 +18,15 @@ urlpatterns = [
     path('api/v1/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/v1/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
-    # API Routes
+    # API Routes - All v1 endpoints
     path('api/v1/auth/', include('apps.authentication.urls')),
     path('api/v1/', include('apps.organizations.urls')),
     path('api/v1/', include('apps.conversations.urls')),
     path('api/v1/', include('apps.campaigns.urls')),
-    
-    # Future: Add other app URLs here
-    # path('api/v1/chatbots/', include('apps.chatbots.urls')),
-    # path('api/v1/whatsapp/', include('apps.whatsapp.urls')),
-    # path('api/v1/queues/', include('apps.queues.urls')),
-    # path('api/v1/alerts/', include('apps.alerts.urls')),
-    # ... etc
+    path('api/v1/', include('apps.chatbots.urls')),
+    path('api/v1/', include('apps.whatsapp.urls')),
+    path('api/v1/', include('apps.queues.urls')),
+    path('api/v1/', include('apps.alerts.urls')),
+    path('api/v1/', include('apps.ai_assistant.urls')),
+    path('api/v1/', include('apps.analytics.urls')),
 ]
