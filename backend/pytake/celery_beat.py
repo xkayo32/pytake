@@ -54,4 +54,28 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.integrations.tasks.cleanup_old_integration_logs',
         'schedule': crontab(hour=4, minute=0),  # Daily at 4 AM
     },
+    
+    # Services - Email delivery status
+    'check-email-delivery-status': {
+        'task': 'apps.services.tasks.check_email_delivery_status',
+        'schedule': crontab(minute='*/15'),  # Every 15 minutes
+    },
+    
+    # Services - SMS delivery status
+    'check-sms-delivery-status': {
+        'task': 'apps.services.tasks.check_sms_delivery_status',
+        'schedule': crontab(minute='*/15'),  # Every 15 minutes
+    },
+    
+    # Services - Cleanup old reports
+    'cleanup-old-reports': {
+        'task': 'apps.services.tasks.cleanup_old_reports',
+        'schedule': crontab(hour=5, minute=0),  # Daily at 5 AM
+    },
+    
+    # Services - Sync Stripe events
+    'sync-stripe-events': {
+        'task': 'apps.services.tasks.sync_stripe_events',
+        'schedule': crontab(minute='*/30'),  # Every 30 minutes
+    },
 }

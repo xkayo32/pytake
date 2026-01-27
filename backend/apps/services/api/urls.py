@@ -14,6 +14,11 @@ from apps.services.api.business_views import (
     PaymentViewSet,
     ReportingViewSet,
 )
+from apps.services.api.webhooks import (
+    StripeWebhookViewSet,
+    SendGridWebhookViewSet,
+    TwilioWebhookViewSet,
+)
 
 router = SimpleRouter()
 router.register(r'audit-logs', AuditLogViewSet, basename='audit-logs')
@@ -24,6 +29,14 @@ router.register(r'sms', SMSViewSet, basename='sms')
 router.register(r'payments', PaymentViewSet, basename='payments')
 router.register(r'reports', ReportingViewSet, basename='reports')
 
+# Webhooks (no authentication required)
+webhook_patterns = [
+    path('stripe/', StripeWebhookViewSet.as_view({'post': 'create'}), name='stripe-webhook'),
+    path('sendgrid/', SendGridWebhookViewSet.as_view({'post': 'create'}), name='sendgrid-webhook'),
+    path('twilio/', TwilioWebhookViewSet.as_view({'post': 'create'}), name='twilio-webhook'),
+]
+
 urlpatterns = [
     path('', include(router.urls)),
+    path('webhooks/', include(webhook_patterns)),
 ]
