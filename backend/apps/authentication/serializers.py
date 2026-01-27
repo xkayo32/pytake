@@ -5,6 +5,7 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from .models import User, RefreshToken, MFA, Passkey, SocialIdentity, OAuthSSO
 from apps.rbac.models import Role
+from apps.core.validators import CPFValidator, PhoneValidator
 
 
 class RoleSerializer(serializers.ModelSerializer):
@@ -53,6 +54,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
 class UserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True)
+    phone_number = serializers.CharField(required=False, validators=[PhoneValidator()])
     
     class Meta:
         model = User
@@ -69,6 +71,17 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)
         return user
+
+
+class UserUpdateSerializer(serializers.ModelSerializer):
+    phone_number = serializers.CharField(required=False, validators=[PhoneValidator()])
+    
+    class Meta:
+        model = User
+        fields = [
+            'full_name', 'avatar_url', 'phone_number', 'bio',
+            'preferences', 'agent_greeting_message'
+        ]
 
 
 class RefreshTokenSerializer(serializers.ModelSerializer):

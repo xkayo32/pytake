@@ -3,6 +3,7 @@ Conversation and Contact serializers
 """
 from rest_framework import serializers
 from .models import Contact, Conversation, ConversationWindow, ConversationLog, ConversationState
+from apps.core.validators import PhoneValidator, WhatsAppIDValidator
 
 
 class ContactListSerializer(serializers.ModelSerializer):
@@ -19,6 +20,8 @@ class ContactListSerializer(serializers.ModelSerializer):
 class ContactDetailSerializer(serializers.ModelSerializer):
     assigned_agent_name = serializers.CharField(source='assigned_agent.full_name', read_only=True)
     assigned_department_name = serializers.CharField(source='assigned_department.name', read_only=True)
+    whatsapp_id = serializers.CharField(validators=[WhatsAppIDValidator()])
+    phone_number = serializers.CharField(required=False, validators=[PhoneValidator()])
     
     class Meta:
         model = Contact
