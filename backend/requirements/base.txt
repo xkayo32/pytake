@@ -19,7 +19,7 @@ channels-redis>=4.3.0
 daphne>=4.0.0
 
 # Celery for async tasks
-celery[redis]>=5.6.0
+celery>=5.6.0
 redis>=7.0.0
 
 # MongoDB support
