@@ -1,6 +1,9 @@
 """
 Celery Beat schedule for periodic tasks
 """
+Celery Beat Schedule Configuration
+Periodic tasks executed by Celery Beat scheduler
+"""
 from celery.schedules import crontab
 
 CELERY_BEAT_SCHEDULE = {
@@ -38,5 +41,17 @@ CELERY_BEAT_SCHEDULE = {
     'sync-contacts-daily': {
         'task': 'apps.core.tasks.sync_contacts_daily',
         'schedule': crontab(hour=3, minute=0),  # Daily at 3 AM
+    },
+    
+    # Integration health checks
+    'check-integration-health': {
+        'task': 'apps.integrations.tasks.check_integration_health',
+        'schedule': crontab(minute=0),  # Every hour
+    },
+    
+    # Cleanup old integration logs
+    'cleanup-integration-logs': {
+        'task': 'apps.integrations.tasks.cleanup_old_integration_logs',
+        'schedule': crontab(hour=4, minute=0),  # Daily at 4 AM
     },
 }
