@@ -17,6 +17,8 @@ class WhatsAppNumberListSerializer(serializers.ModelSerializer):
 
 
 class WhatsAppNumberDetailSerializer(serializers.ModelSerializer):
+    webhook_url = serializers.SerializerMethodField()
+    
     class Meta:
         model = WhatsAppNumber
         fields = [
@@ -30,16 +32,22 @@ class WhatsAppNumberDetailSerializer(serializers.ModelSerializer):
             'quality_rating', 'messaging_limit_tier',
             'default_chatbot', 'default_department',
             'business_hours', 'away_message', 'welcome_message',
-            'settings', 'webhook_token', 'created_at', 'updated_at'
+            'settings', 'webhook_token', 'webhook_url', 'webhook_id', 'created_at', 'updated_at'
         ]
         read_only_fields = [
-            'id', 'webhook_token', 'created_at', 'updated_at'
+            'id', 'webhook_token', 'webhook_url', 'webhook_id', 'created_at', 'updated_at'
         ]
         extra_kwargs = {
             'access_token': {'write_only': True},
             'app_secret': {'write_only': True},
             'evolution_api_key': {'write_only': True}
         }
+    
+    def get_webhook_url(self, obj):
+        """Generate full webhook URL using webhook_token"""
+        if obj.webhook_token:
+            return f"/api/v1/webhooks/whatsapp/{obj.webhook_token}/"
+        return None
 
 
 class WhatsAppTemplateListSerializer(serializers.ModelSerializer):

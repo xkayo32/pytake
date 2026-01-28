@@ -18,58 +18,96 @@ from apps.authentication.permissions import IsOrganizerUser
 
 
 @csrf_exempt
-@require_http_methods(["POST"])
+@require_http_methods(["GET", "POST"])
 def whatsapp_webhook_receiver(request, wa_number_id):
     """
-    Receive incoming webhooks from WhatsApp/Meta
+    WhatsApp webhook endpoint - handles both verification and message receiving
     
-    POST /api/v1/webhooks/whatsapp/{wa_number_id}/
+    GET /api/v1/webhooks/whatsapp/{webhook_token}/
+      - Verification request from Meta
+      - Query params: hub.mode, hub.challenge, hub.verify_token
+      - Returns: hub.challenge (plain text integer)
     
-    Handles:
-    - Message received events
-    - Message status updates (sent, delivered, read)
-    - Contact information changes
-    - Template quality updates
+    POST /api/v1/webhooks/whatsapp/{webhook_token}/
+      - Incoming webhook events from Meta
+      - Handles: messages, status updates, contact info changes, template quality
+      - Returns: {'status': 'received'}
+      
+    Note: wa_number_id parameter is actually the webhook_token (UUID)
     """
     try:
-        # Get WhatsApp number
         from apps.whatsapp.models import WhatsAppNumber
-        wa_number = WhatsAppNumber.objects.get(id=wa_number_id)
         
-        # Parse webhook payload
-        payload = json.loads(request.body) if request.body else {}
+        # Try to find WhatsApp number by webhook_token
+        # wa_number_id is actually webhook_token passed in URL
+        wa_number = WhatsAppNumber.objects.get(webhook_token=wa_number_id)
         
-        # Verify webhook signature (if required)
-        if not verify_webhook_signature(request, wa_number):
+        # GET request: Verification handshake with Meta
+        if request.method == 'GET':
+            mode = request.GET.get('hub.mode')
+            challenge = request.GET.get('hub.challenge')
+            token = request.GET.get('hub.verify_token')
+            
+            print(f"[Webhook] ✅ Verification request for webhook_token={wa_number_id}")
+            print(f"  hub.mode: {mode}")
+            print(f"  hub.challenge: {challenge}")
+            print(f"  hub.verify_token: {token}")
+            print(f"  Expected token: {wa_number.webhook_verify_token}")
+            print(f"  WhatsApp Number: {wa_number.phone_number}")
+            
+            # Verify token matches webhook_verify_token
+            if mode == 'subscribe' and token == wa_number.webhook_verify_token:
+                print(f"[Webhook] ✅✅ Verification SUCCESSFUL, returning challenge")
+                return JsonResponse(int(challenge), safe=False)
+            
+            print(f"[Webhook] ❌ Verification failed - token mismatch")
+            print(f"  Received: {token}")
+            print(f"  Expected: {wa_number.webhook_verify_token}")
             return JsonResponse(
-                {'error': 'Invalid signature'},
+                {'error': 'Invalid verify token'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Create webhook event for processing
-        event_type = extract_event_type(payload)
-        
-        webhook_event = WebhookEvent.objects.create(
-            organization=wa_number.organization,
-            event_type=event_type,
-            source='whatsapp',
-            event_data=payload,
-            external_id=payload.get('entry', [{}])[0].get('id')
-        )
-        
-        # Process event asynchronously
-        from .tasks import process_webhook_event
-        process_webhook_event.delay(webhook_event.id)
-        
-        # Return 200 OK to acknowledge receipt (required by WhatsApp)
-        return JsonResponse({'status': 'received'}, status=status.HTTP_200_OK)
+        # POST request: Incoming webhook event
+        if request.method == 'POST':
+            # Parse webhook payload
+            payload = json.loads(request.body) if request.body else {}
+            
+            # Verify webhook signature (if required)
+            if not verify_webhook_signature(request, wa_number):
+                return JsonResponse(
+                    {'error': 'Invalid signature'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Create webhook event for processing
+            event_type = extract_event_type(payload)
+            
+            webhook_event = WebhookEvent.objects.create(
+                organization=wa_number.organization,
+                event_type=event_type,
+                source='whatsapp',
+                event_data=payload,
+                external_id=payload.get('entry', [{}])[0].get('id')
+            )
+            
+            # Process event asynchronously
+            from .tasks import process_webhook_event
+            process_webhook_event.delay(webhook_event.id)
+            
+            # Return 200 OK to acknowledge receipt (required by WhatsApp)
+            return JsonResponse({'status': 'received'}, status=status.HTTP_200_OK)
         
     except WhatsAppNumber.DoesNotExist:
+        print(f"[Webhook] ❌ WhatsApp number not found with webhook_token={wa_number_id}")
         return JsonResponse(
             {'error': 'WhatsApp number not found'},
             status=status.HTTP_404_NOT_FOUND
         )
     except Exception as e:
+        print(f"[Webhook] ❌ Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return JsonResponse(
             {'error': str(e)},
             status=status.HTTP_400_BAD_REQUEST
@@ -80,33 +118,15 @@ def whatsapp_webhook_receiver(request, wa_number_id):
 @require_http_methods(["GET"])
 def whatsapp_webhook_verify(request, wa_number_id):
     """
-    Verify webhook callback token (Meta requirement)
+    DEPRECATED: Use whatsapp_webhook_receiver with GET method instead.
+    This function is kept for backwards compatibility.
     
-    GET /api/v1/webhooks/whatsapp/{wa_number_id}/
-    Query params: hub.mode, hub.challenge, hub.verify_token
+    GET /api/v1/webhooks/whatsapp/{webhook_id}/verify/
     """
-    try:
-        from apps.whatsapp.models import WhatsAppNumber
-        wa_number = WhatsAppNumber.objects.get(id=wa_number_id)
-        
-        mode = request.GET.get('hub.mode')
-        challenge = request.GET.get('hub.challenge')
-        token = request.GET.get('hub.verify_token')
-        
-        # Verify token matches webhook_verify_token
-        if mode == 'subscribe' and token == wa_number.webhook_verify_token:
-            return JsonResponse(int(challenge), safe=False)
-        
-        return JsonResponse(
-            {'error': 'Invalid verify token'},
-            status=status.HTTP_403_FORBIDDEN
-        )
-        
-    except WhatsAppNumber.DoesNotExist:
-        return JsonResponse(
-            {'error': 'WhatsApp number not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+    # Redirect to new unified endpoint
+    return whatsapp_webhook_receiver(request, wa_number_id)
+
+
 
 
 class WebhookEventViewSet(viewsets.ReadOnlyModelViewSet):

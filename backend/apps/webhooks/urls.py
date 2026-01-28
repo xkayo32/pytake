@@ -15,7 +15,8 @@ router.register('webhook-events', WebhookEventViewSet, basename='webhook-event')
 router.register('webhook-endpoints', WebhookEndpointViewSet, basename='webhook-endpoint')
 
 urlpatterns = [
-    # WhatsApp webhook receiver
+    # WhatsApp webhook receiver (handles both GET verification and POST message events)
     path('webhooks/whatsapp/<uuid:wa_number_id>/', whatsapp_webhook_receiver, name='whatsapp-webhook-receiver'),
+    # Deprecated: kept for backwards compatibility, redirects to main endpoint
     path('webhooks/whatsapp/<uuid:wa_number_id>/verify/', whatsapp_webhook_verify, name='whatsapp-webhook-verify'),
 ] + router.urls

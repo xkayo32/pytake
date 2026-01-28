@@ -36,6 +36,7 @@ class WhatsAppNumber(BaseModel):
     access_token = models.TextField(null=True, blank=True)
     app_secret = models.TextField(null=True, blank=True)
     webhook_verify_token = models.CharField(max_length=255, null=True, blank=True)
+    webhook_id = models.UUIDField(null=True, blank=True, db_index=True, help_text="Unique webhook identifier for Meta verification")
     
     # Evolution API Credentials
     evolution_instance_name = models.CharField(max_length=255, null=True, blank=True, unique=True)
