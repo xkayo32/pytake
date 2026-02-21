@@ -8,6 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+from apps.webhooks.socketio import socketio_endpoint
 
 # API Router
 router = routers.DefaultRouter()
@@ -40,6 +41,9 @@ urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
     
+    # Socket.IO (must be before /api/v1/ includes to avoid conflicts)
+    path('socket.io/', socketio_endpoint, name='socketio'),
+    
     # Health Check
     path('api/v1/health/', include('apps.core.urls')),
     
@@ -66,11 +70,15 @@ urlpatterns = [
     path('api/v1/', include('apps.whatsapp.urls')),
     path('api/v1/', include('apps.queues.urls')),
     path('api/v1/', include('apps.alerts.urls')),
-    path('api/v1/', include('apps.ai_assistant.urls')),
+    path('api/v1/ai-assistant/', include('apps.ai_assistant.urls')),
     path('api/v1/', include('apps.analytics.urls')),
     path('api/v1/', include('apps.rbac.urls')),
     path('api/v1/expenses/', include('apps.expenses.urls')),
     path('api/v1/', include('apps.webhooks.urls')),
     path('api/v1/integrations/', include('apps.integrations.urls')),
     path('api/v1/', include('apps.services.api.urls')),
+
+    # ── Web Frontend (Django Templates) ──────────────────────────
+    # Deve vir por ÚLTIMO para não sobrescrever as rotas de API
+    path('', include('apps.web.urls', namespace='web')),
 ]

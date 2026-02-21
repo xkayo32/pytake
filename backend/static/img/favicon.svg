@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="8" fill="#2563EB"/>
+  <path d="M8 22V10.5C8 9.67 8.67 9 9.5 9H15L18 13H22.5C23.33 13 24 13.67 24 14.5V22C24 22.83 23.33 23.5 22.5 23.5H9.5C8.67 23.5 8 22.83 8 22Z" fill="white" opacity="0.3"/>
+  <text x="16" y="21.5" font-family="system-ui,sans-serif" font-weight="900" font-size="16" fill="white" text-anchor="middle">P</text>
+</svg>

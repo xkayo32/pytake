@@ -1,6 +1,7 @@
 """
 WhatsApp management views
 """
+from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -42,6 +43,12 @@ class WhatsAppNumberViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Set organization when creating"""
         serializer.save(organization=self.request.user.organization)
+    
+    def destroy(self, request, *args, **kwargs):
+        """Delete WhatsApp number with soft delete"""
+        instance = self.get_object()
+        instance.soft_delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
     
     @action(detail=True, methods=['post'])
     def verify(self, request, pk=None):
@@ -85,11 +92,18 @@ class WhatsAppTemplateViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsOrganizerUser]
     
     def get_queryset(self):
-        """Return only user's organization templates"""
-        return WhatsAppTemplate.objects.filter(
+        """Return only user's organization templates, optionally filtered by whatsapp_number"""
+        queryset = WhatsAppTemplate.objects.filter(
             organization=self.request.user.organization,
             deleted_at__isnull=True
         )
+
+        # Filter by whatsapp_number if provided as query parameter
+        whatsapp_number_id = self.request.query_params.get('whatsapp_number')
+        if whatsapp_number_id:
+            queryset = queryset.filter(whatsapp_number_id=whatsapp_number_id)
+
+        return queryset
     
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -99,6 +113,12 @@ class WhatsAppTemplateViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Set organization when creating"""
         serializer.save(organization=self.request.user.organization)
+    
+    def destroy(self, request, *args, **kwargs):
+        """Delete WhatsApp template with soft delete"""
+        instance = self.get_object()
+        instance.soft_delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
     
     @action(detail=True, methods=['post'])
     def submit_approval(self, request, pk=None):
@@ -134,5 +154,3 @@ class WhatsAppTemplateViewSet(viewsets.ModelViewSet):
             'quality_score': template.quality_score
         })
 
-
-from django.utils import timezone

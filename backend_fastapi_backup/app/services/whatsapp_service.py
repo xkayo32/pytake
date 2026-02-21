@@ -5195,9 +5195,11 @@ __result__ = __script_func__()
     async def delete_number(
         self, number_id: UUID, organization_id: UUID
     ) -> bool:
-        """Delete WhatsApp number"""
+        """Delete WhatsApp number (soft delete)"""
         number = await self.get_by_id(number_id, organization_id)
-        return await self.repo.delete(number_id)
+        if not number:
+            raise NotFoundException(f"WhatsApp number {number_id} not found")
+        return await self.repo.soft_delete(number_id)
 
     # ============= Webhook Methods =============
 

@@ -1,0 +1,774 @@
+{% extends "layouts/public.html" %}
+
+{# Navbar texto branco no hero escuro #}
+{% block navbar_text_color %}text-white{% endblock %}
+{% block navbar_link_color %}text-white/80 hover:text-white{% endblock %}
+{% block navbar_link_color2 %}text-white/80 hover:text-white{% endblock %}
+{% block navbar_link_color3 %}text-white/80 hover:text-white{% endblock %}
+{% block navbar_login_color %}text-white/90 hover:text-white{% endblock %}
+{% block navbar_mobile_color %}text-white hover:bg-white/10{% endblock %}
+
+{% block title %}{{ APP_NAME }} — Automação WhatsApp Business{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════════════════════════════
+     HERO
+═══════════════════════════════════════════════ -->
+<section class="-mt-16 lg:-mt-[72px] relative overflow-hidden bg-gradient-to-br from-slate-900 via-primary-950 to-slate-900 pt-32 pb-20 lg:pt-40 lg:pb-28">
+  <div class="absolute inset-0">
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[700px] bg-primary-600/20 rounded-full blur-[140px] pointer-events-none"></div>
+    <div class="absolute bottom-0 right-0 w-[500px] h-[400px] bg-primary-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+    <div class="absolute inset-0 opacity-[0.03]" style="background-image: url('data:image/svg+xml,%3Csvg width=&quot;60&quot; height=&quot;60&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;%3E%3Cpath d=&quot;M60 0H0v60&quot; fill=&quot;none&quot; stroke=&quot;%23fff&quot; stroke-width=&quot;1&quot;/%3E%3C/svg%3E');"></div>
+  </div>
+
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-3xl mx-auto text-center">
+      <div class="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/10 text-primary-300 text-xs font-semibold px-4 py-1.5 rounded-full mb-7 animate-fade-in-down">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        Plataforma 100% brasileira · API oficial Meta
+      </div>
+
+      <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.1] animate-fade-in-up">
+        Sua operação WhatsApp
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-sky-400">completa e profissional</span>
+      </h1>
+
+      <p class="mt-6 text-lg sm:text-xl text-slate-300 leading-relaxed max-w-2xl mx-auto animate-fade-in-up" style="animation-delay:.1s">
+        Flow builder visual, inbox multi-agente, campanhas em massa, filas por departamento,
+        analytics em tempo real e IA assistente — tudo em uma plataforma.
+      </p>
+
+      <div class="mt-9 flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up" style="animation-delay:.2s">
+        <a href="{% url 'web:register' %}"
+           class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-primary-600 hover:bg-primary-500 text-white font-bold text-base transition-all shadow-lg shadow-primary-600/30 hover:shadow-xl hover:shadow-primary-500/40 hover:-translate-y-0.5">
+          <i class="ph-bold ph-rocket text-lg"></i>
+          Começar grátis — 14 dias
+        </a>
+        <a href="#features"
+           class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-white/10 hover:bg-white/15 backdrop-blur-sm border border-white/10 text-white font-semibold text-base transition-all">
+          <i class="ph-bold ph-arrow-down text-lg"></i>
+          Conhecer a plataforma
+        </a>
+      </div>
+    </div>
+
+    <!-- Mockup — Dashboard real -->
+    <div class="mt-14 max-w-5xl mx-auto animate-fade-in-up" style="animation-delay:.35s">
+      <div class="relative group">
+        <div class="absolute -inset-1 bg-gradient-to-b from-primary-500/20 to-transparent rounded-2xl blur-lg opacity-60 group-hover:opacity-100 transition-opacity"></div>
+        <div class="relative bg-slate-800 rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+          <div class="flex items-center gap-2 px-4 py-3 bg-slate-800/80 border-b border-white/5">
+            <span class="w-3 h-3 rounded-full bg-red-400"></span>
+            <span class="w-3 h-3 rounded-full bg-amber-400"></span>
+            <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
+            <span class="ml-3 text-xs text-slate-500 bg-slate-700/50 px-3 py-0.5 rounded-md">app.pytake.net/conversations</span>
+          </div>
+          <!-- Inbox mockup -->
+          <div class="flex bg-gradient-to-br from-slate-800 to-slate-900">
+            <!-- Sidebar conversas -->
+            <div class="w-72 border-r border-white/5 p-3 hidden sm:block">
+              <div class="flex items-center gap-2 mb-3 px-2">
+                <div class="flex-1 bg-slate-700/50 rounded-lg px-3 py-2 text-xs text-slate-400 flex items-center gap-2"><i class="ph-bold ph-magnifying-glass text-[10px]"></i> Buscar conversa...</div>
+              </div>
+              <!-- Conversa 1 -->
+              <div class="bg-primary-600/20 border border-primary-500/20 rounded-lg p-2.5 mb-1.5">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-xs font-bold">JA</div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-semibold text-white truncate">João Almeida</span>
+                      <span class="text-[9px] text-slate-500">14:32</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 truncate">Boa tarde, gostaria de saber sobre...</p>
+                  </div>
+                </div>
+              </div>
+              <!-- Conversa 2 -->
+              <div class="hover:bg-slate-700/30 rounded-lg p-2.5 mb-1.5 transition-colors">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-full bg-violet-500/20 flex items-center justify-center text-violet-400 text-xs font-bold">MC</div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-semibold text-white truncate">Maria Clara</span>
+                      <span class="text-[9px] text-slate-500">14:20</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 truncate">Obrigada! Já recebi a confirmação</p>
+                  </div>
+                </div>
+              </div>
+              <!-- Conversa 3 -->
+              <div class="hover:bg-slate-700/30 rounded-lg p-2.5 mb-1.5 transition-colors">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 text-xs font-bold">PS</div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-semibold text-white truncate">Pedro Santos</span>
+                      <span class="text-[9px] text-slate-500">13:55</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 truncate flex items-center gap-1"><i class="ph-bold ph-robot text-primary-400 text-[10px]"></i> Chatbot respondeu</p>
+                  </div>
+                </div>
+              </div>
+              <!-- Conversa 4 -->
+              <div class="hover:bg-slate-700/30 rounded-lg p-2.5 transition-colors">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center text-sky-400 text-xs font-bold">LR</div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-semibold text-white truncate">Lucia Reis</span>
+                      <span class="text-[9px] text-emerald-400">Na fila</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 truncate">Quero agendar uma consulta para...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Chat area -->
+            <div class="flex-1 p-4 sm:p-5 flex flex-col min-h-[280px]">
+              <!-- Header -->
+              <div class="flex items-center justify-between border-b border-white/5 pb-3 mb-4">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-9 h-9 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-sm font-bold">JA</div>
+                  <div>
+                    <div class="text-sm font-semibold text-white">João Almeida</div>
+                    <div class="text-[10px] text-slate-500 flex items-center gap-1.5">
+                      <i class="ph-bold ph-whatsapp-logo text-emerald-500 text-[10px]"></i> +55 11 9xxxx-1234 ·
+                      <span class="text-amber-400">Fila: Vendas</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] bg-primary-500/20 text-primary-300 px-2 py-0.5 rounded-md font-medium">Agente: Ana</span>
+                </div>
+              </div>
+              <!-- Messages -->
+              <div class="flex-1 space-y-3">
+                <div class="flex justify-start">
+                  <div class="bg-slate-700/50 rounded-xl rounded-tl-sm px-3 py-2 max-w-[75%]">
+                    <p class="text-xs text-slate-200">Boa tarde, gostaria de saber sobre os planos disponíveis</p>
+                    <span class="text-[9px] text-slate-500 mt-1 block">14:32</span>
+                  </div>
+                </div>
+                <div class="flex justify-end">
+                  <div class="bg-primary-600/40 rounded-xl rounded-tr-sm px-3 py-2 max-w-[75%]">
+                    <p class="text-xs text-slate-200">Olá João! 👋 Temos 3 planos: Starter, Pro e Enterprise. Posso te enviar os detalhes?</p>
+                    <span class="text-[9px] text-slate-400 mt-1 flex items-center justify-end gap-1">14:33 <i class="ph-bold ph-checks text-primary-400 text-[9px]"></i></span>
+                  </div>
+                </div>
+                <div class="flex justify-start">
+                  <div class="bg-slate-700/50 rounded-xl rounded-tl-sm px-3 py-2 max-w-[75%]">
+                    <p class="text-xs text-slate-200">Sim, pode enviar!</p>
+                    <span class="text-[9px] text-slate-500 mt-1 block">14:33</span>
+                  </div>
+                </div>
+              </div>
+              <!-- AI suggestion -->
+              <div class="mt-3 bg-violet-500/10 border border-violet-500/20 rounded-lg px-3 py-2 flex items-center gap-2">
+                <i class="ph-duotone ph-robot text-violet-400 text-sm flex-shrink-0"></i>
+                <p class="text-[10px] text-violet-300"><strong class="text-violet-200">IA sugere:</strong> Enviar tabela comparativa dos planos com link de cadastro</p>
+              </div>
+              <!-- Input -->
+              <div class="mt-3 flex items-center gap-2 bg-slate-700/40 rounded-xl px-3 py-2 border border-white/5">
+                <i class="ph-bold ph-paperclip text-slate-500 text-sm"></i>
+                <span class="flex-1 text-xs text-slate-500">Digite uma mensagem...</span>
+                <i class="ph-bold ph-paper-plane-right text-primary-500 text-sm"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="absolute bottom-0 inset-x-0">
+    <svg viewBox="0 0 1440 64" fill="none" class="w-full text-white"><path d="M0 32C480 64 960 0 1440 32V64H0Z" fill="currentColor"/></svg>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     OVERVIEW — Cards rápidos
+═══════════════════════════════════════════════ -->
+<section id="features" class="py-20">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-2xl mx-auto text-center mb-14 reveal">
+      <span class="inline-flex items-center gap-1.5 text-primary-600 text-xs font-semibold uppercase tracking-widest mb-3">
+        <i class="ph-bold ph-squares-four"></i> Plataforma completa
+      </span>
+      <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+        Todos os módulos que sua operação <span class="text-primary-600">realmente precisa</span>
+      </h2>
+      <p class="mt-4 text-slate-500 text-lg">Cada feature abaixo já está pronta e funcionando. Sem roadmap vazio, sem "em breve".</p>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 reveal">
+      <div class="group bg-white rounded-xl p-6 border border-slate-200/80 hover:border-primary-200 hover:shadow-lg hover:shadow-primary-100/40 transition-all duration-300 hover:-translate-y-1">
+        <div class="w-11 h-11 rounded-xl bg-primary-50 flex items-center justify-center text-primary-600 mb-4 group-hover:bg-primary-600 group-hover:text-white transition-all">
+          <i class="ph-duotone ph-flow-arrow text-xl"></i>
+        </div>
+        <h3 class="font-bold text-slate-900 mb-2">Flow Builder Visual</h3>
+        <p class="text-sm text-slate-500 leading-relaxed">Editor drag-and-drop com nós de texto, pergunta, condição, API call, atribuição e salto entre fluxos.</p>
+      </div>
+
+      <div class="group bg-white rounded-xl p-6 border border-slate-200/80 hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-100/40 transition-all duration-300 hover:-translate-y-1">
+        <div class="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+          <i class="ph-duotone ph-chats-circle text-xl"></i>
+        </div>
+        <h3 class="font-bold text-slate-900 mb-2">Inbox Multi-agente</h3>
+        <p class="text-sm text-slate-500 leading-relaxed">Caixa de entrada compartilhada com atribuição por agente, tags, notas internas e histórico completo.</p>
+      </div>
+
+      <div class="group bg-white rounded-xl p-6 border border-slate-200/80 hover:border-violet-200 hover:shadow-lg hover:shadow-violet-100/40 transition-all duration-300 hover:-translate-y-1">
+        <div class="w-11 h-11 rounded-xl bg-violet-50 flex items-center justify-center text-violet-600 mb-4 group-hover:bg-violet-600 group-hover:text-white transition-all">
+          <i class="ph-duotone ph-megaphone text-xl"></i>
+        </div>
+        <h3 class="font-bold text-slate-900 mb-2">Campanhas em Massa</h3>
+        <p class="text-sm text-slate-500 leading-relaxed">Disparo segmentado com templates aprovados pela Meta. Variáveis nomeadas ou posicionais.</p>
+      </div>
+
+      <div class="group bg-white rounded-xl p-6 border border-slate-200/80 hover:border-amber-200 hover:shadow-lg hover:shadow-amber-100/40 transition-all duration-300 hover:-translate-y-1">
+        <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 mb-4 group-hover:bg-amber-600 group-hover:text-white transition-all">
+          <i class="ph-duotone ph-queue text-xl"></i>
+        </div>
+        <h3 class="font-bold text-slate-900 mb-2">Filas & Departamentos</h3>
+        <p class="text-sm text-slate-500 leading-relaxed">Organize por departamentos (Vendas, Suporte) com múltiplas filas cada. Roteamento automático.</p>
+      </div>
+
+      <div class="group bg-white rounded-xl p-6 border border-slate-200/80 hover:border-sky-200 hover:shadow-lg hover:shadow-sky-100/40 transition-all duration-300 hover:-translate-y-1">
+        <div class="w-11 h-11 rounded-xl bg-sky-50 flex items-center justify-center text-sky-600 mb-4 group-hover:bg-sky-600 group-hover:text-white transition-all">
+          <i class="ph-duotone ph-robot text-xl"></i>
+        </div>
+        <h3 class="font-bold text-slate-900 mb-2">IA Assistente</h3>
+        <p class="text-sm text-slate-500 leading-relaxed">Sugestões de resposta, resumo automático de conversas e detecção de sentimento integrada.</p>
+      </div>
+
+      <div class="group bg-white rounded-xl p-6 border border-slate-200/80 hover:border-rose-200 hover:shadow-lg hover:shadow-rose-100/40 transition-all duration-300 hover:-translate-y-1">
+        <div class="w-11 h-11 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 mb-4 group-hover:bg-rose-600 group-hover:text-white transition-all">
+          <i class="ph-duotone ph-shield-check text-xl"></i>
+        </div>
+        <h3 class="font-bold text-slate-900 mb-2">RBAC & Multi-tenant</h3>
+        <p class="text-sm text-slate-500 leading-relaxed">Permissões granulares por role. Cada organização isolada com dados 100% separados.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     DEEP DIVE 1 — Flow Builder
+═══════════════════════════════════════════════ -->
+<section class="py-20 bg-slate-50/70 overflow-hidden">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      <!-- Text -->
+      <div class="reveal">
+        <span class="inline-flex items-center gap-1.5 text-primary-600 text-xs font-semibold uppercase tracking-widest mb-3">
+          <i class="ph-bold ph-flow-arrow"></i> Flow Builder
+        </span>
+        <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
+          Monte chatbots completos<br class="hidden lg:block" />
+          <span class="text-primary-600">sem escrever código</span>
+        </h2>
+        <p class="mt-4 text-slate-500 text-lg leading-relaxed">
+          Editor visual com drag-and-drop. Arraste blocos, conecte nós e configure
+          fluxos avançados em minutos.
+        </p>
+        <ul class="mt-7 space-y-3">
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-md bg-primary-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="ph-bold ph-check text-primary-600 text-xs"></i></span>
+            <div><span class="text-sm font-semibold text-slate-800">7 tipos de nós</span><span class="text-sm text-slate-500"> — texto, pergunta, condição, API call, atribuição de variável, fim e salto entre fluxos</span></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-md bg-primary-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="ph-bold ph-check text-primary-600 text-xs"></i></span>
+            <div><span class="text-sm font-semibold text-slate-800">Variáveis de sessão</span><span class="text-sm text-slate-500"> — colete nome, CPF, e-mail e use nas respostas com {{variavel}}</span></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-md bg-primary-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="ph-bold ph-check text-primary-600 text-xs"></i></span>
+            <div><span class="text-sm font-semibold text-slate-800">Trigger por keyword</span><span class="text-sm text-slate-500"> — ative fluxos automaticamente quando o cliente digita palavras-chave</span></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-md bg-primary-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="ph-bold ph-check text-primary-600 text-xs"></i></span>
+            <div><span class="text-sm font-semibold text-slate-800">API call nativo</span><span class="text-sm text-slate-500"> — conecte com sistemas externos dentro do fluxo (consulta CEP, CRM, etc)</span></div>
+          </li>
+        </ul>
+      </div>
+      <!-- Visual — Flow mockup -->
+      <div class="reveal">
+        <div class="relative bg-white rounded-2xl border border-slate-200 shadow-xl p-6 overflow-hidden">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-primary-50 rounded-full blur-3xl pointer-events-none"></div>
+          <!-- Flow nodes -->
+          <div class="space-y-3">
+            <!-- Start node -->
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center"><i class="ph-bold ph-play text-emerald-600 text-sm"></i></div>
+              <div class="flex-1 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5">
+                <div class="text-xs font-bold text-emerald-700">Início</div>
+                <div class="text-[10px] text-emerald-600">Trigger: keyword "oi", "olá", "menu"</div>
+              </div>
+            </div>
+            <div class="ml-5 border-l-2 border-dashed border-slate-200 h-3"></div>
+            <!-- Text node -->
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center"><i class="ph-bold ph-chat-text text-primary-600 text-sm"></i></div>
+              <div class="flex-1 bg-primary-50 border border-primary-200 rounded-lg px-4 py-2.5">
+                <div class="text-xs font-bold text-primary-700">Mensagem de boas-vindas</div>
+                <div class="text-[10px] text-primary-600">"Olá! 👋 Bem-vindo à PyTake. Como posso ajudar?"</div>
+              </div>
+            </div>
+            <div class="ml-5 border-l-2 border-dashed border-slate-200 h-3"></div>
+            <!-- Question node -->
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center"><i class="ph-bold ph-question text-amber-600 text-sm"></i></div>
+              <div class="flex-1 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
+                <div class="text-xs font-bold text-amber-700">Pergunta — Escolha a opção</div>
+                <div class="text-[10px] text-amber-600 space-y-0.5 mt-1">
+                  <div>1️⃣ Conhecer planos</div>
+                  <div>2️⃣ Suporte técnico</div>
+                  <div>3️⃣ Falar com vendas</div>
+                </div>
+              </div>
+            </div>
+            <div class="ml-5 border-l-2 border-dashed border-slate-200 h-3"></div>
+            <!-- Condition node -->
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center"><i class="ph-bold ph-git-branch text-violet-600 text-sm"></i></div>
+              <div class="flex-1 bg-violet-50 border border-violet-200 rounded-lg px-4 py-2.5">
+                <div class="text-xs font-bold text-violet-700">Condição</div>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-medium">= 1 → Fluxo Planos</span>
+                  <span class="text-[9px] bg-sky-100 text-sky-700 px-2 py-0.5 rounded font-medium">= 2 → Fila Suporte</span>
+                  <span class="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-medium">= 3 → Fila Vendas</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     DEEP DIVE 2 — Inbox Multi-agente & Filas
+═══════════════════════════════════════════════ -->
+<section class="py-20 overflow-hidden">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      <!-- Visual — Inbox/Filas mockup (esquerda no desktop) -->
+      <div class="order-2 lg:order-1 reveal">
+        <div class="relative bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
+          <!-- Tabs -->
+          <div class="flex items-center gap-0 border-b border-slate-100 bg-slate-50/50">
+            <button class="px-5 py-3 text-xs font-semibold text-primary-600 border-b-2 border-primary-600 bg-white">Filas</button>
+            <button class="px-5 py-3 text-xs font-medium text-slate-500">Agentes</button>
+            <button class="px-5 py-3 text-xs font-medium text-slate-500">Departamentos</button>
+          </div>
+          <div class="p-5">
+            <!-- Queue cards -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-lg bg-primary-100 flex items-center justify-center"><i class="ph-duotone ph-headset text-primary-600 text-base"></i></div>
+                  <div>
+                    <div class="text-sm font-semibold text-slate-800">Vendas — VIP</div>
+                    <div class="text-[10px] text-slate-500">Depto: Comercial · 3 agentes</div>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="text-lg font-bold text-slate-900">8</div>
+                  <div class="text-[10px] text-amber-600 font-medium">na fila</div>
+                </div>
+              </div>
+              <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center"><i class="ph-duotone ph-wrench text-emerald-600 text-base"></i></div>
+                  <div>
+                    <div class="text-sm font-semibold text-slate-800">Suporte — Técnico</div>
+                    <div class="text-[10px] text-slate-500">Depto: Suporte · 5 agentes</div>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="text-lg font-bold text-slate-900">14</div>
+                  <div class="text-[10px] text-amber-600 font-medium">na fila</div>
+                </div>
+              </div>
+              <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-lg bg-violet-100 flex items-center justify-center"><i class="ph-duotone ph-currency-circle-dollar text-violet-600 text-base"></i></div>
+                  <div>
+                    <div class="text-sm font-semibold text-slate-800">Financeiro — Geral</div>
+                    <div class="text-[10px] text-slate-500">Depto: Financeiro · 2 agentes</div>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="text-lg font-bold text-slate-900">3</div>
+                  <div class="text-[10px] text-emerald-600 font-medium">baixa</div>
+                </div>
+              </div>
+            </div>
+            <!-- Agent status -->
+            <div class="mt-5 pt-4 border-t border-slate-100">
+              <div class="text-xs font-semibold text-slate-700 mb-3">Agentes online agora</div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <div class="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-[10px] font-medium px-2.5 py-1 rounded-full border border-emerald-200">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Ana — 4 conversas
+                </div>
+                <div class="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-[10px] font-medium px-2.5 py-1 rounded-full border border-emerald-200">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Carlos — 6 conversas
+                </div>
+                <div class="flex items-center gap-1.5 bg-amber-50 text-amber-700 text-[10px] font-medium px-2.5 py-1 rounded-full border border-amber-200">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Beatriz — pausada
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Text -->
+      <div class="order-1 lg:order-2 reveal">
+        <span class="inline-flex items-center gap-1.5 text-emerald-600 text-xs font-semibold uppercase tracking-widest mb-3">
+          <i class="ph-bold ph-users-three"></i> Filas & Agentes
+        </span>
+        <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
+          Distribua conversas<br class="hidden lg:block" />
+          <span class="text-emerald-600">por departamento e fila</span>
+        </h2>
+        <p class="mt-4 text-slate-500 text-lg leading-relaxed">
+          Organize seu time em departamentos (Vendas, Suporte, Financeiro) com múltiplas filas
+          em cada um. O roteamento direciona cada conversa ao lugar certo.
+        </p>
+        <ul class="mt-7 space-y-3">
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-md bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="ph-bold ph-check text-emerald-600 text-xs"></i></span>
+            <div><span class="text-sm font-semibold text-slate-800">Hierarquia real</span><span class="text-sm text-slate-500"> — Organização → Departamento → Fila(s) → Agentes</span></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-md bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="ph-bold ph-check text-emerald-600 text-xs"></i></span>
+            <div><span class="text-sm font-semibold text-slate-800">Inbox compartilhada</span><span class="text-sm text-slate-500"> — múltiplos agentes veem e assumem conversas em tempo real via WebSocket</span></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-md bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="ph-bold ph-check text-emerald-600 text-xs"></i></span>
+            <div><span class="text-sm font-semibold text-slate-800">Transfer entre filas</span><span class="text-sm text-slate-500"> — transfira conversas entre departamentos com um clique</span></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-md bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="ph-bold ph-check text-emerald-600 text-xs"></i></span>
+            <div><span class="text-sm font-semibold text-slate-800">RBAC granular</span><span class="text-sm text-slate-500"> — admin, supervisor, agente, viewer — cada um vê só o que pode</span></div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     DEEP DIVE 3 — Campanhas & Templates
+═══════════════════════════════════════════════ -->
+<section class="py-20 bg-slate-50/70 overflow-hidden">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      <!-- Text -->
+      <div class="reveal">
+        <span class="inline-flex items-center gap-1.5 text-violet-600 text-xs font-semibold uppercase tracking-widest mb-3">
+          <i class="ph-bold ph-megaphone"></i> Campanhas
+        </span>
+        <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
+          Disparos em massa com<br class="hidden lg:block" />
+          <span class="text-violet-600">templates aprovados pela Meta</span>
+        </h2>
+        <p class="mt-4 text-slate-500 text-lg leading-relaxed">
+          Crie campanhas segmentadas usando templates que você registra direto na plataforma.
+          Suporte a variáveis nomeadas e posicionais.
+        </p>
+        <ul class="mt-7 space-y-3">
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-md bg-violet-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="ph-bold ph-check text-violet-600 text-xs"></i></span>
+            <div><span class="text-sm font-semibold text-slate-800">Gestão de templates</span><span class="text-sm text-slate-500"> — crie, edite e sincronize templates da Meta Cloud API</span></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-md bg-violet-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="ph-bold ph-check text-violet-600 text-xs"></i></span>
+            <div><span class="text-sm font-semibold text-slate-800">Variáveis nomeadas</span><span class="text-sm text-slate-500"> — use {% verbatim %}{{nome}}{% endverbatim %}, {% verbatim %}{{codigo}}{% endverbatim %} em vez de {% verbatim %}{{1}}{% endverbatim %}, {% verbatim %}{{2}}{% endverbatim %} para legibilidade</span></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-md bg-violet-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="ph-bold ph-check text-violet-600 text-xs"></i></span>
+            <div><span class="text-sm font-semibold text-slate-800">Segmentação</span><span class="text-sm text-slate-500"> — filtre contatos por tags, último atendimento, departamento ou campo customizado</span></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-md bg-violet-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="ph-bold ph-check text-violet-600 text-xs"></i></span>
+            <div><span class="text-sm font-semibold text-slate-800">Relatório de entrega</span><span class="text-sm text-slate-500"> — acompanhe enviado, entregue, lido e respondido em tempo real</span></div>
+          </li>
+        </ul>
+      </div>
+      <!-- Visual — Campaign mockup -->
+      <div class="reveal">
+        <div class="relative bg-white rounded-2xl border border-slate-200 shadow-xl p-6 overflow-hidden">
+          <div class="absolute bottom-0 left-0 w-40 h-40 bg-violet-50 rounded-full blur-3xl pointer-events-none"></div>
+          <!-- Campaign header -->
+          <div class="flex items-center justify-between mb-5">
+            <div>
+              <div class="text-sm font-bold text-slate-800">Campanha: Black Friday 2025</div>
+              <div class="text-[10px] text-slate-500 mt-0.5">Template: promo_blackfriday · Agendada para 29/11 às 09:00</div>
+            </div>
+            <span class="text-[10px] bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-semibold">Agendada</span>
+          </div>
+          <!-- Template preview -->
+          <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-200 mb-5">
+            <div class="flex items-center gap-1.5 text-[10px] text-emerald-600 font-semibold mb-2">
+              <i class="ph-bold ph-whatsapp-logo"></i> Preview do template
+            </div>
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
+              <p class="text-xs text-slate-700 leading-relaxed">
+                Olá <strong class="text-primary-600">{% verbatim %}{{nome}}{% endverbatim %}</strong>! 🎉<br/>
+                Aproveite a <strong>Black Friday PyTake</strong>!<br/>
+                Use o cupom <strong class="text-violet-600">{% verbatim %}{{cupom}}{% endverbatim %}</strong> e ganhe <strong>30% de desconto</strong> no plano Pro.<br/><br/>
+                Válido até 30/11. Não perca! 🚀
+              </p>
+            </div>
+          </div>
+          <!-- Audience -->
+          <div class="grid grid-cols-3 gap-3 mb-4">
+            <div class="bg-slate-50 rounded-lg p-3 text-center border border-slate-100">
+              <div class="text-lg font-bold text-slate-900">2.340</div>
+              <div class="text-[10px] text-slate-500">Contatos</div>
+            </div>
+            <div class="bg-slate-50 rounded-lg p-3 text-center border border-slate-100">
+              <div class="text-lg font-bold text-slate-900">3</div>
+              <div class="text-[10px] text-slate-500">Segmentos</div>
+            </div>
+            <div class="bg-slate-50 rounded-lg p-3 text-center border border-slate-100">
+              <div class="text-lg font-bold text-slate-900">2</div>
+              <div class="text-[10px] text-slate-500">Variáveis</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[10px] bg-primary-50 text-primary-600 border border-primary-200 px-2 py-0.5 rounded-full font-medium">Tag: leads-quentes</span>
+            <span class="text-[10px] bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">Tag: clientes-ativos</span>
+            <span class="text-[10px] bg-violet-50 text-violet-600 border border-violet-200 px-2 py-0.5 rounded-full font-medium">Tag: ex-clientes</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     DEEP DIVE 4 — Analytics & Real-time
+═══════════════════════════════════════════════ -->
+<section class="py-20 overflow-hidden">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      <!-- Visual — Analytics mockup (esquerda) -->
+      <div class="order-2 lg:order-1 reveal">
+        <div class="relative bg-white rounded-2xl border border-slate-200 shadow-xl p-6 overflow-hidden">
+          <div class="absolute top-0 right-0 w-40 h-40 bg-sky-50 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="text-xs font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <i class="ph-duotone ph-chart-line-up text-primary-600"></i> Dashboard — Últimos 7 dias
+          </div>
+          <!-- KPI row -->
+          <div class="grid grid-cols-2 gap-3 mb-5">
+            <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
+              <div class="text-[10px] text-slate-500 font-medium">Total de conversas</div>
+              <div class="text-xl font-bold text-slate-900 mt-0.5">487</div>
+              <div class="text-[10px] text-emerald-600 flex items-center gap-0.5 mt-0.5"><i class="ph-bold ph-trend-up text-[10px]"></i> 12% vs semana anterior</div>
+            </div>
+            <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
+              <div class="text-[10px] text-slate-500 font-medium">Resolvidas pelo bot</div>
+              <div class="text-xl font-bold text-slate-900 mt-0.5">312</div>
+              <div class="text-[10px] text-primary-600 flex items-center gap-0.5 mt-0.5"><i class="ph-bold ph-robot text-[10px]"></i> 64% do total</div>
+            </div>
+            <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
+              <div class="text-[10px] text-slate-500 font-medium">Tempo médio resposta</div>
+              <div class="text-xl font-bold text-slate-900 mt-0.5">1m 48s</div>
+              <div class="text-[10px] text-emerald-600 flex items-center gap-0.5 mt-0.5"><i class="ph-bold ph-trend-down text-[10px]"></i> 8% mais rápido</div>
+            </div>
+            <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
+              <div class="text-[10px] text-slate-500 font-medium">Msgs enviadas</div>
+              <div class="text-xl font-bold text-slate-900 mt-0.5">4.921</div>
+              <div class="text-[10px] text-slate-400">Incluindo campanhas</div>
+            </div>
+          </div>
+          <!-- Chart -->
+          <div class="bg-slate-50 rounded-lg border border-slate-100 p-4">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-[10px] font-semibold text-slate-600">Conversas por dia</span>
+              <div class="flex items-center gap-3">
+                <span class="flex items-center gap-1 text-[9px] text-slate-500"><span class="w-2 h-2 rounded-full bg-primary-500"></span> Bot</span>
+                <span class="flex items-center gap-1 text-[9px] text-slate-500"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Humano</span>
+              </div>
+            </div>
+            <div class="flex items-end gap-2 h-28">
+              <div class="flex-1 flex flex-col items-center gap-0.5">
+                <div class="w-full rounded-t bg-primary-400/70" style="height:45%"></div>
+                <div class="w-full rounded-t bg-emerald-400/70" style="height:20%"></div>
+                <span class="text-[8px] text-slate-400 mt-1">Seg</span>
+              </div>
+              <div class="flex-1 flex flex-col items-center gap-0.5">
+                <div class="w-full rounded-t bg-primary-400/70" style="height:55%"></div>
+                <div class="w-full rounded-t bg-emerald-400/70" style="height:25%"></div>
+                <span class="text-[8px] text-slate-400 mt-1">Ter</span>
+              </div>
+              <div class="flex-1 flex flex-col items-center gap-0.5">
+                <div class="w-full rounded-t bg-primary-400/70" style="height:60%"></div>
+                <div class="w-full rounded-t bg-emerald-400/70" style="height:30%"></div>
+                <span class="text-[8px] text-slate-400 mt-1">Qua</span>
+              </div>
+              <div class="flex-1 flex flex-col items-center gap-0.5">
+                <div class="w-full rounded-t bg-primary-400/70" style="height:50%"></div>
+                <div class="w-full rounded-t bg-emerald-400/70" style="height:22%"></div>
+                <span class="text-[8px] text-slate-400 mt-1">Qui</span>
+              </div>
+              <div class="flex-1 flex flex-col items-center gap-0.5">
+                <div class="w-full rounded-t bg-primary-500/80" style="height:75%"></div>
+                <div class="w-full rounded-t bg-emerald-500/80" style="height:35%"></div>
+                <span class="text-[8px] text-slate-400 mt-1">Sex</span>
+              </div>
+              <div class="flex-1 flex flex-col items-center gap-0.5">
+                <div class="w-full rounded-t bg-primary-300/50" style="height:30%"></div>
+                <div class="w-full rounded-t bg-emerald-300/50" style="height:12%"></div>
+                <span class="text-[8px] text-slate-400 mt-1">Sáb</span>
+              </div>
+              <div class="flex-1 flex flex-col items-center gap-0.5">
+                <div class="w-full rounded-t bg-primary-300/50" style="height:20%"></div>
+                <div class="w-full rounded-t bg-emerald-300/50" style="height:8%"></div>
+                <span class="text-[8px] text-slate-400 mt-1">Dom</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Text -->
+      <div class="order-1 lg:order-2 reveal">
+        <span class="inline-flex items-center gap-1.5 text-sky-600 text-xs font-semibold uppercase tracking-widest mb-3">
+          <i class="ph-bold ph-chart-line-up"></i> Analytics
+        </span>
+        <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
+          Métricas em tempo real<br class="hidden lg:block" />
+          <span class="text-sky-600">para tomar decisões</span>
+        </h2>
+        <p class="mt-4 text-slate-500 text-lg leading-relaxed">
+          Dashboard completo com tudo que você precisa para entender a operação
+          e melhorar continuamente. Atualização em tempo real via WebSocket.
+        </p>
+        <ul class="mt-7 space-y-3">
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-md bg-sky-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="ph-bold ph-check text-sky-600 text-xs"></i></span>
+            <div><span class="text-sm font-semibold text-slate-800">Volume de conversas</span><span class="text-sm text-slate-500"> — por dia, semana, mês, com comparativo de períodos</span></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-md bg-sky-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="ph-bold ph-check text-sky-600 text-xs"></i></span>
+            <div><span class="text-sm font-semibold text-slate-800">Performance de agentes</span><span class="text-sm text-slate-500"> — tempo de resposta, volume atendido, satisfação do cliente</span></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-md bg-sky-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="ph-bold ph-check text-sky-600 text-xs"></i></span>
+            <div><span class="text-sm font-semibold text-slate-800">Eficiência do chatbot</span><span class="text-sm text-slate-500"> — taxa de resolução sem humano, pontos de abandono no fluxo</span></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-md bg-sky-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="ph-bold ph-check text-sky-600 text-xs"></i></span>
+            <div><span class="text-sm font-semibold text-slate-800">Relatórios de campanha</span><span class="text-sm text-slate-500"> — entrega, leitura, resposta e conversão por campanha</span></div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     PLATAFORMA TÉCNICA — Segurança & Infraestrutura
+═══════════════════════════════════════════════ -->
+<section class="py-20 bg-slate-50/70">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-2xl mx-auto text-center mb-14 reveal">
+      <span class="inline-flex items-center gap-1.5 text-slate-600 text-xs font-semibold uppercase tracking-widest mb-3">
+        <i class="ph-bold ph-shield-check"></i> Infraestrutura
+      </span>
+      <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+        Plataforma robusta <span class="text-primary-600">de verdade</span>
+      </h2>
+      <p class="mt-4 text-slate-500 text-lg">Construída com as mesmas tecnologias usadas por empresas de alto crescimento.</p>
+    </div>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 reveal">
+      <div class="bg-white rounded-xl p-5 border border-slate-200/80 text-center">
+        <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 mx-auto mb-3"><i class="ph-duotone ph-whatsapp-logo text-xl"></i></div>
+        <div class="text-sm font-bold text-slate-800">API Oficial Meta</div>
+        <div class="text-xs text-slate-500 mt-1">Cloud API verificada, nada de APIs paralelas</div>
+      </div>
+      <div class="bg-white rounded-xl p-5 border border-slate-200/80 text-center">
+        <div class="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center text-primary-600 mx-auto mb-3"><i class="ph-duotone ph-lock text-xl"></i></div>
+        <div class="text-sm font-bold text-slate-800">TLS 1.3 + Argon2</div>
+        <div class="text-xs text-slate-500 mt-1">Criptografia em trânsito e senhas com hash seguro</div>
+      </div>
+      <div class="bg-white rounded-xl p-5 border border-slate-200/80 text-center">
+        <div class="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center text-violet-600 mx-auto mb-3"><i class="ph-duotone ph-buildings text-xl"></i></div>
+        <div class="text-sm font-bold text-slate-800">Multi-tenant</div>
+        <div class="text-xs text-slate-500 mt-1">Dados isolados por organização, sem vazamento</div>
+      </div>
+      <div class="bg-white rounded-xl p-5 border border-slate-200/80 text-center">
+        <div class="w-10 h-10 rounded-lg bg-sky-50 flex items-center justify-center text-sky-600 mx-auto mb-3"><i class="ph-duotone ph-lightning text-xl"></i></div>
+        <div class="text-sm font-bold text-slate-800">Real-time WebSocket</div>
+        <div class="text-xs text-slate-500 mt-1">Atualizações instantâneas via Socket.IO/Channels</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     COMO FUNCIONA
+═══════════════════════════════════════════════ -->
+<section class="py-20">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-2xl mx-auto text-center mb-14 reveal">
+      <span class="inline-flex items-center gap-1.5 text-primary-600 text-xs font-semibold uppercase tracking-widest mb-3">
+        <i class="ph-bold ph-numbered-list"></i> Comece agora
+      </span>
+      <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+        Operação rodando em <span class="text-primary-600">3 passos</span>
+      </h2>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-8 reveal">
+      <div class="relative text-center">
+        <div class="w-14 h-14 rounded-2xl bg-primary-600 text-white font-black text-xl flex items-center justify-center mx-auto shadow-lg shadow-primary-200/50">1</div>
+        <h3 class="mt-5 text-lg font-bold text-slate-900">Conecte o WhatsApp</h3>
+        <p class="mt-2 text-sm text-slate-500 leading-relaxed">Vincule seu número Business pela API oficial da Meta em poucos minutos.</p>
+        <div class="hidden md:block absolute top-7 left-[calc(50%+40px)] w-[calc(100%-80px)] border-t-2 border-dashed border-slate-200"></div>
+      </div>
+      <div class="relative text-center">
+        <div class="w-14 h-14 rounded-2xl bg-primary-600 text-white font-black text-xl flex items-center justify-center mx-auto shadow-lg shadow-primary-200/50">2</div>
+        <h3 class="mt-5 text-lg font-bold text-slate-900">Configure filas e bots</h3>
+        <p class="mt-2 text-sm text-slate-500 leading-relaxed">Crie departamentos, filas e use o flow builder para montar seus chatbots.</p>
+        <div class="hidden md:block absolute top-7 left-[calc(50%+40px)] w-[calc(100%-80px)] border-t-2 border-dashed border-slate-200"></div>
+      </div>
+      <div class="text-center">
+        <div class="w-14 h-14 rounded-2xl bg-primary-600 text-white font-black text-xl flex items-center justify-center mx-auto shadow-lg shadow-primary-200/50">3</div>
+        <h3 class="mt-5 text-lg font-bold text-slate-900">Atenda e escale</h3>
+        <p class="mt-2 text-sm text-slate-500 leading-relaxed">Seu time atende via inbox unificada enquanto o bot resolve o que puder sozinho.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     CTA FINAL
+═══════════════════════════════════════════════ -->
+<section class="py-20 bg-slate-50/70">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 reveal">
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-600 to-primary-800 p-10 sm:p-14 text-center">
+      <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute bottom-0 left-0 w-48 h-48 bg-primary-400/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="relative">
+        <h2 class="text-3xl sm:text-4xl font-black text-white tracking-tight">Pronto para profissionalizar seu WhatsApp?</h2>
+        <p class="mt-4 text-lg text-primary-100 max-w-xl mx-auto">Crie sua conta, conecte o número e comece a usar. 14 dias grátis sem cartão.</p>
+        <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <a href="{% url 'web:register' %}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-white text-primary-700 font-bold text-base hover:bg-primary-50 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5">
+            <i class="ph-bold ph-rocket text-lg"></i>
+            Criar conta grátis
+          </a>
+          <a href="{% url 'web:pricing' %}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-sm font-semibold text-white/90 hover:text-white transition-colors">
+            <i class="ph-bold ph-tag text-base"></i>
+            Ver planos e preços
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

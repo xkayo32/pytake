@@ -63,12 +63,20 @@ services:
       dockerfile: Dockerfile
     container_name: pytake-backend-dev
     restart: unless-stopped
+    command: >
+      sh -c "python manage.py migrate &&
+             uvicorn pytake.asgi:application --host 0.0.0.0 --port 8000 --reload --reload-dir /app --reload-include '*.html' --reload-include '*.css'"
     ports:
       - "8002:8000"
     volumes:
       - ./.env:/app/.env:ro
       - ./backend:/app
+      - python_venv:/app/.venv  # volume nomeado: packages persistem sem rebuild
     environment:
+      # venv
+      VIRTUAL_ENV: /app/.venv
+      PATH: /app/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
       # Database
       DATABASE_URL: postgresql://${POSTGRES_USER:-pytake_user}:Odc7%2FffNnTnG4hkbwV%2BSx2ZgK61rXW2r9U2o7Rd25DU%3D@postgres:5432/${POSTGRES_DB:-pytake}
       POSTGRES_USER: ${POSTGRES_USER:-pytake_user}
@@ -132,7 +140,11 @@ services:
     volumes:
       - ./.env:/app/.env:ro
       - ./backend:/app
+      - python_venv:/app/.venv
     environment:
+      VIRTUAL_ENV: /app/.venv
+      PATH: /app/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
       # Database
       DATABASE_URL: postgresql://${POSTGRES_USER:-pytake_user}:Odc7%2FffNnTnG4hkbwV%2BSx2ZgK61rXW2r9U2o7Rd25DU%3D@postgres:5432/${POSTGRES_DB:-pytake}
       POSTGRES_USER: ${POSTGRES_USER:-pytake_user}
@@ -187,7 +199,11 @@ services:
     volumes:
       - ./.env:/app/.env:ro
       - ./backend:/app
+      - python_venv:/app/.venv
     environment:
+      VIRTUAL_ENV: /app/.venv
+      PATH: /app/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
       # Database
       DATABASE_URL: postgresql://${POSTGRES_USER:-pytake_user}:Odc7%2FffNnTnG4hkbwV%2BSx2ZgK61rXW2r9U2o7Rd25DU%3D@postgres:5432/${POSTGRES_DB:-pytake}
       POSTGRES_USER: ${POSTGRES_USER:-pytake_user}
@@ -260,6 +276,8 @@ volumes:
     driver: local
   mongodb_data_dev:
     driver: local
+  python_venv:
+    driver: local  # packages uv instalados via exec ficam aqui sem rebuild
 
 networks:
   pytake-network:

@@ -12,6 +12,19 @@ ALLOWED_HOSTS = ['*']
 # CORS - allow all origins in development
 CORS_ALLOW_ALL_ORIGINS = True
 
+# CSRF - permitir origins de desenvolvimento e produção
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8002',
+    'http://localhost',
+    'https://pytake.net',
+    'https://www.pytake.net',
+    'https://dev.pytake.net',
+    'https://app.pytake.net',
+]
+
+# Proxy SSL - Django trust nginx X-Forwarded-Proto
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # Database - use development database
 DATABASES['default']['NAME'] = os.getenv('POSTGRES_DB', 'pytake_dev')
 

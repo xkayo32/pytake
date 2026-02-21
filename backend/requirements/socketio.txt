@@ -1,0 +1,2 @@
+# Socket.IO support for real-time WebSocket communication
+python-socketio>=5.11.0

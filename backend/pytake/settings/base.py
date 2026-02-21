@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     
     # PyTake apps
+    'apps.web',
     'apps.core',
     'apps.organizations',
     'apps.rbac',
@@ -66,7 +67,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # serve static files
     'corsheaders.middleware.CorsMiddleware',  # CORS must be before CommonMiddleware
+    'apps.core.middleware.TrailingSlashMiddleware',  # Handle URLs with/without trailing slash
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -80,13 +83,14 @@ ROOT_URLCONF = 'pytake.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'apps.web.context_processors.global_settings',
             ],
         },
     },
@@ -140,11 +144,27 @@ TIME_ZONE = 'America/Sao_Paulo'
 USE_I18N = True
 USE_TZ = True
 
+# URL Configuration
+# Disable automatic trailing slash appending (breaks DELETE requests without slash)
+APPEND_SLASH = False
+
+# Base URL for webhook generation and external links
+# In production, this should be the public domain (e.g., https://pytake.net)
+BASE_URL = os.getenv('BASE_URL', 'https://pytake.net')
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+# ── Autenticação web (Django session) ───────
+LOGIN_URL = '/entrar/'
+LOGIN_REDIRECT_URL = '/app/'
+LOGOUT_REDIRECT_URL = '/entrar/'
+
+# ── Handlers de erro ────────────────────────
+handler404 = 'apps.web.views.error_404'
+handler500 = 'apps.web.views.error_500'
+handler403 = 'apps.web.views.error_403'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
@@ -155,9 +175,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ============================================================================
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static']
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# WhiteNoise — serve static files eficientemente
+WHITENOISE_USE_FINDERS = True       # dev: encontra arquivos sem collectstatic
+WHITENOISE_AUTOREFRESH = True       # dev: detecta mudanças em tempo real
+# STORAGES é definido em production.py com CompressedManifestStaticFilesStorage
 
 # ============================================================================
 # REDIS CONFIGURATION

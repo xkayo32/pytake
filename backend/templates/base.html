@@ -1,0 +1,128 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth {% block html_class %}{% endblock %}">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="{% block meta_description %}PyTake — Plataforma de automação WhatsApp Business para empresas{% endblock %}" />
+  <meta name="theme-color" content="#2563EB" />
+  <title>{% block title %}PyTake{% endblock %} {% block title_suffix %}| PyTake{% endblock %}</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}" />
+
+  <!-- Tailwind CSS compilado -->
+  <link rel="stylesheet" href="{% static 'css/tailwind.css' %}" />
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous" defer></script>
+
+  <!-- Alpine.js + Collapse plugin -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1" defer></script>
+
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    [x-cloak] { display: none !important; }
+
+    /* HTMX loading indicators */
+    .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+    .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+
+    /* Scroll-triggered reveal animations */
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+    .reveal-delay-4 { transition-delay: 0.4s; }
+    .reveal-delay-5 { transition-delay: 0.5s; }
+
+    /* Focus */
+    :focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; border-radius: 4px; }
+
+    /* Gradient text */
+    .text-gradient { -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    /* Glass */
+    .glass { background: rgba(255,255,255,0.07); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="{% block body_class %}bg-slate-50 text-slate-800 antialiased{% endblock %}">
+
+  {% block body %}{% endblock %}
+
+  <!-- ── Toast para mensagens Django ───────────────────── -->
+  {% if messages %}
+  <div
+    x-data="{ toasts: [] }"
+    x-init="
+      {% for message in messages %}
+      toasts.push({ id: {{ forloop.counter }}, text: '{{ message|escapejs }}', type: '{{ message.tags }}' });
+      {% endfor %}
+      toasts.forEach(t => setTimeout(() => toasts.splice(toasts.indexOf(t), 1), 5000))
+    "
+    class="fixed bottom-4 right-4 z-50 flex flex-col gap-2.5"
+    aria-live="polite"
+  >
+    <template x-for="toast in toasts" :key="toast.id">
+      <div
+        x-show="true"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0 translate-y-3 scale-95"
+        x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0 translate-y-3"
+        class="flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl shadow-black/10 text-sm font-medium max-w-sm border"
+        :class="{
+          'bg-success-50 text-success-700 border-success-200': toast.type === 'success',
+          'bg-danger-50 text-danger-700 border-danger-200': toast.type === 'error',
+          'bg-warning-50 text-warning-700 border-warning-200': toast.type === 'warning',
+          'bg-primary-50 text-primary-700 border-primary-200': toast.type === 'info' || !toast.type,
+        }"
+      >
+        <i class="ph-fill text-lg"
+          :class="{
+            'ph-check-circle text-success-500': toast.type === 'success',
+            'ph-x-circle text-danger-500': toast.type === 'error',
+            'ph-warning text-warning-500': toast.type === 'warning',
+            'ph-info text-primary-500': toast.type === 'info' || !toast.type,
+          }"
+        ></i>
+        <span x-text="toast.text"></span>
+        <button @click="toasts.splice(toasts.indexOf(toast), 1)" class="ml-auto opacity-50 hover:opacity-100 transition-opacity">
+          <i class="ph-bold ph-x text-xs"></i>
+        </button>
+      </div>
+    </template>
+  </div>
+  {% endif %}
+
+  <!-- ── IntersectionObserver para scroll reveal ─────── -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } });
+      }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+      document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+    });
+  </script>
+
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

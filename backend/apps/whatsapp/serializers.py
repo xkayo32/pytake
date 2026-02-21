@@ -6,19 +6,37 @@ from .models import WhatsAppNumber, WhatsAppTemplate
 
 
 class WhatsAppNumberListSerializer(serializers.ModelSerializer):
+    webhook_url_full = serializers.SerializerMethodField()
+
     class Meta:
         model = WhatsAppNumber
         fields = [
             'id', 'phone_number', 'display_name', 'connection_type',
             'status', 'is_active', 'is_verified', 'quality_rating',
+            'webhook_token', 'webhook_url_full', 'webhook_verify_token',
             'created_at'
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'webhook_token', 'webhook_url_full', 'created_at']
+
+    def get_webhook_url_full(self, obj):
+        """Generate FULL webhook URL with domain for Meta configuration"""
+        if obj.webhook_token:
+            request = self.context.get('request')
+            if request:
+                scheme = 'https' if request.is_secure() else 'http'
+                host = request.get_host()
+                return f"{scheme}://{host}/api/v1/webhooks/whatsapp/{obj.webhook_token}/"
+            else:
+                from django.conf import settings
+                base_url = getattr(settings, 'BASE_URL', 'https://pytake.net')
+                return f"{base_url}/api/v1/webhooks/whatsapp/{obj.webhook_token}/"
+        return None
 
 
 class WhatsAppNumberDetailSerializer(serializers.ModelSerializer):
     webhook_url = serializers.SerializerMethodField()
-    
+    webhook_url_full = serializers.SerializerMethodField()
+
     class Meta:
         model = WhatsAppNumber
         fields = [
@@ -32,21 +50,45 @@ class WhatsAppNumberDetailSerializer(serializers.ModelSerializer):
             'quality_rating', 'messaging_limit_tier',
             'default_chatbot', 'default_department',
             'business_hours', 'away_message', 'welcome_message',
-            'settings', 'webhook_token', 'webhook_url', 'webhook_id', 'created_at', 'updated_at'
+            'settings', 'webhook_token', 'webhook_url', 'webhook_url_full',
+            'webhook_id', 'created_at', 'updated_at'
         ]
         read_only_fields = [
-            'id', 'webhook_token', 'webhook_url', 'webhook_id', 'created_at', 'updated_at'
+            'id', 'webhook_token', 'webhook_url', 'webhook_url_full',
+            'webhook_id', 'created_at', 'updated_at'
         ]
         extra_kwargs = {
             'access_token': {'write_only': True},
             'app_secret': {'write_only': True},
             'evolution_api_key': {'write_only': True}
         }
-    
+
     def get_webhook_url(self, obj):
-        """Generate full webhook URL using webhook_token"""
+        """Generate relative webhook URL using webhook_token"""
         if obj.webhook_token:
             return f"/api/v1/webhooks/whatsapp/{obj.webhook_token}/"
+        return None
+
+    def get_webhook_url_full(self, obj):
+        """
+        Generate FULL webhook URL with domain for Meta configuration
+        Returns the complete URL that should be configured in Meta WhatsApp
+        """
+        if obj.webhook_token:
+            # Get request from context
+            request = self.context.get('request')
+
+            if request:
+                # Build absolute URL using request's scheme and host
+                scheme = 'https' if request.is_secure() else 'http'
+                host = request.get_host()
+                return f"{scheme}://{host}/api/v1/webhooks/whatsapp/{obj.webhook_token}/"
+            else:
+                # Fallback: use environment-based URL
+                from django.conf import settings
+                base_url = getattr(settings, 'BASE_URL', 'https://pytake.net')
+                return f"{base_url}/api/v1/webhooks/whatsapp/{obj.webhook_token}/"
+
         return None
 
 

@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block body_class %}bg-slate-100 text-slate-800 antialiased{% endblock %}
+
+{% block body %}
+<div class="flex h-screen overflow-hidden" x-data="{ sidebarOpen: false, sidebarCollapsed: false }">
+
+  <!-- ── SIDEBAR ───────────────────────────────────────── -->
+  <!-- Overlay mobile -->
+  <div x-show="sidebarOpen" x-cloak @click="sidebarOpen = false"
+       class="fixed inset-0 bg-black/40 z-20 lg:hidden"
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0">
+  </div>
+
+  <aside
+    class="fixed inset-y-0 left-0 z-30 flex flex-col bg-slate-900 transition-all duration-300 lg:static lg:translate-x-0"
+    :class="{
+      'translate-x-0': sidebarOpen,
+      '-translate-x-full': !sidebarOpen,
+      'w-64': !sidebarCollapsed,
+      'w-16': sidebarCollapsed
+    }"
+  >
+    <!-- Logo -->
+    <div class="flex items-center h-16 px-4 border-b border-slate-700/60 flex-shrink-0">
+      <a href="{% url 'web:dashboard' %}" class="flex items-center gap-3 min-w-0">
+        <span class="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white font-black text-sm flex-shrink-0">P</span>
+        <span class="font-bold text-white truncate" x-show="!sidebarCollapsed" x-cloak>PyTake</span>
+      </a>
+      <button @click="sidebarCollapsed = !sidebarCollapsed" class="ml-auto text-slate-400 hover:text-white hidden lg:block">
+        <i class="ph-bold text-base" :class="sidebarCollapsed ? 'ph-caret-right' : 'ph-caret-left'"></i>
+      </button>
+    </div>
+
+    <!-- Nav links -->
+    <nav class="flex-1 overflow-y-auto py-4 px-2 space-y-0.5">
+
+      {% with current_page=request.resolver_match.url_name %}
+
+      <!-- Dashboard -->
+      <a href="{% url 'web:dashboard' %}"
+         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group
+         {% if current_page == 'dashboard' %}bg-primary-600 text-white{% else %}text-slate-300 hover:bg-slate-700/60 hover:text-white{% endif %}">
+        <i class="ph-bold ph-squares-four text-base flex-shrink-0"></i>
+        <span x-show="!sidebarCollapsed" x-cloak class="truncate">Dashboard</span>
+      </a>
+
+      <!-- Conversas -->
+      <a href="#"
+         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-300 hover:bg-slate-700/60 hover:text-white">
+        <i class="ph-bold ph-chats text-base flex-shrink-0"></i>
+        <span x-show="!sidebarCollapsed" x-cloak class="truncate">Conversas</span>
+      </a>
+
+      <!-- Contatos -->
+      <a href="#"
+         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-300 hover:bg-slate-700/60 hover:text-white">
+        <i class="ph-bold ph-address-book text-base flex-shrink-0"></i>
+        <span x-show="!sidebarCollapsed" x-cloak class="truncate">Contatos</span>
+      </a>
+
+      <!-- Campanhas -->
+      <a href="#"
+         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-300 hover:bg-slate-700/60 hover:text-white">
+        <i class="ph-bold ph-megaphone-simple text-base flex-shrink-0"></i>
+        <span x-show="!sidebarCollapsed" x-cloak class="truncate">Campanhas</span>
+      </a>
+
+      <!-- Flow Builder -->
+      <a href="#"
+         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-300 hover:bg-slate-700/60 hover:text-white">
+        <i class="ph-bold ph-flow-arrow text-base flex-shrink-0"></i>
+        <span x-show="!sidebarCollapsed" x-cloak class="truncate">Flow Builder</span>
+      </a>
+
+      <!-- Separador -->
+      <div class="my-2 border-t border-slate-700/50"></div>
+
+      <!-- Analytics -->
+      <a href="#"
+         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-300 hover:bg-slate-700/60 hover:text-white">
+        <i class="ph-bold ph-chart-bar text-base flex-shrink-0"></i>
+        <span x-show="!sidebarCollapsed" x-cloak class="truncate">Analytics</span>
+      </a>
+
+      <!-- Configurações -->
+      <a href="#"
+         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-300 hover:bg-slate-700/60 hover:text-white">
+        <i class="ph-bold ph-gear text-base flex-shrink-0"></i>
+        <span x-show="!sidebarCollapsed" x-cloak class="truncate">Configurações</span>
+      </a>
+
+      {% endwith %}
+    </nav>
+
+    <!-- User footer -->
+    <div class="flex-shrink-0 border-t border-slate-700/60 p-3">
+      <div class="flex items-center gap-3" x-show="!sidebarCollapsed" x-cloak>
+        <div class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+          {{ request.user.first_name|first|upper|default:"U" }}
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-xs font-semibold text-white truncate">{{ request.user.get_full_name|default:request.user.email }}</p>
+          <p class="text-xs text-slate-400 truncate">{{ request.user.role|default:"Agente" }}</p>
+        </div>
+        <a href="{% url 'web:logout' %}" class="text-slate-400 hover:text-white transition-colors" title="Sair">
+          <i class="ph-bold ph-sign-out text-base"></i>
+        </a>
+      </div>
+      <!-- Collapsed -->
+      <div class="flex justify-center" x-show="sidebarCollapsed">
+        <a href="{% url 'web:logout' %}" class="text-slate-400 hover:text-white transition-colors" title="Sair">
+          <i class="ph-bold ph-sign-out text-base"></i>
+        </a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── MAIN AREA ─────────────────────────────────────── -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+
+    <!-- Topbar -->
+    <header class="flex-shrink-0 bg-white border-b border-slate-200 h-16 flex items-center px-4 lg:px-6 gap-4">
+      <!-- Hamburger mobile -->
+      <button @click="sidebarOpen = true" class="lg:hidden text-slate-500 hover:text-slate-700">
+        <i class="ph-bold ph-list text-xl"></i>
+      </button>
+
+      <!-- Breadcrumb / Título da página -->
+      <div class="flex-1 min-w-0">
+        <h1 class="text-sm font-semibold text-slate-900 truncate">{% block page_title %}Dashboard{% endblock %}</h1>
+        {% block breadcrumb %}{% endblock %}
+      </div>
+
+      <!-- Topbar ações -->
+      <div class="flex items-center gap-2">
+        <!-- Notificações -->
+        <button class="relative w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-colors">
+          <i class="ph-bold ph-bell text-lg"></i>
+          <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-danger-500"></span>
+        </button>
+
+        <!-- Avatar -->
+        <div class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-xs font-bold cursor-pointer">
+          {{ request.user.first_name|first|upper|default:"U" }}
+        </div>
+      </div>
+    </header>
+
+    <!-- Page content -->
+    <main class="flex-1 overflow-y-auto p-4 lg:p-6">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+</div>
+{% endblock %}
